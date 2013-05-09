@@ -837,7 +837,7 @@ config PROCESS_RECLAIM
 	  (echo addr size-byte > /proc/PID/reclaim) reclaims pages in
 	  (addr, addr + size-bytes) of the process.
 
-	  Any other vaule is ignored.
+	  Any other value is ignored.
 
 config FAULT_AROUND_4KB
 	bool "Fault around bytes 4KB"
