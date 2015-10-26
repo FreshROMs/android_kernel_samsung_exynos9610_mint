@@ -646,17 +646,23 @@ config HPA
 	  Turns on High-order Pages Allocator based on page migration.
 
 config KSWAPD_CPU_AFFINITY_MASK
-	string "kswapd cpu affinity mask"
+	bool "set kswapd cpu affinity mask"
 	depends on SMP
 	help
 	  Set the cpu affinity for the kswapd task.
 	  There can be power benefits on certain targets when limiting kswapd
 	  to run only on certain cores.
+
+config KSWAPD_CPU_AFFINITY_MASK_VALUE
+	string "kswapd cpu affinity mask value"
+	depends on KSWAPD_CPU_AFFINITY_MASK
+	default "f"
+	help
 	  The cpu affinity bitmask is represented by a hex string where commas
 	  group hex digits into chunks.  Each chunk defines exactly 32 bits of
 	  the resultant bitmask.
 	  For example to limit kswapd to the first 4 cores use the following:
-	  CONFIG_KSWAPD_CPU_AFFINITY_MASK="f"
+	  CONFIG_KSWAPD_CPU_AFFINITY_MASK_VALUE="f"
 
 # For architectures that support deferred memory initialisation
 config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
