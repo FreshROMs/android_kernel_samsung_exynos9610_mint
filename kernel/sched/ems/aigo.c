@@ -217,9 +217,6 @@ bool aigov_should_update_freq(struct aigov_policy *ag_policy, u64 time)
 	    !cpufreq_can_do_remote_dvfs(ag_policy->policy))
 		return false;
 
-	if (ag_policy->work_in_progress)
-		return false;
-
 	if (unlikely(ag_policy->limits_changed)) {
 		ag_policy->limits_changed = false;
 		ag_policy->need_freq_update = true;
