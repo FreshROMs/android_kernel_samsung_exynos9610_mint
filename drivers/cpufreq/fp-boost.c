@@ -115,6 +115,7 @@ static int do_cpu_boost(struct notifier_block *nb,
 	struct boost_policy *b = boost_policy_g;
 	uint32_t state;
 	struct timeval curr_timeval;
+
 	do_gettimeofday(&curr_timeval);
 
 	if (action != CPUFREQ_ADJUST)
@@ -134,10 +135,10 @@ static int do_cpu_boost(struct notifier_block *nb,
 	if (state & FINGERPRINT_BOOST) {
 		if (curr_timeval.tv_sec>prev_timeval.tv_sec) {
 			prev_timeval.tv_sec = curr_timeval.tv_sec;
-	                pr_info("Boosting\n");
-        	        policy->cur = policy->max;
-                	policy->min = policy->max;
-	                return NOTIFY_OK;
+			pr_info("Boosting\n");
+			policy->cur = policy->max;
+			policy->min = policy->max;
+			return NOTIFY_OK;
 
 		} else {
 			pr_info("Boost avoided!");
@@ -369,9 +370,10 @@ static int __init cpu_fp_init(void)
 	struct boost_policy *b;
 	int ret;
 	touched = false;
-	
+
 	do_gettimeofday(&prev_timeval);
-	// To allow first boost
+
+	/* To allow first boost */
 	prev_timeval.tv_sec -= 2;
 
 	b = alloc_boost_policy();
