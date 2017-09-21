@@ -352,7 +352,7 @@ static struct boost_policy *alloc_boost_policy(void)
 	if (!b)
 		return NULL;
 
-	b->wq = alloc_workqueue("cpu_fp_wq", WQ_HIGHPRI, 0);
+	b->wq = alloc_workqueue("cpu_fp_wq", WQ_HIGHPRI | WQ_UNBOUND, 0);
 	if (!b->wq) {
 		pr_err("Failed to allocate workqueue\n");
 		goto free_b;
