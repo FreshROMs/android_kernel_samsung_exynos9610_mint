@@ -537,7 +537,7 @@ int __mnt_want_write(struct vfsmount *m)
 #ifdef CONFIG_RKP_NS_PROT
 	while (ACCESS_ONCE(mnt->mnt->mnt_flags) & MNT_WRITE_HOLD)
 #else
-	while (ACCESS_ONCE(mnt->mnt.mnt_flags) & MNT_WRITE_HOLD)
+	while (READ_ONCE(mnt->mnt.mnt_flags) & MNT_WRITE_HOLD)
 #endif
 		cpu_relax();
 	/*

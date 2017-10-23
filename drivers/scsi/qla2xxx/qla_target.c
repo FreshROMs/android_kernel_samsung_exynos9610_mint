@@ -998,7 +998,7 @@ static void qlt_free_session_done(struct work_struct *work)
 		bool traced = false;
 		u16 cnt = 0;
 
-		while (!ACCESS_ONCE(sess->logout_completed)) {
+		while (!READ_ONCE(sess->logout_completed)) {
 			if (!traced) {
 				ql_dbg(ql_dbg_tgt_mgt, vha, 0xf086,
 					"%s: waiting for sess %p logout\n",

@@ -506,7 +506,7 @@ u32 ip_idents_reserve(u32 hash, int segs)
 	bucket = hash & ip_idents_mask;
 	p_tstamp = ip_tstamps + bucket;
 	p_id = ip_idents + bucket;
-	old = ACCESS_ONCE(*p_tstamp);
+	old = READ_ONCE(*p_tstamp);
 
 	if (old != now && cmpxchg(p_tstamp, old, now) == old)
 		delta = prandom_u32_max(now - old);
