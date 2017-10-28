@@ -574,7 +574,7 @@ static int create_bulk_endpoints(struct acc_dev *dev,
 	struct usb_ep *ep;
 	int i;
 
-	DBG(cdev, "create_bulk_endpoints dev: %pK\n", dev);
+	DBG(cdev, "%s dev: %pK\n", __func__, dev);
 
 	ep = usb_ep_autoconfig(cdev->gadget, in_desc);
 	if (!ep) {
