@@ -16,6 +16,9 @@
 #include <linux/file.h>
 #include <linux/quotaops.h>
 #include <linux/uuid.h>
+#include <linux/quotaops.h>
+#include <linux/random.h>
+#include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include "ext4_jbd2.h"
@@ -107,7 +110,6 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	int err;
 	struct inode *inode_bl;
 	struct ext4_inode_info *ei_bl;
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (inode->i_nlink != 1 || !S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -166,10 +168,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 
 	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
 
-	spin_lock(&sbi->s_next_gen_lock);
-	inode->i_generation = sbi->s_next_generation++;
-	inode_bl->i_generation = sbi->s_next_generation++;
-	spin_unlock(&sbi->s_next_gen_lock);
+	inode->i_generation = prandom_u32();
+	inode_bl->i_generation = prandom_u32();
 
 	ext4_discard_preallocations(inode);
 

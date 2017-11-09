@@ -4252,8 +4252,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_mount2;
 	}
 
-	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
-	spin_lock_init(&sbi->s_next_gen_lock);
+	sbi->s_gdb_count = db_count;
 
 	setup_timer(&sbi->s_err_report, print_daily_error_info,
 		(unsigned long) sb);
