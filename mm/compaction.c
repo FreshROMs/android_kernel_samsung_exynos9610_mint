@@ -220,6 +220,20 @@ static void reset_cached_positions(struct zone *zone)
 }
 
 /*
+ * Hugetlbfs pages should consistenly be skipped until updated by the hugetlb
+ * subsystem.  It is always pointless to compact pages of pageblock_order and
+ * the free scanner can reconsider when no longer huge.
+ */
+static bool pageblock_skip_persistent(struct page *page, unsigned int order)
+{
+	if (!PageHuge(page))
+		return false;
+	if (order != pageblock_order)
+		return false;
+	return true;
+}
+
+/*
  * This function is called to clear all cached information on pageblocks that
  * should be skipped for page isolation when the migrate and free page scanner
  * meet.
@@ -242,6 +256,8 @@ static void __reset_isolation_suitable(struct zone *zone)
 		if (!page)
 			continue;
 		if (zone != page_zone(page))
+			continue;
+		if (pageblock_skip_persistent(page, compound_order(page)))
 			continue;
 
 		clear_pageblock_skip(page);
@@ -308,7 +324,13 @@ static inline bool isolation_suitable(struct compact_control *cc,
 	return true;
 }
 
-static void update_pageblock_skip(struct compact_control *cc,
+static inline bool pageblock_skip_persistent(struct page *page,
+					     unsigned int order)
+{
+	return false;
+}
+
+static inline void update_pageblock_skip(struct compact_control *cc,
 			struct page *page, unsigned long nr_isolated,
 			bool migrate_scanner)
 {
@@ -450,13 +472,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		 * and the only danger is skipping too much.
 		 */
 		if (PageCompound(page)) {
-			unsigned int comp_order = compound_order(page);
+			const unsigned int order = compound_order(page);
 
-			if (likely(comp_order < MAX_ORDER)) {
-				blockpfn += (1UL << comp_order) - 1;
-				cursor += (1UL << comp_order) - 1;
+			if (pageblock_skip_persistent(page, order)) {
+				set_pageblock_skip(page);
+				blockpfn = end_pfn;
+			} else if (likely(order < MAX_ORDER)) {
+				blockpfn += (1UL << order) - 1;
+				cursor += (1UL << order) - 1;
 			}
-
 			goto isolate_fail;
 		}
 
@@ -775,11 +799,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * danger is skipping too much.
 		 */
 		if (PageCompound(page)) {
-			unsigned int comp_order = compound_order(page);
+			const unsigned int order = compound_order(page);
 
-			if (likely(comp_order < MAX_ORDER))
-				low_pfn += (1UL << comp_order) - 1;
-
+			if (pageblock_skip_persistent(page, order)) {
+				set_pageblock_skip(page);
+				low_pfn = end_pfn;
+			} else if (likely(order < MAX_ORDER))
+				low_pfn += (1UL << order) - 1;
 			goto isolate_fail;
 		}
 
@@ -841,7 +867,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			 * is safe to read and it's 0 for tail pages.
 			 */
 			if (unlikely(PageCompound(page))) {
-				low_pfn += (1UL << compound_order(page)) - 1;
+				const unsigned int order = compound_order(page);
+
+				if (pageblock_skip_persistent(page, order)) {
+					set_pageblock_skip(page);
+					low_pfn = end_pfn;
+				} else
+					low_pfn += (1UL << order) - 1;
 				goto isolate_fail;
 			}
 		}
