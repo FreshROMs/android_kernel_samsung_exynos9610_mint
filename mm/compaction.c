@@ -477,10 +477,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		if (PageCompound(page)) {
 			const unsigned int order = compound_order(page);
 
-			if (pageblock_skip_persistent(page, order)) {
-				set_pageblock_skip(page);
-				blockpfn = end_pfn;
-			} else if (likely(order < MAX_ORDER)) {
+			if (likely(order < MAX_ORDER)) {
 				blockpfn += (1UL << order) - 1;
 				cursor += (1UL << order) - 1;
 			}
@@ -804,10 +801,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		if (PageCompound(page)) {
 			const unsigned int order = compound_order(page);
 
-			if (pageblock_skip_persistent(page, order)) {
-				set_pageblock_skip(page);
-				low_pfn = end_pfn;
-			} else if (likely(order < MAX_ORDER))
+			if (likely(order < MAX_ORDER))
 				low_pfn += (1UL << order) - 1;
 			goto isolate_fail;
 		}
@@ -870,13 +864,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			 * is safe to read and it's 0 for tail pages.
 			 */
 			if (unlikely(PageCompound(page))) {
-				const unsigned int order = compound_order(page);
-
-				if (pageblock_skip_persistent(page, order)) {
-					set_pageblock_skip(page);
-					low_pfn = end_pfn;
-				} else
-					low_pfn += (1UL << order) - 1;
+				low_pfn += (1UL << compound_order(page)) - 1;
 				goto isolate_fail;
 			}
 		}
