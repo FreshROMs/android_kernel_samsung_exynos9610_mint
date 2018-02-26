@@ -201,4 +201,8 @@ config SENSORS_FP_USI_NUMBER
 	int "Fingerprint usi gpio number"
 	default 0
 
+config STATE_NOTIFIER
+	bool "State Notifier"
+	default n
+
 endif
