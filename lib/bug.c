@@ -202,7 +202,7 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 	if (file)
 		pr_auto(ASL1, "kernel BUG at %s:%u!\n", file, line);
 	else
-		pr_auto(ASL1, "Kernel BUG at %p [verbose debug info unavailable]\n",
+		pr_auto(ASL1, "Kernel BUG at %pB [verbose debug info unavailable]\n",
 			(void *)bugaddr);
 
 	return BUG_TRAP_TYPE_BUG;
