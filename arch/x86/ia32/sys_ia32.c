@@ -196,10 +196,10 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
 			__u32 len_low, __u32 len_high, int advice)
 {
-	return sys_fadvise64_64(fd,
-			       (((u64)offset_high)<<32) | offset_low,
-			       (((u64)len_high)<<32) | len_low,
-				advice);
+	return ksys_fadvise64_64(fd,
+				 (((u64)offset_high)<<32) | offset_low,
+				 (((u64)len_high)<<32) | len_low,
+				 advice);
 }
 
 asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
@@ -219,8 +219,8 @@ asmlinkage long sys32_sync_file_range(int fd, unsigned off_low, unsigned off_hi,
 asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi,
 				size_t len, int advice)
 {
-	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
-				len, advice);
+	return ksys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
+				 len, advice);
 }
 
 asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
