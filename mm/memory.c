@@ -2791,13 +2791,8 @@ int do_swap_page(struct vm_fault *vmf)
 				swap_readpage(page, true);
 			}
 		} else {
-			if (swap_use_vma_readahead())
-				page = do_swap_page_readahead(entry,
-					GFP_HIGHUSER_MOVABLE, vmf);
-			else
-				page = swapin_readahead(entry,
-				       GFP_HIGHUSER_MOVABLE, vma,
-				       vmf->address);
+			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
+						vmf);
 			swapcache = page;
 		}
 
