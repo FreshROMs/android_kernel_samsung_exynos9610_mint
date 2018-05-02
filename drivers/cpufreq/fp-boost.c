@@ -41,7 +41,7 @@
 #define FINGERPRINT_KEY 0x2ee
 
 /* The duration in milliseconds for the fingerprint boost */
-#define FP_BOOST_MS (2000)
+#define FP_BOOST_MS (1250)
 
 /*
  * "fp_config" = "fingerprint boost configuration". This contains the data and
