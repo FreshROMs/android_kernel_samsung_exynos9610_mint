@@ -28,7 +28,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
-#include <linux/display_state.h>
+#include <linux/state_notifier.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -159,7 +159,7 @@ static void cpu_fp_input_event(struct input_handle *handle, unsigned int type,
 	struct fp_config *fp = &b->fp;
 	uint32_t state;
 
-	if (is_display_on())
+	if (!state_suspended)
 		return;
 
 	state = get_boost_state(b);
