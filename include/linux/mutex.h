@@ -155,9 +155,6 @@ extern void __mutex_init(struct mutex *lock, const char *name,
  */
 static inline int mutex_is_locked(struct mutex *lock)
 {
-	/*
-	 * XXX think about spin_is_locked
-	 */
 	return __mutex_owner(lock) != NULL;
 }
 
