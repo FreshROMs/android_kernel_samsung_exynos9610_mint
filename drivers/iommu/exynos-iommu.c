@@ -64,7 +64,9 @@ struct owner_fault_info {
 	struct notifier_block nb;
 };
 
+#ifdef CONFIG_DEBUG_FS
 static struct dentry *exynos_sysmmu_debugfs_root;
+#endif
 
 int exynos_client_add(struct device_node *np, struct exynos_iovmm *vmm_data)
 {
@@ -535,6 +537,7 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+#ifdef CONFIG_DEBUG_FS
 	ret = exynos_iommu_init_event_log(SYSMMU_DRVDATA_TO_LOG(data),
 				SYSMMU_LOG_LEN);
 	if (!ret)
@@ -542,6 +545,10 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 				SYSMMU_DRVDATA_TO_LOG(data), dev_name(dev));
 	else
 		return ret;
+#else
+	exynos_iommu_init_event_log(SYSMMU_DRVDATA_TO_LOG(data),
+			SYSMMU_LOG_LEN);
+#endif
 
 	ret = sysmmu_get_hw_info(data);
 	if (ret) {
@@ -1483,9 +1490,11 @@ static int __init exynos_iommu_init(void)
 		return -ENOMEM;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	exynos_sysmmu_debugfs_root = debugfs_create_dir("sysmmu", NULL);
 	if (!exynos_sysmmu_debugfs_root)
 		pr_err("%s: Failed to create debugfs entry\n", __func__);
+#endif
 
 	ret = platform_driver_register(&exynos_sysmmu_driver);
 	if (ret) {
