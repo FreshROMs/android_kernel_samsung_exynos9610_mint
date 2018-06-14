@@ -275,8 +275,11 @@ static void aigov_update_commit(struct aigov_policy *ag_policy, u64 time,
 	if (ag_policy->next_freq == next_freq)
 		return;
 
-	if (aigov_up_down_rate_limit(ag_policy, time, next_freq))
+	if (aigov_up_down_rate_limit(ag_policy, time, next_freq)) {
+		/* Don't cache a raw freq that didn't become next_freq */
+		ag_policy->cached_raw_freq = 0;
 		return;
+	}
 
 	ag_policy->next_freq = next_freq;
 	ag_policy->last_freq_update_time = time;
@@ -547,8 +550,11 @@ static unsigned int aigov_next_freq(struct aigov_cpu *ai_cpu, u64 time)
 			j_ai_cpu->iowait_boost_pending = false;
 			continue;
 		}
-		if (j_ai_cpu->flags & SCHED_CPUFREQ_DL)
+		if (j_ai_cpu->flags & SCHED_CPUFREQ_DL) {
+			/* clear cache when it's bypassed */
+			ag_policy->cached_raw_freq = 0;
 			return policy->cpuinfo.max_freq;
+		}
 
 		j_util = j_ai_cpu->util;
 		j_max = j_ai_cpu->max;
@@ -585,10 +591,13 @@ static void aigov_update(struct update_util_data *hook, u64 time,
 	ai_cpu->last_update = time;
 
 	if (aigov_should_update_freq(ag_policy, time)) {
-		if (flags & SCHED_CPUFREQ_DL)
+		if (flags & SCHED_CPUFREQ_DL) {
+			/* clear cache when it's bypassed */
+			ag_policy->cached_raw_freq = 0;
 			next_f = ag_policy->policy->cpuinfo.max_freq;
-		else
+		} else {
 			next_f = aigov_next_freq(ai_cpu, time);
+		}
 
 		aigov_update_commit(ag_policy, time, next_f);
 	}
