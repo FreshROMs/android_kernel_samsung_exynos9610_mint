@@ -220,12 +220,6 @@ bool aigov_should_update_freq(struct aigov_policy *ag_policy, u64 time)
 		return false;
 
 	if (unlikely(ag_policy->need_freq_update)) {
-		ag_policy->need_freq_update = false;
-		/*
-		 * This happens when limits change, so forget the previous
-		 * next_freq value and force an update.
-		 */
-		ag_policy->next_freq = UINT_MAX;
 		return true;
 	}
 
@@ -386,9 +380,10 @@ unsigned int aigov_get_next_freq(struct aigov_cpu *ai_cpu, struct aigov_policy *
 	freq = cpufreq_get_tipping_point(policy->cpu, freq) * util / max;
 	freq = aigov_inferrer_get_freq(ai_cpu, freq);
 
-	if (freq == ag_policy->cached_raw_freq && ag_policy->next_freq != UINT_MAX)
+	if (freq == ag_policy->cached_raw_freq && !ag_policy->need_freq_update)
 		return ag_policy->next_freq;
 
+	ag_policy->need_freq_update = false;
 	ag_policy->cached_raw_freq = freq;
 	freq = cpufreq_driver_resolve_freq(policy, freq);
 	trace_cpu_frequency_aigov(util, freq, policy->cpu);
@@ -1097,7 +1092,7 @@ int aigov_start(struct cpufreq_policy *policy)
 		ag_policy->tunables->down_rate_limit_us * NSEC_PER_USEC;
 	update_min_rate_limit_ns(ag_policy);
 	ag_policy->last_freq_update_time = 0;
-	ag_policy->next_freq = UINT_MAX;
+	ag_policy->next_freq = 0;
 	ag_policy->work_in_progress = false;
 	ag_policy->need_freq_update = false;
 	ag_policy->cached_raw_freq = 0;
