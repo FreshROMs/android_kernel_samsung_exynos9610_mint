@@ -10,6 +10,7 @@ enum mm_event_type {
 	MM_MAJ_FAULT,
 	MM_COMPACTION,
 	MM_RECLAIM,
+	MM_SWP_FAULT,
 	MM_TYPE_NUM,
 };
 
