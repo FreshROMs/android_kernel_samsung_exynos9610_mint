@@ -54,7 +54,6 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				  unsigned long addr)
 {
-	__flush_tlb_pgtable(tlb->mm, addr);
 	pgtable_page_dtor(pte);
 	tlb_remove_table(tlb, pte);
 }
@@ -63,7 +62,6 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 				  unsigned long addr)
 {
-	__flush_tlb_pgtable(tlb->mm, addr);
 #ifdef CONFIG_UH_RKP
 	if (is_rkp_ro_page((unsigned long)pmdp))
 		rkp_ro_free((void *)pmdp);
@@ -77,7 +75,6 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
 				  unsigned long addr)
 {
-	__flush_tlb_pgtable(tlb->mm, addr);
 #ifdef CONFIG_UH_RKP
 	if (is_rkp_ro_page((unsigned long)pudp))
 		rkp_ro_free((void *)pudp);
