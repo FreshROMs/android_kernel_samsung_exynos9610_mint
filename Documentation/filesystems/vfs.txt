@@ -880,6 +880,7 @@ struct file_operations {
 #ifndef CONFIG_MMU
 	unsigned (*mmap_capabilities)(struct file *);
 #endif
+	int (*fadvise)(struct file *, loff_t, loff_t, int);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -948,6 +949,8 @@ otherwise noted.
 	    the lease in the inode after setting it.
 
   fallocate: called by the VFS to preallocate blocks or punch a hole.
+
+  fadvise: possibly called by the fadvise64() system call.
 
 Note that the file operations are implemented by the specific
 filesystem in which the inode resides. When opening a device node
