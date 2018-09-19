@@ -96,7 +96,7 @@ static inline void sha_pad_init(struct sha_pad *shapad)
  * State for an MPPE (de)compressor.
  */
 struct ppp_mppe_state {
-	struct crypto_skcipher *arc4;
+	struct crypto_sync_skcipher *arc4;
 	struct shash_desc *sha1;
 	unsigned char *sha1_digest;
 	unsigned char master_key[MPPE_MAX_KEY_LEN];
@@ -156,15 +156,15 @@ static void get_new_key_from_sha(struct ppp_mppe_state * state)
 static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
 {
 	struct scatterlist sg_in[1], sg_out[1];
-	SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
 
-	skcipher_request_set_tfm(req, state->arc4);
+	skcipher_request_set_sync_tfm(req, state->arc4);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 
 	get_new_key_from_sha(state);
 	if (!initial_key) {
-		crypto_skcipher_setkey(state->arc4, state->sha1_digest,
-				       state->keylen);
+		crypto_sync_skcipher_setkey(state->arc4, state->sha1_digest,
+					    state->keylen);
 		sg_init_table(sg_in, 1);
 		sg_init_table(sg_out, 1);
 		setup_sg(sg_in, state->sha1_digest, state->keylen);
@@ -182,7 +182,8 @@ static void mppe_rekey(struct ppp_mppe_state * state, int initial_key)
 		state->session_key[1] = 0x26;
 		state->session_key[2] = 0x9e;
 	}
-	crypto_skcipher_setkey(state->arc4, state->session_key, state->keylen);
+	crypto_sync_skcipher_setkey(state->arc4, state->session_key,
+				    state->keylen);
 	skcipher_request_zero(req);
 }
 
@@ -204,7 +205,7 @@ static void *mppe_alloc(unsigned char *options, int optlen)
 		goto out;
 
 
-	state->arc4 = crypto_alloc_skcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
+	state->arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(state->arc4)) {
 		state->arc4 = NULL;
 		goto out_free;
@@ -251,7 +252,7 @@ out_free:
 		crypto_free_shash(state->sha1->tfm);
 		kzfree(state->sha1);
 	}
-	crypto_free_skcipher(state->arc4);
+	crypto_free_sync_skcipher(state->arc4);
 	kfree(state);
 out:
 	return NULL;
@@ -267,7 +268,7 @@ static void mppe_free(void *arg)
 		kfree(state->sha1_digest);
 		crypto_free_shash(state->sha1->tfm);
 		kzfree(state->sha1);
-		crypto_free_skcipher(state->arc4);
+		crypto_free_sync_skcipher(state->arc4);
 		kfree(state);
 	}
 }
@@ -367,7 +368,7 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	      int isize, int osize)
 {
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
-	SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
 	int proto;
 	int err;
 	struct scatterlist sg_in[1], sg_out[1];
@@ -427,7 +428,7 @@ mppe_compress(void *arg, unsigned char *ibuf, unsigned char *obuf,
 	setup_sg(sg_in, ibuf, isize);
 	setup_sg(sg_out, obuf, osize);
 
-	skcipher_request_set_tfm(req, state->arc4);
+	skcipher_request_set_sync_tfm(req, state->arc4);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg_in, sg_out, isize, NULL);
 	err = crypto_skcipher_encrypt(req);
@@ -481,7 +482,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 		int osize)
 {
 	struct ppp_mppe_state *state = (struct ppp_mppe_state *) arg;
-	SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, state->arc4);
 	unsigned ccount;
 	int flushed = MPPE_BITS(ibuf) & MPPE_BIT_FLUSHED;
 	struct scatterlist sg_in[1], sg_out[1];
@@ -616,7 +617,7 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	setup_sg(sg_in, ibuf, 1);
 	setup_sg(sg_out, obuf, 1);
 
-	skcipher_request_set_tfm(req, state->arc4);
+	skcipher_request_set_sync_tfm(req, state->arc4);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg_in, sg_out, 1, NULL);
 	if (crypto_skcipher_decrypt(req)) {
