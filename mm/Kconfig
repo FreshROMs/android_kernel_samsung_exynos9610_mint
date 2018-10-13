@@ -772,6 +772,10 @@ config VM_MAX_READAHEAD_KB
 	  to grow to a maximum size of configured. Increasing this value will
 	  benefit sequential read throughput.
 
+config VMSTAT_INTERVAL
+	int "Default interval in seconds to update vmstat"
+	default 15
+
 config INCREASE_MAXIMUM_SWAPPINESS
 	bool "Allow swappiness to be set up to 200"
 	depends on SWAP
