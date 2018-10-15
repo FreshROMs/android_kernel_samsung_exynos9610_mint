@@ -212,17 +212,17 @@ static inline unsigned long __ffs64(u64 word)
 #ifdef __KERNEL__
 
 #ifndef set_mask_bits
-#define set_mask_bits(ptr, _mask, _bits)	\
+#define set_mask_bits(ptr, mask, bits)	\
 ({								\
-	const typeof(*ptr) mask = (_mask), bits = (_bits);	\
-	typeof(*ptr) old, new;					\
+	const typeof(*(ptr)) mask__ = (mask), bits__ = (bits);	\
+	typeof(*(ptr)) old__, new__;				\
 								\
 	do {							\
-		old = READ_ONCE(*ptr);			\
-		new = (old & ~mask) | bits;			\
-	} while (cmpxchg(ptr, old, new) != old);		\
+		old__ = READ_ONCE(*(ptr));			\
+		new__ = (old__ & ~mask__) | bits__;		\
+	} while (cmpxchg(ptr, old__, new__) != old__);		\
 								\
-	new;							\
+	new__;							\
 })
 #endif
 
