@@ -227,18 +227,18 @@ static inline unsigned long __ffs64(u64 word)
 #endif
 
 #ifndef bit_clear_unless
-#define bit_clear_unless(ptr, _clear, _test)	\
+#define bit_clear_unless(ptr, clear, test)	\
 ({								\
-	const typeof(*ptr) clear = (_clear), test = (_test);	\
-	typeof(*ptr) old, new;					\
+	const typeof(*(ptr)) clear__ = (clear), test__ = (test);\
+	typeof(*(ptr)) old__, new__;				\
 								\
 	do {							\
-		old = READ_ONCE(*ptr);			\
-		new = old & ~clear;				\
-	} while (!(old & test) &&				\
-		 cmpxchg(ptr, old, new) != old);		\
+		old__ = READ_ONCE(*(ptr));			\
+		new__ = old__ & ~clear__;			\
+	} while (!(old__ & test__) &&				\
+		 cmpxchg(ptr, old__, new__) != old__);		\
 								\
-	!(old & test);						\
+	!(old__ & test__);					\
 })
 #endif
 
