@@ -37,6 +37,7 @@
 #include <linux/cleancache.h>
 #include <linux/rmap.h>
 #include <linux/delayacct.h>
+#include <linux/psi.h>
 #include "internal.h"
 
 #ifdef CONFIG_PAGE_BOOST_RECORDING
@@ -992,11 +993,14 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	struct wait_page_queue wait_page;
 	wait_queue_entry_t *wait = &wait_page.wait;
 	bool thrashing = false;
+	unsigned long pflags;
 	int ret = 0;
 
-	if (bit_nr == PG_locked && !PageSwapBacked(page) &&
+	if (bit_nr == PG_locked &&
 	    !PageUptodate(page) && PageWorkingset(page)) {
-		delayacct_thrashing_start();
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_start();
+		psi_memstall_enter(&pflags);
 		thrashing = true;
 	}
 
@@ -1038,8 +1042,11 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 
 	finish_wait(q, wait);
 
-	if (thrashing)
-		delayacct_thrashing_end();
+	if (thrashing) {
+		if (!PageSwapBacked(page))
+			delayacct_thrashing_end();
+		psi_memstall_leave(&pflags);
+	}
 
 	/*
 	 * A signal could leave PageWaiters set. Clearing it here if
