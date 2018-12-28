@@ -1962,6 +1962,8 @@ static int loop_add(struct loop_device **l, int i)
 	 */
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, lo->lo_queue);
+
 	err = -ENOMEM;
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);
 	if (!disk)
