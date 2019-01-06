@@ -490,6 +490,18 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 	return ret;
 }
 
+#ifndef CONFIG_MODULES
+void * __weak module_alloc(unsigned long size)
+{
+	return vmalloc_exec(size);
+}
+
+void __weak module_memfree(void *module_region)
+{
+	vfree(module_region);
+}
+#endif
+
 static atomic_long_t bpf_jit_current;
 
 /* Can be overridden by an arch's JIT compiler if it has a custom,
