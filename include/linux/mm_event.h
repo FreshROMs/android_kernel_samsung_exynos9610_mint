@@ -24,6 +24,23 @@ struct mm_event_task {
 
 struct task_struct;
 
+struct mm_event_vmstat {
+	unsigned long free;
+	unsigned long file;
+	unsigned long anon;
+	unsigned long slab;
+	unsigned long ws_refault;
+	unsigned long ws_activate;
+	unsigned long mapped;
+	unsigned long pgin;
+	unsigned long pgout;
+	unsigned long swpin;
+	unsigned long swpout;
+	unsigned long reclaim_steal;
+	unsigned long reclaim_scan;
+	unsigned long compact_scan;
+};
+
 #ifdef CONFIG_MM_EVENT_STAT
 void mm_event_task_init(struct task_struct *tsk);
 void mm_event_start(ktime_t *time);
