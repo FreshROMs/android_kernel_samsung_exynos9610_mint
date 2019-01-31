@@ -649,7 +649,7 @@ el1_irq:
 	cbnz	w24, 1f				// preempt count != 0
 	ldr	x0, [tsk, #TSK_TI_FLAGS]	// get flags
 	tbz	x0, #TIF_NEED_RESCHED, 1f	// needs rescheduling?
-	bl	el1_preempt
+	bl	preempt_schedule_irq		// irq en/disable is done inside
 1:
 #endif
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -657,15 +657,6 @@ el1_irq:
 #endif
 	kernel_exit 1
 ENDPROC(el1_irq)
-
-#ifdef CONFIG_PREEMPT
-el1_preempt:
-	mov	x24, lr
-1:	bl	preempt_schedule_irq		// irq en/disable is done inside
-	ldr	x0, [tsk, #TSK_TI_FLAGS]	// get new tasks TI_FLAGS
-	tbnz	x0, #TIF_NEED_RESCHED, 1b	// needs rescheduling?
-	ret	x24
-#endif
 
 /*
  * EL0 mode handlers.
