@@ -127,6 +127,9 @@ struct g2d_device {
 	u32 dvfs_table_cnt;
 
 	struct notifier_block	itmon_nb;
+
+	u32 dvfs_int;
+	u32 dvfs_mif;
 };
 
 #define G2D_AUTHORITY_HIGHUSER 1

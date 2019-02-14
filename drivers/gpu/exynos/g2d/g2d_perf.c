@@ -20,8 +20,10 @@
 #include "g2d_task.h"
 #include "g2d_uapi.h"
 #include <soc/samsung/bts.h>
+#include "g2d_debug.h"
 
 #include <linux/workqueue.h>
+#include <soc/samsung/exynos-devfreq.h>
 
 #ifdef CONFIG_PM_DEVFREQ
 static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
@@ -122,6 +124,9 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 
 			cycle += max(crop, window) / ppc[fmt][rot][sc];
 
+			g2d_perf("%d: crop %8d window %8d ppc %4d ",
+				 j, crop, window, ppc[fmt][rot][sc]);
+
 			/*
 			 * If frame has colorfill layer on the bottom,
 			 * upper layaer is treated as opaque.
@@ -130,13 +135,21 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 			 */
 			if (!j && is_perf_frame_colorfill(frame)) {
 				unsigned int pixelcount;
+				unsigned int colorfill_cycle;
 
 				pixelcount = frame->target_pixelcount - window;
-				if (pixelcount > 0)
-					cycle += pixelcount /
-						g2d_dev->hw_ppc[PPC_COLORFILL];
+				colorfill_cycle = (pixelcount > 0) ?
+					pixelcount /
+					g2d_dev->hw_ppc[PPC_COLORFILL] : 0;
 
+				g2d_perf("(target %8d ppc %4d colorfill %8d)",
+					 frame->target_pixelcount,
+					 g2d_dev->hw_ppc[PPC_COLORFILL],
+					 colorfill_cycle);
+
+				cycle += colorfill_cycle;
 			}
+			g2d_perf("cycle %8d\n", cycle);
 		}
 	}
 
@@ -176,6 +189,10 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 		g2d_pm_qos_remove_devfreq(&g2d_ctx->req);
 	else if (ip_clock)
 		g2d_pm_qos_update_devfreq(&g2d_ctx->req, ip_clock);
+
+	g2d_perf("Request device frequency %d,", ip_clock);
+	g2d_perf("DVFS_INT current freq %lu\n",
+		 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int));
 }
 
 static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
@@ -254,6 +271,10 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 		bw.peak = ((rbw + wbw) / 1000) * BTS_PEAK_FPS_RATIO / 2;
 		bts_update_bw(BTS_BW_G2D, bw);
 	}
+
+	g2d_perf("Request bandwidth r %d w %d,", rbw, wbw);
+	g2d_perf("DVFS_MIF current freq %lu\n",
+		 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
 }
 
 void g2d_set_performance(struct g2d_context *ctx,
