@@ -26,7 +26,7 @@
 #include "g2d_debug.h"
 #include "g2d_regs.h"
 
-static unsigned int g2d_debug;
+unsigned int g2d_debug;
 
 #define G2D_MAX_STAMP_ID 1024
 #define G2D_STAMP_CLAMP_ID(id) ((id) & (G2D_MAX_STAMP_ID - 1))

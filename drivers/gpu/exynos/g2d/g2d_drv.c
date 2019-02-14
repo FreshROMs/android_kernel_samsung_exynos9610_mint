@@ -725,6 +725,12 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 				(unsigned int *)g2d_dev->dvfs_table, len);
 	}
 
+	if (of_property_read_u32(dev->of_node, "dvfs_int", &g2d_dev->dvfs_int))
+		g2d_dev->dvfs_int = 0;
+
+	if (of_property_read_u32(dev->of_node, "dvfs_mif", &g2d_dev->dvfs_mif))
+		g2d_dev->dvfs_mif = 0;
+
 	return 0;
 }
 
