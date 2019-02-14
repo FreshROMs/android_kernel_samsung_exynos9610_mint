@@ -315,6 +315,8 @@ void g2d_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
 	struct g2d_layer *layer = container_of(cb, struct g2d_layer, fence_cb);
 	unsigned long flags;
 
+	g2d_stamp_task(layer->task, G2D_STAMP_STATE_FENCE, (u64)fence);
+
 	spin_lock_irqsave(&layer->task->fence_timeout_lock, flags);
 	/* @fence is released in g2d_put_image() */
 	kref_put(&layer->task->starter, g2d_queuework_task);

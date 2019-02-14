@@ -22,6 +22,7 @@ enum debug_level {
 	DBG_NO,
 	DBG_INFO,
 	DBG_PERF,
+	DBG_DEBUG,
 };
 
 extern unsigned int g2d_debug;
@@ -57,11 +58,12 @@ enum g2d_stamp_id {
 	G2D_STAMP_STATE_RESUME,
 	G2D_STAMP_STATE_HWFCBUF,
 	G2D_STAMP_STATE_PENDING,
+	G2D_STAMP_STATE_FENCE,
 	G2D_STAMP_STATE_NUM,
 };
 
 void g2d_init_debug(struct g2d_device *dev);
 void g2d_destroy_debug(struct g2d_device *dev);
-void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val);
+void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val);
 void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task);
 #endif /* __EXYNOS_G2D_HELPER_H_ */

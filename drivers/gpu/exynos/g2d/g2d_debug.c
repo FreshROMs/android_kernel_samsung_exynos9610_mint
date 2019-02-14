@@ -26,6 +26,8 @@
 #include "g2d_debug.h"
 #include "g2d_regs.h"
 
+#include <soc/samsung/exynos-devfreq.h>
+
 unsigned int g2d_debug;
 
 #define G2D_MAX_STAMP_ID 1024
@@ -34,10 +36,16 @@ unsigned int g2d_debug;
 static struct g2d_stamp {
 	ktime_t time;
 	unsigned long state;
-	u32 job_id;
-	u32 stamp;
-	s32 val;
-	u8 cpu;
+	unsigned short stamp;
+	unsigned char job_id;
+	unsigned char cpu;
+	union {
+		u32 val[3];
+		struct {
+			char name[8];
+			unsigned int seqno;
+		} fence;
+	};
 } g2d_stamp_list[G2D_MAX_STAMP_ID];
 
 static atomic_t g2d_stamp_id;
@@ -47,8 +55,10 @@ enum {
 	G2D_STAMPTYPE_NUM,
 	G2D_STAMPTYPE_HEX,
 	G2D_STAMPTYPE_USEC,
+	G2D_STAMPTYPE_PERF,
 	G2D_STAMPTYPE_INOUT,
 	G2D_STAMPTYPE_ALLOCFREE,
+	G2D_STAMPTYPE_FENCE,
 };
 static struct g2d_stamp_type {
 	const char *name;
@@ -58,7 +68,7 @@ static struct g2d_stamp_type {
 	{"runtime_pm",    G2D_STAMPTYPE_INOUT,     false},
 	{"task_alloc",    G2D_STAMPTYPE_ALLOCFREE, true},
 	{"task_begin",    G2D_STAMPTYPE_NUM,       true},
-	{"task_push",     G2D_STAMPTYPE_USEC,      true},
+	{"task_push",     G2D_STAMPTYPE_PERF,      true},
 	{"irq",           G2D_STAMPTYPE_HEX,       false},
 	{"task_done",     G2D_STAMPTYPE_USEC,      true},
 	{"fence_timeout", G2D_STAMPTYPE_HEX,       true},
@@ -70,6 +80,7 @@ static struct g2d_stamp_type {
 	{"resume",        G2D_STAMPTYPE_INOUT,     false},
 	{"hwfc_job",      G2D_STAMPTYPE_NUM,       true},
 	{"pending",       G2D_STAMPTYPE_NUM,       false},
+	{"fence",         G2D_STAMPTYPE_FENCE,     true},
 };
 
 static bool g2d_stamp_show_single(struct seq_file *s, struct g2d_stamp *stamp)
@@ -87,19 +98,26 @@ static bool g2d_stamp_show_single(struct seq_file *s, struct g2d_stamp *stamp)
 
 	switch (g2d_stamp_types[stamp->stamp].type) {
 	case G2D_STAMPTYPE_NUM:
-		seq_printf(s, "%d", stamp->val);
+		seq_printf(s, "%u", stamp->val[0]);
 		break;
 	case G2D_STAMPTYPE_HEX:
-		seq_printf(s, "%#x", stamp->val);
+		seq_printf(s, "%#x", stamp->val[0]);
 		break;
 	case G2D_STAMPTYPE_USEC:
-		seq_printf(s, "%d usec.", stamp->val);
+		seq_printf(s, "%u usec.", stamp->val[0]);
+		break;
+	case G2D_STAMPTYPE_PERF:
+		seq_printf(s, "%u usec. (INT %u MIF %u)", stamp->val[0],
+			   stamp->val[1], stamp->val[2]);
 		break;
 	case G2D_STAMPTYPE_INOUT:
-		seq_printf(s, "%s", stamp->val ? "out" : "in");
+		seq_printf(s, "%s", stamp->val[0] ? "out" : "in");
 		break;
 	case G2D_STAMPTYPE_ALLOCFREE:
-		seq_printf(s, "%s", stamp->val ? "free" : "alloc");
+		seq_printf(s, "%s", stamp->val[0] ? "free" : "alloc");
+		break;
+	case G2D_STAMPTYPE_FENCE:
+		seq_printf(s, "%u@%s", stamp->fence.seqno, stamp->fence.name);
 		break;
 	}
 
@@ -357,7 +375,7 @@ void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task)
 	g2d_dump_afbcdata(g2d_dev);
 }
 
-void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
+void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 {
 	int idx = G2D_STAMP_CLAMP_ID(atomic_inc_return(&g2d_stamp_id));
 	struct g2d_stamp *stamp = &g2d_stamp_list[idx];
@@ -370,20 +388,37 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val)
 		stamp->state = 0;
 	}
 
+	if (g2d_stamp_types[stampid].type == G2D_STAMPTYPE_FENCE) {
+		struct dma_fence *fence = (struct dma_fence *)val;
+
+		strlcpy(stamp->fence.name, fence->ops->get_driver_name(fence),
+			sizeof(stamp->fence.name));
+		stamp->fence.seqno = fence->seqno;
+	} else {
+		stamp->val[0] = (u32)val;
+
+		if (g2d_stamp_types[stampid].type == G2D_STAMPTYPE_PERF) {
+			struct g2d_device *g2d_dev = task->g2d_dev;
+
+			stamp->val[1] =	exynos_devfreq_get_domain_freq(
+					g2d_dev->dvfs_int);
+			stamp->val[2] = exynos_devfreq_get_domain_freq(
+					g2d_dev->dvfs_mif);
+		}
+	}
+
+	if ((stampid == G2D_STAMP_STATE_DONE) && (g2d_debug & (1 << DBG_DEBUG)))
+		g2d_dump_info(task->g2d_dev, task);
+
+	if (g2d_stamp_types[stampid].type == G2D_STAMPTYPE_PERF)
+		g2d_info("[%9s] Task %2d consumed %10u us (int %u mif %u)\n",
+			 (stampid == G2D_STAMP_STATE_DONE) ?
+			 "Job done" : "Job push", stamp->job_id,
+			 stamp->val[0], stamp->val[1], stamp->val[2]);
+
 	stamp->time = ktime_get();
 	stamp->stamp = stampid;
 	stamp->cpu = raw_smp_processor_id();
-	stamp->val = val;
-
-	if ((stamp->stamp == G2D_STAMP_STATE_DONE) && task) {
-		if (g2d_debug == 1) {
-			dev_info(task->g2d_dev->dev,
-				 "Job %u consumed %06u usec. by H/W\n",
-				 task->sec.job_id, val);
-		} else if (g2d_debug == 2) {
-			g2d_dump_info(task->g2d_dev, task);
-		}
-	}
 
 	/* LLWFD latency measure */
 	/* media/exynos_tsmux.h includes below functions */
