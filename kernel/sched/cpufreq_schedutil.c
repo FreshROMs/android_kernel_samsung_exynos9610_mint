@@ -34,7 +34,7 @@
 DECLARE_KAIRISTICS(cpufreq, 32, 25, 23, 25);
 #endif
 
-unsigned long boosted_cpu_util(int cpu, unsigned long other_util);
+unsigned long boosted_cpu_util(int cpu);
 
 #define SUGOV_KTHREAD_PRIORITY	50
 
@@ -257,7 +257,7 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 static int sugov_select_scaling_cpu(void)
 {
 	int cpu, candidate = -1;
-	unsigned long rt, util, min = INT_MAX;
+	unsigned long util, min = INT_MAX;
 	cpumask_t mask;
 
 	cpumask_clear(&mask);
@@ -265,8 +265,7 @@ static int sugov_select_scaling_cpu(void)
 
 	/* Idle core of the boot cluster is selected to scaling cpu */
 	for_each_cpu(cpu, &mask) {
-		rt = sched_get_rt_rq_util(cpu);
-		util = boosted_cpu_util(cpu, rt);
+		util = boosted_cpu_util(cpu);
 		if (util < min) {
 			min = util;
 			candidate = cpu;
@@ -422,13 +421,11 @@ skip_betting:
 
 static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
-	unsigned long max_cap, rt;
+	unsigned long max_cap;
 
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
-	rt = sched_get_rt_rq_util(cpu);
-
-	*util = boosted_cpu_util(cpu, rt);
+	*util = boosted_cpu_util(cpu);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 }
