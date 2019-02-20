@@ -75,6 +75,7 @@ void g2d_hw_timeout_handler(unsigned long arg)
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
 	u32 job_state;
+	bool ret;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
@@ -83,54 +84,29 @@ void g2d_hw_timeout_handler(unsigned long arg)
 	perrfndev(g2d_dev, "Time is up: %d msec for job %u %lu %u",
 		  G2D_HW_TIMEOUT_MSEC, task->sec.job_id, task->state, job_state);
 
-	if (!is_task_state_active(task))
-		/*
-		 * The task timed out is not currently running in H/W.
-		 * It might be just finished by interrupt.
-		 */
-		goto out;
-
-	if (job_state == G2D_JOB_STATE_DONE)
-		/*
-		 * The task timed out is not currently running in H/W.
-		 * It will be processed in the interrupt handler.
-		 */
-		goto out;
-
-	if (is_task_state_killed(task) || g2d_hw_stuck_state(g2d_dev)) {
-		bool ret;
-
-		g2d_flush_all_tasks(g2d_dev);
-
-		ret = g2d_hw_global_reset(g2d_dev);
-		if (!ret)
-		perrdev(g2d_dev,
-			"GLOBAL RESET: Fetal error, %s (ret %d)",
-			is_task_state_killed(task) ?
-			"killed task not dead" :
-			"no running task on queued tasks", ret);
-
+	/*
+	 * The task timed out is not currently running in H/W.
+	 * It might be just finished by interrupt.
+	 * Or, it will be processed in the interrupt handler.
+	 */
+	if (!is_task_state_active(task) || (job_state == G2D_JOB_STATE_DONE)) {
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
-
-		wake_up(&g2d_dev->freeze_wait);
 
 		return;
 	}
 
-	mod_timer(&task->hw_timer,
-	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
+	g2d_flush_all_tasks(g2d_dev);
 
-	if (job_state != G2D_JOB_STATE_RUNNING)
-		/* G2D_JOB_STATE_QUEUEING or G2D_JOB_STATE_SUSPENDING */
-		/* Time out is not caused by this task */
-		goto out;
+	ret = g2d_hw_global_reset(g2d_dev);
 
-	mark_task_state_killed(task);
+	perrdev(g2d_dev, "GLOBAL RESET %s : H/W timeout",
+		ret ? "SUCCESS" : "FAIL");
 
-	g2d_hw_kill_task(g2d_dev, task->sec.job_id);
-
-out:
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+	wake_up(&g2d_dev->freeze_wait);
+
+	return;
 }
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
@@ -174,6 +150,7 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 		int job_id = g2d_hw_get_current_task(g2d_dev);
 		struct g2d_task *task =
 				g2d_get_active_task_from_id(g2d_dev, job_id);
+		bool ret;
 
 		if (job_id < 0)
 			perrdev(g2d_dev, "No task is running in HW");
@@ -185,13 +162,12 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 				  "Error occurred during running job %d",
 				  job_id);
 
-		g2d_hw_clear_int(g2d_dev, errstatus);
-
 		g2d_flush_all_tasks(g2d_dev);
 
-		perrdev(g2d_dev,
-			"GLOBAL RESET: error interrupt (ret %d)",
-			g2d_hw_global_reset(g2d_dev));
+		ret = g2d_hw_global_reset(g2d_dev);
+
+		perrdev(g2d_dev, "GLOBAL RESET %s : error interrupt",
+			ret ? "SUCCESS" : "FAIL");
 	}
 
 	spin_unlock(&g2d_dev->lock_task);
