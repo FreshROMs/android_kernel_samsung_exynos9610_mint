@@ -132,11 +132,6 @@ void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
 	if (!task)
 		return;
 
-	if (is_task_state_killed(task)) {
-		perrfndev(g2d_dev, "Killed task ID %d is completed", job_id);
-		success = false;
-	}
-
 	g2d_finish_task(g2d_dev, task, success);
 }
 
@@ -151,8 +146,6 @@ void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
 					struct g2d_task, node);
 
 		perrfndev(g2d_dev, "Flushed task of ID %d", task->sec.job_id);
-
-		mark_task_state_killed(task);
 
 		g2d_finish_task(g2d_dev, task, false);
 	}

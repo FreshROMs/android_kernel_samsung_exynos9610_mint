@@ -74,7 +74,6 @@ struct g2d_layer {
 #define G2D_TASKSTATE_ACTIVE		(1 << 4)
 #define G2D_TASKSTATE_PROCESSED		(1 << 5)
 #define G2D_TASKSTATE_ERROR		(1 << 6)
-#define G2D_TASKSTATE_KILLED		(1 << 7)
 #define G2D_TASKSTATE_TIMEOUT		(1 << 8)
 
 struct g2d_context;
@@ -139,7 +138,6 @@ struct g2d_task {
 
 #define change_task_state_finished(task) do {		\
 	(task)->state &= ~(G2D_TASKSTATE_ACTIVE |	\
-			   G2D_TASKSTATE_KILLED |	\
 			   G2D_TASKSTATE_TIMEOUT);	\
 	(task)->state |= G2D_TASKSTATE_PROCESSED;	\
 } while (0)
@@ -147,11 +145,6 @@ struct g2d_task {
 static inline void mark_task_state_error(struct g2d_task *task)
 {
 	task->state |= G2D_TASKSTATE_ERROR;
-}
-
-static inline void mark_task_state_killed(struct g2d_task *task)
-{
-	task->state |= G2D_TASKSTATE_KILLED;
 }
 
 static inline void init_task_state(struct g2d_task *task)
@@ -166,7 +159,6 @@ static inline void clear_task_state(struct g2d_task *task)
 
 #define is_task_state_idle(task)   ((task)->state == 0)
 #define is_task_state_active(task) (((task)->state & G2D_TASKSTATE_ACTIVE) != 0)
-#define is_task_state_killed(task) (((task)->state & G2D_TASKSTATE_KILLED) != 0)
 #define is_task_state_error(task)  (((task)->state & G2D_TASKSTATE_ERROR) != 0)
 
 static inline bool g2d_task_wait_completion(struct g2d_task *task)
