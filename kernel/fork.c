@@ -94,6 +94,9 @@
 #include <linux/thread_info.h>
 #include <linux/cpufreq_times.h>
 #include <linux/devfreq_boost.h>
+#ifdef CONFIG_FRESHCORE_AOSP
+#include <linux/cpu_input_boost.h>
+#endif
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -2266,8 +2269,12 @@ long _do_fork(unsigned long clone_flags,
 	long nr;
 
 	/* Boost DDR bus to the max for 50 ms when userspace launches an app */
-	if (task_is_zygote(current))
+	if (task_is_zygote(current)) {
 		devfreq_boost_kick_max(DEVFREQ_EXYNOS_MIF, 50);
+#ifdef CONFIG_FRESHCORE_AOSP
+		cpu_input_boost_kick_max(3000);
+#endif
+}
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When
