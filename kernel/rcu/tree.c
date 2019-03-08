@@ -1803,7 +1803,7 @@ static int rcu_future_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp)
 static void rcu_gp_kthread_wake(struct rcu_state *rsp)
 {
 	if ((current == rsp->gp_kthread &&
-	     !in_interrupt() && !in_serving_softirq()) ||
+	     !in_irq() && !in_serving_softirq()) ||
 	    !READ_ONCE(rsp->gp_flags) ||
 	    !rsp->gp_kthread)
 		return;
