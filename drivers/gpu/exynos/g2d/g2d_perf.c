@@ -24,6 +24,7 @@
 
 #include <linux/workqueue.h>
 #include <soc/samsung/exynos-devfreq.h>
+#include <soc/samsung/bts.h>
 
 #ifdef CONFIG_PM_DEVFREQ
 static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
@@ -202,7 +203,7 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 	struct g2d_performance_frame_data *frame;
 	u32 cur_rbw, rbw;
 	u32 cur_wbw, wbw;
-	int i;
+	int i, bts_id;
 
 	cur_rbw = 0;
 	cur_wbw = 0;
@@ -262,14 +263,15 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 		wbw = ctx_qos->w_bw;
 	}
 
-	if ((rbw != cur_rbw) || (wbw != cur_wbw)) {
+	bts_id = bts_get_bwindex("g2d");
+	if ((bts_id >= 0) && ((rbw != cur_rbw) || (wbw != cur_wbw))) {
 		struct bts_bw bw;
 
+		bw.peak = (rbw + wbw) / 2;
 		bw.write = wbw;
 		bw.read = rbw;
 
-		bw.peak = ((rbw + wbw) / 1000) * BTS_PEAK_FPS_RATIO / 2;
-		bts_update_bw(BTS_BW_G2D, bw);
+		bts_update_bw(bts_id, bw);
 	}
 
 	g2d_perf("Request bandwidth r %d w %d,", rbw, wbw);
