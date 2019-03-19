@@ -60,7 +60,6 @@ struct g2d_reg {
 };
 
 #define G2D_MAX_PLANES		4
-#define G2D_MAX_SFR_COUNT	1024
 #define G2D_MAX_BUFFERS		4
 #define G2D_MAX_IMAGES		16
 #define G2D_MAX_PRIORITY	3

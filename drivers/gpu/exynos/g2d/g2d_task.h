@@ -29,7 +29,9 @@
 #define G2D_MAX_IMAGES		16
 #define G2D_MAX_IMAGES_HALF	8
 #define G2D_MAX_JOBS		16
-#define G2D_CMD_LIST_SIZE	8192
+#define G2D_MAX_COMMAND		2048
+// Command consists of 32bit offset and data
+#define G2D_CMD_LIST_SIZE	(G2D_MAX_COMMAND * 8)
 
 struct g2d_buffer_prot_info {
 	unsigned int chunk_count;

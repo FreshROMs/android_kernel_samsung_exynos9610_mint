@@ -36,19 +36,6 @@
 #define layer_height(layer)	((layer)->commands[G2DSFR_IMG_HEIGHT].value)
 #define layer_pixelcount(layer)	(layer_width(layer) * layer_height(layer))
 
-/*
- * Number of registers of coefficients of conversion functions
- * - 4 sets of color space conversion for sources
- * - 1 set of color space conversion for destination
- * - 2 sets of HDR coefficients
- *   - 2 matrices of EOTF
- *   - 2 matrices of Gamut mapping
- *   - 2 matrices Tone mappings
- *   - 2 set HDR Coefficient
- *     - 2 matrices of SET0/1 HDR Coefficient
- */
-#define MAX_EXTRA_REGS	(9 * 5 + (65 + 9 + 33) * 2 + 160 * 2)
-
 enum {
 	TASK_REG_SOFT_RESET,
 	TASK_REG_SECURE_MODE,
@@ -158,15 +145,13 @@ static void g2d_set_start_commands(struct g2d_task *task)
 
 void g2d_complete_commands(struct g2d_task *task)
 {
-	/* 832 is the total number of the G2D registers */
-	/* Tuned tone mapping LUT (66 entries) might be specified */
-	BUG_ON(task->sec.cmd_count > 896);
-
 	g2d_set_taskctl_commands(task);
 
 	g2d_set_hwfc_commands(task);
 
 	g2d_set_start_commands(task);
+
+	BUG_ON(task->sec.cmd_count > G2D_MAX_COMMAND);
 }
 
 static const struct g2d_fmt g2d_formats_common[] = {
@@ -571,18 +556,6 @@ static struct command_checker target_command_checker[G2DSFR_DST_FIELD_COUNT] = {
 	{"YCBCRMODE",	0x0058, 0x0000F714, NULL,},
 };
 
-static u16 extra_cmd_range[][2] = { /* {first, last} */
-	{0x2000, 0x208C}, /* SRC CSC Coefficients */
-	{0x2100, 0x2120}, /* DST CSC Coefficients */
-	{0x3000, 0x3100}, /* HDR EOTF Coefficients */
-	{0x3200, 0x3300}, /* Degamma Coefficients */
-	{0x3400, 0x3420}, /* HDR Gamut Mapping Coefficients */
-	{0x3500, 0x3520}, /* Degamma 2.2 Coefficients */
-	{0x3600, 0x3680}, /* HDR Tone Mapping Coefficients */
-	{0x3700, 0x3780}, /* Degamma Tone Mapping Coefficients */
-	{0x5000, 0x5B8C}, /* SET 0,1,2 Coefficients */
-};
-
 #define TARGET_OFFSET		0x120
 #define LAYER_OFFSET(idx)	((2 + (idx)) << 8)
 
@@ -800,24 +773,30 @@ bool g2d_validate_target_commands(struct g2d_device *g2d_dev,
 	return true;
 }
 
+/*
+ * List of extra command
+ *
+ * {0x2000, 0x208C}, SRC CSC Coefficients
+ * {0x2100, 0x2120}, DST CSC Coefficients
+ * {0x3000, 0x3100}, HDR EOTF Coefficients
+ * {0x3200, 0x3300}, Degamma Coefficients
+ * {0x3400, 0x3420}, HDR Gamut Mapping Coefficients
+ * {0x3500, 0x3520}, Degamma 2.2 Coefficients
+ * {0x3600, 0x3680}, HDR Tone Mapping Coefficients
+ * {0x3700, 0x3780}, Degamma Tone Mapping Coefficients
+ * {0x5000, 0x5C40}, SET 0,1,2 Coefficients
+ */
+static u16 extra_valid_range[2] = {0x2000, 0x8000}; // {0x2000, 0x8000]
+
 static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 				       struct g2d_reg extra[],
 				       unsigned int num_regs)
 {
 	unsigned int n;
-	size_t i;
-	/*
-	 * TODO: NxM loop ==> total 2008 comparison are required in maximum:
-	 * Consider if we can make it simple with a single range [0x2000, 4000)
-	 */
-	for (n = 0; n < num_regs; n++) {
-		for (i = 0; i < ARRAY_SIZE(extra_cmd_range); i++) {
-			if ((extra[n].offset >= extra_cmd_range[i][0]) &&
-				(extra[n].offset <= extra_cmd_range[i][1]))
-				break;
-		}
 
-		if (i == ARRAY_SIZE(extra_cmd_range)) {
+	for (n = 0; n < num_regs; n++) {
+		if ((extra[n].offset < extra_valid_range[0]) ||
+			(extra[n].offset >= extra_valid_range[1])) {
 			perrfndev(g2d_dev, "wrong offset %#x @ extra cmd[%d]",
 				  extra[n].offset, n);
 			return false;
@@ -826,6 +805,23 @@ static bool g2d_validate_extra_command(struct g2d_device *g2d_dev,
 
 	return true;
 }
+
+#define G2D_MAX_IMAGE_COMMAND	\
+	((G2D_MAX_IMAGES * G2DSFR_SRC_FIELD_COUNT) + G2DSFR_DST_FIELD_COUNT)
+/*
+ * Maximum of number of register set by driver.
+ *
+ * 3 initial commands
+ * 17 sets of 4 address of source and destinaion.
+ * 2 of Task control register
+ * 1 of HW flow control register
+ * 1 of Secure layer register
+ */
+#define G2D_TASK_COMMAND	(3 + (4 * (G2D_MAX_IMAGES + 1)) + 2 + 1 + 1)
+
+// Sum of taskctl, layer, extra must not exceed G2D_MAX_COMMAND
+#define G2D_MAX_EXTRA_COMMAND \
+	(G2D_MAX_COMMAND - G2D_MAX_IMAGE_COMMAND - G2D_TASK_COMMAND)
 
 int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 			struct g2d_task_data *data, unsigned int num_sources)
@@ -836,7 +832,7 @@ int g2d_import_commands(struct g2d_device *g2d_dev, struct g2d_task *task,
 	unsigned int i;
 	int copied;
 
-	if (cmds->num_extra_regs > MAX_EXTRA_REGS) {
+	if (cmds->num_extra_regs > G2D_MAX_EXTRA_COMMAND) {
 		perrfndev(g2d_dev, "Too many coefficient reigsters %d",
 			  cmds->num_extra_regs);
 		return -EINVAL;
