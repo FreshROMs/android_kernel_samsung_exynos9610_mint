@@ -407,14 +407,17 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 		}
 	}
 
-	if ((stampid == G2D_STAMP_STATE_DONE) && (g2d_debug & (1 << DBG_DEBUG)))
-		g2d_dump_info(task->g2d_dev, task);
+	if (stampid == G2D_STAMP_STATE_DONE) {
+		struct g2d_device *g2d_dev = task->g2d_dev;
 
-	if (g2d_stamp_types[stampid].type == G2D_STAMPTYPE_PERF)
-		g2d_info("[%9s] Task %2d consumed %10u us (int %u mif %u)\n",
-			 (stampid == G2D_STAMP_STATE_DONE) ?
-			 "Job done" : "Job push", stamp->job_id,
-			 stamp->val[0], stamp->val[1], stamp->val[2]);
+		if (g2d_debug & (1 << DBG_DEBUG))
+			g2d_dump_info(g2d_dev, task);
+
+		g2d_info("Task %2d consumed %10lu us (int %lu mif %lu)\n",
+			 stamp->job_id, (unsigned long)val,
+			 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int),
+			 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
+	}
 
 	stamp->time = ktime_get();
 	stamp->stamp = stampid;

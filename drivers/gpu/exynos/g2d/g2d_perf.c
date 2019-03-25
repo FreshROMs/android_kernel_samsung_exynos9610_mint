@@ -125,9 +125,6 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 
 			cycle += max(crop, window) / ppc[fmt][rot][sc];
 
-			g2d_perf("%d: crop %8d window %8d ppc %4d ",
-				 j, crop, window, ppc[fmt][rot][sc]);
-
 			/*
 			 * If frame has colorfill layer on the bottom,
 			 * upper layaer is treated as opaque.
@@ -143,14 +140,17 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 					pixelcount /
 					g2d_dev->hw_ppc[PPC_COLORFILL] : 0;
 
-				g2d_perf("(target %8d ppc %4d colorfill %8d)",
-					 frame->target_pixelcount,
+				g2d_perf("%d: dst %8d win %8d ppc %4d cycl %8d",
+					 j, frame->target_pixelcount, window,
 					 g2d_dev->hw_ppc[PPC_COLORFILL],
 					 colorfill_cycle);
 
 				cycle += colorfill_cycle;
 			}
-			g2d_perf("cycle %8d\n", cycle);
+
+			g2d_perf("%d: crop %8d window %8d ppc %4d cycle %8d",
+				 is_perf_frame_colorfill(frame) ? j + 1 : j,
+				 crop, window, ppc[fmt][rot][sc], cycle);
 		}
 	}
 
@@ -191,9 +191,8 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 	else if (ip_clock)
 		g2d_pm_qos_update_devfreq(&g2d_ctx->req, ip_clock);
 
-	g2d_perf("Request device frequency %d,", ip_clock);
-	g2d_perf("DVFS_INT current freq %lu\n",
-		 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int));
+	g2d_perf("DVFS_INT request freq %u, current freq %lu",
+		 ip_clock, exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int));
 }
 
 static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
@@ -274,9 +273,8 @@ static void g2d_set_qos_frequency(struct g2d_context *g2d_ctx,
 		bts_update_bw(bts_id, bw);
 	}
 
-	g2d_perf("Request bandwidth r %d w %d,", rbw, wbw);
-	g2d_perf("DVFS_MIF current freq %lu\n",
-		 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
+	g2d_perf("DVFS_MIF request bandwidth r %d w %d current freq %lu",
+		 rbw, wbw, exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
 }
 
 void g2d_set_performance(struct g2d_context *ctx,
