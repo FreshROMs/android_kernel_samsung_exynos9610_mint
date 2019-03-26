@@ -88,6 +88,7 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 	struct g2d_performance_frame_data *frame;
 	struct g2d_performance_layer_data *layer;
 	u32 (*ppc)[PPC_ROT][PPC_SC] = (u32 (*)[PPC_ROT][PPC_SC])g2d_dev->hw_ppc;
+	u32 frame_rate = 0;
 	unsigned int cycle, ip_clock, crop, window;
 	int i, j;
 	int sc, fmt, rot;
@@ -96,6 +97,8 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 
 	for (i = 0; i < data->num_frame; i++) {
 		frame = &data->frame[i];
+
+		frame_rate = max_t(u32, frame_rate, frame->frame_rate);
 
 		rot = 0;
 		for (j = 0; j < frame->num_layers; j++) {
@@ -137,8 +140,28 @@ static void g2d_set_device_frequency(struct g2d_context *g2d_ctx,
 		}
 	}
 
-	/* ip_clock(Mhz) = cycles / time_in_ms * 1000 * 10% */
-	ip_clock = (cycle / 7) * 1100;
+	/*
+	 * Calculate device clock to satisfy requested frame rate.
+	 *
+	 * Device clock is calculated by dividing H/W cycles calculated
+	 * above by time to satisfy the frame rate.
+	 *
+	 * ip_clock(Mhz) = cycles / time(ms)
+	 *
+	 * Time to satisfy the frame rate is calculated by 1000 / frame_rate,
+	 * but we have to include S/W margin which is driver execution time.
+	 * Thus, frame rate is added to almost 10 fps.
+	 *
+	 * time = 1000 / (frame rate + 10)
+	 *
+	 * For example, time is 16.6ms when frame rate is 60fps, but it is
+	 * calculated as 14ms to consider S/W margin. Time is 8.3ms when frame
+	 * rate is 120fps, but it is calculated as 7ms with adding 10 fps.
+	 *
+	 * Finally, the ip clock is multiplied by 10% weight to ensure
+	 * sufficient performance.
+	 */
+	ip_clock = (cycle / (1000 / (frame_rate + 10))) * 1100;
 
 	for (i = 0; i < g2d_dev->dvfs_table_cnt; i++) {
 		if (ip_clock > g2d_dev->dvfs_table[i].freq) {
