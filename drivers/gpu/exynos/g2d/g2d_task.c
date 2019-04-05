@@ -397,12 +397,25 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
+	/*
+	 * Inherit qos of device to guarantee while task runs
+	 *
+	 * However, task doesn't get the qos of device atomically
+	 * with mutex because it is only hint to ensure the performance
+	 * of task. Also, The request of performance update and task execution
+	 * doesn't occur at the same time in normal situation.
+	 */
+	task->taskqos = g2d_dev->qos;
+
 	return task;
 }
 
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned long flags;
+
+	task->taskqos.rbw = task->taskqos.wbw = 0;
+	task->taskqos.devfreq = 0;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 

@@ -126,6 +126,8 @@ struct g2d_task {
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	struct g2d_buffer_prot_info prot_info;
 #endif
+	/* inherit device qos when task allocates */
+	struct g2d_qos		taskqos;
 };
 
 /* The below macros should be called with g2d_device.lock_tasks held */

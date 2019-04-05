@@ -220,10 +220,17 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 
 static void g2d_timeout_perf_work(struct work_struct *work)
 {
-	struct g2d_context *ctx = container_of(work, struct g2d_context,
-					      dwork.work);
+	struct g2d_device *g2d_dev = container_of(work, struct g2d_device,
+						  dwork.work);
+	struct g2d_context *ctx, *tmp;
 
-	g2d_put_performance(ctx, false);
+	mutex_lock(&g2d_dev->lock_qos);
+
+	list_for_each_entry_safe(ctx, tmp, &g2d_dev->qos_contexts, qos_node)
+		list_del_init(&ctx->qos_node);
+	g2d_update_performance(g2d_dev);
+
+	mutex_unlock(&g2d_dev->lock_qos);
 }
 
 static int g2d_open(struct inode *inode, struct file *filp)
@@ -258,7 +265,6 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	spin_unlock(&g2d_dev->lock_ctx_list);
 
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
-	INIT_DELAYED_WORK(&(g2d_ctx->dwork), g2d_timeout_perf_work);
 
 	return 0;
 }
@@ -278,7 +284,12 @@ static int g2d_release(struct inode *inode, struct file *filp)
 		kfree(g2d_ctx->hwfc_info);
 	}
 
-	g2d_put_performance(g2d_ctx, true);
+	mutex_lock(&g2d_dev->lock_qos);
+
+	list_del_init(&g2d_ctx->qos_node);
+	g2d_update_performance(g2d_dev);
+
+	mutex_unlock(&g2d_dev->lock_qos);
 
 	spin_lock(&g2d_dev->lock_ctx_list);
 	list_del(&g2d_ctx->node);
@@ -415,6 +426,8 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case G2D_IOC_PERFORMANCE:
 	{
 		struct g2d_performance_data data;
+		int i;
+		struct g2d_qos qos = {0, };
 
 		if (!(ctx->authority & G2D_AUTHORITY_HIGHUSER)) {
 			ret = -EPERM;
@@ -426,7 +439,30 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		g2d_set_performance(ctx, &data, false);
+
+		if (data.num_frame > G2D_PERF_MAX_FRAMES)
+			return -EINVAL;
+
+		for (i = 0; i < data.num_frame; i++) {
+			if (data.frame[i].num_layers > g2d_dev->max_layers)
+				return -EINVAL;
+		}
+
+		for (i = 0; i < data.num_frame; i++) {
+			qos.rbw += data.frame[i].bandwidth_read;
+			qos.wbw += data.frame[i].bandwidth_write;
+		}
+		qos.devfreq = g2d_calc_device_frequency(g2d_dev, &data);
+
+		ctx->ctxqos = qos;
+
+		mutex_lock(&g2d_dev->lock_qos);
+		if (!qos.rbw && !qos.wbw && !qos.devfreq)
+			list_del_init(&ctx->qos_node);
+		else if (list_empty(&ctx->qos_node))
+			list_add(&ctx->qos_node, &g2d_dev->qos_contexts);
+		g2d_update_performance(g2d_dev);
+		mutex_unlock(&g2d_dev->lock_qos);
 
 		break;
 	}
@@ -971,6 +1007,8 @@ static int g2d_probe(struct platform_device *pdev)
 	itmon_notifier_chain_register(&g2d_dev->itmon_nb);
 #endif
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x", version);
+
+	INIT_DELAYED_WORK(&g2d_dev->dwork, g2d_timeout_perf_work);
 
 	return 0;
 err_pm:
