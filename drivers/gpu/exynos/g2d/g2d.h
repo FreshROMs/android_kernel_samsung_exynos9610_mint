@@ -75,6 +75,12 @@ struct g2d_dvfs_table {
 	u32 freq;
 };
 
+struct g2d_qos {
+	u64	rbw;
+	u64	wbw;
+	u32	devfreq;
+};
+
 /* Proved that G2D does not leak protected conents that it is processing. */
 #define G2D_DEVICE_CAPS_SELF_PROTECTION		1
 /* Separate bitfield to select YCbCr Bitdepth at REG_COLORMODE[29:28] */
@@ -120,6 +126,10 @@ struct g2d_device {
 
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
+
+	struct g2d_qos		qos;
+	struct pm_qos_request	req;
+
 	u32 hw_ppc[PPC_END];
 	u32				max_layers;
 
@@ -130,6 +140,8 @@ struct g2d_device {
 
 	u32 dvfs_int;
 	u32 dvfs_mif;
+
+	struct delayed_work dwork;
 };
 
 #define G2D_AUTHORITY_HIGHUSER 1
@@ -142,12 +154,9 @@ struct g2d_context {
 	int authority;
 	struct task_struct	*owner;
 
-	struct delayed_work dwork;
-
-	struct pm_qos_request req;
 	struct list_head qos_node;
-	u64	r_bw;
-	u64	w_bw;
+
+	struct g2d_qos	ctxqos;
 };
 
 #define IPPREFIX "[Exynos][G2D] "

@@ -160,18 +160,19 @@ static int g2d_debug_contexts_show(struct seq_file *s, void *unused)
 	struct g2d_device *g2d_dev = s->private;
 	struct g2d_context *ctx;
 
-	seq_printf(s, "%16s %6s %4s %6s %10s %10s\n",
-		"task", "pid", "prio", "dev", "read_bw", "write_bw");
+	seq_printf(s, "%16s %6s %4s %6s %10s %10s %10s\n",
+		"task", "pid", "prio", "dev", "rbw", "wbw", "devfreq");
 	seq_puts(s, "------------------------------------------------------\n");
 
 	spin_lock(&g2d_dev->lock_ctx_list);
 
 	list_for_each_entry(ctx, &g2d_dev->ctx_list, node) {
 		task_lock(ctx->owner);
-		seq_printf(s, "%16s %6u %4d %6s %10llu %10llu\n",
+		seq_printf(s, "%16s %6u %4d %6s %10llu %10llu %10u\n",
 			ctx->owner->comm, ctx->owner->pid, ctx->priority,
 			g2d_dev->misc[(ctx->authority + 1) & 1].name,
-			ctx->r_bw, ctx->w_bw);
+			ctx->ctxqos.rbw, ctx->ctxqos.wbw,
+			ctx->ctxqos.devfreq);
 
 		task_unlock(ctx->owner);
 	}
@@ -213,9 +214,12 @@ static int g2d_debug_tasks_show(struct seq_file *s, void *unused)
 	for (task = g2d_dev->tasks; task; task = task->next) {
 		seq_printf(s, "TASK[%d]: state %#lx flags %#x ",
 			   task->sec.job_id, task->state, task->flags);
-		seq_printf(s, "prio %d begin@%llu end@%llu nr_src %d\n",
+		seq_printf(s, "prio %d begin@%llu end@%llu nr_src %d ",
 			   task->sec.priority, ktime_to_us(task->ktime_begin),
 			   ktime_to_us(task->ktime_end), task->num_source);
+		seq_printf(s, "rbw %llu wbw %llu devfreq %u\n",
+			   task->taskqos.rbw, task->taskqos.wbw,
+			   task->taskqos.devfreq);
 	}
 
 	return 0;
