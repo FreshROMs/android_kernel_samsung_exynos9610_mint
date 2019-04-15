@@ -52,8 +52,8 @@ static void devfreq_max_unboost(struct work_struct *work);
 }
 
 static struct df_boost_drv df_boost_drv_g __read_mostly = {
-	BOOST_DEV_INIT(df_boost_drv_g, DEVFREQ_MSM_CPUBW,
-		       CONFIG_DEVFREQ_MSM_CPUBW_BOOST_FREQ)
+	BOOST_DEV_INIT(df_boost_drv_g, DEVFREQ_EXYNOS_MIF,
+		       CONFIG_DEVFREQ_EXYNOS_MIF_BOOST_FREQ)
 };
 
 static void __devfreq_boost_kick(struct boost_dev *b)
@@ -137,15 +137,16 @@ static void devfreq_max_unboost(struct work_struct *work)
 static void devfreq_update_boosts(struct boost_dev *b, unsigned long state)
 {
 	struct devfreq *df = b->df;
+	int first_freq_idx = df->profile->max_state - 1;
 
 	mutex_lock(&df->lock);
 	if (test_bit(SCREEN_OFF, &state)) {
-		df->min_freq = df->profile->freq_table[0];
+		df->min_freq = df->profile->freq_table[first_freq_idx];
 		df->max_boost = false;
 	} else {
 		df->min_freq = test_bit(INPUT_BOOST, &state) ?
 			       min(b->boost_freq, df->max_freq) :
-			       df->profile->freq_table[0];
+			       df->profile->freq_table[first_freq_idx];
 		df->max_boost = test_bit(MAX_BOOST, &state);
 	}
 	update_devfreq(df);
