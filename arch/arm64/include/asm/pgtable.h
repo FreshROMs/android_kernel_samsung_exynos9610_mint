@@ -235,7 +235,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 struct mm_struct;
 struct vm_area_struct;
 
-extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
+extern void __sync_icache_dcache(pte_t pteval);
 
 /*
  * PTE bits configuration in the presence of hardware Dirty Bit Management
@@ -252,28 +252,42 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
  *
  *   PTE_DIRTY || (PTE_WRITE && !PTE_RDONLY)
  */
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
+
+static inline void __check_racy_pte_update(struct mm_struct *mm, pte_t *ptep,
+					   pte_t pte)
 {
 	pte_t old_pte;
 
-	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
-		__sync_icache_dcache(pte, addr);
+	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+		return;
+
+	old_pte = READ_ONCE(*ptep);
+
+	if (!pte_valid(old_pte) || !pte_valid(pte))
+		return;
+	if (mm != current->active_mm && atomic_read(&mm->mm_users) <= 1)
+		return;
 
 	/*
-	 * If the existing pte is valid, check for potential race with
-	 * hardware updates of the pte (ptep_set_access_flags safely changes
-	 * valid ptes without going through an invalid entry).
+	 * Check for potential race with hardware updates of the pte
+	 * (ptep_set_access_flags safely changes valid ptes without going
+	 * through an invalid entry).
 	 */
-	old_pte = READ_ONCE(*ptep);
-	if (pte_valid(old_pte) && pte_valid(pte)) {
-		VM_WARN_ONCE(!pte_young(pte),
-			     "%s: racy access flag clearing: 0x%016llx -> 0x%016llx",
-			     __func__, pte_val(old_pte), pte_val(pte));
-		VM_WARN_ONCE(pte_write(old_pte) && !pte_dirty(pte),
-			     "%s: racy dirty state clearing: 0x%016llx -> 0x%016llx",
-			     __func__, pte_val(old_pte), pte_val(pte));
-	}
+	VM_WARN_ONCE(!pte_young(pte),
+		     "%s: racy access flag clearing: 0x%016llx -> 0x%016llx",
+		     __func__, pte_val(old_pte), pte_val(pte));
+	VM_WARN_ONCE(pte_write(old_pte) && !pte_dirty(pte),
+		     "%s: racy dirty state clearing: 0x%016llx -> 0x%016llx",
+		     __func__, pte_val(old_pte), pte_val(pte));
+}
+
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pte)
+{
+	if (pte_present(pte) && pte_user_exec(pte) && !pte_special(pte))
+		__sync_icache_dcache(pte);
+
+	__check_racy_pte_update(mm, ptep, pte);
 
 	set_pte(ptep, pte);
 }
