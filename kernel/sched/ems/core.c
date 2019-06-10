@@ -256,8 +256,7 @@ static int select_proper_cpu(struct eco_env *eenv)
 			 * with smallest cpapacity or highest spare capacity
 			 * and the least utilization among cpus that fits the task.
 			 */
-			if (cpu_capacity >= target_capacity &&
-				new_util > best_active_util)
+			if (new_util > best_active_util)
 				continue;
 
 			target_capacity = cpu_capacity;
