@@ -1774,7 +1774,7 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q)
 	}
 
 	if (q->start_streaming_called)
-		wait_event(q->done_wq, !atomic_read(&q->owned_by_drv_count));
+		wait_event_interruptible(q->done_wq, !atomic_read(&q->owned_by_drv_count));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
