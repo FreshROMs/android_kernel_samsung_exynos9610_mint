@@ -4374,7 +4374,7 @@ static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 				    req3->tp_sizeof_priv ||
 				    req3->tp_feature_req_word) {
 					err = -EINVAL;
-					goto out;
+					goto out_free_pg_vec;
 				}
 			}
 			break;
