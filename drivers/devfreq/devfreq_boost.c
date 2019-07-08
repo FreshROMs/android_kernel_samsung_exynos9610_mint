@@ -13,6 +13,7 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/moduleparam.h>
 #include <linux/compiler.h>
+#include <linux/ems_service.h>
 
 #define MAX_USER_RT_PRIO        100
 #define MAX_RT_PRIO             MAX_USER_RT_PRIO
@@ -66,6 +67,8 @@ static struct df_boost_drv df_boost_drv_g __read_mostly = {
 	BOOST_DEV_INIT(df_boost_drv_g, DEVFREQ_EXYNOS_MIF,
 		       CONFIG_DEVFREQ_EXYNOS_MIF_BOOST_FREQ)
 };
+static struct kpp kpp_ta;
+static struct kpp kpp_fg;
 static int disable_boost = 0;
 
 void disable_devfreq_video_boost(int disable)
@@ -113,6 +116,9 @@ static void __devfreq_boost_kick_max(struct boost_dev *b,
 	} while (atomic_long_cmpxchg(&b->max_boost_expires, curr_expires,
 				     new_expires) != curr_expires);
 
+	kpp_request(STUNE_TOPAPP, &kpp_ta, 1);
+	kpp_request(STUNE_FOREGROUND, &kpp_fg, 1);
+
 	set_bit(MAX_BOOST, &b->state);
 	if (!mod_delayed_work(system_unbound_wq, &b->max_unboost,
 			      boost_jiffies))
@@ -154,6 +160,9 @@ static void devfreq_max_unboost(struct work_struct *work)
 {
 	struct boost_dev *b = container_of(to_delayed_work(work),
 					   typeof(*b), max_unboost);
+
+	kpp_request(STUNE_TOPAPP, &kpp_ta, 0);
+	kpp_request(STUNE_FOREGROUND, &kpp_fg, 0);
 
 	clear_bit(MAX_BOOST, &b->state);
 	wake_up(&b->boost_waitq);
