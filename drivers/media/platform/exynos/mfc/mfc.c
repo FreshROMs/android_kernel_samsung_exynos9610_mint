@@ -46,6 +46,7 @@
 #include "mfc_utils.h"
 #include "mfc_buf.h"
 #include "mfc_mem.h"
+#include <linux/devfreq_boost.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/mfc.h>
@@ -475,6 +476,12 @@ static int mfc_open(struct file *file)
 
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
 
+	if (node == MFCNODE_DECODER) {
+		dev->num_dec++;
+		if (dev->num_dec == 1)
+			disable_devfreq_video_boost(true);
+	}
+
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -628,6 +635,11 @@ err_vdev:
 
 err_ctx_alloc:
 	dev->num_inst--;
+	if (node == MFCNODE_DECODER) {
+		dev->num_dec--;
+		if (dev->num_dec == 0)
+			disable_devfreq_video_boost(false);
+	}
 
 err_node_type:
 	mfc_info_dev("MFC driver open is failed [%d:%d]\n",
@@ -735,6 +747,11 @@ static int mfc_release(struct file *file)
 	if (ctx->is_drm)
 		dev->num_drm_inst--;
 	dev->num_inst--;
+	if (ctx->type == MFCINST_DECODER && !ctx->is_drm) {
+		dev->num_dec--;
+		if (dev->num_dec == 0)
+			disable_devfreq_video_boost(false);
+	}
 
 	if (dev->num_inst == 0) {
 		mfc_run_deinit_hw(dev);
