@@ -676,7 +676,9 @@ s32 dcache_release_all(struct super_block *sb)
 	s32 ret = 0;
 	cache_ent_t *bp;
 	FS_INFO_T *fsi = &(SDFAT_SB(sb)->fsi);
+#ifdef CONFIG_SDFAT_DELAYED_META_DIRTY
 	s32 dirtycnt = 0;
+#endif
 
 	/* Connect list elements:
 	 * LRU list : (A - B - ... - bp_front) + (bp_first + ... + bp_last)
@@ -706,7 +708,9 @@ s32 dcache_release_all(struct super_block *sb)
 		bp = bp->next;
 	}
 
+#ifdef CONFIG_SDFAT_DELAYED_META_DIRTY
 	DMSG("BD:Release / dirty buf cache: %d (err:%d)", dirtycnt, ret);
+#endif
 	return ret;
 }
 
