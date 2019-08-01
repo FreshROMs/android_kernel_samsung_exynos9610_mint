@@ -1068,6 +1068,10 @@ ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
 LDFLAGS_vmlinux	+= $(call ld-option, -X,)
 endif
 
+ifeq ($(CONFIG_RELR),y)
+LDFLAGS_vmlinux	+= --pack-dyn-relocs=relr
+endif
+
 ifneq ($(SEC_BUILD_CONF_USE_FINGERPRINT_TZ), false)
   ifeq ($(CONFIG_SENSORS_FINGERPRINT), y)
     ifneq ($(CONFIG_SEC_FACTORY), y)
