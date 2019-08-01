@@ -717,8 +717,8 @@ LDFLAGS		+= -plugin-opt=-data-sections
 # use llvm-ar for building symbol tables from IR files, and llvm-dis instead
 # of objdump for processing symbol versions and exports
 LLVM_AR		:= llvm-ar
-LLVM_DIS	:= llvm-dis
-export LLVM_AR LLVM_DIS
+LLVM_NM		:= llvm-nm
+export LLVM_AR LLVM_NM
 else ifdef CONFIG_LTO_GCC
 LDFLAGS_FINAL_vmlinux := -flto=jobserver -fuse-linker-plugin
 LDFLAGS_FINAL_vmlinux += $(filter -g%, $(KBUILD_CFLAGS))
@@ -909,12 +909,18 @@ KBUILD_CFLAGS_KERNEL	+= $(call cc-option,-fdata-sections,)
 endif
 
 ifdef CONFIG_LTO_CLANG
-lto-clang-flags	:= -flto -fvisibility=hidden
+ifdef CONFIG_THINLTO
+lto-clang-flags	:= -flto=thin
+LDFLAGS		+= --thinlto-cache-dir=.thinlto-cache
+else
+lto-clang-flags	:= -flto
+endif
+lto-clang-flags += -fvisibility=default $(call cc-option, -fsplit-lto-unit)
 
 KBUILD_LDS_MODULE += $(srctree)/scripts/module-lto.lds
 
 # allow disabling only clang LTO where needed
-DISABLE_LTO_CLANG := -fno-lto -fvisibility=default
+DISABLE_LTO_CLANG := -fno-lto
 export DISABLE_LTO_CLANG
 else ifdef CONFIG_LTO_GCC
 lto-gcc-flags	:= -flto -fno-fat-lto-objects
