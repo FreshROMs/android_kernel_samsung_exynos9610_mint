@@ -589,9 +589,9 @@ int mms_custom_event_handler(struct mms_ts_info *info, u8 *rbuf, u8 size)
 				input_sync(info->input_dev);
 			} else if (gesture_id == MMS_GESTURE_ID_DOUBLETAP_TO_WAKEUP) {
 				input_info(true, &info->client->dev, "%s: AOT\n", __func__);
-				input_report_key(info->input_dev, KEY_HOMEPAGE, 1);
+				input_report_key(info->input_dev, KEY_WAKEUP, 1);
 				input_sync(info->input_dev);
-				input_report_key(info->input_dev, KEY_HOMEPAGE, 0);
+				input_report_key(info->input_dev, KEY_WAKEUP, 0);
 			}
 		} else if (gesture_type == MMS_GESTURE_CODE_SINGLE_TAP) {
 			info->scrub_id = SPONGE_EVENT_TYPE_SINGLE_TAP;
@@ -767,7 +767,7 @@ void mms_config_input(struct mms_ts_info *info)
 	set_bit(EV_KEY, input_dev->evbit);
 	set_bit(KEY_POWER, input_dev->keybit);
 #endif
-	set_bit(KEY_HOMEPAGE, input_dev->keybit);
+	set_bit(KEY_WAKEUP, input_dev->keybit);
 	set_bit(KEY_BLACK_UI_GESTURE, input_dev->keybit);
 	input_dbg(true, &info->client->dev, "%s [DONE]\n", __func__);
 }
