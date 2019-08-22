@@ -228,8 +228,10 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
 	 * or update_mmu_cache() have the necessary barriers.
 	 */
-	if (pte_valid_not_user(pte))
+	if (pte_valid_not_user(pte)) {
 		dsb(ishst);
+		isb();
+	}
 }
 
 struct mm_struct;
@@ -439,8 +441,10 @@ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 #else
 	WRITE_ONCE(*pmdp, pmd);
 #endif
-	if (pmd_valid(pmd))
+	if (pmd_valid(pmd)) {
 		dsb(ishst);
+		isb();
+	}
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
@@ -505,8 +509,10 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
 #else
 	WRITE_ONCE(*pudp, pud);
 #endif
-	if (pud_valid(pud))
+	if (pud_valid(pud)) {
 		dsb(ishst);
+		isb();
+	}
 }
 
 static inline void pud_clear(pud_t *pudp)
