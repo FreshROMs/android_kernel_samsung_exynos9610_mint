@@ -58,6 +58,15 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 	policy->min = policy->cpuinfo.min_freq = min_freq;
 	policy->max = policy->cpuinfo.max_freq = max_freq;
 
+#if CONFIG_CPU_FREQ_DEFAULT_LITTLE_MIN
+	if (cpumask_test_cpu(policy->cpu, cpu_lp_mask))
+		policy->min = CONFIG_CPU_FREQ_DEFAULT_LITTLE_MIN;
+#endif
+#if CONFIG_CPU_FREQ_DEFAULT_BIG_MIN
+	if (cpumask_test_cpu(policy->cpu, cpu_perf_mask))
+		policy->min = CONFIG_CPU_FREQ_DEFAULT_BIG_MIN;
+#endif
+
 	if (policy->min == ~0)
 		return -EINVAL;
 	else

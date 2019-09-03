@@ -217,6 +217,24 @@ config FREQVAR_TUNE
 
 	  Say N if unsure.
 
+config CPU_FREQ_DEFAULT_LITTLE_MIN
+	int "Default minimum frequency for the little cluster"
+	default 768000
+	help
+	  This sets the default minimum frequency (in kHz) for the little CPU
+	  cluster.
+
+	  If in doubt, say 0 to use the hardware's minimum frequency.
+
+config CPU_FREQ_DEFAULT_BIG_MIN
+	int "Default minimum frequency for the big cluster"
+	default 1056000
+	help
+	  This sets the default minimum frequency (in kHz) for the big CPU
+	  cluster.
+
+	  If in doubt, say 0 to use the hardware's minimum frequency.
+
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT
