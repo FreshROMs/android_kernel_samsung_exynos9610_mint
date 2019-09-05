@@ -118,7 +118,6 @@ struct mtp_dev {
 
 	wait_queue_head_t read_wq;
 	wait_queue_head_t write_wq;
-	wait_queue_head_t intr_wq;
 	struct usb_request *rx_req[RX_REQ_MAX];
 	int rx_done;
 
@@ -506,8 +505,6 @@ static void mtp_complete_intr(struct usb_ep *ep, struct usb_request *req)
 		dev->state = STATE_ERROR;
 
 	mtp_req_put(dev, &dev->intr_idle, req);
-
-	wake_up(&dev->intr_wq);
 }
 
 static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
@@ -1105,11 +1102,9 @@ static int mtp_send_event(struct mtp_dev *dev, struct mtp_event *event)
 	if (dev->state == STATE_OFFLINE)
 		return -ENODEV;
 
-	ret = wait_event_interruptible_timeout(dev->intr_wq,
-			(req = mtp_req_get(dev, &dev->intr_idle)),
-			msecs_to_jiffies(1000));
+	req = mtp_req_get(dev, &dev->intr_idle);
 	if (!req)
-		return -ETIME;
+		return -EBUSY;
 
 	if (copy_from_user(req->buf, (void __user *)event->data, length)) {
 		mtp_req_put(dev, &dev->intr_idle, req);
@@ -1120,6 +1115,7 @@ static int mtp_send_event(struct mtp_dev *dev, struct mtp_event *event)
 	if (ret)
 		mtp_req_put(dev, &dev->intr_idle, req);
 
+	DBG(dev->cdev, "exit: (%d)\n", ret);
 	return ret;
 }
 
@@ -1131,6 +1127,7 @@ static long mtp_send_receive_ioctl(struct file *fp, unsigned int code,
 	struct work_struct *work;
 	int ret = -EINVAL;
 
+	DBG(dev->cdev, "entering ioctl with state: %d\n", dev->state);
 	if (mtp_lock(&dev->ioctl_excl)) {
 		DBG(dev->cdev, "ioctl returning EBUSY state:%d\n", dev->state);
 		return -EBUSY;
@@ -1745,7 +1742,6 @@ static int __mtp_setup(struct mtp_instance *fi_mtp)
 	spin_lock_init(&dev->lock);
 	init_waitqueue_head(&dev->read_wq);
 	init_waitqueue_head(&dev->write_wq);
-	init_waitqueue_head(&dev->intr_wq);
 	atomic_set(&dev->open_excl, 0);
 	atomic_set(&dev->ioctl_excl, 0);
 	INIT_LIST_HEAD(&dev->tx_idle);
