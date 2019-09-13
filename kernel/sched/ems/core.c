@@ -226,13 +226,13 @@ static int select_proper_cpu(struct eco_env *eenv)
 				int idle_idx = idle_get_state_idx(cpu_rq(i));
 
 				/* find shallowest idle state cpu */
-				if (cpu_capacity >= target_capacity &&
+				if (cpu_capacity == target_capacity &&
 				    idle_idx > best_idle_cstate)
 					continue;
 
 				/* if same cstate, select lower util */
-				if (cpu_capacity >= target_capacity &&
-				    idle_idx == best_idle_cstate &&
+				if (idle_idx == best_idle_cstate &&
+				    cpu_capacity == target_capacity &&
 				    (best_idle_cpu == eenv->prev_cpu ||
 				    (i != eenv->prev_cpu &&
 				    new_util >= best_idle_util)))
