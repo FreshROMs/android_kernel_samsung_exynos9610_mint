@@ -105,28 +105,14 @@ static long madvise_behavior(struct vm_area_struct *vma,
 	case MADV_MERGEABLE:
 	case MADV_UNMERGEABLE:
 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
-		if (error) {
-			/*
-			 * madvise() returns EAGAIN if kernel resources, such as
-			 * slab, are temporarily unavailable.
-			 */
-			if (error == -ENOMEM)
-				error = -EAGAIN;
-			goto out;
-		}
+		if (error)
+			goto out_convert_errno;
 		break;
 	case MADV_HUGEPAGE:
 	case MADV_NOHUGEPAGE:
 		error = hugepage_madvise(vma, &new_flags, behavior);
-		if (error) {
-			/*
-			 * madvise() returns EAGAIN if kernel resources, such as
-			 * slab, are temporarily unavailable.
-			 */
-			if (error == -ENOMEM)
-				error = -EAGAIN;
-			goto out;
-		}
+		if (error)
+			goto out_convert_errno;
 		break;
 	}
 
@@ -152,15 +138,8 @@ static long madvise_behavior(struct vm_area_struct *vma,
 			goto out;
 		}
 		error = __split_vma(mm, vma, start, 1);
-		if (error) {
-			/*
-			 * madvise() returns EAGAIN if kernel resources, such as
-			 * slab, are temporarily unavailable.
-			 */
-			if (error == -ENOMEM)
-				error = -EAGAIN;
-			goto out;
-		}
+		if (error)
+			goto out_convert_errno;
 	}
 
 	if (end != vma->vm_end) {
@@ -169,15 +148,8 @@ static long madvise_behavior(struct vm_area_struct *vma,
 			goto out;
 		}
 		error = __split_vma(mm, vma, end, 0);
-		if (error) {
-			/*
-			 * madvise() returns EAGAIN if kernel resources, such as
-			 * slab, are temporarily unavailable.
-			 */
-			if (error == -ENOMEM)
-				error = -EAGAIN;
-			goto out;
-		}
+		if (error)
+			goto out_convert_errno;
 	}
 
 success:
@@ -187,6 +159,14 @@ success:
 	vm_write_begin(vma);
 	WRITE_ONCE(vma->vm_flags, new_flags);
 	vm_write_end(vma);
+
+out_convert_errno:
+	/*
+	 * madvise() returns EAGAIN if kernel resources, such as
+	 * slab, are temporarily unavailable.
+	 */
+	if (error == -ENOMEM)
+		error = -EAGAIN;
 out:
 	return error;
 }
