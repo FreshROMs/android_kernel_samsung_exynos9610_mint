@@ -71,6 +71,7 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	u32 width = layer_width(&task->target);
 	u32 height = layer_height(&task->target);
 	int i;
+	bool vertical;
 
 	for (i = 0; i < task->num_source; i++) {
 		layer = &task->source[i];
@@ -82,7 +83,9 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 			n_rot += size;
 	}
 
-	if (rot > n_rot) {
+	vertical = (rot > n_rot) ? true : false;
+
+	if (vertical) {
 		u32 mode = task->target.commands[G2DSFR_IMG_COLORMODE].value;
 
 		regs[task->sec.cmd_count].offset = G2D_TILE_DIRECTION_ORDER_REG;
@@ -102,7 +105,7 @@ static void g2d_set_taskctl_commands(struct g2d_task *task)
 	 * split index is half the width or height divided by 16
 	 */
 	regs[task->sec.cmd_count].offset = G2D_DST_SPLIT_TILE_IDX_REG;
-	if (!IS_HWFC(task->flags) && (height > width))
+	if (vertical && !IS_HWFC(task->flags) && (height > width))
 		regs[task->sec.cmd_count].value = ((height / 2) >> 4);
 	else
 		regs[task->sec.cmd_count].value =
