@@ -12,6 +12,13 @@
 #include <linux/slab.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/moduleparam.h>
+#include <linux/compiler.h>
+
+#define MAX_USER_RT_PRIO        100
+#define MAX_RT_PRIO             MAX_USER_RT_PRIO
+
+#define MAX_PRIO                (MAX_RT_PRIO + NICE_WIDTH)
+#define DEFAULT_PRIO            (MAX_RT_PRIO + NICE_WIDTH / 2)
 
 enum {
 	SCREEN_OFF,
