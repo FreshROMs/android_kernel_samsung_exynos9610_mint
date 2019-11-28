@@ -3858,7 +3858,6 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	size_t count = iov_iter_count(iter);
 	loff_t offset = iocb->ki_pos;
 	ssize_t ret;
-	int rw = iov_iter_rw(iter);
 
 	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode)
 			&& !fscrypt_inline_encrypted(inode))
