@@ -497,7 +497,7 @@ static int dbg_snapshot_sfr_dump_init(struct device_node *np)
 
 static int __init dbg_snapshot_remap(void)
 {
-	unsigned long i, j;
+	size_t i, j;
 	unsigned int enabled_count = 0;
 	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
 	int page_size, ret;
