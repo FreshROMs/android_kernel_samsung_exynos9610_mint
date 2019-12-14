@@ -1187,4 +1187,5 @@ void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 		sysfs_delete_link(&f2fs_kset.kobj, &sbi->s_kobj, "userdata");
 
 	kobject_del(&sbi->s_kobj);
+	kobject_put(&sbi->s_kobj);
 }
