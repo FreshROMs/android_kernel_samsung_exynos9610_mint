@@ -74,8 +74,7 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	 */
 	if (atomic_read(&task->starter.refcount.refs) == 0) {
 		spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
-		perr("All fences are signaled. (work_busy? %d, state %#lx)",
-		     work_busy(&task->work), task->state);
+		perr("All fences are signaled. (state %#lx)", task->state);
 		/*
 		 * If this happens, there is racing between
 		 * g2d_fence_timeout_handler() and g2d_queuework_task(). Once

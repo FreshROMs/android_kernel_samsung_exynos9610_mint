@@ -20,7 +20,7 @@
 
 #include <linux/ktime.h>
 #include <linux/dma-buf.h>
-#include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/timer.h>
 #include <linux/sync_file.h>
 
@@ -116,7 +116,8 @@ struct g2d_task {
 	ktime_t			ktime_begin;
 	ktime_t			ktime_end;
 
-	struct work_struct	work;
+	struct kthread_work	sched_work;
+	struct work_struct	completion_work;
 	struct completion	completion;
 
 	unsigned int		total_cached_len;
