@@ -508,6 +508,13 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	    nr_to_submit && !fscrypt_inline_encrypted(inode)) {
 		gfp_t gfp_flags = GFP_NOFS;
 
+		/*
+		 * Since bounce page allocation uses a mempool, we can only use
+		 * a waiting mask (i.e. request guaranteed allocation) on the
+		 * first page of the bio.  Otherwise it can deadlock.
+		 */
+		if (io->io_bio)
+			gfp_flags = GFP_NOWAIT | __GFP_NOWARN;
 	retry_encrypt:
 		data_page = fscrypt_encrypt_page(inode, page, PAGE_SIZE, 0,
 						page->index, gfp_flags);
