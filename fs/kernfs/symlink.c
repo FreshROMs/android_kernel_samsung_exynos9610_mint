@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/namei.h>
+#include <linux/cache.h>
 
 #include "kernfs-internal.h"
 
@@ -115,6 +116,18 @@ static int kernfs_getlink(struct inode *inode, char *path)
 	return error;
 }
 
+static struct kmem_cache *symlink_cache;
+static void kmem_cache_free_link(void *p)
+{
+	kmem_cache_free(symlink_cache, p);
+}
+
+void __init symlink_cache_init(void)
+{
+	symlink_cache = kmem_cache_create("symlink_cache",
+				PAGE_SIZE, 0, SLAB_PANIC | SLAB_HWCACHE_ALIGN, NULL);
+}
+
 static const char *kernfs_iop_get_link(struct dentry *dentry,
 				       struct inode *inode,
 				       struct delayed_call *done)
@@ -124,15 +137,15 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 
 	if (!dentry)
 		return ERR_PTR(-ECHILD);
-	body = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	body = kmem_cache_zalloc(symlink_cache, GFP_KERNEL);
 	if (!body)
 		return ERR_PTR(-ENOMEM);
 	error = kernfs_getlink(inode, body);
 	if (unlikely(error < 0)) {
-		kfree(body);
+		kmem_cache_free(symlink_cache, body);
 		return ERR_PTR(error);
 	}
-	set_delayed_call(done, kfree_link, body);
+	set_delayed_call(done, kmem_cache_free_link, body);
 	return body;
 }
 

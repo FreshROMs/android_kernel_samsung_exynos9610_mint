@@ -79,4 +79,5 @@
 #define cache_line_size()	L1_CACHE_BYTES
 #endif
 
+void symlink_cache_init(void);
 #endif /* __LINUX_CACHE_H */
