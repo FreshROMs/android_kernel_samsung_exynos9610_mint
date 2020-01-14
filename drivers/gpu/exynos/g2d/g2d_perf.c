@@ -24,7 +24,6 @@
 
 #include <linux/workqueue.h>
 #include <soc/samsung/exynos-devfreq.h>
-#include <soc/samsung/bts.h>
 
 #ifdef CONFIG_PM_DEVFREQ
 static void g2d_pm_qos_update_devfreq(struct pm_qos_request *req, u32 freq)
@@ -175,8 +174,8 @@ void g2d_update_performance(struct g2d_device *g2d_dev)
 {
 	struct g2d_context *ctx;
 	struct g2d_task *task;
+	struct bts_bw bw;
 	struct g2d_qos qos = {0, };
-	int bts_id;
 
 	/* Find maximum request from contexts */
 	list_for_each_entry(ctx, &g2d_dev->qos_contexts, qos_node) {
@@ -203,23 +202,17 @@ void g2d_update_performance(struct g2d_device *g2d_dev)
 		g2d_pm_qos_update_devfreq(&g2d_dev->req, qos.devfreq);
 
 	g2d_perf("DVFS_INT freq : request %u, current %lu",
-		 qos.devfreq,
-		 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int));
+		 qos.devfreq, g2d_get_current_freq(g2d_dev->dvfs_int));
 
-	bts_id = bts_get_bwindex("g2d");
-	if (bts_id >= 0) {
-		struct bts_bw bw;
+	bw.peak = (qos.rbw + qos.wbw) / 2;
+	bw.write = qos.wbw;
+	bw.read = qos.rbw;
 
-		bw.peak = (qos.rbw + qos.wbw) / 2;
-		bw.write = qos.wbw;
-		bw.read = qos.rbw;
+	g2d_update_bw(bw);
 
-		bts_update_bw(bts_id, bw);
-
-		g2d_perf("DVFS_MIF freq : request r %d w %d current %lu",
-			 bw.read, bw.write,
-			 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
-	}
+	g2d_perf("DVFS_MIF freq : request r %d w %d current %lu",
+		 bw.read, bw.write,
+		 g2d_get_current_freq(g2d_dev->dvfs_mif));
 
 	/*
 	 * Request of performance should be released by explicit user request
