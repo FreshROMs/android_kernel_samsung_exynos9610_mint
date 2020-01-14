@@ -25,6 +25,7 @@
 #include "g2d_uapi.h"
 #include "g2d_debug.h"
 #include "g2d_regs.h"
+#include "g2d_perf.h"
 
 #include <soc/samsung/exynos-devfreq.h>
 
@@ -404,10 +405,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 		if (g2d_stamp_types[stampid].type == G2D_STAMPTYPE_PERF) {
 			struct g2d_device *g2d_dev = task->g2d_dev;
 
-			stamp->val[1] =	exynos_devfreq_get_domain_freq(
-					g2d_dev->dvfs_int);
-			stamp->val[2] = exynos_devfreq_get_domain_freq(
-					g2d_dev->dvfs_mif);
+			stamp->val[1] =	g2d_get_current_freq(g2d_dev->dvfs_int);
+			stamp->val[2] = g2d_get_current_freq(g2d_dev->dvfs_mif);
 		}
 	}
 
@@ -419,8 +418,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 
 		g2d_info("Task %2d consumed %10lu us (int %lu mif %lu)\n",
 			 stamp->job_id, (unsigned long)val,
-			 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_int),
-			 exynos_devfreq_get_domain_freq(g2d_dev->dvfs_mif));
+			 g2d_get_current_freq(g2d_dev->dvfs_int),
+			 g2d_get_current_freq(g2d_dev->dvfs_mif));
 	}
 
 	stamp->time = ktime_get();
