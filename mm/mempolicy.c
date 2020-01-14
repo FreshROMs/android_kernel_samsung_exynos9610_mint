@@ -2079,18 +2079,17 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 			 * providing THP originated from the local
 			 * node in such case.
 			 */
-			if (!(gfp & __GFP_DIRECT_RECLAIM))
-				gfp |= __GFP_THISNODE;
+			if (!(gfp & __GFP_DIRECT_RECLAIM)) {
+				gfp |= __GFP_THISNODE | __GFP_NORETRY;
 			page = __alloc_pages_node(hpage_node, gfp, order);
-
+			}
 			/*
 			 * If hugepage allocations are configured to always
 			 * synchronous compact or the vma has been madvised
 			 * to prefer hugepage backing, retry allowing remote
-			 * memory as well.
+			 * memory with both reclaim and compact as well.
 			 */
 			if (!page && (gfp & __GFP_DIRECT_RECLAIM))
-				gfp |= __GFP_NORETRY;
 			page = __alloc_pages_node(hpage_node, gfp, order);
 
 			goto out;
