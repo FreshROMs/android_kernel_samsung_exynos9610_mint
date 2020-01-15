@@ -61,7 +61,7 @@ struct g2d_buffer {
 
 struct g2d_layer {
 	struct g2d_task		*task;
-	int			flags;
+	unsigned int		flags;
 	int			buffer_type;
 	int			num_buffers;
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
