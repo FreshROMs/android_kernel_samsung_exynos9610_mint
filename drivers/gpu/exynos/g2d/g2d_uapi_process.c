@@ -33,17 +33,6 @@
 #include "g2d_regs.h"
 #include "g2d_debug.h"
 
-unsigned int get_layer_payload(struct g2d_layer *layer)
-{
-	unsigned int payload = 0;
-	unsigned int i;
-
-	for (i = 0; i < layer->num_buffers; i++)
-		payload += layer->buffer[i].payload;
-
-	return payload;
-}
-
 static void g2d_clean_caches_layer(struct device *dev, struct g2d_layer *layer,
 				   enum dma_data_direction dir)
 {
