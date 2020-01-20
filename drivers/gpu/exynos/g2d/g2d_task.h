@@ -29,6 +29,7 @@
 
 #define G2D_MAX_IMAGES		16
 #define G2D_MAX_IMAGES_HALF	8
+#define G2D_MAX_IMAGES_QUARTER	4
 #define G2D_MAX_JOBS		16
 #define G2D_MAX_COMMAND		2048
 #define G2D_CMD_LIST_SIZE	(G2D_MAX_COMMAND * sizeof(struct g2d_reg))
