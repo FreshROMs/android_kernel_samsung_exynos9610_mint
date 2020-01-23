@@ -25,13 +25,13 @@
 #include <linux/sync_file.h>
 
 #include "g2d_format.h"
+#include "g2d_uapi.h"
 
 #define G2D_MAX_IMAGES		16
 #define G2D_MAX_IMAGES_HALF	8
 #define G2D_MAX_JOBS		16
 #define G2D_MAX_COMMAND		2048
-// Command consists of 32bit offset and data
-#define G2D_CMD_LIST_SIZE	(G2D_MAX_COMMAND * 8)
+#define G2D_CMD_LIST_SIZE	(G2D_MAX_COMMAND * sizeof(struct g2d_reg))
 
 struct g2d_buffer_prot_info {
 	unsigned int chunk_count;
