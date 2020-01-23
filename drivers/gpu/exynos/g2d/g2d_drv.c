@@ -95,12 +95,12 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		return;
 	}
 
-	g2d_flush_all_tasks(g2d_dev);
-
 	ret = g2d_hw_global_reset(g2d_dev);
 
 	perrdev(g2d_dev, "GLOBAL RESET %s : H/W timeout",
 		ret ? "SUCCESS" : "FAIL");
+
+	g2d_finish_tasks(g2d_dev, 0, false);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
@@ -127,23 +127,12 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 static irqreturn_t g2d_irq_handler(int irq, void *priv)
 {
 	struct g2d_device *g2d_dev = priv;
-	unsigned int id;
 	u32 intflags, errstatus;
 
 	spin_lock(&g2d_dev->lock_task);
 
 	intflags = g2d_hw_finished_job_ids(g2d_dev);
-
-	if (intflags != 0) {
-		for (id = 0; id < G2D_MAX_JOBS; id++) {
-			if ((intflags & (1 << id)) == 0)
-				continue;
-
-			g2d_finish_task_with_id(g2d_dev, id, true);
-		}
-
-		g2d_hw_clear_job_ids(g2d_dev, intflags);
-	}
+	g2d_hw_clear_job_ids(g2d_dev, intflags);
 
 	errstatus = g2d_hw_errint_status(g2d_dev);
 	if (errstatus != 0) {
@@ -162,13 +151,13 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 				  "Error occurred during running job %d",
 				  job_id);
 
-		g2d_flush_all_tasks(g2d_dev);
-
 		ret = g2d_hw_global_reset(g2d_dev);
 
 		perrdev(g2d_dev, "GLOBAL RESET %s : error interrupt",
 			ret ? "SUCCESS" : "FAIL");
 	}
+
+	g2d_finish_tasks(g2d_dev, intflags, !errstatus);
 
 	spin_unlock(&g2d_dev->lock_task);
 

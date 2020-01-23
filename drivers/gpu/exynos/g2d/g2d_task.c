@@ -145,32 +145,22 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 	__g2d_finish_task(task, success);
 }
 
-void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
-			     unsigned int job_id, bool success)
+void g2d_finish_tasks(struct g2d_device *g2d_dev,
+		      unsigned int intflags, bool success)
 {
-	struct g2d_task *task = NULL;
+	struct g2d_task *task, *n;
 
-	task = g2d_get_active_task_from_id(g2d_dev, job_id);
-	if (!task)
-		return;
-
-	g2d_finish_task(g2d_dev, task, success);
-}
-
-void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
-{
-	struct g2d_task *task;
-
-	perrfndev(g2d_dev, "Flushing all active tasks");
-
-	while (!list_empty(&g2d_dev->tasks_active)) {
-		task = list_first_entry(&g2d_dev->tasks_active,
-					struct g2d_task, node);
-
-		perrfndev(g2d_dev, "Flushed task of ID %d", task->sec.job_id);
-
-		g2d_finish_task(g2d_dev, task, false);
+	list_for_each_entry_safe(task, n, &g2d_dev->tasks_active, node) {
+		if (!success || ((intflags & BIT(g2d_task_id(task))) != 0)) {
+			g2d_finish_task(g2d_dev, task, success);
+			intflags &= ~BIT(g2d_task_id(task));
+		}
 	}
+
+	if (intflags)
+		perrfndev(g2d_dev,
+			  "Found finished jobs (%#x) of inactive tasks",
+			  intflags);
 }
 
 static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
@@ -189,8 +179,7 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	 * reentrant g2d_device_run() should be protected with
 	 * g2d_dev->lock_task from race.
 	 */
-	if (g2d_device_run(g2d_dev, task) < 0)
-		g2d_finish_task(g2d_dev, task, false);
+	g2d_device_run(g2d_dev, task);
 }
 
 void g2d_prepare_suspend(struct g2d_device *g2d_dev)

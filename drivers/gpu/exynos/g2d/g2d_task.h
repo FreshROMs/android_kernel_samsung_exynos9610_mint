@@ -197,9 +197,8 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);
 void g2d_cancel_task(struct g2d_task *task);
-void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
-			     unsigned int job_id, bool success);
-void g2d_flush_all_tasks(struct g2d_device *g2d_dev);
+void g2d_finish_tasks(struct g2d_device *g2d_dev,
+		      unsigned int intflags, bool success);
 
 void g2d_prepare_suspend(struct g2d_device *g2d_dev);
 void g2d_suspend_finish(struct g2d_device *g2d_dev);
