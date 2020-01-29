@@ -10,7 +10,7 @@ LP_ENABLE=true
 UMH_RESTRICTION_ENABLE=true
 
 ifneq ($(wildcard $(srctree)/include/crypto/internal/rsa.h),)
-    $(warning [DEFEX] INTEGRITY_ENABLE)
+    #$(warning [DEFEX] INTEGRITY_ENABLE)
     INTEGRITY_ENABLE=true
 endif
 

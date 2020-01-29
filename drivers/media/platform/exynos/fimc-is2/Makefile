@@ -98,3 +98,4 @@ subdir-ccflags-y += -Idrivers/media/platform/exynos/fimc-is2/vendor/mcd_v2
 else
 subdir-ccflags-y += -Idrivers/media/platform/exynos/fimc-is2/vendor/default
 endif
+subdir-ccflags-y += -Wno-sizeof-pointer-memaccess
