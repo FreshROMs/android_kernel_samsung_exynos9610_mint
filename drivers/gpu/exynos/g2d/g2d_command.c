@@ -121,7 +121,7 @@ static void g2d_set_hwfc_commands(struct g2d_task *task)
 	regs[task->sec.cmd_count].offset = G2D_HWFC_CAPTURE_IDX_REG;
 	regs[task->sec.cmd_count].value = IS_HWFC(task->flags) ?
 			G2D_HWFC_CAPTURE_HWFC_JOB : 0;
-	regs[task->sec.cmd_count].value |= task->sec.job_id;
+	regs[task->sec.cmd_count].value |= g2d_task_id(task);
 
 	task->sec.cmd_count++;
 }

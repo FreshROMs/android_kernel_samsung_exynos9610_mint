@@ -74,22 +74,22 @@ void g2d_hw_timeout_handler(unsigned long arg)
 	struct g2d_task *task = (struct g2d_task *)arg;
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
-	u32 job_state;
+	u32 state;
 	bool ret;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	job_state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
+	state = g2d_hw_get_job_state(g2d_dev, g2d_task_id(task));
 
 	perrfndev(g2d_dev, "Time is up: %d msec for job %u %lu %u",
-		  G2D_HW_TIMEOUT_MSEC, task->sec.job_id, task->state, job_state);
+		  G2D_HW_TIMEOUT_MSEC, g2d_task_id(task), task->state, state);
 
 	/*
 	 * The task timed out is not currently running in H/W.
 	 * It might be just finished by interrupt.
 	 * Or, it will be processed in the interrupt handler.
 	 */
-	if (!is_task_state_active(task) || (job_state == G2D_JOB_STATE_DONE)) {
+	if (!is_task_state_active(task) || (state == G2D_JOB_STATE_DONE)) {
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 		return;
@@ -119,7 +119,7 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 	task->ktime_begin = ktime_get();
 
 	if (IS_HWFC(task->flags))
-		hwfc_set_valid_buffer(task->sec.job_id, task->sec.job_id);
+		hwfc_set_valid_buffer(g2d_task_id(task), g2d_task_id(task));
 
 	return 0;
 }

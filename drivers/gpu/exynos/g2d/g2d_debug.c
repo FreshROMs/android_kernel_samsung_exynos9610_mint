@@ -214,7 +214,7 @@ static int g2d_debug_tasks_show(struct seq_file *s, void *unused)
 
 	for (task = g2d_dev->tasks; task; task = task->next) {
 		seq_printf(s, "TASK[%d]: state %#lx flags %#x ",
-			   task->sec.job_id, task->state, task->flags);
+			   g2d_task_id(task), task->state, task->flags);
 		seq_printf(s, "prio %d begin@%llu end@%llu nr_src %d ",
 			   task->sec.priority, ktime_to_us(task->ktime_begin),
 			   ktime_to_us(task->ktime_end), task->num_source);
@@ -387,7 +387,7 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 
 	if (task) {
 		stamp->state = task->state;
-		stamp->job_id = task->sec.job_id;
+		stamp->job_id = g2d_task_id(task);
 	} else {
 		stamp->job_id = 0;
 		stamp->state = 0;
@@ -430,8 +430,8 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 	/* media/exynos_tsmux.h includes below functions */
 	if (task != NULL && IS_HWFC(task->flags)) {
 		if (stampid == G2D_STAMP_STATE_PUSH)
-			g2d_blending_start(task->sec.job_id);
+			g2d_blending_start(g2d_task_id(task));
 		if (stampid == G2D_STAMP_STATE_DONE)
-			g2d_blending_end(task->sec.job_id);
+			g2d_blending_end(g2d_task_id(task));
 	}
 }

@@ -173,6 +173,16 @@ static inline bool g2d_task_wait_completion(struct g2d_task *task)
 	return !is_task_state_error(task);
 }
 
+static inline unsigned int g2d_task_id(struct g2d_task *task)
+{
+	return task->sec.job_id;
+}
+
+static inline void g2d_task_set_id(struct g2d_task *task, unsigned int id)
+{
+	task->sec.job_id = id;
+}
+
 #define G2D_HW_TIMEOUT_MSEC	500
 #define G2D_FENCE_TIMEOUT_MSEC	800
 
