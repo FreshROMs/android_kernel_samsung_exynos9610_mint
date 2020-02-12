@@ -5944,7 +5944,7 @@ static inline unsigned long cpu_util_freq(int cpu)
 
 	return min_t(unsigned long, walt_cpu_util, capacity_orig_of(cpu));
 #else
-	return min(cpu_util(cpu) + cpu_util_rt(cpu), capacity_orig_of(cpu));
+	return min(cpu_util(cpu), capacity_orig_of(cpu));
 #endif
 }
 

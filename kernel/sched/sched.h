@@ -2390,7 +2390,7 @@ walt_task_in_cum_window_demand(struct rq *rq, struct task_struct *p)
  *
  * Return: the (estimated) utilization for the specified CPU
  */
-static inline unsigned long cpu_util(int cpu)
+static inline unsigned long __cpu_util(int cpu)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -2424,6 +2424,11 @@ unsigned long cpu_util_rt(int cpu)
 	return rt_rq->avg.util_avg;
 }
 
+static inline
+unsigned long cpu_util(int cpu)
+{
+	return __cpu_util(cpu) + cpu_util_rt(cpu);
+}
 
 static inline
 unsigned long task_util(struct task_struct *p)
