@@ -17,6 +17,7 @@
 #define _G2D_PERF_H_
 
 #include <soc/samsung/bts.h>
+#include <soc/samsung/exynos-devfreq.h>
 
 struct g2d_context;
 struct g2d_performance_data;
