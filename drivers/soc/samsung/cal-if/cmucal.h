@@ -414,6 +414,19 @@ struct cmucal_clkout {
 	.ops		= NULL,						\
 }
 
+#define CMUCAL_VCLK2(_id, _lut, _list, _seq, _switch) \
+[_id & MASK_OF_ID] = {	\
+	.id		= _id,						\
+	.name		= #_id,						\
+	.lut		= NULL,						\
+	.list		= _list,					\
+	.seq		= _seq,						\
+	.num_rates	= 0,						\
+	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),		\
+	.switch_info	= _switch,					\
+	.ops		= NULL,						\
+}
+
 #define CMUCAL_ACPM_VCLK(_id, _lut, _list, _seq, _switch, _margin_id)	\
 [_id & MASK_OF_ID] = {	\
 	.id		= _id,						\
@@ -423,6 +436,20 @@ struct cmucal_clkout {
 	.seq		= _seq,						\
 	.num_rates	= (sizeof(_lut) / sizeof(struct vclk_lut)),		\
 	.num_list	= (sizeof(_list) / sizeof(enum clk_id)),		\
+	.switch_info	= _switch,					\
+	.ops		= NULL,						\
+	.margin_id	= _margin_id,					\
+}
+
+#define CMUCAL_ACPM_VCLK2(_id, _lut, _list, _seq, _switch, _margin_id)	\
+[_id & MASK_OF_ID] = {	\
+	.id		= _id,						\
+	.name		= #_id,						\
+	.lut		= _lut,						\
+	.list		= _list,					\
+	.seq		= _seq,						\
+	.num_rates	= 0,						\
+	.num_list	= 0,						\
 	.switch_info	= _switch,					\
 	.ops		= NULL,						\
 	.margin_id	= _margin_id,					\
@@ -481,6 +508,17 @@ struct cmucal_clkout {
 	.clk.enable_idx	= _eo,				\
 	.pid		= _pids,			\
 	.num_parents	= (sizeof(_pids) / sizeof(enum clk_id)), \
+}
+
+#define CLK_MUX2(_id, _pids, _o, _so, _eo)		\
+[_id & MASK_OF_ID] = {	\
+	.clk.id		= _id,				\
+	.clk.name	= #_id,				\
+	.clk.offset_idx	= _o,				\
+	.clk.status_idx	= _so,				\
+	.clk.enable_idx	= _eo,				\
+	.pid		= NULL,				\
+	.num_parents	= 0,				\
 }
 
 #define CLK_DIV(_id, _pid, _o, _so, _eo)		\
