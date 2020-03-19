@@ -33,6 +33,8 @@
 #include <asm/core_regs.h>
 #include <asm/cacheflush.h>
 
+#include <linux/sec_debug.h>
+
 #include "debug-snapshot-local.h"
 
 DEFINE_PER_CPU(struct pt_regs *, dss_core_reg);
