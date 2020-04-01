@@ -80,8 +80,6 @@ void g2d_hw_timeout_handler(unsigned long arg)
 
 	job_state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_HW, job_state);
-
 	perrfndev(g2d_dev, "Time is up: %d msec for job %u %lu %u",
 		  G2D_HW_TIMEOUT_MSEC, task->sec.job_id, task->state, job_state);
 
@@ -129,8 +127,6 @@ void g2d_hw_timeout_handler(unsigned long arg)
 		/* Time out is not caused by this task */
 		goto out;
 
-	g2d_dump_info(g2d_dev, task);
-
 	mark_task_state_killed(task);
 
 	g2d_hw_kill_task(g2d_dev, task->sec.job_id);
@@ -146,9 +142,6 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 	task->ktime_end = ktime_get();
 
 	/* record the time between user request and H/W push */
-	g2d_stamp_task(task, G2D_STAMP_STATE_PUSH,
-		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
-
 	task->ktime_begin = ktime_get();
 
 	if (IS_HWFC(task->flags))
@@ -166,8 +159,6 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	spin_lock(&g2d_dev->lock_task);
 
 	intflags = g2d_hw_finished_job_ids(g2d_dev);
-
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_INT, intflags);
 
 	if (intflags != 0) {
 		for (id = 0; id < G2D_MAX_JOBS; id++) {
@@ -198,10 +189,6 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 
 		g2d_hw_clear_int(g2d_dev, errstatus);
 
-		g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT, errstatus);
-
-		g2d_dump_info(g2d_dev, task);
-
 		g2d_flush_all_tasks(g2d_dev);
 
 		perrdev(g2d_dev,
@@ -229,10 +216,6 @@ static int g2d_iommu_fault_handler(struct iommu_domain *domain,
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 	task = g2d_get_active_task_from_id(g2d_dev, job_id);
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
-
-	g2d_dump_info(g2d_dev, task);
-
-	g2d_stamp_task(task, G2D_STAMP_STATE_MMUFAULT, 0);
 
 	return 0;
 }
@@ -418,8 +401,6 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			g2d_put_free_task(g2d_dev, task);
 			break;
 		}
-
-		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN, task->sec.priority);
 
 		g2d_start_task(task);
 
@@ -1009,8 +990,6 @@ static int g2d_probe(struct platform_device *pdev)
 #endif
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x", version);
 
-	g2d_init_debug(g2d_dev);
-
 	return 0;
 err_pm:
 	g2d_destroy_tasks(g2d_dev);
@@ -1030,23 +1009,17 @@ err:
 static void g2d_shutdown(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
-
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 0);
 	g2d_prepare_suspend(g2d_dev);
 
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
 
 	if (test_and_set_bit(G2D_DEVICE_STATE_IOVMM_DISABLED, &g2d_dev->state))
 		iovmm_deactivate(g2d_dev->dev);
-
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 1);
 }
 
 static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
-
-	g2d_destroy_debug(g2d_dev);
 
 	g2d_shutdown(pdev);
 
@@ -1063,8 +1036,6 @@ static int g2d_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int g2d_runtime_resume(struct device *dev)
 {
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_RUNTIME_PM, 0);
-
 	return 0;
 }
 
@@ -1073,7 +1044,6 @@ static int g2d_runtime_suspend(struct device *dev)
 	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
 
 	clk_unprepare(g2d_dev->clock);
-	g2d_stamp_task(NULL, G2D_STAMP_STATE_RUNTIME_PM, 1);
 
 	return 0;
 }

@@ -121,8 +121,6 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	if (IS_AFBC(task->target.commands[G2DSFR_IMG_COLORMODE].value))
 		afbc |= 1 << G2D_MAX_IMAGES;
 
-	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE, afbc);
-
 	g2d_cancel_task(task);
 };
 

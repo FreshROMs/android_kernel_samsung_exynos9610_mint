@@ -47,7 +47,6 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 			  task->sec.cmd_count, task->sec.priority,
 			  task->sec.job_id, task->sec.secure_layer_mask);
 
-		g2d_dump_info(g2d_dev, task);
 		BUG();
 	}
 }
