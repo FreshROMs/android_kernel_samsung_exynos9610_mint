@@ -2148,11 +2148,28 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 	int error = TEST_SUCCESS;
 	int i;
 	int range_cnt;
+	int cmd_fd = -1;
+	struct incfs_permit_fill permit_fill;
 
 	fd = open(filename, O_RDONLY);
 	free(filename);
 	if (fd <= 0)
 		return TEST_FAILURE;
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error != -1 || errno != EPERM) {
+		ksft_print_msg("INCFS_IOC_GET_FILLED_BLOCKS not blocked\n");
+		error = -EPERM;
+		goto out;
+	}
+
+	cmd_fd = open_commands_file(mount_dir);
+	permit_fill.file_descriptor = fd;
+	if (ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("INCFS_IOC_PERMIT_FILL failed");
+		return -EPERM;
+		goto out;
+	}
 
 	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
 	if (error && errno != ERANGE)
@@ -2167,6 +2184,11 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 	}
 
 	if (fba.total_blocks_out != block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	if (fba.data_blocks_out != block_cnt) {
 		error = -EINVAL;
 		goto out;
 	}
@@ -2241,6 +2263,7 @@ static int validate_ranges(const char *mount_dir, struct test_file *file)
 
 out:
 	close(fd);
+	close(cmd_fd);
 	return error;
 }
 
@@ -2351,6 +2374,7 @@ failure:
 
 static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 {
+	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
 	char *filename = concat_file_name(mount_dir, file->name);
 	int fd;
 	struct incfs_filled_range ranges[128];
@@ -2361,6 +2385,8 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 	int error = TEST_SUCCESS;
 	int file_blocks = (file->size + INCFS_DATA_FILE_BLOCK_SIZE - 1) /
 			  INCFS_DATA_FILE_BLOCK_SIZE;
+	int cmd_fd = -1;
+	struct incfs_permit_fill permit_fill;
 
 	if (file->size <= 4096 / 32 * 4096)
 		return 0;
@@ -2371,8 +2397,33 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 		return TEST_FAILURE;
 
 	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
+	if (error != -1 || errno != EPERM) {
+		ksft_print_msg("INCFS_IOC_GET_FILLED_BLOCKS not blocked\n");
+		error = -EPERM;
+		goto out;
+	}
+
+	cmd_fd = open_commands_file(mount_dir);
+	permit_fill.file_descriptor = fd;
+	if (ioctl(cmd_fd, INCFS_IOC_PERMIT_FILL, &permit_fill)) {
+		print_error("INCFS_IOC_PERMIT_FILL failed");
+		return -EPERM;
+		goto out;
+	}
+
+	error = ioctl(fd, INCFS_IOC_GET_FILLED_BLOCKS, &fba);
 	if (error)
 		goto out;
+
+	if (fba.total_blocks_out <= block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
+
+	if (fba.data_blocks_out != block_cnt) {
+		error = -EINVAL;
+		goto out;
+	}
 
 	if (fba.range_buffer_size_out != sizeof(struct incfs_filled_range)) {
 		error = -EINVAL;
@@ -2386,6 +2437,7 @@ static int validate_hash_ranges(const char *mount_dir, struct test_file *file)
 	}
 
 out:
+	close(cmd_fd);
 	close(fd);
 	return error;
 }
