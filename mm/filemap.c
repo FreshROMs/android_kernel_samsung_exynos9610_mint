@@ -2410,7 +2410,7 @@ static void do_async_mmap_readahead(struct vm_area_struct *vma,
 	struct address_space *mapping = file->f_mapping;
 
 	/* If we don't want any read-ahead, don't bother */
-	if (vma->vm_flags & VM_RAND_READ)
+	if (vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
 		return;
 	if (ra->mmap_miss > 0)
 		ra->mmap_miss--;
