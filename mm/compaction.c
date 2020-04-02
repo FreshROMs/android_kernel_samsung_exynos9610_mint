@@ -1589,7 +1589,11 @@ typedef enum {
  * Allow userspace to control policy on scanning the unevictable LRU for
  * compactable pages.
  */
+#ifdef CONFIG_PREEMPT_RT
 int sysctl_compact_unevictable_allowed __read_mostly = 0;
+#else
+int sysctl_compact_unevictable_allowed __read_mostly = 0;
+#endif
 
 static inline void
 update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
