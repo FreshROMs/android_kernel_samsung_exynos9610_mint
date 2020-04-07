@@ -424,6 +424,11 @@ struct vm_operations_struct {
 					  unsigned long addr);
 };
 
+static inline bool vma_is_accessible(struct vm_area_struct *vma)
+{
+	return vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC);
+}
+
 struct mmu_gather;
 struct inode;
 
