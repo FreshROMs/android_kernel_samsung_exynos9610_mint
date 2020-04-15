@@ -18,31 +18,16 @@
 void g2d_fence_timeout_handler(unsigned long arg)
 {
 	struct g2d_task *task = (struct g2d_task *)arg;
-	struct g2d_device *g2d_dev = task->g2d_dev;
 	struct dma_fence *fence;
 	unsigned long flags;
-	char name[32];
 	int i;
 	s32 afbc = 0;
 
-	for (i = 0; i < task->num_source; i++) {
+	for (i = 0; i < task->num_source; i++)
 		fence = task->source[i].fence;
-		if (fence) {
-			strlcpy(name, fence->ops->get_driver_name(fence),
-			       sizeof(name));
-			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%d (%s)",
-				  i, name, fence->seqno,
-				  dma_fence_is_signaled(fence)
-					? "signaled" : "active");
-		}
-	}
+
 
 	fence = task->target.fence;
-	if (fence) {
-		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
-		perrfn(" TARGET:     %s #%d (%s)", name, fence->seqno,
-		       dma_fence_is_signaled(fence) ? "signaled" : "active");
-	}
 
 	if (task->release_fence)
 		perrfn("   Pending g2d release fence: #%d",
