@@ -2,5 +2,6 @@
 # taken to initialize them in the correct order. Link order is the only way
 # to ensure this currently.
 obj-$(CONFIG_TEGRA_HOST1X)	+= host1x/
-obj-y			+= arm/ drm/ vga/ exynos/
+obj-y			+= arm/ drm/ vga/
 obj-$(CONFIG_IMX_IPUV3_CORE)	+= ipu-v3/
+obj-$(CONFIG_EXYNOS_GRAPHICS_G2D)	+= exynos/
