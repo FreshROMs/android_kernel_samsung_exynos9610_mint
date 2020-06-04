@@ -1396,7 +1396,7 @@ fast_isolate_freepages(struct compact_control *cc)
 		if (scan_start) {
 			/*
 			 * Use the highest PFN found above min. If one was
-			 * not found, be pessemistic for direct compaction
+			 * not found, be pessimistic for direct compaction
 			 * and use the min mark.
 			 */
 			if (highest) {
