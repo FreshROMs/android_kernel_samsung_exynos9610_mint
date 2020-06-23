@@ -470,6 +470,7 @@ extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct page *, struct block_device **);
 extern sector_t swapdev_block(int, pgoff_t);
 extern int page_swapcount(struct page *);
+extern int __swap_count(struct swap_info_struct *si, swp_entry_t entry);
 extern int __swp_swapcount(swp_entry_t entry);
 extern int swp_swapcount(swp_entry_t entry);
 extern struct swap_info_struct *page_swap_info(struct page *);
@@ -599,6 +600,11 @@ static inline void clear_shadow_from_swap_cache(int type, unsigned long begin,
 }
 
 static inline int page_swapcount(struct page *page)
+{
+	return 0;
+}
+
+static inline int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
 {
 	return 0;
 }
