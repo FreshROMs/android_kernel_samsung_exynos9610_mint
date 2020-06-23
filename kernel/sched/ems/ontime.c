@@ -617,7 +617,8 @@ int ontime_task_wakeup(struct task_struct *p, int sync)
 		int cpu = smp_processor_id();
 
 		if (cpumask_test_cpu(cpu, &p->cpus_allowed)
-				&& cpumask_test_cpu(cpu, &fit_cpus)) {
+				&& cpumask_test_cpu(cpu, &fit_cpus)
+				&& is_cpu_preemptible(p, src_cpu, cpu, sync)) {
 			trace_ems_ontime_task_wakeup(p, src_cpu, cpu, "ontime-sync wakeup");
 			return cpu;
 		}
