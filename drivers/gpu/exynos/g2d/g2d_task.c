@@ -31,14 +31,12 @@
 
 static void g2d_secure_enable(void)
 {
-	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
-		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
+	g2d_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
 }
 
 static void g2d_secure_disable(void)
 {
-	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
-		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
+	g2d_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
 }
 
 static int g2d_map_cmd_data(struct g2d_task *task)
