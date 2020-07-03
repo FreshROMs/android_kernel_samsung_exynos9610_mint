@@ -43,7 +43,7 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 
 	__flush_dcache_area(&task->sec, sizeof(task->sec));
 	__flush_dcache_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
-	if (exynos_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
+	if (g2d_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
 		perrfndev(g2d_dev, "Failed to push %d %d %d %d",
 			  task->sec.cmd_count, task->sec.priority,
 			  g2d_task_id(task), task->sec.secure_layer_mask);
