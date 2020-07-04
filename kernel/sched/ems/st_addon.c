@@ -33,25 +33,35 @@ int prefer_perf_cpu(struct task_struct *p)
  *                            Prefer Idle                             *
  **********************************************************************/
 static bool mark_lowest_idle_util_cpu(int cpu, unsigned long new_util,
-			int *lowest_idle_util_cpu, unsigned long *lowest_idle_util)
+			int *lowest_idle_util_cpu, unsigned long *lowest_idle_util,
+			int *best_idle_cstate)
 {
+	int idle_idx;
+
 	if (!idle_cpu(cpu))
 		return false;
 
-	if (new_util >= *lowest_idle_util)
+	idle_idx = idle_get_state_idx(cpu_rq(cpu));
+	if (idle_idx > *best_idle_cstate)
 		return false;
 
+	if (idle_idx == *best_idle_cstate &&
+		new_util >= *lowest_idle_util)
+		return false;
+
+	*best_idle_cstate = idle_idx;
 	*lowest_idle_util = new_util;
 	*lowest_idle_util_cpu = cpu;
 
 	return true;
 }
 
-static bool mark_lowest_util_cpu(int cpu, unsigned long new_util,
-			int *lowest_util_cpu, unsigned long *lowest_util,
-			unsigned long *target_capacity)
+static bool mark_lowest_util_cpu(struct task_struct *p, int cpu,
+			unsigned long new_util, int *lowest_util_cpu,
+			unsigned long *lowest_util, unsigned long *target_capacity)
 {
-	if (capacity_orig_of(cpu) > *target_capacity)
+	if (schedtune_task_boost(p) <= 0 &&
+		capacity_orig_of(cpu) > *target_capacity)
 		return false;
 
 	if (new_util >= *lowest_util)
@@ -69,6 +79,7 @@ static int select_idle_cpu(struct task_struct *p)
 	unsigned long lowest_idle_util = ULONG_MAX;
 	unsigned long lowest_util = ULONG_MAX;
 	unsigned long target_capacity = ULONG_MAX;
+	int best_idle_cstate;
 	int lowest_idle_util_cpu = -1;
 	int lowest_util_cpu = -1;
 	int target_cpu = -1;
@@ -96,24 +107,23 @@ static int select_idle_cpu(struct task_struct *p)
 
 			/* Priority #1 : idle cpu with lowest util */
 			if (mark_lowest_idle_util_cpu(i, new_util,
-				&lowest_idle_util_cpu, &lowest_idle_util))
+				&lowest_idle_util_cpu, &lowest_idle_util, &best_idle_cstate))
 				continue;
 
 			/* Priority #2 : active cpu with lowest util */
-			mark_lowest_util_cpu(i, new_util,
+			mark_lowest_util_cpu(p, i, new_util,
 				&lowest_util_cpu, &lowest_util, &target_capacity);
 		}
 
 		if (cpu_selected(lowest_idle_util_cpu)) {
 			strcpy(state, "lowest_idle_util");
 			target_cpu = lowest_idle_util_cpu;
-			break;
+			continue;
 		}
 
 		if (cpu_selected(lowest_util_cpu)) {
 			strcpy(state, "lowest_util");
 			target_cpu = lowest_util_cpu;
-			break;
 		}
 	}
 
