@@ -463,8 +463,10 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 
 	task->source = kcalloc(g2d_dev->max_layers, sizeof(*task->source),
 			       GFP_KERNEL);
-	if (!task->source)
+	if (!task->source) { /* g2d_dev->max_layes is not zero */
+		ret = -ENOMEM;
 		goto err_alloc;
+	}
 
 	INIT_LIST_HEAD(&task->node);
 
