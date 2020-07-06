@@ -1,13 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * linux/drivers/gpu/exynos/g2d/g2d_uapi.h
- *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
- *
- * Samsung Graphics 2D driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _G2D_UAPI_H_
