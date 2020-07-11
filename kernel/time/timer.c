@@ -213,7 +213,7 @@ struct timer_base {
 static DEFINE_PER_CPU(struct timer_base, timer_bases[NR_BASES]);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
-unsigned int sysctl_timer_migration = 1;
+unsigned int sysctl_timer_migration = 0;
 
 void timers_update_migration(bool update_nohz)
 {
