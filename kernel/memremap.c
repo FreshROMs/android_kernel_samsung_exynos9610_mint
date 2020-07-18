@@ -530,8 +530,6 @@ void put_zone_device_private_or_public_page(struct page *page)
 	 * holds a reference on the page.
 	 */
 	if (count == 1) {
-		/* Clear Active bit in case of parallel mark_page_accessed */
-		__ClearPageActive(page);
 		__ClearPageWaiters(page);
 
 		page->mapping = NULL;
