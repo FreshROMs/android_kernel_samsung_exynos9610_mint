@@ -4970,9 +4970,6 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	 * The superblock bh should be mapped, but it might not be if the
 	 * device was hot-removed. Not much we can do but fail the I/O.
 	 */
-	if (!buffer_mapped(sbh))
-		return error;
-
 	if (unlikely(le16_to_cpu(es->s_magic) != EXT4_SUPER_MAGIC)) {
 		print_bh(sb, sbh, 0, EXT4_BLOCK_SIZE(sb));
 		if (test_opt(sb, ERRORS_PANIC))
