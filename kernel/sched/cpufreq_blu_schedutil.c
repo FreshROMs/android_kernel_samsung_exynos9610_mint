@@ -16,7 +16,10 @@
 
 #include <linux/cpufreq.h>
 #include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/slab.h>
+
+#include <trace/events/power.h>
 
 #include "sched.h"
 #include "tune.h"
