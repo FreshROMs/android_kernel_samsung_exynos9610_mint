@@ -725,7 +725,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
 	if (PageSwapCache(page)) {
 		swp_entry_t swap = { .val = page_private(page) };
 		mem_cgroup_swapout(page, swap);
-		__delete_from_swap_cache(page);
+		__delete_from_swap_cache(page, NULL);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 		put_swap_page(page, swap);
 	} else {
