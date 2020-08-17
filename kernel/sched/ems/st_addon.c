@@ -54,6 +54,9 @@ static bool mark_lowest_util_cpu(int cpu, unsigned long new_util,
 	if (capacity_orig_of(cpu) > *target_capacity)
 		return false;
 
+	if (capacity_curr_of(cpu) <= new_util)
+		return false;
+
 	if (new_util >= *lowest_util)
 		return false;
 
