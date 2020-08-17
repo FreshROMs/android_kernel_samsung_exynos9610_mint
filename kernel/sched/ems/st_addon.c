@@ -64,6 +64,9 @@ static bool mark_lowest_util_cpu(struct task_struct *p, int cpu,
 		capacity_orig_of(cpu) > *target_capacity)
 		return false;
 
+	if (capacity_curr_of(cpu) <= new_util)
+		return false;
+
 	if (new_util >= *lowest_util)
 		return false;
 
