@@ -47,6 +47,9 @@
 #if defined(CONFIG_SOC_EXYNOS9610)
 #include <dt-bindings/clock/exynos9610.h>
 #endif
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
+#endif
 
 #include "decon.h"
 #include "dsim.h"
@@ -979,6 +982,9 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			goto blank_exit;
 		}
 		atomic_set(&decon->ffu_flag, 2);
+#ifdef CONFIG_STATE_NOTIFIER
+		state_suspend();
+#endif
 		break;
 	case FB_BLANK_UNBLANK:
 		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
@@ -988,6 +994,9 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			goto blank_exit;
 		}
 		atomic_set(&decon->ffu_flag, 2);
+#ifdef CONFIG_STATE_NOTIFIER
+		state_resume();
+#endif
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 		if (decon->esd.thread)
 			wake_up_process(decon->esd.thread);
