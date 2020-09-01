@@ -397,7 +397,9 @@ LDGOLD		= $(CROSS_COMPILE)ld.gold
 LDLLD		= ld.lld
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
+LLVMNM		= llvm-nm
 OBJCOPY		= $(CROSS_COMPILE)objcopy
+LLVMOBJCOPY	= llvm-objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
 READELF		= $(CROSS_COMPILE)readelf
 OBJSIZE		= $(CROSS_COMPILE)size
@@ -1070,6 +1072,9 @@ endif
 
 ifeq ($(CONFIG_RELR),y)
 LDFLAGS_vmlinux	+= --pack-dyn-relocs=relr
+OBJCOPY	:= $(LLVMOBJCOPY)
+NM	:= $(LLVMNM)
+export OBJCOPY NM
 endif
 
 ifneq ($(SEC_BUILD_CONF_USE_FINGERPRINT_TZ), false)
