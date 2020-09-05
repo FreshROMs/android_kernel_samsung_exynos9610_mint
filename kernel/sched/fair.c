@@ -7955,8 +7955,6 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int sync = wake_flags & WF_SYNC;
 	int target_cpu;
 
-	rcu_read_lock();
-
 	if (sd_flag & SD_BALANCE_WAKE) {
 		record_wakee(p);
 		want_energy = wake_energy(p, prev_cpu, sd_flag, wake_flags);
@@ -7971,6 +7969,8 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 		if (target_cpu >= 0)
 			return target_cpu;
 	}
+
+	rcu_read_lock();
 
 	for_each_domain(cpu, tmp) {
 		if (!(tmp->flags & SD_LOAD_BALANCE))
