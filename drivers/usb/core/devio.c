@@ -2177,37 +2177,37 @@ static int proc_ioctl(struct usb_dev_state *ps, struct usbdevfs_ioctl *ctl)
 		retval = -EHOSTUNREACH;
 	else if (!(intf = usb_ifnum_to_if(ps->dev, ctl->ifno)))
 		retval = -EINVAL;
-	else switch (ctl->ioctl_code) {
+	else 
+		switch (ctl->ioctl_code) {
+		/* disconnect kernel driver from interface */
+		case USBDEVFS_DISCONNECT:
+			if (intf->dev.driver) {
+				driver = to_usb_driver(intf->dev.driver);
+				dev_dbg(&intf->dev, "disconnect by usbfs\n");
+				usb_driver_release_interface(driver, intf);
+			} else
+				retval = -ENODATA;
+			break;
 
-	/* disconnect kernel driver from interface */
-	case USBDEVFS_DISCONNECT:
-		if (intf->dev.driver) {
-			driver = to_usb_driver(intf->dev.driver);
-			dev_dbg(&intf->dev, "disconnect by usbfs\n");
-			usb_driver_release_interface(driver, intf);
-		} else
-			retval = -ENODATA;
-		break;
+		/* let kernel drivers try to (re)bind to the interface */
+		case USBDEVFS_CONNECT:
+			if (!intf->dev.driver)
+				retval = device_attach(&intf->dev);
+			else
+				retval = -EBUSY;
+			break;
 
-	/* let kernel drivers try to (re)bind to the interface */
-	case USBDEVFS_CONNECT:
-		if (!intf->dev.driver)
-			retval = device_attach(&intf->dev);
-		else
-			retval = -EBUSY;
-		break;
-
-	/* talk directly to the interface's driver */
-	default:
-		if (intf->dev.driver)
-			driver = to_usb_driver(intf->dev.driver);
-		if (driver == NULL || driver->unlocked_ioctl == NULL) {
-			retval = -ENOTTY;
-		} else {
-			retval = driver->unlocked_ioctl(intf, ctl->ioctl_code, buf);
-			if (retval == -ENOIOCTLCMD)
+		/* talk directly to the interface's driver */
+		default:
+			if (intf->dev.driver)
+				driver = to_usb_driver(intf->dev.driver);
+			if (driver == NULL || driver->unlocked_ioctl == NULL) {
 				retval = -ENOTTY;
-		}
+			} else {
+				retval = driver->unlocked_ioctl(intf, ctl->ioctl_code, buf);
+				if (retval == -ENOIOCTLCMD)
+					retval = -ENOTTY;
+			}
 	}
 
 	/* cleanup and return */
