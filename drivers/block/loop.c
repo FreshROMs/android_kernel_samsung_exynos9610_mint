@@ -890,8 +890,9 @@ static int loop_kthread_worker_fn(void *worker_ptr)
 static int loop_prepare_queue(struct loop_device *lo)
 {
 	kthread_init_worker(&lo->worker);
-	lo->worker_task = kthread_run(loop_kthread_worker_fn,
-			&lo->worker, "loop%d", lo->lo_number);
+	lo->worker_task = kthread_run_perf_critical(cpu_perf_mask,
+			loop_kthread_worker_fn, &lo->worker,
+			"loop%d", lo->lo_number);
 	if (IS_ERR(lo->worker_task))
 		return -ENOMEM;
 	set_user_nice(lo->worker_task, MIN_NICE);
