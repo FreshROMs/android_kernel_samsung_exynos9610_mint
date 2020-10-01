@@ -883,7 +883,8 @@ static void rcu_spawn_tasks_kthread(void)
 		mutex_unlock(&rcu_tasks_kthread_mutex);
 		return;
 	}
-	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
+	t = kthread_run_perf_critical(cpu_perf_mask, rcu_tasks_kthread,
+				NULL, "rcu_tasks_kthread");
 	BUG_ON(IS_ERR(t));
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
