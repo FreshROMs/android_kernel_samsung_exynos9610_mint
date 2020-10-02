@@ -921,14 +921,13 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 {
 	int file = page_is_file_cache(page);
 	int active = PageActive(page);
-	enum lru_list lru = page_lru(page);
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
 	SetPageLRU(page);
 	add_page_to_lru_list(page, lruvec);
 	update_page_reclaim_stat(lruvec, file, active);
-	trace_mm_lru_insertion(page, lru);
+	trace_mm_lru_insertion(page);
 }
 
 /*
