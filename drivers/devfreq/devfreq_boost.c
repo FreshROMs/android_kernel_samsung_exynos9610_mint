@@ -200,7 +200,7 @@ static int devfreq_boost_thread(void *data)
 		bool should_stop = false;
 		unsigned long curr_state;
 
-		wait_event(b->boost_waitq,
+		wait_event_interruptible(b->boost_waitq,
 			(curr_state = READ_ONCE(b->state)) != old_state ||
 			(should_stop = kthread_should_stop()));
 
