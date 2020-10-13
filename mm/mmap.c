@@ -882,7 +882,7 @@ again:
 			anon_vma_interval_tree_pre_update_vma(next);
 	}
 
-	if (root) {
+	if (file) {
 		flush_dcache_mmap_lock(mapping);
 		vma_interval_tree_remove(vma, root);
 		if (adjust_next)
@@ -903,7 +903,7 @@ again:
 		WRITE_ONCE(next->vm_pgoff, next->vm_pgoff + (adjust_next >> PAGE_SHIFT));
 	}
 
-	if (root) {
+	if (file) {
 		if (adjust_next)
 			vma_interval_tree_insert(next, root);
 		vma_interval_tree_insert(vma, root);
@@ -955,7 +955,7 @@ again:
 		anon_vma_unlock_write(anon_vma);
 	}
 
-	if (root) {
+	if (file) {
 		i_mmap_unlock_write(mapping);
 		uprobe_mmap(vma);
 
