@@ -308,6 +308,11 @@ static int min_extfrag_threshold;
 static int max_extfrag_threshold = 1000;
 #endif
 
+extern unsigned int sysctl_softirq_accel_target;
+extern int sysctl_softirq_accel_mask;
+extern int min_softirq_accel_mask;
+extern int max_softirq_accel_mask;
+
 static struct ctl_table kern_table[] = {
 	{
 		.procname	= "sched_child_runs_first",
@@ -341,6 +346,13 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "memcg_stat_show_subtree",
+		.data		= &sysctl_memcg_stat_show_subtree,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "sched_walt_init_task_load_pct",
 		.data		= &sysctl_sched_walt_init_task_load_pct,
 		.maxlen		= sizeof(unsigned int),
@@ -356,6 +368,22 @@ static struct ctl_table kern_table[] = {
 	},
 #endif
 	{
+		.procname	= "softirq_accel_target_us",
+		.data		= &sysctl_softirq_accel_target,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "softirq_accel_mask",
+		.data		= &sysctl_softirq_accel_mask,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_softirq_accel_mask,
+		.extra2		= &max_softirq_accel_mask,
+	},
+    {
 		.procname	= "sched_wakeup_granularity_ns",
 		.data		= &sysctl_sched_wakeup_granularity,
 		.maxlen		= sizeof(unsigned int),
