@@ -64,7 +64,7 @@ static inline int queued_write_can_lock(struct qrwlock *lock)
  */
 static inline int queued_read_trylock(struct qrwlock *lock)
 {
-	u32 cnts;
+	int cnts;
 
 	cnts = atomic_read(&lock->cnts);
 	if (likely(!(cnts & _QW_WMASK))) {
@@ -83,7 +83,7 @@ static inline int queued_read_trylock(struct qrwlock *lock)
  */
 static inline int queued_write_trylock(struct qrwlock *lock)
 {
-	u32 cnts;
+	int cnts;
 
 	cnts = atomic_read(&lock->cnts);
 	if (unlikely(cnts))
@@ -98,7 +98,7 @@ static inline int queued_write_trylock(struct qrwlock *lock)
  */
 static inline void queued_read_lock(struct qrwlock *lock)
 {
-	u32 cnts;
+	int cnts;
 
 	cnts = atomic_add_return_acquire(_QR_BIAS, &lock->cnts);
 	if (likely(!(cnts & _QW_WMASK)))
@@ -114,7 +114,7 @@ static inline void queued_read_lock(struct qrwlock *lock)
  */
 static inline void queued_write_lock(struct qrwlock *lock)
 {
-	u32 cnts = 0;
+	int cnts = 0;
 	/* Optimize for the unfair lock case where the fair flag is 0. */
 	if (likely(atomic_try_cmpxchg_acquire(&lock->cnts, &cnts, _QW_LOCKED)))
 		return;
