@@ -103,7 +103,7 @@ struct g2d_device {
 	struct list_head	tasks_free_hwfc;
 	struct list_head	tasks_prepared;
 	struct list_head	tasks_active;
-	struct workqueue_struct	*completion_workq;
+	struct kthread_worker	*completion_workq;
 	struct kthread_worker	*schedule_workq;
 
 	struct notifier_block	pm_notifier;
