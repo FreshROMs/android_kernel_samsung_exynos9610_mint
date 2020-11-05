@@ -117,7 +117,7 @@ struct g2d_task {
 	ktime_t			ktime_end;
 
 	struct kthread_work	sched_work;
-	struct work_struct	completion_work;
+	struct kthread_work	completion_work;
 	struct completion	completion;
 
 	unsigned int		total_cached_len;
