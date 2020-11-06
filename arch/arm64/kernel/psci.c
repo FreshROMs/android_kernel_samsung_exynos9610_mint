@@ -86,9 +86,7 @@ static void cpu_psci_cpu_die(unsigned int cpu)
 			<< PSCI_0_2_POWER_STATE_AFFL_SHIFT)
 			& PSCI_0_2_POWER_STATE_AFFL_MASK);
 
-	ret = psci_ops.cpu_off(state);
-
-	pr_crit("unable to power off CPU%u (%d)\n", cpu, ret);
+	psci_ops.cpu_off(state);
 }
 
 static int cpu_psci_cpu_kill(unsigned int cpu)
