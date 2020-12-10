@@ -226,7 +226,7 @@ static void g2d_schedule_task(struct g2d_task *task)
 		goto err_pm;
 	}
 
-	ret = clk_prepare_enable(g2d_dev->clock);
+	ret = clk_enable(g2d_dev->clock);
 	if (ret < 0) {
 		perrfndev(g2d_dev, "Failed to enable clock (%d)", ret);
 		goto err_clk;

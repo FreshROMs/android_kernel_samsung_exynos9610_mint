@@ -184,7 +184,7 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(g2d_dev->clock);
+	ret = clk_enable(g2d_dev->clock);
 	if (ret < 0) {
 		perrdev(g2d_dev, "Failed to enable clock (%d)", ret);
 	} else {
@@ -1038,6 +1038,10 @@ static int g2d_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int g2d_runtime_resume(struct device *dev)
 {
+	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
+
+	clk_prepare(g2d_dev->clock);
+
 	return 0;
 }
 
