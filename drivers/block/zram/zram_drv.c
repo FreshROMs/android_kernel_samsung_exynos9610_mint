@@ -1590,6 +1590,9 @@ void swap_writeback_list(struct zwbs **zwbs, struct list_head *list)
 }
 #endif
 
+#define PAGE_WB_SIG "page_index="
+
+#define PAGE_WRITEBACK 0
 #define HUGE_WRITEBACK 1
 #define IDLE_WRITEBACK 2
 
@@ -1598,7 +1601,7 @@ static ssize_t writeback_store(struct device *dev,
 {
 	struct zram *zram = dev_to_zram(dev);
 	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
-	unsigned long index;
+	unsigned long index = 0;
 	struct bio bio;
 	struct bio_vec bio_vec;
 	struct page *page;
@@ -1610,8 +1613,17 @@ static ssize_t writeback_store(struct device *dev,
 		mode = IDLE_WRITEBACK;
 	else if (sysfs_streq(buf, "huge"))
 		mode = HUGE_WRITEBACK;
-	else
-		return -EINVAL;
+	else {
+		if (strncmp(buf, PAGE_WB_SIG, sizeof(PAGE_WB_SIG) - 1))
+			return -EINVAL;
+
+		ret = kstrtol(buf + sizeof(PAGE_WB_SIG) - 1, 10, &index);
+		if (ret || index >= nr_pages)
+			return -EINVAL;
+
+		nr_pages = 1;
+		mode = PAGE_WRITEBACK;
+	}
 
 	down_read(&zram->init_lock);
 	if (!init_done(zram)) {
@@ -1639,7 +1651,7 @@ static ssize_t writeback_store(struct device *dev,
 		goto release_init_lock;
 	}
 #endif
-	for (index = 0; index < nr_pages; index++) {
+	while (nr_pages--) {
 		struct bio_vec bvec;
 
 		bvec.bv_page = page;
