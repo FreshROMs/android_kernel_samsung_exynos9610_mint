@@ -6137,6 +6137,12 @@ int sched_cpu_deactivate(unsigned int cpu)
 {
 	int ret;
 
+	/*
+	 * Remove CPU from nohz.idle_cpus_mask to prevent participating in
+	 * load balancing when not active
+	 */
+	nohz_balance_exit_idle(cpu);
+
 	set_cpu_active(cpu, false);
 	/*
 	 * We've cleared cpu_active_mask, wait for all preempt-disabled and RCU
@@ -6205,7 +6211,6 @@ int sched_cpu_dying(unsigned int cpu)
 
 	calc_load_migrate(rq);
 	update_max_interval();
-	nohz_balance_exit_idle(cpu);
 	hrtick_clear(rq);
 	return 0;
 }
