@@ -2,7 +2,7 @@
 config ZRAM
 	tristate "Compressed RAM block device support"
 	depends on BLOCK && SYSFS && ZSMALLOC && CRYPTO
-	select CRYPTO_LZO
+	depends on CRYPTO_LZO || CRYPTO_ZSTD || CRYPTO_LZ4
 	default n
 	help
 	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
@@ -14,6 +14,31 @@ config ZRAM
 	  disks and maybe many more.
 
 	  See Documentation/blockdev/zram.txt for more information.
+
+choice
+	prompt "Default zram compressor"
+	default ZRAM_DEF_COMP_LZO
+	depends on ZRAM
+
+config ZRAM_DEF_COMP_LZO
+	bool "lzo"
+	depends on CRYPTO_LZO
+
+config ZRAM_DEF_COMP_ZSTD
+	bool "zstd"
+	depends on CRYPTO_ZSTD
+
+config ZRAM_DEF_COMP_LZ4
+	bool "lz4"
+	depends on CRYPTO_LZ4
+
+endchoice
+
+config ZRAM_DEF_COMP
+	string
+	default "lzo" if ZRAM_DEF_COMP_LZO
+	default "zstd" if ZRAM_DEF_COMP_ZSTD
+	default "lz4" if ZRAM_DEF_COMP_LZ4
 
 config ZRAM_WRITEBACK
        bool "Write back incompressible or idle page to backing device"
