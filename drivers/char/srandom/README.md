@@ -259,35 +259,63 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-### PS: The two reverts are only needed if it was picked earlier.
 
-### Initial Merge:
+Annotations from primar commit:
+-------------------------------
+josenk:
 
-# git remote add srandom https://github.com/josenk/srandom
-# git fetch srandom master
-# git merge -s ours --no-commit --allow-unrelated-histories FETCH_HEAD
-# git read-tree --prefix=drivers/char/srandom -u FETCH_HEAD
-# git commit
+srandom is a Linux kernel module that can be used to replace the built-in /dev/urandom & /dev/random device files. It is secure and VERY fast. My tests show it over 150x faster then /dev/urandom. It should compile and install on any Linux 3.10+ kernel. It passes all the randomness tests using the dieharder tests.
 
-### For Further Updations:
+srandom was created as an improvement to the built-in random number generators. I wanted a much faster random number generator to wipe ssd disks. Through many hours of testing and trial-and-error, I came up with an algorithm that is many times faster than urandom, but still produces excellent random numbers. You can wipe multiple SSDs at the same time. The built-in generators (/dev/random and /dev/urandom) are technically not flawed. /dev/random (the true random number generator) is BLOCKED most of the time waiting for more entropy. If you are running your Linux in a VM, /dev/random is basically unusable. /dev/urandom is unblocked, but still very slow.
 
-# git fetch srandom master
-# git merge -X subtree=drivers/char/srandom FETCH_HEAD
+What is the most important part of random numbers? Unpredictability!
 
-### For Testing Before And After Random Performance:
+srandom includes all these features to make it's generator produce the most unpredictable/random numbers.
 
-# su
-# time dd if=/dev/srandom of=/dev/null count=64k bs=64k
-# time dd if=/dev/urandom of=/dev/null count=64k bs=64k
-# time dd if=/dev/random of=/dev/null count=64k bs=64k
+    It uses two separate and different 64bit PRNGs.
+    There are two different algorithms to XOR the the 64bit PSRNGs together.
+    srandom seeds and re-seeds the three separate seeds using nano timer.
+    The module seeds the PSRNGs twice on module init.
+    It uses 16 x 512byte buffers and outputs them randomly.
+    There is a separate kernel thread that constantly updates the buffers and seeds.
+    srandom throws away a small amount of data.
 
-### My Benchmark:
+The best part of srandom is it's efficiency and very high speed... I tested many PSRNGs and found two that worked very fast and had a good distribution of numbers. Two or three 64bit numbers are XORed. The results is unpredictable and very high speed generation of numbers.
 
-# Before Commits:
-# urandom: 4.0Gb, 29.20s, 140M/s
-# random:  3.0Mb,  6.52s, 485K/s
+jebaitedneko:
 
-# After Commits:
-# srandom: 4.0Gb, 4.12s, 992M/s
-# urandom: 4.0Gb, 4.12s, 992M/s
-# random:  4.0Gb. 4.11s, 996M/s
+* Merge branch 'master' of https://github.com/josenk/srandom into ns-dbfs
+
+PS: The two reverts are only needed if it was picked earlier.
+
+Initial Merge:
+
+git remote add srandom https://github.com/josenk/srandom
+git fetch srandom master
+git merge -s ours --no-commit --allow-unrelated-histories FETCH_HEAD
+git read-tree --prefix=drivers/char/srandom -u FETCH_HEAD
+git commit
+
+For Further Updations:
+
+git fetch srandom master
+git merge -X subtree=drivers/char/srandom FETCH_HEAD
+
+For Testing Before And After Random Performance:
+
+su
+time dd if=/dev/srandom of=/dev/null count=64k bs=64k
+time dd if=/dev/urandom of=/dev/null count=64k bs=64k
+time dd if=/dev/random of=/dev/null count=64k bs=64k
+
+My Benchmark:
+
+Before Commits:
+urandom: 4.0Gb, 29.20s, 140M/s
+random:  3.0Mb,  6.52s, 485K/s
+
+After Commits:
+srandom: 4.0Gb, 4.12s, 992M/s
+urandom: 4.0Gb, 4.12s, 992M/s
+random:  4.0Gb. 4.11s, 996M/s
+
