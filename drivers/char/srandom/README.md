@@ -258,3 +258,36 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+### PS: The two reverts are only needed if it was picked earlier.
+
+### Initial Merge:
+
+# git remote add srandom https://github.com/josenk/srandom
+# git fetch srandom master
+# git merge -s ours --no-commit --allow-unrelated-histories FETCH_HEAD
+# git read-tree --prefix=drivers/char/srandom -u FETCH_HEAD
+# git commit
+
+### For Further Updations:
+
+# git fetch srandom master
+# git merge -X subtree=drivers/char/srandom FETCH_HEAD
+
+### For Testing Before And After Random Performance:
+
+# su
+# time dd if=/dev/srandom of=/dev/null count=64k bs=64k
+# time dd if=/dev/urandom of=/dev/null count=64k bs=64k
+# time dd if=/dev/random of=/dev/null count=64k bs=64k
+
+### My Benchmark:
+
+# Before Commits:
+# urandom: 4.0Gb, 29.20s, 140M/s
+# random:  3.0Mb,  6.52s, 485K/s
+
+# After Commits:
+# srandom: 4.0Gb, 4.12s, 992M/s
+# urandom: 4.0Gb, 4.12s, 992M/s
+# random:  4.0Gb. 4.11s, 996M/s
