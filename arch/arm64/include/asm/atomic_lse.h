@@ -27,7 +27,7 @@
 
 #define __LL_SC_ATOMIC(op)	__LL_SC_CALL(atomic_##op)
 #define ATOMIC_OP(op, asm_op)						\
-static inline void atomic_##op(int i, atomic_t *v)			\
+static __always_inline void atomic_##op(int i, atomic_t *v)			\
 {									\
 	register int w0 asm ("w0") = i;					\
 	register atomic_t *x1 asm ("x1") = v;				\
@@ -52,7 +52,7 @@ ATOMIC_OP(add, stadd)
 #undef ATOMIC_OP
 
 #define ATOMIC_FETCH_OP(name, mb, op, asm_op, cl...)			\
-static inline int atomic_fetch_##op##name(int i, atomic_t *v)		\
+static __always_inline int atomic_fetch_##op##name(int i, atomic_t *v)		\
 {									\
 	register int w0 asm ("w0") = i;					\
 	register atomic_t *x1 asm ("x1") = v;				\
@@ -237,7 +237,7 @@ ATOMIC_FETCH_OP_SUB(        , al, "memory")
 
 #define __LL_SC_ATOMIC64(op)	__LL_SC_CALL(atomic64_##op)
 #define ATOMIC64_OP(op, asm_op)						\
-static inline void atomic64_##op(long i, atomic64_t *v)			\
+static __always_inline void atomic64_##op(long i, atomic64_t *v)			\
 {									\
 	register long x0 asm ("x0") = i;				\
 	register atomic64_t *x1 asm ("x1") = v;				\
@@ -262,7 +262,7 @@ ATOMIC64_OP(add, stadd)
 #undef ATOMIC64_OP
 
 #define ATOMIC64_FETCH_OP(name, mb, op, asm_op, cl...)			\
-static inline long atomic64_fetch_##op##name(long i, atomic64_t *v)	\
+static __always_inline long atomic64_fetch_##op##name(long i, atomic64_t *v)	\
 {									\
 	register long x0 asm ("x0") = i;				\
 	register atomic64_t *x1 asm ("x1") = v;				\
@@ -444,7 +444,7 @@ ATOMIC64_FETCH_OP_SUB(        , al, "memory")
 
 #undef ATOMIC64_FETCH_OP_SUB
 
-static inline long atomic64_dec_if_positive(atomic64_t *v)
+static __always_inline long atomic64_dec_if_positive(atomic64_t *v)
 {
 	register long x0 asm ("x0") = (long)v;
 
