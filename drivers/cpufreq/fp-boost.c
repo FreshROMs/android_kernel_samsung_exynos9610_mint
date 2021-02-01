@@ -83,6 +83,47 @@ static void update_online_cpu_policy(void);
 /* Boolean to let us know if input is already recieved */
 static bool touched;
 
+/* STATE_NOTIFIER stuff*/
+#define DEFAULT_SUSPEND_DEFER_TIME 	10
+static unsigned int suspend_defer_time = DEFAULT_SUSPEND_DEFER_TIME;
+static bool suspend_in_progress;
+bool state_suspended;
+static bool enabled = 1;
+static struct workqueue_struct *susp_wq;
+static struct delayed_work suspend_work;
+
+/*
+ * debug = 1 will print all
+ */
+static unsigned int debug = 1;
+
+#define dprintk(msg...)		\
+do {				\
+	if (debug)		\
+		pr_info(msg);	\
+} while (0)
+
+static void _suspend_work(struct work_struct *work)
+{
+	state_suspended = true;
+	state_notifier_call_chain(STATE_NOTIFIER_SUSPEND, NULL);
+	suspend_in_progress = false;
+	dprintk("%s: suspend completed.\n", STATE_NOTIFIER);
+}
+
+void state_suspend(void)
+{
+	dprintk("%s: suspend called.\n", STATE_NOTIFIER);
+	if (state_suspended || suspend_in_progress || !enabled)
+		return;
+
+	suspend_in_progress = true;
+
+	queue_delayed_work_on(0, susp_wq, &suspend_work, 
+		msecs_to_jiffies(suspend_defer_time * 1000));
+}
+/* END */
+
 static void fp_boost_main(struct work_struct *work)
 {
 	struct boost_policy *b = boost_policy_g;
