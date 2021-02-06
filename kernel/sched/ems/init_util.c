@@ -25,13 +25,12 @@ static void base_cfs_rq_util(struct sched_entity *se)
 	struct sched_avg *sa = &se->avg;
 	int cpu = cpu_of(cfs_rq->rq);
 	unsigned long cap_org = capacity_orig_of(cpu);
-	long cap = (long)(cap_org - cfs_rq->avg.util_avg);
+	long cap = (long)(cap_org - cfs_rq->avg.util_avg) / 2;
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
 			sa->util_avg  = cfs_rq->avg.util_avg * se->load.weight;
 			sa->util_avg /= (cfs_rq->avg.load_avg + 1);
-			sa->util_avg = sa->util_avg << 1;
 
 			if (sa->util_avg > cap)
 				sa->util_avg = cap;
