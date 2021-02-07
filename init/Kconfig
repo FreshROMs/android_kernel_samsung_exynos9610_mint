@@ -1888,7 +1888,7 @@ config SLAB_FREELIST_HARDENED
 	  freelist exploit methods.
 
 config SLUB_CPU_PARTIAL
-	default y
+	default n
 	depends on SLUB && SMP
 	bool "SLUB per cpu partial cache"
 	help
