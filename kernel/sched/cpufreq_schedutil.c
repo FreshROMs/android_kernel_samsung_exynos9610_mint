@@ -434,12 +434,19 @@ skip_betting:
 static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
 	unsigned long max_cap;
+#ifdef CONFIG_UCLAMP_TASK
+	struct rq *rq = cpu_rq(cpu);
+#endif
 
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
 	*util = boosted_cpu_util(cpu);
 	*util = min(*util, max_cap);
 	*max = max_cap;
+
+#ifdef CONFIG_UCLAMP_TASK
+   	*util = uclamp_util_with(rq, *util, NULL);
+#endif	
 }
 
 #ifdef CONFIG_SCHED_FFSI_GLUE
