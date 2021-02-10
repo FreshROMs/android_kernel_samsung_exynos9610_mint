@@ -13,6 +13,7 @@
 
 #include <asm/barrier.h>
 #include <asm/processor.h>
+#include <asm/qrwlock.h>
 
 /*
  * spinlock
