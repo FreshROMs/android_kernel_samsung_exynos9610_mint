@@ -665,6 +665,13 @@ choice
 config PELT_UTIL_HALFLIFE_32
 	bool "32 ms, default for server"
 
+config PELT_UTIL_HALFLIFE_24
+	bool "24 ms, suggested for power efficient interactive workloads"
+	help
+	  Use 24ms as PELT half-life value. Ideal for 60/90hz cadence, with lower
+	  ramp-up and decay than 12ms half life (ideal for 90hz due to <12.5ms
+	  frame signals).
+
 config PELT_UTIL_HALFLIFE_16
 	bool "16 ms, suggested for interactive workloads"
 	help
