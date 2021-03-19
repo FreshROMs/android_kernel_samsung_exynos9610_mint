@@ -722,6 +722,8 @@ out_sem:
 		if (ret != 0)
 			return ret;
 
+        unsigned long start_byte, length;
+
 		/*
 		 * Inodes with freshly allocated blocks where contents will be
 		 * visible after transaction commit must be on transaction's
