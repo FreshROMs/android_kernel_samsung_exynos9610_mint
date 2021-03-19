@@ -503,6 +503,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 {
 	struct extent_status es;
 	int retval;
+	unsigned long start_byte, length;
 	int ret = 0;
 #ifdef ES_AGGRESSIVE_TEST
 	struct ext4_map_blocks orig_map;
