@@ -7209,9 +7209,9 @@ select_idle_capacity(struct task_struct *p, struct sched_domain *sd, int target)
 	for_each_cpu_wrap(cpu, cpus, target) {
 		unsigned long cpu_cap = capacity_of(cpu);
 
-		if (!(idle_cpu(target) && !cpu_isolated(target)) && !sched_idle_cpu(cpu))
+		if (!idle_cpu(target) && !sched_idle_cpu(cpu))
 			continue;
-		if (task_fits_capacity(p, cpu_cap, cpu))
+		if (task_fits_capacity(p, cpu_cap))
 			return cpu;
 
 		if (cpu_cap > best_cap) {
