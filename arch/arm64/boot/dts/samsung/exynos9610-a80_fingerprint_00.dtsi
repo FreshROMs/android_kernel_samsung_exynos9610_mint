@@ -1,0 +1,95 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+&pinctrl_4 {
+	btp_rst: btp-rst {
+		samsung,pins = "gpg3-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <0>;
+	};
+
+	/* SPI_FP */
+	spi7_bus_inactive: spi7-bus-inactive {
+		samsung,pins = "gpp2-4", "gpp2-5", "gpp2-7";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <2>;
+		samsung,pin-val = <0>;
+	};
+
+	spi7_miso_inactive: spi17-miso-inactive {
+		samsung,pins = "gpp2-6";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <2>;
+	};
+
+	spi7_clk: spi7-clk {
+		samsung,pins = "gpp2-4";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <2>;
+	};
+
+	spi7_cs: spi7-cs {
+		samsung,pins = "gpp2-7";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+		samsung,pin-drv = <2>;
+	};
+
+	spi7_miso: spi7-miso {
+		samsung,pins = "gpp2-6";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <2>;
+	};
+
+	spi7_mosi: spi7-mosi {
+		samsung,pins = "gpp2-5";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <2>;
+	};
+};
+
+/* USI_PERI_SPI_1 */
+&spi_7 {
+	status = "okay";
+
+	dma-mode;
+	dmas = <&pdma0 21 &pdma0 20>;
+
+	etspi-spi@0 {
+		compatible = "etspi,et7xx";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		pinctrl-names = "default", "pins_poweron", "pins_poweroff";
+		pinctrl-0 = <&btp_rst>;
+		pinctrl-1 = <&spi7_clk &spi7_cs &spi7_miso &spi7_mosi>;
+		pinctrl-2 = <&spi7_bus_inactive &spi7_miso_inactive>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		etspi-sleepPin = <&gpg3 0 0>;
+		etspi-regulator = "VDD_BTP_3P3";
+		etspi-chipid = "ET713";
+		etspi-modelinfo = "A805";
+		etspi-position = "13.77,0.00,7.29,7.29,14.80,14.80,12.00,12.00,5.00";
+		controller-data {
+			cs-gpio = <&gpp2 7 0>;
+			samsung,spi-feedback-delay = <0>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};

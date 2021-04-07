@@ -1,0 +1,29 @@
+config SCSC_BT
+        tristate "SCSC MX BT support"
+        depends on SCSC_CORE
+
+config SCSC_BT_BLUEZ
+	default N
+        tristate "SCSC MX BlueZ support"
+        depends on SCSC_CORE
+
+config SCSC_ANT
+	default Y
+        tristate "SCSC MX ANT support"
+        depends on SCSC_CORE
+	---help---
+	  This module adds support for using a ANT character device.
+
+config SCSC_BT_ADDRESS_IN_FILE
+	default N
+	tristate "SCSC MX BT support"
+	depends on SCSC_CORE
+	---help---
+	  Allow BT address to be read from a file
+
+config SCSC_BT_ADDRESS_FILENAME
+	string "BT address filename"
+	depends on SCSC_CORE
+	default "/mnt/vendor/efs/bluetooth/bt_addr"
+	---help---
+	  Select the named BT address override file.

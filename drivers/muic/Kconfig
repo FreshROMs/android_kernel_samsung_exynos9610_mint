@@ -1,0 +1,64 @@
+#
+# MUIC devices
+#
+
+comment "MUIC configs"
+
+config USE_MUIC
+	bool "Using MUIC device driver"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you will get support for
+	  the MUIC device driver.
+
+config USE_SAFEOUT
+	bool "Using SAFEOUT device driver"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you will get support for
+	  the SAFEOUT device driver.
+
+config MUIC_NOTIFIER
+	bool "MUIC notifier support"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for
+	  the MUIC attached device status change notification.
+
+config MUIC_SUPPORT_CCIC
+	bool "MUIC supports CCIC chip interface"
+	default n
+	help
+	  If you say yes here you will get support for the CCIC chip.
+
+config MUIC_SM5713
+	bool "SM5713 MUIC"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the SM5713 MUIC chip.
+
+config MUIC_BCD_RESCAN
+	bool "SM MUIC supports BC 1.2 retry"
+	depends on USE_MUIC
+	default n
+	help
+	  If you say yes here you will get support for the BC 1.2 retry in SM MUIC chip.
+
+config MUIC_SM5713_BC1_2_CERTI
+	bool "MUIC_SM5713_BC1_2_CERTI"
+	depends on MUIC_SM5713 && MUIC_SUPPORT_CCIC
+	default n
+	help
+	  If you say yes here you will get support for BC12 certification of SM5713 one chip.
+
+config HICCUP_CHARGER
+	bool "Using HICCUP charger"
+	depends on USE_MUIC && !SEC_FACTORY
+	default n
+	help
+	  If you say yes here you will get support for
+	  for the hiccup charger feature.

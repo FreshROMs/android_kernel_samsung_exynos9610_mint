@@ -1,0 +1,406 @@
+/*
+ * SAMSUNG EXYNOS9610 M30S soundcard device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	fragment@sound {
+		target-path = "/";
+		__overlay__ {
+			dummy_audio_codec: audio_codec_dummy {
+				status = "okay";
+				compatible = "snd-soc-dummy";
+			};
+
+			dummy_audio_cpu: audio_cpu_dummy {
+				compatible = "samsung,dummy-cpu";
+				status = "okay";
+			};
+
+			sound {
+				status = "okay";
+				compatible = "samsung,exynos9610-audio";
+
+				clock-names = "xclkout";
+				clocks = <&clock OSC_AUD>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&xclkout0>;
+
+				samsung,routing =
+					"HEADSETMIC", "MICBIAS1",
+					"MAINMIC", "MICBIAS2",
+					"SUBMIC", "MICBIAS3",
+					"IN1P", "HEADSETMIC",
+					"IN1N", "HEADSETMIC",
+					"IN3P", "MAINMIC",
+					"IN3N", "MAINMIC",
+					"IN4P", "SUBMIC",
+					"IN4N", "SUBMIC",
+					"RECEIVER", "MONOOUT",
+					"RECEIVER", "MONOOUT",
+					"HEADPHONE", "HPOL",
+					"HEADPHONE", "HPOR",
+					"VOUTPUT", "ABOX UAIF0 Playback",
+					"SPEAKER", "ABOX UAIF2 Playback",
+					"VOUTPUTCALL", "ABOX SIFS0 Playback",
+					"BLUETOOTH SPK", "ABOX SIFS2 Playback",
+					"ABOX SPDY Capture", "FM IN",
+					"ABOX SIFS2 Capture", "BLUETOOTH MIC",
+					"ABOX SIFS0 Capture", "VINPUTCALL";
+
+				samsung,codec = <&abox &abox_uaif_0 &abox_uaif_1 &abox_uaif_2
+					&abox_uaif_4 &abox_dsif &abox_spdy>;
+				samsung,prefix = "ABOX", "ABOX", "ABOX", "ABOX",
+					"ABOX", "ABOX", "ABOX";
+				samsung,aux = <&abox_effect &abox_bt>;
+
+				rdma@0 {
+					cpu {
+						sound-dai = <&abox 0>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_0>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@1 {
+					cpu {
+						sound-dai = <&abox 1>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_1>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@2 {
+					cpu {
+						sound-dai = <&abox 2>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_2>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@3 {
+					cpu {
+						sound-dai = <&abox 3>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_3>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@4 {
+					cpu {
+						sound-dai = <&abox 4>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_4>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@5 {
+					cpu {
+						sound-dai = <&abox 5>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_5>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@6 {
+					cpu {
+						sound-dai = <&abox 6>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_6>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				rdma@7 {
+					cpu {
+						sound-dai = <&abox 7>;
+					};
+					platform {
+						sound-dai = <&abox_rdma_7>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				wdma@0 {
+					cpu {
+						sound-dai = <&abox 8>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_0>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				wdma@1 {
+					cpu {
+						sound-dai = <&abox 9>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_1>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				wdma@2 {
+					cpu {
+						sound-dai = <&abox 10>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_2>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				wdma@3 {
+					cpu {
+						sound-dai = <&abox 11>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_3>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				wdma@4 {
+					cpu {
+						sound-dai = <&abox 12>;
+					};
+					platform {
+						sound-dai = <&abox_wdma_4>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+		/** ToDo: enable dp_audio link after enabling DP Audio
+		 *		dp_audio@0 {
+		 *			cpu {
+		 *				sound-dai = <&dummy_audio_cpu>;
+		 *			};
+		 *			codec {
+		 *				sound-dai = <&dummy_audio_codec>;
+		 *			};
+		 *		};
+		 */
+				uaif@0 {
+					format = "i2s";
+					cpu {
+						sound-dai = <&abox_uaif_0>;
+					};
+					codec {
+						sound-dai = <&rt5665 0>;
+					};
+				};
+				uaif@1 {
+					format = "i2s";
+					cpu {
+						sound-dai = <&abox_uaif_1>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				uaif@2 {
+					format = "i2s";
+					cpu {
+						sound-dai = <&abox_uaif_2>;
+					};
+					platform {
+						sound-dai = <&abox_synchronized_ipc 0>;
+					};
+					codec {
+						sound-dai = <&rt5510_amp 0>;
+					};
+				};
+				uaif@4 {
+					format = "i2s";
+					bitclock-master;
+					frame-master;
+					cpu {
+						sound-dai = <&abox_uaif_4>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				dsif@0 {
+					format = "pdm";
+					cpu {
+						sound-dai = <&abox_dsif>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				spdy@0 {
+					cpu {
+						sound-dai = <&abox_spdy>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				sifs0@0 {
+					cpu {
+						sound-dai = <&abox 13>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				sifs1@0 {
+					cpu {
+						sound-dai = <&abox 14>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+				sifs2@0 {
+					cpu {
+						sound-dai = <&abox 15>;
+					};
+					codec {
+						sound-dai = <&dummy_audio_codec>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&abox {
+	/delete-node/ ext_bin@0;
+	ext_bin_0: ext_bin@0 {
+		status = "okay";
+		samsung,name = "rtdsp.bin";
+		samsung,area = <1>; /* 0:SRAM, 1:DRAM, 2:VSS */
+		samsung,offset = <0x502000>;
+	};
+	/delete-node/ ext_bin@1;
+	ext_bin_1: ext_bin@1 {
+		status = "okay";
+		samsung,name = "AP_AUDIO_SLSI.bin";
+		samsung,area = <1>;
+		samsung,offset = <0x7F0000>;
+	};
+	/delete-node/ ext_bin@2;
+	ext_bin_2: ext_bin@2 {
+		status = "okay";
+		samsung,name = "APBargeIn_AUDIO_SLSI.bin";
+		samsung,area = <1>;
+		samsung,offset = <0x7EC000>;
+	};
+	/delete-node/ ext_bin@4;
+	ext_bin_4: ext_bin@4 {
+		status = "okay";
+		samsung,name = "rtdsp_param.bin";
+		samsung,area = <1>;
+		samsung,offset = <0x582000>;
+	};
+	/delete-node/ ext_bin@5;
+	ext_bin_5: ext_bin@5 {
+		status = "okay";
+		samsung,name = "APBiBF_AUDIO_SLSI.bin";
+		samsung,area = <1>;
+		samsung,offset = <0x7EF000>;
+	};
+};
+
+&hsi2c_3 {
+	/* 11d10000.hsi2c */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	rt5510_amp: rt5510@34 {
+		status = "okay";
+		compatible = "richtek,rt5510";
+		#sound-dai-cells = <1>;
+		reg = <0x34>;
+	};
+};
+
+&i2c_6 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	rt5665: rt5665@1b {
+		compatible = "realtek,rt5665";
+		reg = <0x1b>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&codec_irq>;
+		interrupt-parent = <&gpa1>;
+		interrupts = <2 0 0>;
+		#sound-dai-cells = <1>;
+		realtek,in1-differential;
+		realtek,in3-differential;
+		realtek,in4-differential;
+		realtek,jd-src = <2>;
+		realtek,dmic2-data-pin =<2>;
+		realtek,sar-hs-type = <700>;
+		realtek,sar-pb-vth0 = <100>;
+		realtek,sar-pb-vth1 = <145>;
+		realtek,sar-pb-vth2 = <250>;
+		realtek,sar-pb-vth3 = <580>;
+		imp_table = <
+			/*min max gain bias*/
+			0x0000 0x000d 3 6 // 8 ohm
+			0x000e 0x0019 1 6 // 16 ohm
+			0x001a 0x0035 0 6 // 32 ohm
+			0x0036 0x0067 0 6 // 64 ohm
+			0x0068 0xffff 0 6 // > 100 ohm
+		>;
+
+		realtek,offset-comp = <0x0078 0x0090 0x00b0 0x00c0
+					0x00f0 0x0110 0x0130 0x0180
+					0x01e0 0x0200 0x02a0 0x0300
+					0x03a0 0x0400 0x0500 0x0600>;
+		realtek,offset-comp-r = <0x001a 0x001f 0x0020 0x002a
+					0x0030 0x0040 0x0050 0x0060
+					0x006f 0x007f 0x00a0 0x00b0
+					0x00cf 0x0100 0x0120 0x0160>;
+		realtek,regulator_1v8 = <&l42_reg>;
+		realtek,regulator_3v3 = <&l40_reg>;
+	};
+};
+
+/*
+&pinctrl_1 {
+	fm_dtv_ctrl: fm-dtv-ctrl {
+		samsung,pins ="gpm25-0";
+		samsung,pin-function = <0x0>;
+		samsung,pin-pud = <0>;
+	};
+};
+*/

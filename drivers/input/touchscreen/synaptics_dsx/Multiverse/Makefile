@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_DSX)	+= GMvBrane.o GMvSystem.o

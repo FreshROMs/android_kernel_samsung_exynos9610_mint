@@ -1,0 +1,11 @@
+#
+# SAMSUNG's S610 FM driver based on SPEEDY driver.
+#
+menu "Samsung S610 FM driver (SPEEDY based)"
+config RADIO_S610
+	tristate "Samsung S610 FM Radio"
+	depends on VIDEO_V4L2 && RADIO_S5E9610
+	help
+	Choose Y here if you have this FM radio chip.
+
+endmenu

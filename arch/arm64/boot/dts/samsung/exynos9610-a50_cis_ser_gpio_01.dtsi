@@ -1,0 +1,144 @@
+/*
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/* Support A50 CIS HWREV00 (b0001) */
+
+#include "exynos_gpio_config_macros.dtsi"
+
+/*
+ * pin banks of exynos9610 pin-controller 0 (ALIVE)
+ * ETC0
+ * GPA0, GPA1, GPA2
+ * GPQ0
+ * Note that do not set sleep state because this is an ALIVE region.
+ */
+&pinctrl_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&initial0>;
+	initial0: initial-state {
+		PIN_IN(gpa2-5, DOWN);	/* NC */
+	};
+};
+
+/*
+ * pin banks of exynos9610 pin-controller 1 (CMGP)
+ * GPM0 ~ 25
+ */
+&pinctrl_1 {
+	pinctrl-names = "default","sleep";
+	pinctrl-0 = <&initial1>;
+	pinctrl-1 = <&sleep1>;
+	initial1: initial-state {
+		PIN_IN(gpm12-0, DOWN);	/* NC, MST_PWR_EN(KOR ONLY)*/
+		PIN_IN(gpm13-0, DOWN);	/* NC, MST_DATA_A(KOR ONLY)*/
+		PIN_IN(gpm14-0, DOWN);	/* NC, MST_DATA_B/EN(KOR ONLY)*/
+	};
+	sleep1: sleep-state {
+		PIN_SLP(gpm2-0, INPUT, NONE);		/* SPK_AMP_I2C_SCL */
+		PIN_SLP(gpm3-0, INPUT, NONE);		/* SPK_AMP_I2C_SDA */
+		PIN_SLP(gpm12-0, INPUT, DOWN);	/* NC, MST_PWR_EN(KOR ONLY)*/
+		PIN_SLP(gpm13-0, INPUT, DOWN);	/* NC, MST_DATA_A(KOR ONLY)*/
+		PIN_SLP(gpm14-0, INPUT, DOWN);	/* NC, MST_DATA_B/EN(KOR ONLY)*/
+	};
+};
+
+/*
+ * pin banks of exynos9610 pin-controller 2 (DISPAUD)
+ * GPB0, GPB1, GPB2
+ */
+&pinctrl_2 {
+	pinctrl-names = "sleep";
+	pinctrl-0 = <&sleep2>;
+	sleep2: sleep-state {
+		PIN_SLP(gpb2-0, INPUT, DOWN);	/* SPK_I2S3_BCLK */
+		PIN_SLP(gpb2-1, INPUT, DOWN);	/* SPK_I2S3_WS */
+		PIN_SLP(gpb2-2, INPUT, DOWN);	/* SPK_I2S3_DO */
+		PIN_SLP(gpb2-3, INPUT, DOWN);	/* SPK_I2S3_DI */
+		PIN_SLP(gpb2-4, INPUT, DOWN);	/* FM_SPDY_TO_S612 */
+	};
+};
+
+/*
+ * pin banks of exynos9610 pin-controller 3 (FSYS)
+ * GPF0, GPF1, GPF2
+ */
+/*
+&pinctrl_3 {
+};
+*/
+
+/*
+ * pin banks of exynos9610 pin-controller 4 (TOP)
+ * GPP0, GPP1, GPP2
+ * GPC0, GPC1, GPC2
+ * GPG0, GPG1, GPG2, GPG3, GPG4
+ */
+&pinctrl_4 {
+	pinctrl-names = "default","sleep";
+	pinctrl-0 = <&initial4>;
+	pinctrl-1 = <&sleep4>;
+	initial4: initial-state {
+		PIN_IN(gpc2-4, DOWN);	/* NC */
+
+		PIN_IN(gpg0-7, DOWN);	/* NC */
+		PIN_IN(gpg1-4, DOWN);	/* NC */
+		PIN_OUT_SET(gpg1-5, 1, LV1);	/* IFPMIC_RSTB */
+
+		PIN_OUT_SET(gpg3-1, 1, LV1);	/*TSP_LDO_EN*/
+		PIN_IN(gpg3-2, NONE);	/* HW_REV0 */
+		PIN_IN(gpg3-3, NONE);	/* HW_REV1 */
+		PIN_IN(gpg3-4, NONE);	/* HW_REV2 */
+		PIN_IN(gpg3-5, NONE);	/* HW_REV3 */
+	};
+	sleep4: sleep-state {
+		PIN_SLP(gpp0-0, INPUT, NONE);	/* CC_SDA_1P8 */
+		PIN_SLP(gpp0-1, INPUT, NONE);	/* CC_SCL_1P8 */
+		PIN_SLP(gpp0-2, INPUT, NONE);	/* IF_PMIC_SDA_1P8 */
+		PIN_SLP(gpp0-3, INPUT, NONE);	/* IF_PMIC_SCL_1P8 */
+		PIN_SLP(gpp0-4, INPUT, NONE);	/* NFC_SDA_1P8 */
+		PIN_SLP(gpp0-5, INPUT, NONE);	/* NFC_SCL_1P8 */
+		PIN_SLP(gpp0-6, INPUT, NONE);	/* CAM_PMIC_SDA_1P8 */
+		PIN_SLP(gpp0-7, INPUT, NONE);	/* CAM_PMIC_SCL_1P8 */
+
+		PIN_SLP(gpp1-0, INPUT, NONE);	/* TSP_SDA_1P8 */
+		PIN_SLP(gpp1-1, INPUT, NONE);	/* TSP_SCL_1P8 */
+		PIN_SLP(gpp1-2, INPUT, UP);	/* GRIP_SDA_1P8 */
+		PIN_SLP(gpp1-3, INPUT, UP);	/* GRIP_SCL_1P8 */
+		PIN_SLP(gpp1-4, INPUT, NONE);	/* CODEC_SDA_1P8 */
+		PIN_SLP(gpp1-5, INPUT, NONE);	/* CODEC_SCL_1P8 */
+
+		PIN_SLP(gpc1-2, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpc1-3, INPUT, DOWN);	/* NC */
+
+		PIN_SLP(gpc2-2, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpc2-4, INPUT, DOWN);	/* NC */
+
+		PIN_SLP(gpg0-6, OUT0, DOWN);	/* CAM_FLASH_EN */
+		PIN_SLP(gpg0-7, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpg1-2, PREV, NONE);	/* LCD_EN_1P8 */
+		PIN_SLP(gpg1-3, PREV, NONE);	/* OLED_RST_N */
+		PIN_SLP(gpg1-4, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpg1-5, OUT1, NONE);	/* IFPMIC_RSTB */
+
+		PIN_SLP(gpg2-1, PREV, NONE);	/* GRIP_LDO_EN */
+		PIN_SLP(gpg2-2, INPUT, DOWN);	/* NC */
+		PIN_SLP(gpg2-3, PREV, DOWN);	/* NCHG_EN */
+		PIN_SLP(gpg2-4, PREV, NONE);	/* LCD_EN_3P0 */
+		PIN_SLP(gpg2-7, OUT0, DOWN);	/* BTP_LDO_EN */
+
+		PIN_SLP(gpg3-0, OUT0, DOWN);	/* BTP_RST_N */
+		PIN_SLP(gpg3-1, PREV, NONE);	/* TSP_LDO_EN */
+		PIN_SLP(gpg3-2, INPUT, NONE);	/* HW_REV0 */
+		PIN_SLP(gpg3-3, INPUT, NONE);	/* HW_REV1 */
+		PIN_SLP(gpg3-4, INPUT, NONE);	/* HW_REV2 */
+		PIN_SLP(gpg3-5, INPUT, NONE);	/* HW_REV3 */
+
+		PIN_SLP(gpg4-2, PREV, NONE);	/* FM_LNA_EN */
+	};
+};

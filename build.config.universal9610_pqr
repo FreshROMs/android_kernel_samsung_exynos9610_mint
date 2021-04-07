@@ -1,0 +1,17 @@
+ARCH=arm64
+CLANG_TRIPLE=aarch64-linux-gnu-
+CROSS_COMPILE=aarch64-linux-androidkernel-
+
+CC=clang
+CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r365631c/bin
+SET_TOOLCHAIN=1
+
+DEFCONFIG=universal9610_pqr_defconfig
+TARGET_SOC=exynos9610
+
+FILES="
+arch/arm64/boot/Image:kernel
+arch/arm64/boot/dts/exynos/exynos9610.dtb:dtb.img
+dtbo.img:dtbo.img
+vmlinux:vmlinux
+"

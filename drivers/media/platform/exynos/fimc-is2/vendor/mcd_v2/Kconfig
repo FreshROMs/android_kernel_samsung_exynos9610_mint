@@ -1,0 +1,72 @@
+config SENSOR_RETENTION_USE
+	bool "Use sensor retention"
+	depends on VENDER_MCD_V2
+	default n
+	help
+	  Use sensor retention.
+config OIS_USE
+        bool "Use ois"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          Use ois.
+config OIS_FW_UPDATE_THREAD_USE
+        bool "Enable ois fw update thread"
+        depends on OIS_USE
+        default n
+        help
+          Enable ois fw update thread.
+config AF_HOST_CONTROL
+        bool "Enable host af control"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          Enable host af control.
+config FIMC_IS_DDK_DATA_LOAD
+        bool "Enable signed binary processing."
+        depends on VENDER_MCD_V2
+        default n
+        help
+          Enable signed binary processing.
+config TORCH_CURRENT_CHANGE_SUPPORT
+        bool "Change torch current in recording mode"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          Change torch current in recording mode.
+config OIS_USE_RUMBA_S4
+        bool "Use RUMBA S4 ois driver IC"
+        depends on OIS_USE
+        default n
+        help
+          Use RUMBA S4 ois driver IC.
+config CAMERA_AAS_V50
+        bool "This camera is aas_v50 project"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          This camera is aas_v50 project.
+config CAMERA_AAS_V80
+        bool "This camera is aas_v80 project"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          This camera is aas_v80 project.
+config CAMERA_AAS_V50S
+        bool "This camera is aas_v50s project"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          This camera is aas_v50s project.
+config CAMERA_MMS_V30S
+        bool "This camera is mms_v30s project"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          This camera is mms_v30s project.
+config CAMERA_AAS_V51
+        bool "This camera is aas_v51 project"
+        depends on VENDER_MCD_V2
+        default n
+        help
+          This camera is aas_v51 project.

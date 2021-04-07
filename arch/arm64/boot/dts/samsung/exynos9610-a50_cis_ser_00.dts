@@ -1,0 +1,114 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9610-a50_common.dtsi"
+#include "battery_data_a50_cis_ser_01.dtsi"
+#include "exynos9610-a50_fingerprint_00.dtsi"
+#include "exynos9610-a50_sensorhub_00.dtsi"
+#include "exynos9610-a50_nfc_00.dtsi"
+#include "exynos9610-a50_cis_ser_gpio_00.dtsi"
+
+/ {
+	compatible = "samsung, A50 CIS SER 00", "samsung,EXYNOS9610";
+	dtbo-hw_rev = <0>;
+	dtbo-hw_rev_end = <0>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung A50 CIS SER bringup board based on Exynos9610";
+
+			i2c_4:i2c@13870000 {
+				touchscreen@50 {
+					compatible = "imagis,ist40xx-ts";
+					reg = <0x50>;
+					pinctrl-names = "on_state", "off_state";
+					pinctrl-0 = <&attn_irq>;
+					pinctrl-1 = <&attn_input>;
+					imagis,irq-gpio = <&gpa0 0 0>;
+					imagis,regulator_avdd = "tsp_ldo_en";
+					imagis,fw-bin = <1>;
+					imagis,octa-hw = <1>;
+					imagis,area-size = <63 126 60>; /* indicator: 24dp~63px navigator:48dp~126px edge:60px | dpi:420*/
+					imagis,ic-version = "ist40xx";
+					imagis,project-name = "a7_2018";
+					imagis,tclm_level = <2>;
+					imagis,afe_base = <0x0110>;
+					imagis,factory_item_version = <1>;
+					status = "okay";
+				};
+			};
+
+			i2c_4:i2c@13870000 {
+				status = "okay";
+				mms_ts@48 {
+					melfas,fw_name = "tsp_melfas/mss100_a70.fw";
+				};
+			};
+
+			dwmmc2@13550000 {
+				card-detect = <&gpa2 6 0xf>;
+			};
+
+			sec_vib {
+				compatible = "sec_vib";
+				sec_vib_pdata {
+					status = "okay";
+					sec_vib,max_timeout = <10000>;
+					sec_vib,ldo_type = <1>;
+					sec_vib,ldo_en = <&gpa2 1 0>;
+				};
+			};
+
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */
+
+
+&pinctrl_0 {
+	earant_det: earant-det {
+		samsung,pins ="gpa1-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+
+	dwmmc2_cd_ext_irq: dwmmc2_cd_ext_irq {
+		samsung,pins = "gpa2-6";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	grip_int: grip-int {
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <3>;
+	};	
+};
+
+&pinctrl_4 {
+	grip_i2c: grip-i2c {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <3>;
+	};
+
+	grip_gpio: grip-gpio {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <3>;
+	};
+};

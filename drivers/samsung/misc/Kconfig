@@ -1,0 +1,111 @@
+menuconfig SEC_MISC
+	bool "Enable SEC miscellaneous feature"
+	depends on SEC_EXT
+	default y
+
+config SEC_HQM_DEVICE
+	bool "Samsung sec hqm device"
+	default n
+	help
+	  Samsung hqm device feature
+
+comment "Samsung TSP Logging Options"
+config SEC_DEBUG_TSP_LOG
+	default n
+	bool "Enable tsp log support" if EMBEDDED
+	depends on SEC_EXT
+	help
+	  This option enables additional log buffer for tsp log.
+
+config SEC_PM_BIGDATA
+	bool "Enable Samsung Mobile Power management big data support"
+	default y
+	depends on SEC_PM
+	help
+	  This option enables Samsung Mobile Power management big data support.
+
+comment "Samsung TN NAD Options"
+config SEC_NAD
+	bool "Samsung TN NAD Feature"
+	default n
+	help
+	  Samsung TN NAD Feature, support AT CMD for NAD 2.0
+
+config SEC_NAD_MANUAL_PARAM_READTIME
+	int "Samsung TN NAD Feature"
+	depends on SEC_NAD
+	default "10"
+	help
+	  Samsung TN NAD Feature, set param reading time manually.
+
+config SEC_SUPPORT_SECOND_NAD
+	bool "Samsung TN 2nd NAD Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  Samsung TN NAD Feature, support 2nd NAD feature.
+
+config SEC_NAD_BALANCER
+	bool "Samsung TN NAD Balancer Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  This option enables Samsung TN NAD Balancer Feature.
+	  This option also can generate thread to change dvfs frequency. It helps keep balancing
+	  between user and factory binary.
+
+config SEC_NAD_HPM
+	bool "Samsung TN NAD HPM Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  Samsung TN NAD Feature, Enable NAD HPM
+
+config SEC_NAD_API
+	bool "Samsung TN NAD API Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  Samsung TN NAD Feature, Support NAD API to check gpio pull-up registance
+
+config SEC_SUPPORT_VST
+	bool "Samsung TN NAD 4.0 Feature"
+	depends on SEC_NAD
+	default n
+	help
+	  Samsung TN NAD Feature, support NAD 4.0 feature.
+
+config SEC_GPIO
+	default n
+	bool "Enable gpio detection for PCB type"
+	help
+	  Return FPCB type for factory test
+
+comment "Logging Heavy Task Cpu Options"
+config SEC_HEAVY_TASK_CPU
+	bool "Enable heacy cpu core counting"
+	default n
+	help
+	  This option enables heavy cpu core counting.
+
+config ARGOS
+	bool "Throughput monitoring Feature"
+	default n
+	help
+	  This option enables monitoring the data throughput and doing several actions for
+	  enhancing the performance such as adjusting the CPU freqency, allocating the tasks
+	  to the appropriate CPU and so on
+
+config AROGS_THREE_CLUSTERS
+	bool "Support three clusters"
+	default n
+	help
+	  This option enables to support three clusters in cpu topology.
+
+comment "NOTIFIER configs"
+config VBUS_NOTIFIER
+	bool "VBUS notifier support"
+	default n
+	help
+	  If you say yes here you will get support for
+	  the VBUS status change notification.

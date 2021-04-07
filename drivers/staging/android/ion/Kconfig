@@ -1,0 +1,71 @@
+menuconfig ION
+	bool "Ion Memory Manager"
+	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
+	select GENERIC_ALLOCATOR
+	select DMA_SHARED_BUFFER
+	---help---
+	  Chose this option to enable the ION Memory Manager,
+	  used by Android to efficiently allocate buffers
+	  from userspace that can be shared between drivers.
+	  If you're not using Android its probably safe to
+	  say N here.
+
+config ION_EXYNOS
+	bool "Exynos Extension to ION"
+	depends on ION
+	help
+	  Choose this option for Exynos SoCs. Initialization of cma heap is
+	  changed.
+
+config ION_TEST
+	tristate "Ion Test Device"
+	depends on ION
+	help
+	  Choose this option to create a device that can be used to test the
+	  kernel and device side ION functions.
+
+config ION_SYSTEM_HEAP
+	bool "Ion system heap"
+	depends on ION
+	help
+	  Choose this option to enable the Ion system heap. The system heap
+	  is backed by pages from the buddy allocator. If in doubt, say Y.
+
+config ION_CARVEOUT_HEAP
+	bool "Ion carveout heap support"
+	depends on ION
+	help
+	  Choose this option to enable carveout heaps with Ion. Carveout heaps
+	  are backed by memory reserved from the system. Allocation times are
+	  typically faster at the cost of memory not being used. Unless you
+	  know your system has these regions, you should say N here.
+
+config ION_CHUNK_HEAP
+	bool "Ion chunk heap support"
+	depends on ION
+	help
+          Choose this option to enable chunk heaps with Ion. This heap is
+	  similar in function the carveout heap but memory is broken down
+	  into smaller chunk sizes, typically corresponding to a TLB size.
+	  Unless you know your system has these regions, you should say N here.
+
+config ION_CMA_HEAP
+	bool "Ion CMA heap support"
+	depends on ION && DMA_CMA
+	help
+	  Choose this option to enable CMA heaps with Ion. This heap is backed
+	  by the Contiguous Memory Allocator (CMA). If your system has these
+	  regions, you should say Y here.
+
+config ION_HPA_HEAP
+	bool "Ion HPA heap support"
+	depends on ION && HPA
+	help
+	  Choose this option to enable HPA heaps with Ion. This heap is backed
+	  by the High-order Pages Allocator (HPA). If your system needs HPA for
+	  some reason, you should say Y here.
+
+config ION_DEBUG_EVENT_RECORD
+	bool "Ion event debug support"
+	default y
+	depends on ION_EXYNOS

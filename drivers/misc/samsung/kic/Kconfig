@@ -1,0 +1,9 @@
+config SAMSUNG_KIC
+	tristate "Kernel Information and Control (KIC) interface for Samsung Wi-Fi and Bluetooth chips"
+
+if SAMSUNG_KIC != n
+
+config SLSI_KIC_API_ENABLED
+	bool "Enable the KIC kernel API"
+	depends on SAMSUNG_KIC
+endif

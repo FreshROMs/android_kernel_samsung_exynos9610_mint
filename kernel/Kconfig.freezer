@@ -1,0 +1,7 @@
+config FREEZER
+	def_bool PM_SLEEP || CGROUP_FREEZER
+config OLAF_SUPPORT
+	bool "thaw frozen process when recieve sig"
+	default n
+	help
+		thaw frozen process when recieve sig. enable if samsung olaf solution exist

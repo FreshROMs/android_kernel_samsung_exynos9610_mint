@@ -1,0 +1,20 @@
+config SDCARD_FS
+	tristate "sdcard file system"
+	depends on CONFIGFS_FS
+	default y
+	help
+	  Sdcardfs is based on Wrapfs file system.
+
+config SDCARD_FS_FADV_NOACTIVE
+	bool "sdcardfs fadvise noactive support"
+	depends on FADV_NOACTIVE
+	default y
+	help
+	  Sdcardfs supports fadvise noactive mode.
+
+config SDCARD_FS_SUPPORT_KNOX
+	bool "sdcardfs support for Knox"
+	depends on SDCARD_FS
+	default y if ANDROID_VERSION < "110000"
+	help
+	  Sdcardfs supports Knox until the platform version 10.

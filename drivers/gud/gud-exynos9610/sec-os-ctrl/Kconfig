@@ -1,0 +1,10 @@
+#
+# Secure OS control configuration
+#
+config SECURE_OS_CONTROL
+	bool "Secure OS control"
+	depends on TRUSTONIC_TEE
+	---help---
+	  Enable Secure OS control sysfs.
+	  It can migrate a core that executes secure OS tasks
+	  and check a current core on secure OS.

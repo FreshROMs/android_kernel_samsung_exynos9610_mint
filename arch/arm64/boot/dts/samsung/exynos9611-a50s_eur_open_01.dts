@@ -1,0 +1,73 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9611-a50s_common.dtsi"
+#include "battery_data_a50s_eur_open_01.dtsi"
+#include "exynos9611-a50s_fingerprint_00.dtsi"
+#include "exynos9611-a50s_sensorhub_00.dtsi"
+#include "exynos9611-a50s_nfc_00.dtsi"
+#include "exynos9611-a50s_eur_open_gpio_01.dtsi"
+
+/ {
+	compatible = "samsung, A50S EUR OPEN REV00", "samsung,EXYNOS9611";
+	dtbo-hw_rev = <1>;
+	dtbo-hw_rev_end = <1>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung A50S EUR OPEN REV00 based on Exynos9611";
+
+			mif_pdata {
+				/* GPIOs for HW REV */
+				/* XGPIO26-AP_REV0, XGPIO27-AP_REV1, XGPIO28-AP_REV2, XGPIO29-AP_REV3 */
+				gpios = <&gpg3 2 0>, <&gpg3 3 0>, <&gpg3 4 0>, <&gpg3 5 0>;
+				pinctrl-names = "default";
+			};
+
+			sec_vib {
+				compatible = "sec_vib";
+				sec_vib_pdata {
+					status = "okay";
+					sec_vib,max_timeout = <10000>;
+					sec_vib,ldo_type = <1>;
+					sec_vib,ldo_en = <&gpa2 1 0>;
+				};
+			};
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */
+
+&pinctrl_0 {
+	earant_det: earant-det {
+		samsung,pins ="gpa1-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+
+	grip_int: grip-int {
+		samsung,pins = "gpa2-5";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+	grip_sub_int: grip-sub-int {
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};	
+};
+
+

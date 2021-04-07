@@ -1,0 +1,94 @@
+/*
+ * SAMSUNG LCD Panel Device Tree Source
+ *
+ * Copyright (c) Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	fragment@lcd {
+		target-path = "/";
+		__overlay__ {
+			decon_board_s6e3fa7: decon_board_s6e3fa7 {
+				gpio_det = <&gpa0 1 0x1>;
+				gpio_err = <&gpa1 1 0x1>;
+
+				gpio_lcd_rst = <&gpg1 3 0>;
+				gpio_lcd_en_3p0 = <&gpg2 4 0>;
+				gpio_lcd_en_1p8 = <&gpg1 2 0>;
+				gpio_lcd_en_vddr = <&gpg2 2 0>;
+
+				dsim_set_panel_power_enable {
+					type =
+					"gpio,high",	"gpio_lcd_en_1p8",
+					"delay,usleep",	"1000",
+					"gpio,high",	"gpio_lcd_en_vddr",
+					"delay,usleep",	"1000",
+					"gpio,high",	"gpio_lcd_en_3p0",
+					"delay,usleep",	"10000";
+				};
+				dsim_set_panel_power_disable {
+					type =
+					"gpio,low",	"gpio_lcd_rst",
+					"delay,usleep",	"5000",
+					"gpio,low",	"gpio_lcd_en_vddr",
+					"delay,usleep",	"5000",
+					"gpio,low",	"gpio_lcd_en_1p8",
+					"delay,usleep",	"5000",
+					"gpio,low",	"gpio_lcd_en_3p0",
+					"delay,usleep",	"5000";
+				};
+				dsim_reset_panel {
+					type =
+					"delay,usleep",	"1000",
+					"gpio,high",	"gpio_lcd_rst",
+					"delay,usleep",	"5000",
+					"gpio,low",	"gpio_lcd_rst",
+					"delay,usleep",	"5000",
+					"gpio,high",	"gpio_lcd_rst",
+					"delay,usleep",	"10000";
+				};
+			};
+
+			s6e3fa7: s6e3fa7 {
+				mode = <2>; /* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+				resolution = <1080 2220>;
+				size = <67 138>;	/* 67.176 x 138.084 */
+				timing,refresh = <60>;
+				timing,h-porch = <2 2 2>;
+				timing,v-porch = <15 3 1>;
+				timing,dsi-hs-clk = <1100>;
+				timing,pmsk = <4 677 2 0>;
+				timing,dsi-escape-clk = <20>;
+				update_min = <360 222>;
+				mic_en = <0>;		/* 0: Disable, 1: Enable */
+				mic_ratio = <0>;	/* 0: 1/2 mic, 1: 1/3 mic */
+				mic_ver = <0>;		/* 0: mic v1.1, 1: v1.2, 2: v2.0 */
+				type_of_ddi = <0>;	/* 0: Samsung Mobile, 1: MAGNA, 2: Normal(Etc) */
+				dsc_en = <0>;		/* 0: Disable, 1: Enable */
+				dsc_cnt = <0>;		/* used DSC count */
+				dsc_slice_num = <0>;	/* count of dsc slice */
+				data_lane = <4>;	/* number of using data lane */
+				cmd_underrun_lp_ref = <2498>;	/* for underrun detect at command mode */
+				mres_en = <0>;
+				noncontinuous_clklane = <1>;	/* 0: Disable, 1: Enable */
+				decon_board = <&decon_board_s6e3fa7>;
+			};
+		};
+	};
+};
+
+&dsim_0 {
+	lcd_info = <&s6e3fa7>;
+};
+
+&decon_f {
+	psr_mode = <2>;		/* 0: video mode, 1: DP command mode, 2: MIPI command mode */
+	trig_mode = <0>;	/* 0: hw trigger, 1: sw trigger */
+	dsi_mode = <0>;		/* 0: single dsi, 1: dual dsi */
+};
+

@@ -1,0 +1,44 @@
+
+menu "USB Power Delivery and Type-C drivers"
+
+config USE_CCIC
+	bool "Using USBPD device driver"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you will get support for
+	  the USB PD(Power Delivery) device driver.
+
+config TYPEC
+	bool "Using USB Type-C device driver"
+	depends on USE_CCIC
+	depends on ANDROID_MAJOR_VERSION != "o"
+	default n
+	help
+	  If you say yes here you will get support for
+	  the USB Type-C device driver.
+
+config TYPEC_WCOVE
+	tristate "Intel WhiskeyCove PMIC USB Type-C PHY driver"
+	depends on ACPI
+	depends on INTEL_SOC_PMIC
+	depends on INTEL_PMC_IPC
+	depends on BXT_WC_PMIC_OPREGION
+	select TYPEC
+	help
+	  This driver adds support for USB Type-C detection on Intel Broxton
+	  platforms that have Intel Whiskey Cove PMIC. The driver can detect the
+	  role and cable orientation.
+
+	  To compile this driver as module, choose M here: the module will be
+	  called typec_wcove
+
+source "drivers/usb/typec/ucsi/Kconfig"
+
+source "drivers/usb/typec/manager/Kconfig"
+
+source "drivers/usb/typec/sm5713/Kconfig"
+
+source "drivers/usb/typec/sep/Kconfig"
+
+endmenu

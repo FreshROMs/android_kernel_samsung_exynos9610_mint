@@ -1,0 +1,4500 @@
+
+ra.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <ra_get_div_mux>:
+	return ret;
+}
+
+static int ra_get_div_mux(struct cmucal_clk *clk)
+{
+	if (!clk->offset)
+       0:	f9400c02 	ldr	x2, [x0,#24]
+		return 0;
+       4:	2a0203e1 	mov	w1, w2
+	return ret;
+}
+
+static int ra_get_div_mux(struct cmucal_clk *clk)
+{
+	if (!clk->offset)
+       8:	b4000142 	cbz	x2, 30 <ra_get_div_mux+0x30>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+       c:	b9400042 	ldr	w2, [x2]
+		return 0;
+
+	return get_value(clk->offset, clk->shift, clk->width);
+      10:	d5033d9f 	dsb	ld
+      14:	3940c001 	ldrb	w1, [x0,#48]
+      18:	3940c400 	ldrb	w0, [x0,#49]
+      1c:	1ac12441 	lsr	w1, w2, w1
+      20:	52800022 	mov	w2, #0x1                   	// #1
+      24:	1ac02040 	lsl	w0, w2, w0
+      28:	51000400 	sub	w0, w0, #0x1
+      2c:	0a000021 	and	w1, w1, w0
+}
+      30:	2a0103e0 	mov	w0, w1
+      34:	d65f03c0 	ret
+
+0000000000000038 <ra_set_gate>:
+
+	/*
+	 * MANUAL(status) 1 : CG_VALUE(offset) control
+	 *                0 : ENABLE_AUTOMATIC_CLKGATING(enable) control
+	 */
+	if (!clk->status || get_bit(clk->status, clk->s_shift)) {
+      38:	f9401402 	ldr	x2, [x0,#40]
+      3c:	b50001e2 	cbnz	x2, 78 <ra_set_gate+0x40>
+      40:	f9400c02 	ldr	x2, [x0,#24]
+      44:	b9400044 	ldr	w4, [x2]
+		reg = readl(clk->offset);
+      48:	d5033d9f 	dsb	ld
+		reg &= ~(get_mask(clk->width, clk->shift));
+      4c:	3940c402 	ldrb	w2, [x0,#49]
+      50:	52800023 	mov	w3, #0x1                   	// #1
+      54:	6b1f003f 	cmp	w1, wzr
+      58:	1ac22063 	lsl	w3, w3, w2
+      5c:	3940c002 	ldrb	w2, [x0,#48]
+      60:	51000463 	sub	w3, w3, #0x1
+      64:	1ac22062 	lsl	w2, w3, w2
+      68:	0a220083 	bic	w3, w4, w2
+      6c:	2a020082 	orr	w2, w4, w2
+      70:	1a831043 	csel	w3, w2, w3, ne
+      74:	14000013 	b	c0 <ra_set_gate+0x88>
+      78:	b9400042 	ldr	w2, [x2]
+
+	/*
+	 * MANUAL(status) 1 : CG_VALUE(offset) control
+	 *                0 : ENABLE_AUTOMATIC_CLKGATING(enable) control
+	 */
+	if (!clk->status || get_bit(clk->status, clk->s_shift)) {
+      7c:	d5033d9f 	dsb	ld
+      80:	3940c803 	ldrb	w3, [x0,#50]
+      84:	1ac32442 	lsr	w2, w2, w3
+      88:	3707fdc2 	tbnz	w2, #0, 40 <ra_set_gate+0x8>
+      8c:	f9401002 	ldr	x2, [x0,#32]
+      90:	b9400044 	ldr	w4, [x2]
+		if (pass)
+			reg |= get_mask(clk->width, clk->shift);
+
+		writel(reg, clk->offset);
+	} else {
+		reg = readl(clk->enable);
+      94:	d5033d9f 	dsb	ld
+		reg &= ~(get_mask(clk->e_width, clk->e_shift));
+      98:	3940d402 	ldrb	w2, [x0,#53]
+      9c:	52800023 	mov	w3, #0x1                   	// #1
+      a0:	6b1f003f 	cmp	w1, wzr
+      a4:	1ac22063 	lsl	w3, w3, w2
+      a8:	3940d002 	ldrb	w2, [x0,#52]
+      ac:	51000463 	sub	w3, w3, #0x1
+      b0:	1ac22062 	lsl	w2, w3, w2
+      b4:	0a220083 	bic	w3, w4, w2
+      b8:	2a020082 	orr	w2, w4, w2
+      bc:	1a830043 	csel	w3, w2, w3, eq
+		if (!pass)
+			reg |= get_mask(clk->e_width, clk->e_shift);
+
+		writel(reg, clk->offset);
+      c0:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+      c4:	f9400c00 	ldr	x0, [x0,#24]
+      c8:	b9000003 	str	w3, [x0]
+	}
+	return 0;
+}
+      cc:	52800000 	mov	w0, #0x0                   	// #0
+      d0:	d65f03c0 	ret
+
+00000000000000d4 <ra_wait_done>:
+
+static int ra_wait_done(void __iomem *reg,
+			unsigned char shift,
+			unsigned int done,
+			int usec)
+{
+      d4:	a9bd7bfd 	stp	x29, x30, [sp,#-48]!
+      d8:	910003fd 	mov	x29, sp
+      dc:	a90153f3 	stp	x19, x20, [sp,#16]
+      e0:	aa0003f3 	mov	x19, x0
+      e4:	53001c34 	uxtb	w20, w1
+      e8:	f90013a3 	str	x3, [x29,#32]
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+      ec:	b9400264 	ldr	w4, [x19]
+	unsigned int result;
+
+	do {
+		result = get_bit(reg, shift);
+      f0:	d5033d9f 	dsb	ld
+      f4:	1ad42484 	lsr	w4, w4, w20
+
+		if (result == done)
+      f8:	f90017a2 	str	x2, [x29,#40]
+			int usec)
+{
+	unsigned int result;
+
+	do {
+		result = get_bit(reg, shift);
+      fc:	12000084 	and	w4, w4, #0x1
+
+		if (result == done)
+     100:	6b02009f 	cmp	w4, w2
+     104:	54000140 	b.eq	12c <ra_wait_done+0x58>
+			return 0;
+		udelay(1);
+     108:	d28218e0 	mov	x0, #0x10c7                	// #4295
+     10c:	94000000 	bl	0 <__const_udelay>
+	} while (--usec > 0);
+     110:	f94013a3 	ldr	x3, [x29,#32]
+     114:	f94017a2 	ldr	x2, [x29,#40]
+     118:	51000463 	sub	w3, w3, #0x1
+     11c:	6b1f007f 	cmp	w3, wzr
+     120:	54fffe4c 	b.gt	e8 <ra_wait_done+0x14>
+
+	return -EVCLKTIMEOUT;
+     124:	12800da0 	mov	w0, #0xffffff92            	// #-110
+     128:	14000002 	b	130 <ra_wait_done+0x5c>
+
+	do {
+		result = get_bit(reg, shift);
+
+		if (result == done)
+			return 0;
+     12c:	52800000 	mov	w0, #0x0                   	// #0
+		udelay(1);
+	} while (--usec > 0);
+
+	return -EVCLKTIMEOUT;
+}
+     130:	a94153f3 	ldp	x19, x20, [sp,#16]
+     134:	a8c37bfd 	ldp	x29, x30, [sp],#48
+     138:	d65f03c0 	ret
+
+000000000000013c <ra_enable_pll>:
+{
+	return get_bit(clk->pll_con0, clk->e_shift);
+}
+
+static int ra_enable_pll(struct cmucal_clk *clk, int enable)
+{
+     13c:	a9bd7bfd 	stp	x29, x30, [sp,#-48]!
+     140:	910003fd 	mov	x29, sp
+     144:	a90153f3 	stp	x19, x20, [sp,#16]
+     148:	a9025bf5 	stp	x21, x22, [sp,#32]
+     14c:	aa0003f3 	mov	x19, x0
+     150:	2a0103f5 	mov	w21, w1
+     154:	f9401003 	ldr	x3, [x0,#32]
+     158:	b9400063 	ldr	w3, [x3]
+	unsigned int reg;
+	int ret = 0;
+
+	reg = readl(clk->pll_con0);
+     15c:	d5033d9f 	dsb	ld
+	if (!enable) {
+     160:	35000461 	cbnz	w1, 1ec <ra_enable_pll+0xb0>
+		reg &= ~(PLL_MUX_SEL);
+     164:	121b7874 	and	w20, w3, #0xffffffef
+		writel(reg, clk->pll_con0);
+     168:	d5033e9f 	dsb	st
+     16c:	f9401000 	ldr	x0, [x0,#32]
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     170:	b9000014 	str	w20, [x0]
+
+		ret = ra_wait_done(clk->pll_con0, PLL_MUX_BUSY_SHIFT, 0, 100);
+     174:	528000e1 	mov	w1, #0x7                   	// #7
+     178:	2a1503e2 	mov	w2, w21
+     17c:	52800c83 	mov	w3, #0x64                  	// #100
+     180:	97ffffd5 	bl	d4 <ra_wait_done>
+     184:	2a0003f6 	mov	w22, w0
+		if (ret)
+     188:	340000a0 	cbz	w0, 19c <ra_enable_pll+0x60>
+			pr_err("pll mux change time out, \'%s\'\n", clk->name);
+     18c:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     190:	f9400a61 	ldr	x1, [x19,#16]
+     194:	91000000 	add	x0, x0, #0x0
+     198:	94000000 	bl	0 <printk>
+	}
+
+	if (enable)
+		reg |= 1 << clk->e_shift;
+	else
+		reg &= ~(1 << clk->e_shift);
+     19c:	3940d263 	ldrb	w3, [x19,#52]
+     1a0:	52800024 	mov	w4, #0x1                   	// #1
+     1a4:	1ac32084 	lsl	w4, w4, w3
+     1a8:	0a240283 	bic	w3, w20, w4
+
+	writel(reg, clk->pll_con0);
+     1ac:	d5033e9f 	dsb	st
+     1b0:	f9401260 	ldr	x0, [x19,#32]
+     1b4:	b9000003 	str	w3, [x0]
+
+	if (enable) {
+     1b8:	34000275 	cbz	w21, 204 <ra_enable_pll+0xc8>
+		ret = ra_wait_done(clk->pll_con0, clk->s_shift, 1, 100);
+     1bc:	3940ca61 	ldrb	w1, [x19,#50]
+     1c0:	52800022 	mov	w2, #0x1                   	// #1
+     1c4:	52800c83 	mov	w3, #0x64                  	// #100
+     1c8:	97ffffc3 	bl	d4 <ra_wait_done>
+     1cc:	2a0003f6 	mov	w22, w0
+		if (ret)
+     1d0:	340001a0 	cbz	w0, 204 <ra_enable_pll+0xc8>
+			pr_err("pll time out, \'%s\' %d\n", clk->name, enable);
+     1d4:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     1d8:	f9400a61 	ldr	x1, [x19,#16]
+     1dc:	2a1503e2 	mov	w2, w21
+     1e0:	91000000 	add	x0, x0, #0x0
+     1e4:	94000000 	bl	0 <printk>
+     1e8:	14000007 	b	204 <ra_enable_pll+0xc8>
+		if (ret)
+			pr_err("pll mux change time out, \'%s\'\n", clk->name);
+	}
+
+	if (enable)
+		reg |= 1 << clk->e_shift;
+     1ec:	3940d000 	ldrb	w0, [x0,#52]
+     1f0:	52800024 	mov	w4, #0x1                   	// #1
+}
+
+static int ra_enable_pll(struct cmucal_clk *clk, int enable)
+{
+	unsigned int reg;
+	int ret = 0;
+     1f4:	52800016 	mov	w22, #0x0                   	// #0
+		if (ret)
+			pr_err("pll mux change time out, \'%s\'\n", clk->name);
+	}
+
+	if (enable)
+		reg |= 1 << clk->e_shift;
+     1f8:	1ac02084 	lsl	w4, w4, w0
+     1fc:	2a040063 	orr	w3, w3, w4
+     200:	17ffffeb 	b	1ac <ra_enable_pll+0x70>
+		if (ret)
+			pr_err("pll time out, \'%s\' %d\n", clk->name, enable);
+	}
+
+	return ret;
+}
+     204:	2a1603e0 	mov	w0, w22
+     208:	a94153f3 	ldp	x19, x20, [sp,#16]
+     20c:	a9425bf5 	ldp	x21, x22, [sp,#32]
+     210:	a8c37bfd 	ldp	x29, x30, [sp],#48
+     214:	d65f03c0 	ret
+
+0000000000000218 <ra_set_div_mux>:
+
+	return get_value(clk->offset, clk->shift, clk->width);
+}
+
+static int ra_set_div_mux(struct cmucal_clk *clk, unsigned int params)
+{
+     218:	a9be7bfd 	stp	x29, x30, [sp,#-32]!
+     21c:	910003fd 	mov	x29, sp
+     220:	a90153f3 	stp	x19, x20, [sp,#16]
+	unsigned int reg;
+	int ret = 0;
+
+	if (!clk->offset)
+     224:	f9400c02 	ldr	x2, [x0,#24]
+     228:	b5000062 	cbnz	x2, 234 <ra_set_div_mux+0x1c>
+		return 0;
+     22c:	52800000 	mov	w0, #0x0                   	// #0
+     230:	14000026 	b	2c8 <ra_set_div_mux+0xb0>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     234:	b9400042 	ldr	w2, [x2]
+
+	reg = clear_value(clk->offset, clk->width, clk->shift);
+     238:	d5033d9f 	dsb	ld
+     23c:	3940c404 	ldrb	w4, [x0,#49]
+     240:	52800023 	mov	w3, #0x1                   	// #1
+     244:	1ac42063 	lsl	w3, w3, w4
+     248:	3940c004 	ldrb	w4, [x0,#48]
+     24c:	51000463 	sub	w3, w3, #0x1
+     250:	1ac42063 	lsl	w3, w3, w4
+     254:	0a230042 	bic	w2, w2, w3
+	writel(reg | (params << clk->shift), clk->offset);
+     258:	d5033e9f 	dsb	st
+     25c:	3940c003 	ldrb	w3, [x0,#48]
+     260:	1ac32021 	lsl	w1, w1, w3
+     264:	2a010042 	orr	w2, w2, w1
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     268:	f9400c01 	ldr	x1, [x0,#24]
+     26c:	b9000022 	str	w2, [x1]
+
+	if (clk->status == NULL)
+     270:	f9401401 	ldr	x1, [x0,#40]
+     274:	b4fffdc1 	cbz	x1, 22c <ra_set_div_mux+0x14>
+     278:	aa0003f3 	mov	x19, x0
+		return 0;
+
+	ret = ra_wait_done(clk->status, clk->s_shift, 0, 100);
+     27c:	aa0103e0 	mov	x0, x1
+     280:	52800002 	mov	w2, #0x0                   	// #0
+     284:	52800c83 	mov	w3, #0x64                  	// #100
+     288:	3940ca61 	ldrb	w1, [x19,#50]
+     28c:	97ffff92 	bl	d4 <ra_wait_done>
+     290:	2a0003f4 	mov	w20, w0
+     294:	52800000 	mov	w0, #0x0                   	// #0
+	if (ret) {
+     298:	34000194 	cbz	w20, 2c8 <ra_set_div_mux+0xb0>
+		pr_err("time out, \'%s\' [%p]=%x [%p]=%x\n",
+     29c:	f9400a61 	ldr	x1, [x19,#16]
+     2a0:	f9400e62 	ldr	x2, [x19,#24]
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     2a4:	b9400043 	ldr	w3, [x2]
+     2a8:	d5033d9f 	dsb	ld
+     2ac:	f9401664 	ldr	x4, [x19,#40]
+     2b0:	b9400085 	ldr	w5, [x4]
+     2b4:	d5033d9f 	dsb	ld
+     2b8:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     2bc:	91000000 	add	x0, x0, #0x0
+     2c0:	94000000 	bl	0 <printk>
+     2c4:	2a1403e0 	mov	w0, w20
+			clk->offset, readl(clk->offset),
+			clk->status, readl(clk->status));
+	}
+
+	return ret;
+}
+     2c8:	a94153f3 	ldp	x19, x20, [sp,#16]
+     2cc:	a8c27bfd 	ldp	x29, x30, [sp],#32
+     2d0:	d65f03c0 	ret
+
+00000000000002d4 <ra_set_qch>:
+ * expire == 0 => default value
+ * expire != 0 => change value
+ */
+int ra_set_qch(unsigned int id, unsigned int en,
+		unsigned int req, unsigned int expire)
+{
+     2d4:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+     2d8:	910003fd 	mov	x29, sp
+     2dc:	a90153f3 	stp	x19, x20, [sp,#16]
+     2e0:	f90013f5 	str	x21, [sp,#32]
+     2e4:	2a0203f3 	mov	w19, w2
+     2e8:	f9001fa1 	str	x1, [x29,#56]
+     2ec:	2a0003f5 	mov	w21, w0
+     2f0:	2a0303f4 	mov	w20, w3
+	struct cmucal_qch *qch;
+	struct cmucal_clk *clk;
+	unsigned int reg;
+
+	clk = cmucal_get_node(id);
+     2f4:	94000000 	bl	0 <cmucal_get_node>
+	if (!clk) {
+     2f8:	f9401fa1 	ldr	x1, [x29,#56]
+     2fc:	b5000080 	cbnz	x0, 30c <ra_set_qch+0x38>
+		pr_err("%s:[%x]\n", __func__, id);
+     300:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     304:	91000000 	add	x0, x0, #0x0
+     308:	1400001c 	b	378 <ra_set_qch+0xa4>
+		return -EVCLKINVAL;
+	}
+
+	if (!IS_QCH(clk->id)) {
+     30c:	b9400003 	ldr	w3, [x0]
+     310:	52a0e002 	mov	w2, #0x7000000             	// #117440512
+     314:	12080c63 	and	w3, w3, #0xf000000
+     318:	6b02007f 	cmp	w3, w2
+     31c:	540003c0 	b.eq	394 <ra_set_qch+0xc0>
+		if (IS_GATE(clk->id)) {
+     320:	52a0c002 	mov	w2, #0x6000000             	// #100663296
+     324:	6b02007f 	cmp	w3, w2
+     328:	54000241 	b.ne	370 <ra_set_qch+0x9c>
+     32c:	f9401402 	ldr	x2, [x0,#40]
+     330:	b9400044 	ldr	w4, [x2]
+			reg = readl(clk->status);
+     334:	d5033d9f 	dsb	ld
+			reg &= ~(get_mask(clk->s_width, clk->s_shift));
+     338:	3940cc02 	ldrb	w2, [x0,#51]
+     33c:	52800023 	mov	w3, #0x1                   	// #1
+     340:	6b1f003f 	cmp	w1, wzr
+     344:	1ac22063 	lsl	w3, w3, w2
+     348:	3940c802 	ldrb	w2, [x0,#50]
+     34c:	51000463 	sub	w3, w3, #0x1
+     350:	1ac22062 	lsl	w2, w3, w2
+     354:	0a220083 	bic	w3, w4, w2
+     358:	2a020082 	orr	w2, w4, w2
+     35c:	1a830043 	csel	w3, w2, w3, eq
+			if (!en)
+				reg |= get_mask(clk->s_width, clk->s_shift);
+
+			writel(reg, clk->status);
+     360:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     364:	f9401400 	ldr	x0, [x0,#40]
+     368:	b9000003 	str	w3, [x0]
+     36c:	14000041 	b	470 <ra_set_qch+0x19c>
+			return 0;
+		}
+
+		pr_err("%s:cannot find qch [%x]\n", __func__, id);
+     370:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     374:	91000000 	add	x0, x0, #0x0
+     378:	90000001 	adrp	x1, 0 <ra_get_div_mux>
+     37c:	2a1503e2 	mov	w2, w21
+     380:	91000021 	add	x1, x1, #0x0
+     384:	91006021 	add	x1, x1, #0x18
+     388:	94000000 	bl	0 <printk>
+		return -EVCLKINVAL;
+     38c:	128002a0 	mov	w0, #0xffffffea            	// #-22
+     390:	14000039 	b	474 <ra_set_qch+0x1a0>
+	}
+
+	if (expire) {
+     394:	340002f4 	cbz	w20, 3f0 <ra_set_qch+0x11c>
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     398:	3940d403 	ldrb	w3, [x0,#53]
+     39c:	52800024 	mov	w4, #0x1                   	// #1
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+     3a0:	3940cc05 	ldrb	w5, [x0,#51]
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     3a4:	1ac32083 	lsl	w3, w4, w3
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+     3a8:	3940c802 	ldrb	w2, [x0,#50]
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     3ac:	51000463 	sub	w3, w3, #0x1
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+     3b0:	1ac52085 	lsl	w5, w4, w5
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     3b4:	0a140074 	and	w20, w3, w20
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+     3b8:	510004a5 	sub	w5, w5, #0x1
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     3bc:	3940d003 	ldrb	w3, [x0,#52]
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+     3c0:	0a1300a5 	and	w5, w5, w19
+     3c4:	1ac220a2 	lsl	w2, w5, w2
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+     3c8:	1ac32294 	lsl	w20, w20, w3
+     3cc:	2a020283 	orr	w3, w20, w2
+		pr_err("%s:cannot find qch [%x]\n", __func__, id);
+		return -EVCLKINVAL;
+	}
+
+	if (expire) {
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+     3d0:	3940c402 	ldrb	w2, [x0,#49]
+     3d4:	1ac22084 	lsl	w4, w4, w2
+     3d8:	3940c002 	ldrb	w2, [x0,#48]
+     3dc:	51000484 	sub	w4, w4, #0x1
+     3e0:	0a040024 	and	w4, w1, w4
+     3e4:	1ac22084 	lsl	w4, w4, w2
+     3e8:	2a040062 	orr	w2, w3, w4
+     3ec:	14000015 	b	440 <ra_set_qch+0x16c>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     3f0:	f9400c03 	ldr	x3, [x0,#24]
+     3f4:	b9400068 	ldr	w8, [x3]
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+     3f8:	d5033d9f 	dsb	ld
+		reg &= ~(get_mask(clk->width, clk->shift) |
+			get_mask(clk->s_width, clk->s_shift));
+     3fc:	3940cc06 	ldrb	w6, [x0,#51]
+     400:	52800023 	mov	w3, #0x1                   	// #1
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+		reg &= ~(get_mask(clk->width, clk->shift) |
+     404:	3940c404 	ldrb	w4, [x0,#49]
+			get_mask(clk->s_width, clk->s_shift));
+     408:	3940c802 	ldrb	w2, [x0,#50]
+     40c:	1ac62066 	lsl	w6, w3, w6
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+		reg &= ~(get_mask(clk->width, clk->shift) |
+     410:	3940c007 	ldrb	w7, [x0,#48]
+     414:	1ac42064 	lsl	w4, w3, w4
+			get_mask(clk->s_width, clk->s_shift));
+     418:	510004c6 	sub	w6, w6, #0x1
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+		reg &= ~(get_mask(clk->width, clk->shift) |
+     41c:	51000484 	sub	w4, w4, #0x1
+			get_mask(clk->s_width, clk->s_shift));
+     420:	1ac220c6 	lsl	w6, w6, w2
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+		reg &= ~(get_mask(clk->width, clk->shift) |
+     424:	1ac72084 	lsl	w4, w4, w7
+     428:	2a0400c3 	orr	w3, w6, w4
+			get_mask(clk->s_width, clk->s_shift));
+		reg |= (en << clk->shift) | (req << clk->s_shift);
+     42c:	1ac72027 	lsl	w7, w1, w7
+     430:	1ac22265 	lsl	w5, w19, w2
+		reg = ((en & width_to_mask(clk->width)) << clk->shift) |
+		      ((req & width_to_mask(clk->s_width)) << clk->s_shift) |
+		      ((expire & width_to_mask(clk->e_width)) << clk->e_shift);
+	} else {
+		reg = readl(clk->offset);
+		reg &= ~(get_mask(clk->width, clk->shift) |
+     434:	0a230103 	bic	w3, w8, w3
+			get_mask(clk->s_width, clk->s_shift));
+		reg |= (en << clk->shift) | (req << clk->s_shift);
+     438:	2a0500e2 	orr	w2, w7, w5
+     43c:	2a030042 	orr	w2, w2, w3
+     440:	52800023 	mov	w3, #0x1                   	// #1
+	}
+
+	if (IS_ENABLED(CONFIG_CMUCAL_QCH_IGNORE_SUPPORT)) {
+		qch = to_qch(clk);
+
+		if (en)
+     444:	340000a1 	cbz	w1, 458 <ra_set_qch+0x184>
+			reg &= ~(0x1 << qch->ig_shift);
+     448:	39410001 	ldrb	w1, [x0,#64]
+     44c:	1ac12063 	lsl	w3, w3, w1
+     450:	0a230042 	bic	w2, w2, w3
+     454:	14000004 	b	464 <ra_set_qch+0x190>
+		else
+			reg |= (0x1 << qch->ig_shift);
+     458:	39410001 	ldrb	w1, [x0,#64]
+     45c:	1ac12063 	lsl	w3, w3, w1
+     460:	2a030042 	orr	w2, w2, w3
+	}
+
+	writel(reg, clk->offset);
+     464:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     468:	f9400c00 	ldr	x0, [x0,#24]
+     46c:	b9000002 	str	w2, [x0]
+
+	return 0;
+     470:	52800000 	mov	w0, #0x0                   	// #0
+}
+     474:	a94153f3 	ldp	x19, x20, [sp,#16]
+     478:	f94013f5 	ldr	x21, [sp,#32]
+     47c:	a8c47bfd 	ldp	x29, x30, [sp],#64
+     480:	d65f03c0 	ret
+
+0000000000000484 <ra_enable_qch>:
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     484:	f9400c02 	ldr	x2, [x0,#24]
+     488:	b9400044 	ldr	w4, [x2]
+{
+	unsigned int reg;
+	/*
+	 * QH ENABLE(offset)
+	 */
+	reg = readl(clk->offset);
+     48c:	d5033d9f 	dsb	ld
+	reg &= ~(get_mask(clk->width, clk->shift));
+     490:	3940c402 	ldrb	w2, [x0,#49]
+     494:	52800023 	mov	w3, #0x1                   	// #1
+     498:	6b1f003f 	cmp	w1, wzr
+     49c:	1ac22063 	lsl	w3, w3, w2
+     4a0:	3940c002 	ldrb	w2, [x0,#48]
+     4a4:	51000463 	sub	w3, w3, #0x1
+     4a8:	1ac22062 	lsl	w2, w3, w2
+     4ac:	0a220083 	bic	w3, w4, w2
+     4b0:	2a020082 	orr	w2, w4, w2
+     4b4:	1a831043 	csel	w3, w2, w3, ne
+	if (en)
+		reg |= get_mask(clk->width, clk->shift);
+
+	writel(reg, clk->offset);
+     4b8:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     4bc:	f9400c00 	ldr	x0, [x0,#24]
+     4c0:	b9000003 	str	w3, [x0]
+
+	return 0;
+}
+     4c4:	52800000 	mov	w0, #0x0                   	// #0
+     4c8:	d65f03c0 	ret
+
+00000000000004cc <ra_set_enable_hwacg>:
+	unsigned int reg;
+
+	/*
+	 * Automatic clkgating enable(enable)
+	 */
+	if (!clk->enable)
+     4cc:	f9401002 	ldr	x2, [x0,#32]
+     4d0:	b4000282 	cbz	x2, 520 <ra_set_enable_hwacg+0x54>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     4d4:	b9400045 	ldr	w5, [x2]
+		return 0;
+
+	reg = readl(clk->enable);
+     4d8:	d5033d9f 	dsb	ld
+	reg &= ~(get_mask(clk->e_width, clk->e_shift));
+     4dc:	3940d403 	ldrb	w3, [x0,#53]
+     4e0:	52800024 	mov	w4, #0x1                   	// #1
+     4e4:	3940d002 	ldrb	w2, [x0,#52]
+     4e8:	1ac32083 	lsl	w3, w4, w3
+     4ec:	51000463 	sub	w3, w3, #0x1
+     4f0:	1ac22062 	lsl	w2, w3, w2
+     4f4:	0a2200a2 	bic	w2, w5, w2
+	if (en)
+     4f8:	340000e1 	cbz	w1, 514 <ra_set_enable_hwacg+0x48>
+		reg |= get_mask(clk->s_width, clk->s_shift);
+     4fc:	3940cc01 	ldrb	w1, [x0,#51]
+     500:	1ac12084 	lsl	w4, w4, w1
+     504:	3940c801 	ldrb	w1, [x0,#50]
+     508:	51000484 	sub	w4, w4, #0x1
+     50c:	1ac12084 	lsl	w4, w4, w1
+     510:	2a040042 	orr	w2, w2, w4
+
+	writel(reg, clk->enable);
+     514:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     518:	f9401000 	ldr	x0, [x0,#32]
+     51c:	b9000002 	str	w2, [x0]
+
+	return 0;
+}
+     520:	52800000 	mov	w0, #0x0                   	// #0
+     524:	d65f03c0 	ret
+
+0000000000000528 <ra_enable_clkout>:
+
+	return 0;
+}
+
+int ra_enable_clkout(struct cmucal_clk *clk, bool enable)
+{
+     528:	a9be7bfd 	stp	x29, x30, [sp,#-32]!
+     52c:	53001c21 	uxtb	w1, w1
+     530:	910003fd 	mov	x29, sp
+     534:	a90153f3 	stp	x19, x20, [sp,#16]
+     538:	aa0003f3 	mov	x19, x0
+     53c:	52800034 	mov	w20, #0x1                   	// #1
+	struct cmucal_clkout *clkout = to_clkout(clk);
+
+	if (enable) {
+     540:	34000201 	cbz	w1, 580 <ra_enable_clkout+0x58>
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->width, clk->shift),
+     544:	3940c401 	ldrb	w1, [x0,#49]
+     548:	3940c002 	ldrb	w2, [x0,#48]
+     54c:	b9403803 	ldr	w3, [x0,#56]
+     550:	1ac12281 	lsl	w1, w20, w1
+     554:	51000421 	sub	w1, w1, #0x1
+     558:	b9401800 	ldr	w0, [x0,#24]
+     55c:	1ac22021 	lsl	w1, w1, w2
+     560:	1ac22062 	lsl	w2, w3, w2
+     564:	94000000 	bl	0 <exynos_pmu_update>
+				clkout->sel << clk->shift);
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+     568:	3940d661 	ldrb	w1, [x19,#53]
+     56c:	3940d262 	ldrb	w2, [x19,#52]
+     570:	1ac12281 	lsl	w1, w20, w1
+     574:	b9403e63 	ldr	w3, [x19,#60]
+     578:	51000421 	sub	w1, w1, #0x1
+     57c:	14000008 	b	59c <ra_enable_clkout+0x74>
+				clkout->en << clk->e_shift);
+	} else {
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+     580:	3940d401 	ldrb	w1, [x0,#53]
+     584:	3940d002 	ldrb	w2, [x0,#52]
+				(!clkout->en) << clk->e_shift);
+     588:	b9403c00 	ldr	w0, [x0,#60]
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->width, clk->shift),
+				clkout->sel << clk->shift);
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+				clkout->en << clk->e_shift);
+	} else {
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+     58c:	1ac12281 	lsl	w1, w20, w1
+     590:	51000421 	sub	w1, w1, #0x1
+				(!clkout->en) << clk->e_shift);
+     594:	6b1f001f 	cmp	w0, wzr
+     598:	1a9f17e3 	cset	w3, eq
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->width, clk->shift),
+				clkout->sel << clk->shift);
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+				clkout->en << clk->e_shift);
+	} else {
+		exynos_pmu_update(clk->offset_idx, get_mask(clk->e_width, clk->e_shift),
+     59c:	b9401a60 	ldr	w0, [x19,#24]
+     5a0:	1ac22021 	lsl	w1, w1, w2
+     5a4:	1ac22062 	lsl	w2, w3, w2
+     5a8:	94000000 	bl	0 <exynos_pmu_update>
+				(!clkout->en) << clk->e_shift);
+	}
+
+	return 0;
+}
+     5ac:	52800000 	mov	w0, #0x0                   	// #0
+     5b0:	a94153f3 	ldp	x19, x20, [sp,#16]
+     5b4:	a8c27bfd 	ldp	x29, x30, [sp],#32
+     5b8:	d65f03c0 	ret
+
+00000000000005bc <ra_set_enable>:
+
+int ra_set_enable(unsigned int id, unsigned int params)
+{
+     5bc:	a9bb7bfd 	stp	x29, x30, [sp,#-80]!
+     5c0:	2a0003e2 	mov	w2, w0
+     5c4:	2a0103e4 	mov	w4, w1
+     5c8:	910003fd 	mov	x29, sp
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+     5cc:	12080c03 	and	w3, w0, #0xf000000
+
+	return 0;
+}
+
+int ra_set_enable(unsigned int id, unsigned int params)
+{
+     5d0:	a90153f3 	stp	x19, x20, [sp,#16]
+     5d4:	f9001fa4 	str	x4, [x29,#56]
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+     5d8:	f90023a2 	str	x2, [x29,#64]
+     5dc:	f90027a3 	str	x3, [x29,#72]
+
+	return 0;
+}
+
+int ra_set_enable(unsigned int id, unsigned int params)
+{
+     5e0:	f90013f5 	str	x21, [sp,#32]
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+	int ret = 0;
+
+	clk = cmucal_get_node(id);
+     5e4:	94000000 	bl	0 <cmucal_get_node>
+	if (!clk) {
+     5e8:	f94027a3 	ldr	x3, [x29,#72]
+{
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+	int ret = 0;
+
+	clk = cmucal_get_node(id);
+     5ec:	aa0003f3 	mov	x19, x0
+	if (!clk) {
+     5f0:	f94023a2 	ldr	x2, [x29,#64]
+     5f4:	f9401fa4 	ldr	x4, [x29,#56]
+     5f8:	b5000100 	cbnz	x0, 618 <ra_set_enable+0x5c>
+		pr_err("%s:[%x]type : %x, params : %x\n",
+     5fc:	90000001 	adrp	x1, 0 <ra_get_div_mux>
+     600:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     604:	91000021 	add	x1, x1, #0x0
+     608:	91000000 	add	x0, x0, #0x0
+     60c:	9100a021 	add	x1, x1, #0x28
+     610:	94000000 	bl	0 <printk>
+     614:	14000071 	b	7d8 <ra_set_enable+0x21c>
+			__func__, id, type, params);
+		return -EVCLKINVAL;
+	}
+
+	switch (type) {
+     618:	52a0a001 	mov	w1, #0x5000000             	// #83886080
+
+int ra_set_enable(unsigned int id, unsigned int params)
+{
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+	int ret = 0;
+     61c:	52800005 	mov	w5, #0x0                   	// #0
+		pr_err("%s:[%x]type : %x, params : %x\n",
+			__func__, id, type, params);
+		return -EVCLKINVAL;
+	}
+
+	switch (type) {
+     620:	6b01007f 	cmp	w3, w1
+     624:	54000dc0 	b.eq	7dc <ra_set_enable+0x220>
+     628:	54000168 	b.hi	654 <ra_set_enable+0x98>
+     62c:	52a06001 	mov	w1, #0x3000000             	// #50331648
+     630:	6b01007f 	cmp	w3, w1
+     634:	540007c0 	b.eq	72c <ra_set_enable+0x170>
+     638:	52a08001 	mov	w1, #0x4000000             	// #67108864
+     63c:	6b01007f 	cmp	w3, w1
+     640:	540007c0 	b.eq	738 <ra_set_enable+0x17c>
+     644:	52a02000 	mov	w0, #0x1000000             	// #16777216
+     648:	6b00007f 	cmp	w3, w0
+     64c:	54000be1 	b.ne	7c8 <ra_set_enable+0x20c>
+     650:	1400000d 	b	684 <ra_set_enable+0xc8>
+     654:	52a0e001 	mov	w1, #0x7000000             	// #117440512
+     658:	6b01007f 	cmp	w3, w1
+     65c:	540007e0 	b.eq	758 <ra_set_enable+0x19c>
+     660:	52a1a001 	mov	w1, #0xd000000             	// #218103808
+     664:	6b01007f 	cmp	w3, w1
+     668:	54000a60 	b.eq	7b4 <ra_set_enable+0x1f8>
+     66c:	52a0c001 	mov	w1, #0x6000000             	// #100663296
+     670:	6b01007f 	cmp	w3, w1
+     674:	54000aa1 	b.ne	7c8 <ra_set_enable+0x20c>
+	case MUX_TYPE:
+		if (IS_USER_MUX(clk->id))
+			ret = ra_set_div_mux(clk, params);
+		break;
+	case GATE_TYPE:
+		ret = ra_set_gate(clk, params);
+     678:	2a0403e1 	mov	w1, w4
+     67c:	97fffe6f 	bl	38 <ra_set_gate>
+     680:	14000050 	b	7c0 <ra_set_enable+0x204>
+{
+	unsigned int reg;
+	void __iomem *offset;
+	int ret;
+
+	if (!clk->enable)
+     684:	f9401274 	ldr	x20, [x19,#32]
+     688:	b4000294 	cbz	x20, 6d8 <ra_set_enable+0x11c>
+		return 0;
+
+	offset = convert_pll_base(clk->enable);
+     68c:	927cee94 	and	x20, x20, #0xfffffffffffffff0
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     690:	b9400295 	ldr	w21, [x20]
+	reg = readl(offset);
+     694:	d5033d9f 	dsb	ld
+	if (params) {
+     698:	34000244 	cbz	w4, 6e0 <ra_set_enable+0x124>
+		reg |= (PLL_ENABLE | PLL_MUX_SEL);
+		writel(reg, offset);
+     69c:	d5033e9f 	dsb	st
+		return 0;
+
+	offset = convert_pll_base(clk->enable);
+	reg = readl(offset);
+	if (params) {
+		reg |= (PLL_ENABLE | PLL_MUX_SEL);
+     6a0:	52800201 	mov	w1, #0x10                  	// #16
+     6a4:	72b00001 	movk	w1, #0x8000, lsl #16
+     6a8:	2a0102a1 	orr	w1, w21, w1
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     6ac:	b9000281 	str	w1, [x20]
+		writel(reg, offset);
+
+		ret = ra_wait_done(offset, PLL_STABLE_SHIFT, 1, 400);
+     6b0:	528003a1 	mov	w1, #0x1d                  	// #29
+     6b4:	aa1403e0 	mov	x0, x20
+     6b8:	52800022 	mov	w2, #0x1                   	// #1
+     6bc:	52803203 	mov	w3, #0x190                 	// #400
+     6c0:	97fffe85 	bl	d4 <ra_wait_done>
+		if (ret)
+     6c4:	340000a0 	cbz	w0, 6d8 <ra_set_enable+0x11c>
+			pr_err("fixed pll enable time out, \'%s\'\n", clk->name);
+     6c8:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     6cc:	f9400a61 	ldr	x1, [x19,#16]
+     6d0:	91000000 	add	x0, x0, #0x0
+     6d4:	94000000 	bl	0 <printk>
+		return -EVCLKINVAL;
+	}
+
+	switch (type) {
+	case FIXED_RATE_TYPE:
+		ret = ra_enable_fixed_rate(clk, params);
+     6d8:	52800005 	mov	w5, #0x0                   	// #0
+     6dc:	14000040 	b	7dc <ra_set_enable+0x220>
+		ret = ra_wait_done(offset, PLL_STABLE_SHIFT, 1, 400);
+		if (ret)
+			pr_err("fixed pll enable time out, \'%s\'\n", clk->name);
+	} else {
+		reg &= ~(PLL_MUX_SEL);
+		writel(reg, offset);
+     6e0:	d5033e9f 	dsb	st
+
+		ret = ra_wait_done(offset, PLL_STABLE_SHIFT, 1, 400);
+		if (ret)
+			pr_err("fixed pll enable time out, \'%s\'\n", clk->name);
+	} else {
+		reg &= ~(PLL_MUX_SEL);
+     6e4:	121b7aa0 	and	w0, w21, #0xffffffef
+     6e8:	b9000280 	str	w0, [x20]
+		writel(reg, offset);
+		ret = ra_wait_done(offset, PLL_MUX_BUSY_SHIFT, 0, 100);
+     6ec:	528000e1 	mov	w1, #0x7                   	// #7
+     6f0:	aa1403e0 	mov	x0, x20
+     6f4:	2a0403e2 	mov	w2, w4
+     6f8:	52800c83 	mov	w3, #0x64                  	// #100
+     6fc:	97fffe76 	bl	d4 <ra_wait_done>
+		if (ret)
+     700:	340000a0 	cbz	w0, 714 <ra_set_enable+0x158>
+			pr_err("fixed pll mux change time out, \'%s\'\n", clk->name);
+     704:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     708:	f9400a61 	ldr	x1, [x19,#16]
+     70c:	91000000 	add	x0, x0, #0x0
+     710:	94000000 	bl	0 <printk>
+
+		reg &= ~(PLL_ENABLE);
+		writel(reg, offset);
+     714:	d5033e9f 	dsb	st
+		writel(reg, offset);
+		ret = ra_wait_done(offset, PLL_MUX_BUSY_SHIFT, 0, 100);
+		if (ret)
+			pr_err("fixed pll mux change time out, \'%s\'\n", clk->name);
+
+		reg &= ~(PLL_ENABLE);
+     718:	529ffde0 	mov	w0, #0xffef                	// #65519
+     71c:	72afffe0 	movk	w0, #0x7fff, lsl #16
+     720:	0a0002a0 	and	w0, w21, w0
+     724:	b9000280 	str	w0, [x20]
+     728:	17ffffec 	b	6d8 <ra_set_enable+0x11c>
+	switch (type) {
+	case FIXED_RATE_TYPE:
+		ret = ra_enable_fixed_rate(clk, params);
+		break;
+	case PLL_TYPE:
+		ret = ra_enable_pll(clk, params);
+     72c:	2a0403e1 	mov	w1, w4
+     730:	97fffe83 	bl	13c <ra_enable_pll>
+     734:	14000023 	b	7c0 <ra_set_enable+0x204>
+		break;
+	case MUX_TYPE:
+		if (IS_USER_MUX(clk->id))
+     738:	b9400001 	ldr	w1, [x0]
+     73c:	52a08022 	mov	w2, #0x4010000             	// #67174400
+     740:	12102c21 	and	w1, w1, #0xfff0000
+     744:	6b02003f 	cmp	w1, w2
+     748:	54fffc81 	b.ne	6d8 <ra_set_enable+0x11c>
+			ret = ra_set_div_mux(clk, params);
+     74c:	2a0403e1 	mov	w1, w4
+     750:	97fffeb2 	bl	218 <ra_set_div_mux>
+     754:	1400001b 	b	7c0 <ra_set_enable+0x204>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     758:	f9400c00 	ldr	x0, [x0,#24]
+     75c:	b9400000 	ldr	w0, [x0]
+	unsigned int reg;
+	/*
+	 * QH ENABLE(offset) 1 : Skip
+	 *		     0 : REQ(status) control
+	 */
+	if (!get_bit(clk->offset, clk->shift)) {
+     760:	d5033d9f 	dsb	ld
+     764:	3940c261 	ldrb	w1, [x19,#48]
+     768:	1ac12400 	lsr	w0, w0, w1
+     76c:	3707fb60 	tbnz	w0, #0, 6d8 <ra_set_enable+0x11c>
+     770:	f9401660 	ldr	x0, [x19,#40]
+     774:	b9400001 	ldr	w1, [x0]
+		reg = readl(clk->status);
+     778:	d5033d9f 	dsb	ld
+		reg &= ~(get_mask(clk->s_width, clk->s_shift));
+     77c:	3940ce60 	ldrb	w0, [x19,#51]
+     780:	52800023 	mov	w3, #0x1                   	// #1
+     784:	6b1f009f 	cmp	w4, wzr
+     788:	1ac02063 	lsl	w3, w3, w0
+     78c:	3940ca60 	ldrb	w0, [x19,#50]
+     790:	51000463 	sub	w3, w3, #0x1
+     794:	1ac02060 	lsl	w0, w3, w0
+     798:	0a200022 	bic	w2, w1, w0
+     79c:	2a000020 	orr	w0, w1, w0
+     7a0:	1a821002 	csel	w2, w0, w2, ne
+		if (req)
+			reg |= get_mask(clk->s_width, clk->s_shift);
+
+		writel(reg, clk->status);
+     7a4:	d5033e9f 	dsb	st
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     7a8:	f9401660 	ldr	x0, [x19,#40]
+     7ac:	b9000002 	str	w2, [x0]
+     7b0:	17ffffca 	b	6d8 <ra_set_enable+0x11c>
+		ret = ra_req_enable_qch(clk, params);
+		break;
+	case DIV_TYPE:
+		break;
+	case CLKOUT_TYPE:
+		ret = ra_enable_clkout(clk, params);
+     7b4:	6b1f009f 	cmp	w4, wzr
+     7b8:	1a9f07e1 	cset	w1, ne
+     7bc:	94000000 	bl	528 <ra_enable_clkout>
+     7c0:	2a0003e5 	mov	w5, w0
+		break;
+     7c4:	14000006 	b	7dc <ra_set_enable+0x220>
+	default:
+		pr_err("Un-support clk type %x\n", id);
+     7c8:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     7cc:	2a0203e1 	mov	w1, w2
+     7d0:	91000000 	add	x0, x0, #0x0
+     7d4:	94000000 	bl	0 <printk>
+		ret = -EVCLKINVAL;
+     7d8:	128002a5 	mov	w5, #0xffffffea            	// #-22
+	}
+
+	return ret;
+}
+     7dc:	2a0503e0 	mov	w0, w5
+     7e0:	f94013f5 	ldr	x21, [sp,#32]
+     7e4:	a94153f3 	ldp	x19, x20, [sp,#16]
+     7e8:	a8c57bfd 	ldp	x29, x30, [sp],#80
+     7ec:	d65f03c0 	ret
+
+00000000000007f0 <ra_get_value>:
+
+	return ret;
+}
+
+unsigned int ra_get_value(unsigned int id)
+{
+     7f0:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+     7f4:	910003fd 	mov	x29, sp
+     7f8:	a90153f3 	stp	x19, x20, [sp,#16]
+     7fc:	a9025bf5 	stp	x21, x22, [sp,#32]
+     800:	f9001bf7 	str	x23, [sp,#48]
+     804:	2a0003f5 	mov	w21, w0
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+     808:	12080c13 	and	w19, w0, #0xf000000
+	unsigned int val;
+
+	clk = cmucal_get_node(id);
+     80c:	94000000 	bl	0 <cmucal_get_node>
+     810:	90000003 	adrp	x3, 0 <ra_get_div_mux>
+     814:	aa0003f4 	mov	x20, x0
+	if (!clk) {
+		pr_err("%s:[%x]type : %x\n", __func__, id, type);
+     818:	91000061 	add	x1, x3, #0x0
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+	unsigned int val;
+
+	clk = cmucal_get_node(id);
+	if (!clk) {
+     81c:	b5000120 	cbnz	x0, 840 <ra_get_value+0x50>
+		pr_err("%s:[%x]type : %x\n", __func__, id, type);
+     820:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     824:	9100e021 	add	x1, x1, #0x38
+     828:	91000000 	add	x0, x0, #0x0
+     82c:	2a1503e2 	mov	w2, w21
+     830:	2a1303e3 	mov	w3, w19
+     834:	94000000 	bl	0 <printk>
+		return 0;
+     838:	2a1403e0 	mov	w0, w20
+     83c:	1400009a 	b	aa4 <ra_get_value+0x2b4>
+	}
+	pr_err("%s:[%x]type %x[ %s : %p %x]\n", __func__, id, type, clk->name, clk->offset, clk->paddr);
+     840:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     844:	f9400a84 	ldr	x4, [x20,#16]
+     848:	f9400e85 	ldr	x5, [x20,#24]
+     84c:	91000000 	add	x0, x0, #0x0
+     850:	b9400686 	ldr	w6, [x20,#4]
+     854:	9100e021 	add	x1, x1, #0x38
+     858:	2a1503e2 	mov	w2, w21
+     85c:	2a1303e3 	mov	w3, w19
+     860:	94000000 	bl	0 <printk>
+	switch (type) {
+     864:	52a06000 	mov	w0, #0x3000000             	// #50331648
+     868:	6b00027f 	cmp	w19, w0
+     86c:	540002c0 	b.eq	8c4 <ra_get_value+0xd4>
+     870:	54000128 	b.hi	894 <ra_get_value+0xa4>
+     874:	52a02000 	mov	w0, #0x1000000             	// #16777216
+     878:	6b00027f 	cmp	w19, w0
+     87c:	54000c60 	b.eq	a08 <ra_get_value+0x218>
+     880:	52a04000 	mov	w0, #0x2000000             	// #33554432
+     884:	6b00027f 	cmp	w19, w0
+     888:	54000d01 	b.ne	a28 <ra_get_value+0x238>
+
+static unsigned int ra_get_fixed_factor(struct cmucal_clk *clk)
+{
+	struct cmucal_clk_fixed_factor *ffacor = to_fixed_factor_clk(clk);
+
+	return ffacor->ratio;
+     88c:	79407280 	ldrh	w0, [x20,#56]
+	case FIXED_RATE_TYPE:
+		val = ra_get_fixed_rate(clk);
+		break;
+	case FIXED_FACTOR_TYPE:
+		val = ra_get_fixed_factor(clk);
+		break;
+     890:	14000085 	b	aa4 <ra_get_value+0x2b4>
+	if (!clk) {
+		pr_err("%s:[%x]type : %x\n", __func__, id, type);
+		return 0;
+	}
+	pr_err("%s:[%x]type %x[ %s : %p %x]\n", __func__, id, type, clk->name, clk->offset, clk->paddr);
+	switch (type) {
+     894:	52a0a000 	mov	w0, #0x5000000             	// #83886080
+     898:	6b00027f 	cmp	w19, w0
+     89c:	540000e0 	b.eq	8b8 <ra_get_value+0xc8>
+     8a0:	52a0c000 	mov	w0, #0x6000000             	// #100663296
+     8a4:	6b00027f 	cmp	w19, w0
+     8a8:	54000740 	b.eq	990 <ra_get_value+0x1a0>
+     8ac:	52a08000 	mov	w0, #0x4000000             	// #67108864
+     8b0:	6b00027f 	cmp	w19, w0
+     8b4:	54000ba1 	b.ne	a28 <ra_get_value+0x238>
+	case DIV_TYPE:
+		val = ra_get_div_mux(clk);
+		break;
+	case MUX_TYPE:
+		val = ra_get_div_mux(clk);
+     8b8:	aa1403e0 	mov	x0, x20
+     8bc:	97fffdd1 	bl	0 <ra_get_div_mux>
+		break;
+     8c0:	14000079 	b	aa4 <ra_get_value+0x2b4>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     8c4:	f9401280 	ldr	x0, [x20,#32]
+     8c8:	b9400000 	ldr	w0, [x0]
+	return NULL;
+}
+
+static int ra_is_pll_enabled(struct cmucal_clk *clk)
+{
+	return get_bit(clk->pll_con0, clk->e_shift);
+     8cc:	d5033d9f 	dsb	ld
+     8d0:	3940d281 	ldrb	w1, [x20,#52]
+     8d4:	1ac12400 	lsr	w0, w0, w1
+	struct cmucal_pll *pll;
+	unsigned int mdiv, pdiv, sdiv, pll_con0;
+	short kdiv;
+	unsigned long long fout;
+
+	if (!ra_is_pll_enabled(clk)) {
+     8d8:	12000001 	and	w1, w0, #0x1
+     8dc:	370000e0 	tbnz	w0, #0, 8f8 <ra_get_value+0x108>
+     8e0:	f9401282 	ldr	x2, [x20,#32]
+     8e4:	b9400042 	ldr	w2, [x2]
+		pll_con0 = readl(clk->pll_con0);
+     8e8:	d5033d9f 	dsb	ld
+		if (pll_con0 & PLL_MUX_SEL)
+			return 0;
+     8ec:	2a0103e0 	mov	w0, w1
+	short kdiv;
+	unsigned long long fout;
+
+	if (!ra_is_pll_enabled(clk)) {
+		pll_con0 = readl(clk->pll_con0);
+		if (pll_con0 & PLL_MUX_SEL)
+     8f0:	36200a82 	tbz	w2, #4, a40 <ra_get_value+0x250>
+     8f4:	1400006c 	b	aa4 <ra_get_value+0x2b4>
+     8f8:	f9401283 	ldr	x3, [x20,#32]
+     8fc:	b9400063 	ldr	w3, [x3]
+			return FIN_HZ_26M;
+	}
+
+	pll = to_pll_clk(clk);
+
+	pll_con0 = readl(clk->pll_con0);
+     900:	d5033d9f 	dsb	ld
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+     904:	3941a680 	ldrb	w0, [x20,#105]
+     908:	52800022 	mov	w2, #0x1                   	// #1
+     90c:	39419696 	ldrb	w22, [x20,#101]
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+
+	if (IS_FIXED_RATE(clk->pid))
+     910:	52a02001 	mov	w1, #0x1000000             	// #16777216
+	}
+
+	pll = to_pll_clk(clk);
+
+	pll_con0 = readl(clk->pll_con0);
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+     914:	1ac02040 	lsl	w0, w2, w0
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+     918:	39419295 	ldrb	w21, [x20,#100]
+	}
+
+	pll = to_pll_clk(clk);
+
+	pll_con0 = readl(clk->pll_con0);
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+     91c:	1ad62476 	lsr	w22, w3, w22
+     920:	51000400 	sub	w0, w0, #0x1
+     924:	0a0002d6 	and	w22, w22, w0
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+     928:	3941a280 	ldrb	w0, [x20,#104]
+     92c:	1ad52475 	lsr	w21, w3, w21
+     930:	1ac02040 	lsl	w0, w2, w0
+     934:	51000400 	sub	w0, w0, #0x1
+     938:	0a0002b7 	and	w23, w21, w0
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+     93c:	39419a95 	ldrb	w21, [x20,#102]
+
+	if (IS_FIXED_RATE(clk->pid))
+     940:	b9400a80 	ldr	w0, [x20,#8]
+	pll = to_pll_clk(clk);
+
+	pll_con0 = readl(clk->pll_con0);
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+     944:	1ad52463 	lsr	w3, w3, w21
+     948:	3941aa95 	ldrb	w21, [x20,#106]
+     94c:	1ad52042 	lsl	w2, w2, w21
+     950:	51000442 	sub	w2, w2, #0x1
+     954:	0a020075 	and	w21, w3, w2
+
+	if (IS_FIXED_RATE(clk->pid))
+     958:	12080c02 	and	w2, w0, #0xf000000
+     95c:	6b01005f 	cmp	w2, w1
+     960:	54000081 	b.ne	970 <ra_get_value+0x180>
+		fout = ra_get_value(clk->pid);
+     964:	94000000 	bl	7f0 <ra_get_value>
+     968:	2a0003e0 	mov	w0, w0
+     96c:	14000003 	b	978 <ra_get_value+0x188>
+	else
+		fout = FIN_HZ_26M;
+     970:	d2975000 	mov	x0, #0xba80                	// #47744
+     974:	f2a03180 	movk	x0, #0x18c, lsl #16
+#define get_mask(_w, _s)	(width_to_mask(_w) << _s)
+#define clear_value(_a, _w, _s)	(readl(_a) & ~(get_mask(_w, _s)))
+
+static inline int is_normal_pll(struct cmucal_pll *pll)
+{
+	if (pll->flock_time)
+     978:	b9405281 	ldr	w1, [x20,#80]
+     97c:	35000681 	cbnz	w1, a4c <ra_get_value+0x25c>
+
+	if (is_normal_pll(pll)) {
+		fout *= mdiv;
+     980:	9b167c00 	mul	x0, x0, x22
+		do_div(fout, (pdiv << sdiv));
+     984:	1ad522f5 	lsl	w21, w23, w21
+     988:	9ad50800 	udiv	x0, x0, x21
+     98c:	14000046 	b	aa4 <ra_get_value+0x2b4>
+
+	/*
+	 * MANUAL(status) 1 : CG_VALUE(offset) control
+	 *                0 : ENABLE_AUTOMATIC_CLKGATING(enable) control
+	 */
+	if (!clk->status || get_bit(clk->status, clk->s_shift))
+     990:	f9401680 	ldr	x0, [x20,#40]
+     994:	b5000180 	cbnz	x0, 9c4 <ra_get_value+0x1d4>
+     998:	f9400e80 	ldr	x0, [x20,#24]
+     99c:	b9400000 	ldr	w0, [x0]
+		pass = get_value(clk->offset, clk->shift, clk->width);
+     9a0:	d5033d9f 	dsb	ld
+     9a4:	3940c281 	ldrb	w1, [x20,#48]
+     9a8:	3940c682 	ldrb	w2, [x20,#49]
+     9ac:	1ac12400 	lsr	w0, w0, w1
+     9b0:	52800021 	mov	w1, #0x1                   	// #1
+     9b4:	1ac22021 	lsl	w1, w1, w2
+     9b8:	51000421 	sub	w1, w1, #0x1
+     9bc:	0a010000 	and	w0, w0, w1
+     9c0:	14000039 	b	aa4 <ra_get_value+0x2b4>
+     9c4:	b9400000 	ldr	w0, [x0]
+
+	/*
+	 * MANUAL(status) 1 : CG_VALUE(offset) control
+	 *                0 : ENABLE_AUTOMATIC_CLKGATING(enable) control
+	 */
+	if (!clk->status || get_bit(clk->status, clk->s_shift))
+     9c8:	d5033d9f 	dsb	ld
+     9cc:	3940ca81 	ldrb	w1, [x20,#50]
+     9d0:	1ac12400 	lsr	w0, w0, w1
+     9d4:	3707fe20 	tbnz	w0, #0, 998 <ra_get_value+0x1a8>
+     9d8:	f9401281 	ldr	x1, [x20,#32]
+     9dc:	b9400021 	ldr	w1, [x1]
+		pass = get_value(clk->offset, clk->shift, clk->width);
+	else
+		pass = !(get_value(clk->enable, clk->e_shift, clk->e_width));
+     9e0:	d5033d9f 	dsb	ld
+     9e4:	3940d280 	ldrb	w0, [x20,#52]
+     9e8:	3940d682 	ldrb	w2, [x20,#53]
+     9ec:	1ac02421 	lsr	w1, w1, w0
+     9f0:	52800020 	mov	w0, #0x1                   	// #1
+     9f4:	1ac22000 	lsl	w0, w0, w2
+     9f8:	51000400 	sub	w0, w0, #0x1
+     9fc:	6a00003f 	tst	w1, w0
+     a00:	1a9f17e0 	cset	w0, eq
+     a04:	14000028 	b	aa4 <ra_get_value+0x2b4>
+{
+	struct cmucal_clk_fixed_rate *frate = to_fixed_rate_clk(clk);
+	void __iomem *offset;
+	unsigned int rate;
+
+	if (!clk->enable)
+     a08:	f9401280 	ldr	x0, [x20,#32]
+     a0c:	b40000a0 	cbz	x0, a20 <ra_get_value+0x230>
+		return frate->fixed_rate;
+
+	offset = convert_pll_base(clk->enable);
+     a10:	927cec00 	and	x0, x0, #0xfffffffffffffff0
+     a14:	b9400000 	ldr	w0, [x0]
+
+	if (readl(offset) & PLL_MUX_SEL)
+     a18:	d5033d9f 	dsb	ld
+     a1c:	36200120 	tbz	w0, #4, a40 <ra_get_value+0x250>
+		rate = frate->fixed_rate;
+     a20:	b9403a80 	ldr	w0, [x20,#56]
+     a24:	14000020 	b	aa4 <ra_get_value+0x2b4>
+		break;
+	case FIXED_FACTOR_TYPE:
+		val = ra_get_fixed_factor(clk);
+		break;
+	default:
+		pr_err("Un-support clk type %x\n", id);
+     a28:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     a2c:	2a1503e1 	mov	w1, w21
+     a30:	91000000 	add	x0, x0, #0x0
+     a34:	94000000 	bl	0 <printk>
+		val = 0;
+     a38:	52800000 	mov	w0, #0x0                   	// #0
+     a3c:	1400001a 	b	aa4 <ra_get_value+0x2b4>
+	offset = convert_pll_base(clk->enable);
+
+	if (readl(offset) & PLL_MUX_SEL)
+		rate = frate->fixed_rate;
+	else
+		rate = FIN_HZ_26M;
+     a40:	52975000 	mov	w0, #0xba80                	// #47744
+     a44:	72a03180 	movk	w0, #0x18c, lsl #16
+     a48:	14000017 	b	aa4 <ra_get_value+0x2b4>
+		fout = FIN_HZ_26M;
+
+	if (is_normal_pll(pll)) {
+		fout *= mdiv;
+		do_div(fout, (pdiv << sdiv));
+	} else if (is_frac_pll(pll) && clk->pll_con1) {
+     a4c:	f9401693 	ldr	x19, [x20,#40]
+     a50:	b4000233 	cbz	x19, a94 <ra_get_value+0x2a4>
+     a54:	b9400262 	ldr	w2, [x19]
+		kdiv = get_value(clk->pll_con1, pll->k_shift, pll->k_width);
+     a58:	d5033d9f 	dsb	ld
+     a5c:	3941ae93 	ldrb	w19, [x20,#107]
+     a60:	52800023 	mov	w3, #0x1                   	// #1
+     a64:	39419e81 	ldrb	w1, [x20,#103]
+		fout *= (mdiv << 16) + kdiv;
+     a68:	53103ed6 	lsl	w22, w22, #16
+
+	if (is_normal_pll(pll)) {
+		fout *= mdiv;
+		do_div(fout, (pdiv << sdiv));
+	} else if (is_frac_pll(pll) && clk->pll_con1) {
+		kdiv = get_value(clk->pll_con1, pll->k_shift, pll->k_width);
+     a6c:	1ad32063 	lsl	w3, w3, w19
+		fout *= (mdiv << 16) + kdiv;
+		do_div(fout, (pdiv << sdiv));
+     a70:	1ad522f5 	lsl	w21, w23, w21
+
+	if (is_normal_pll(pll)) {
+		fout *= mdiv;
+		do_div(fout, (pdiv << sdiv));
+	} else if (is_frac_pll(pll) && clk->pll_con1) {
+		kdiv = get_value(clk->pll_con1, pll->k_shift, pll->k_width);
+     a74:	1ac12441 	lsr	w1, w2, w1
+     a78:	51000463 	sub	w3, w3, #0x1
+     a7c:	0a030021 	and	w1, w1, w3
+		fout *= (mdiv << 16) + kdiv;
+     a80:	0b21a2c1 	add	w1, w22, w1, sxth
+     a84:	9b007c20 	mul	x0, x1, x0
+		do_div(fout, (pdiv << sdiv));
+     a88:	9ad50800 	udiv	x0, x0, x21
+		fout >>= 16;
+     a8c:	d350fc00 	lsr	x0, x0, #16
+     a90:	14000005 	b	aa4 <ra_get_value+0x2b4>
+	} else {
+		pr_err("Un-support PLL type\n");
+     a94:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     a98:	91000000 	add	x0, x0, #0x0
+     a9c:	94000000 	bl	0 <printk>
+		fout = 0;
+     aa0:	aa1303e0 	mov	x0, x19
+		pr_err("Un-support clk type %x\n", id);
+		val = 0;
+	}
+
+	return val;
+}
+     aa4:	a94153f3 	ldp	x19, x20, [sp,#16]
+     aa8:	a9425bf5 	ldp	x21, x22, [sp,#32]
+     aac:	f9401bf7 	ldr	x23, [sp,#48]
+     ab0:	a8c47bfd 	ldp	x29, x30, [sp],#64
+     ab4:	d65f03c0 	ret
+
+0000000000000ab8 <ra_set_pll>:
+
+	return ret;
+}
+
+static int ra_set_pll(struct cmucal_clk *clk, unsigned int rate)
+{
+     ab8:	a9b97bfd 	stp	x29, x30, [sp,#-112]!
+     abc:	910003fd 	mov	x29, sp
+     ac0:	a9025bf5 	stp	x21, x22, [sp,#32]
+     ac4:	90000015 	adrp	x21, 0 <__stack_chk_guard>
+     ac8:	f9001bf7 	str	x23, [sp,#48]
+     acc:	a90153f3 	stp	x19, x20, [sp,#16]
+     ad0:	aa0003f3 	mov	x19, x0
+     ad4:	2a0103f7 	mov	w23, w1
+     ad8:	f94002a0 	ldr	x0, [x21]
+     adc:	f90037a0 	str	x0, [x29,#104]
+	unsigned int fin;
+	int ret = 0;
+
+	pll = to_pll_clk(clk);
+
+	if (rate == 0) {
+     ae0:	350001c1 	cbnz	w1, b18 <ra_set_pll+0x60>
+		if (pll->umux != EMPTY_CLK_ID) {
+     ae4:	b9403a60 	ldr	w0, [x19,#56]
+     ae8:	529fffe1 	mov	w1, #0xffff                	// #65535
+     aec:	6b01001f 	cmp	w0, w1
+     af0:	540000a0 	b.eq	b04 <ra_set_pll+0x4c>
+			umux = cmucal_get_node(pll->umux);
+     af4:	94000000 	bl	0 <cmucal_get_node>
+			if (umux)
+     af8:	b4000060 	cbz	x0, b04 <ra_set_pll+0x4c>
+				ra_set_div_mux(umux, 0);
+     afc:	2a1703e1 	mov	w1, w23
+     b00:	97fffdc6 	bl	218 <ra_set_div_mux>
+		}
+		ra_enable_pll(clk, 0);
+     b04:	aa1303e0 	mov	x0, x19
+     b08:	52800001 	mov	w1, #0x0                   	// #0
+	struct cmucal_pll *pll;
+	struct cmucal_pll_table *rate_table;
+	struct cmucal_pll_table table;
+	struct cmucal_clk *umux;
+	unsigned int fin;
+	int ret = 0;
+     b0c:	52800016 	mov	w22, #0x0                   	// #0
+		if (pll->umux != EMPTY_CLK_ID) {
+			umux = cmucal_get_node(pll->umux);
+			if (umux)
+				ra_set_div_mux(umux, 0);
+		}
+		ra_enable_pll(clk, 0);
+     b10:	97fffd8b 	bl	13c <ra_enable_pll>
+     b14:	14000084 	b	d24 <ra_set_pll+0x26c>
+}
+
+static struct cmucal_pll_table *get_pll_table(struct cmucal_pll *pll_clk,
+					      unsigned long rate)
+{
+	struct cmucal_pll_table *prate_table = pll_clk->rate_table;
+     b18:	f9402262 	ldr	x2, [x19,#64]
+			if (umux)
+				ra_set_div_mux(umux, 0);
+		}
+		ra_enable_pll(clk, 0);
+	} else {
+		rate_table = get_pll_table(pll, rate);
+     b1c:	2a0103e3 	mov	w3, w1
+     b20:	b9404a64 	ldr	w4, [x19,#72]
+					      unsigned long rate)
+{
+	struct cmucal_pll_table *prate_table = pll_clk->rate_table;
+	int i;
+
+	for (i = 0; i < pll_clk->rate_count; i++) {
+     b24:	52800000 	mov	w0, #0x0                   	// #0
+		if (rate == prate_table[i].rate / 1000)
+     b28:	52800185 	mov	w5, #0xc                   	// #12
+     b2c:	52807d06 	mov	w6, #0x3e8                 	// #1000
+					      unsigned long rate)
+{
+	struct cmucal_pll_table *prate_table = pll_clk->rate_table;
+	int i;
+
+	for (i = 0; i < pll_clk->rate_count; i++) {
+     b30:	6b04001f 	cmp	w0, w4
+     b34:	54000160 	b.eq	b60 <ra_set_pll+0xa8>
+		if (rate == prate_table[i].rate / 1000)
+     b38:	9b257c01 	smull	x1, w0, w5
+     b3c:	8b010054 	add	x20, x2, x1
+     b40:	b8616841 	ldr	w1, [x2,x1]
+     b44:	1ac60821 	udiv	w1, w1, w6
+     b48:	eb01007f 	cmp	x3, x1
+     b4c:	54000061 	b.ne	b58 <ra_set_pll+0xa0>
+				ra_set_div_mux(umux, 0);
+		}
+		ra_enable_pll(clk, 0);
+	} else {
+		rate_table = get_pll_table(pll, rate);
+		if (!rate_table) {
+     b50:	b50003b4 	cbnz	x20, bc4 <ra_set_pll+0x10c>
+     b54:	14000003 	b	b60 <ra_set_pll+0xa8>
+					      unsigned long rate)
+{
+	struct cmucal_pll_table *prate_table = pll_clk->rate_table;
+	int i;
+
+	for (i = 0; i < pll_clk->rate_count; i++) {
+     b58:	11000400 	add	w0, w0, #0x1
+     b5c:	17fffff5 	b	b30 <ra_set_pll+0x78>
+		}
+		ra_enable_pll(clk, 0);
+	} else {
+		rate_table = get_pll_table(pll, rate);
+		if (!rate_table) {
+			if (IS_FIXED_RATE(clk->pid))
+     b60:	b9400a60 	ldr	w0, [x19,#8]
+     b64:	52a02001 	mov	w1, #0x1000000             	// #16777216
+     b68:	12080c02 	and	w2, w0, #0xf000000
+     b6c:	6b01005f 	cmp	w2, w1
+     b70:	540000c1 	b.ne	b88 <ra_set_pll+0xd0>
+     b74:	f90027a3 	str	x3, [x29,#72]
+				fin = ra_get_value(clk->pid);
+     b78:	94000000 	bl	7f0 <ra_get_value>
+     b7c:	f94027a3 	ldr	x3, [x29,#72]
+     b80:	2a0003e2 	mov	w2, w0
+     b84:	14000003 	b	b90 <ra_set_pll+0xd8>
+			else
+				fin = FIN_HZ_26M;
+     b88:	52975002 	mov	w2, #0xba80                	// #47744
+     b8c:	72a03182 	movk	w2, #0x18c, lsl #16
+
+			ret = pll_find_table(pll, &table, fin, rate);
+     b90:	aa1303e0 	mov	x0, x19
+     b94:	910163a1 	add	x1, x29, #0x58
+     b98:	2a0203e2 	mov	w2, w2
+			if (ret) {
+				pr_err("failed %s table %u\n", clk->name, rate);
+				return ret;
+			}
+			rate_table = &table;
+     b9c:	910163b4 	add	x20, x29, #0x58
+			if (IS_FIXED_RATE(clk->pid))
+				fin = ra_get_value(clk->pid);
+			else
+				fin = FIN_HZ_26M;
+
+			ret = pll_find_table(pll, &table, fin, rate);
+     ba0:	94000000 	bl	0 <pll_find_table>
+     ba4:	2a0003f6 	mov	w22, w0
+			if (ret) {
+     ba8:	340000e0 	cbz	w0, bc4 <ra_set_pll+0x10c>
+				pr_err("failed %s table %u\n", clk->name, rate);
+     bac:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     bb0:	f9400a61 	ldr	x1, [x19,#16]
+     bb4:	2a1703e2 	mov	w2, w23
+     bb8:	91000000 	add	x0, x0, #0x0
+     bbc:	94000000 	bl	0 <printk>
+				return ret;
+     bc0:	14000059 	b	d24 <ra_set_pll+0x26c>
+			}
+			rate_table = &table;
+		}
+		ra_enable_pll(clk, 0);
+     bc4:	52800001 	mov	w1, #0x0                   	// #0
+     bc8:	aa1303e0 	mov	x0, x19
+	pdiv = rate_table->pdiv;
+	mdiv = rate_table->mdiv;
+	sdiv = rate_table->sdiv;
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+     bcc:	12800036 	mov	w22, #0xfffffffe            	// #-2
+				pr_err("failed %s table %u\n", clk->name, rate);
+				return ret;
+			}
+			rate_table = &table;
+		}
+		ra_enable_pll(clk, 0);
+     bd0:	97fffd5b 	bl	13c <ra_enable_pll>
+
+	pdiv = rate_table->pdiv;
+	mdiv = rate_table->mdiv;
+	sdiv = rate_table->sdiv;
+
+	if (!clk->pll_con0)
+     bd4:	f9401261 	ldr	x1, [x19,#32]
+	struct cmucal_pll *pll = to_pll_clk(clk);
+	unsigned int mdiv, pdiv, sdiv, pll_con0, pll_con1;
+	signed short kdiv;
+	int ret = 0;
+
+	pdiv = rate_table->pdiv;
+     bd8:	79400a85 	ldrh	w5, [x20,#4]
+	mdiv = rate_table->mdiv;
+     bdc:	79400e87 	ldrh	w7, [x20,#6]
+	sdiv = rate_table->sdiv;
+     be0:	79401286 	ldrh	w6, [x20,#8]
+
+	if (!clk->pll_con0)
+     be4:	b4000901 	cbz	x1, d04 <ra_set_pll+0x24c>
+     be8:	b9400021 	ldr	w1, [x1]
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+     bec:	d5033d9f 	dsb	ld
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+			| get_mask(pll->p_width, pll->p_shift)
+     bf0:	3941a260 	ldrb	w0, [x19,#104]
+     bf4:	52800023 	mov	w3, #0x1                   	// #1
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+     bf8:	3941a662 	ldrb	w2, [x19,#105]
+     bfc:	39419669 	ldrb	w9, [x19,#101]
+			| get_mask(pll->p_width, pll->p_shift)
+     c00:	1ac02060 	lsl	w0, w3, w0
+     c04:	39419264 	ldrb	w4, [x19,#100]
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+     c08:	1ac22062 	lsl	w2, w3, w2
+			| get_mask(pll->p_width, pll->p_shift)
+     c0c:	51000400 	sub	w0, w0, #0x1
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+     c10:	51000442 	sub	w2, w2, #0x1
+			| get_mask(pll->p_width, pll->p_shift)
+     c14:	1ac42000 	lsl	w0, w0, w4
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+     c18:	1ac92042 	lsl	w2, w2, w9
+			| get_mask(pll->p_width, pll->p_shift)
+     c1c:	2a020000 	orr	w0, w0, w2
+			| get_mask(pll->s_width, pll->s_shift));
+     c20:	3941aa62 	ldrb	w2, [x19,#106]
+     c24:	39419a68 	ldrb	w8, [x19,#102]
+	pll_con0 |=  (mdiv << pll->m_shift
+     c28:	1ac920e7 	lsl	w7, w7, w9
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+			| get_mask(pll->p_width, pll->p_shift)
+			| get_mask(pll->s_width, pll->s_shift));
+     c2c:	1ac22062 	lsl	w2, w3, w2
+	pll_con0 |=  (mdiv << pll->m_shift
+			| pdiv << pll->p_shift
+     c30:	1ac420a4 	lsl	w4, w5, w4
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+			| get_mask(pll->p_width, pll->p_shift)
+			| get_mask(pll->s_width, pll->s_shift));
+     c34:	51000442 	sub	w2, w2, #0x1
+	pll_con0 |=  (mdiv << pll->m_shift
+			| pdiv << pll->p_shift
+     c38:	2a0400e4 	orr	w4, w7, w4
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+			| get_mask(pll->p_width, pll->p_shift)
+			| get_mask(pll->s_width, pll->s_shift));
+     c3c:	1ac82042 	lsl	w2, w2, w8
+     c40:	321c0084 	orr	w4, w4, #0x10
+     c44:	2a020000 	orr	w0, w0, w2
+
+	if (!clk->pll_con0)
+		return -EVCLKNOENT;
+
+	pll_con0 = readl(clk->pll_con0);
+	pll_con0 &= ~(get_mask(pll->m_width, pll->m_shift)
+     c48:	0a200020 	bic	w0, w1, w0
+			| get_mask(pll->p_width, pll->p_shift)
+			| get_mask(pll->s_width, pll->s_shift));
+	pll_con0 |=  (mdiv << pll->m_shift
+			| pdiv << pll->p_shift
+			| sdiv << pll->s_shift);
+     c4c:	1ac820c1 	lsl	w1, w6, w8
+     c50:	2a010084 	orr	w4, w4, w1
+
+	pll_con0 |= PLL_MUX_SEL | (1 << clk->e_shift);
+     c54:	3940d261 	ldrb	w1, [x19,#52]
+     c58:	1ac12063 	lsl	w3, w3, w1
+     c5c:	2a030081 	orr	w1, w4, w3
+     c60:	2a000021 	orr	w1, w1, w0
+	return 1;
+}
+
+static inline int is_frac_pll(struct cmucal_pll *pll)
+{
+	if (pll->flock_time)
+     c64:	b9405260 	ldr	w0, [x19,#80]
+     c68:	34000700 	cbz	w0, d48 <ra_set_pll+0x290>
+
+	if (is_frac_pll(pll)) {
+		kdiv = rate_table->kdiv;
+     c6c:	79c01683 	ldrsh	w3, [x20,#10]
+		if (kdiv)
+     c70:	34000663 	cbz	w3, d3c <ra_set_pll+0x284>
+			writel(pdiv * pll->flock_time, clk->lock);
+     c74:	d5033e9f 	dsb	st
+     c78:	b9405260 	ldr	w0, [x19,#80]
+		else
+			writel(pdiv * pll->lock_time, clk->lock);
+     c7c:	1b007ca5 	mul	w5, w5, w0
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     c80:	f9400e60 	ldr	x0, [x19,#24]
+     c84:	b9000005 	str	w5, [x0]
+
+		if (clk->pll_con1) {
+     c88:	f9401660 	ldr	x0, [x19,#40]
+     c8c:	b40001e0 	cbz	x0, cc8 <ra_set_pll+0x210>
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+     c90:	b9400000 	ldr	w0, [x0]
+			pll_con1 = readl(clk->pll_con1);
+     c94:	d5033d9f 	dsb	ld
+			pll_con1 &= ~(get_mask(pll->k_width, pll->k_shift));
+     c98:	3941ae65 	ldrb	w5, [x19,#107]
+     c9c:	52800022 	mov	w2, #0x1                   	// #1
+     ca0:	39419e64 	ldrb	w4, [x19,#103]
+     ca4:	1ac52042 	lsl	w2, w2, w5
+     ca8:	51000442 	sub	w2, w2, #0x1
+     cac:	1ac42042 	lsl	w2, w2, w4
+     cb0:	0a220000 	bic	w0, w0, w2
+			pll_con1 |= (kdiv << pll->k_shift);
+			writel(pll_con1, clk->pll_con1);
+     cb4:	d5033e9f 	dsb	st
+			writel(pdiv * pll->lock_time, clk->lock);
+
+		if (clk->pll_con1) {
+			pll_con1 = readl(clk->pll_con1);
+			pll_con1 &= ~(get_mask(pll->k_width, pll->k_shift));
+			pll_con1 |= (kdiv << pll->k_shift);
+     cb8:	1ac42063 	lsl	w3, w3, w4
+
+#define __raw_writel __raw_writel
+static inline void __raw_writel(u32 val, volatile void __iomem *addr)
+{
+	exynos_ss_reg(0, (size_t)val, (size_t)addr, ESS_FLAG_IN);
+	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+     cbc:	f9401662 	ldr	x2, [x19,#40]
+     cc0:	2a030000 	orr	w0, w0, w3
+     cc4:	b9000040 	str	w0, [x2]
+		}
+	} else {
+		writel(pdiv * pll->lock_time, clk->lock);
+	}
+
+	writel(pll_con0, clk->pll_con0);
+     cc8:	d5033e9f 	dsb	st
+     ccc:	f9401260 	ldr	x0, [x19,#32]
+     cd0:	b9000001 	str	w1, [x0]
+
+	ret = ra_wait_done(clk->pll_con0, clk->s_shift, 1, 100);
+     cd4:	3940ca61 	ldrb	w1, [x19,#50]
+     cd8:	52800022 	mov	w2, #0x1                   	// #1
+     cdc:	52800c83 	mov	w3, #0x64                  	// #100
+	if (ret)
+     ce0:	52800016 	mov	w22, #0x0                   	// #0
+		writel(pdiv * pll->lock_time, clk->lock);
+	}
+
+	writel(pll_con0, clk->pll_con0);
+
+	ret = ra_wait_done(clk->pll_con0, clk->s_shift, 1, 100);
+     ce4:	97fffcfc 	bl	d4 <ra_wait_done>
+     ce8:	2a0003f4 	mov	w20, w0
+	if (ret)
+     cec:	340000c0 	cbz	w0, d04 <ra_set_pll+0x24c>
+		pr_err("time out, \'%s\'", clk->name);
+     cf0:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     cf4:	f9400a61 	ldr	x1, [x19,#16]
+     cf8:	91000000 	add	x0, x0, #0x0
+     cfc:	2a1403f6 	mov	w22, w20
+     d00:	94000000 	bl	0 <printk>
+			rate_table = &table;
+		}
+		ra_enable_pll(clk, 0);
+		ret = ra_pll_set_pmsk(clk, rate_table);
+
+		if (pll->umux != EMPTY_CLK_ID) {
+     d04:	b9403a60 	ldr	w0, [x19,#56]
+     d08:	529fffe1 	mov	w1, #0xffff                	// #65535
+     d0c:	6b01001f 	cmp	w0, w1
+     d10:	540000a0 	b.eq	d24 <ra_set_pll+0x26c>
+			umux = cmucal_get_node(pll->umux);
+     d14:	94000000 	bl	0 <cmucal_get_node>
+			if (umux)
+     d18:	b4000060 	cbz	x0, d24 <ra_set_pll+0x26c>
+				ra_set_div_mux(umux, 1);
+     d1c:	52800021 	mov	w1, #0x1                   	// #1
+     d20:	97fffd3e 	bl	218 <ra_set_div_mux>
+		}
+	}
+
+	return ret;
+}
+     d24:	f94037a2 	ldr	x2, [x29,#104]
+     d28:	2a1603e0 	mov	w0, w22
+     d2c:	f94002a1 	ldr	x1, [x21]
+     d30:	eb01005f 	cmp	x2, x1
+     d34:	54000160 	b.eq	d60 <ra_set_pll+0x2a8>
+     d38:	94000000 	bl	0 <__stack_chk_fail>
+	if (is_frac_pll(pll)) {
+		kdiv = rate_table->kdiv;
+		if (kdiv)
+			writel(pdiv * pll->flock_time, clk->lock);
+		else
+			writel(pdiv * pll->lock_time, clk->lock);
+     d3c:	d5033e9f 	dsb	st
+     d40:	b9404e60 	ldr	w0, [x19,#76]
+     d44:	17ffffce 	b	c7c <ra_set_pll+0x1c4>
+			pll_con1 &= ~(get_mask(pll->k_width, pll->k_shift));
+			pll_con1 |= (kdiv << pll->k_shift);
+			writel(pll_con1, clk->pll_con1);
+		}
+	} else {
+		writel(pdiv * pll->lock_time, clk->lock);
+     d48:	d5033e9f 	dsb	st
+     d4c:	b9404e60 	ldr	w0, [x19,#76]
+     d50:	1b007ca5 	mul	w5, w5, w0
+     d54:	f9400e60 	ldr	x0, [x19,#24]
+     d58:	b9000005 	str	w5, [x0]
+     d5c:	17ffffdb 	b	cc8 <ra_set_pll+0x210>
+				ra_set_div_mux(umux, 1);
+		}
+	}
+
+	return ret;
+}
+     d60:	a94153f3 	ldp	x19, x20, [sp,#16]
+     d64:	a9425bf5 	ldp	x21, x22, [sp,#32]
+     d68:	f9401bf7 	ldr	x23, [sp,#48]
+     d6c:	a8c77bfd 	ldp	x29, x30, [sp],#112
+     d70:	d65f03c0 	ret
+
+0000000000000d74 <ra_set_value>:
+
+	return ret;
+}
+
+int ra_set_value(unsigned int id, unsigned int params)
+{
+     d74:	a9bd7bfd 	stp	x29, x30, [sp,#-48]!
+     d78:	2a0003e2 	mov	w2, w0
+     d7c:	2a0103e4 	mov	w4, w1
+     d80:	910003fd 	mov	x29, sp
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+     d84:	12080c03 	and	w3, w0, #0xf000000
+
+	return ret;
+}
+
+int ra_set_value(unsigned int id, unsigned int params)
+{
+     d88:	f9000fa4 	str	x4, [x29,#24]
+	struct cmucal_clk *clk;
+	unsigned type = GET_TYPE(id);
+     d8c:	f90013a2 	str	x2, [x29,#32]
+     d90:	f90017a3 	str	x3, [x29,#40]
+	int ret;
+
+	clk = cmucal_get_node(id);
+     d94:	94000000 	bl	0 <cmucal_get_node>
+	if (!clk) {
+     d98:	f94017a3 	ldr	x3, [x29,#40]
+     d9c:	f94013a2 	ldr	x2, [x29,#32]
+     da0:	f9400fa4 	ldr	x4, [x29,#24]
+     da4:	b5000100 	cbnz	x0, dc4 <ra_set_value+0x50>
+		pr_err("%s:[%x]type : %x, params : %x\n",
+     da8:	90000001 	adrp	x1, 0 <ra_get_div_mux>
+     dac:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     db0:	91000021 	add	x1, x1, #0x0
+     db4:	91000000 	add	x0, x0, #0x0
+     db8:	91012021 	add	x1, x1, #0x48
+     dbc:	94000000 	bl	0 <printk>
+     dc0:	1400001b 	b	e2c <ra_set_value+0xb8>
+	}
+
+	pr_debug("%s:[%s:%x]type : %x, params : %x\n",
+		__func__, clk->name, id, type, params);
+
+	switch (type) {
+     dc4:	52a08001 	mov	w1, #0x4000000             	// #67108864
+     dc8:	6b01007f 	cmp	w3, w1
+     dcc:	54000220 	b.eq	e10 <ra_set_value+0x9c>
+     dd0:	540000e8 	b.hi	dec <ra_set_value+0x78>
+     dd4:	52a06001 	mov	w1, #0x3000000             	// #50331648
+     dd8:	6b01007f 	cmp	w3, w1
+     ddc:	54000201 	b.ne	e1c <ra_set_value+0xa8>
+		break;
+	case MUX_TYPE:
+		ret = ra_set_div_mux(clk, params);
+		break;
+	case PLL_TYPE:
+		ret = ra_set_pll(clk, params);
+     de0:	2a0403e1 	mov	w1, w4
+     de4:	97ffff35 	bl	ab8 <ra_set_pll>
+		break;
+     de8:	14000012 	b	e30 <ra_set_value+0xbc>
+	}
+
+	pr_debug("%s:[%s:%x]type : %x, params : %x\n",
+		__func__, clk->name, id, type, params);
+
+	switch (type) {
+     dec:	52a0a001 	mov	w1, #0x5000000             	// #83886080
+     df0:	6b01007f 	cmp	w3, w1
+     df4:	540000e0 	b.eq	e10 <ra_set_value+0x9c>
+     df8:	52a0c001 	mov	w1, #0x6000000             	// #100663296
+     dfc:	6b01007f 	cmp	w3, w1
+     e00:	540000e1 	b.ne	e1c <ra_set_value+0xa8>
+		break;
+	case PLL_TYPE:
+		ret = ra_set_pll(clk, params);
+		break;
+	case GATE_TYPE:
+		ret = ra_set_gate(clk, params);
+     e04:	2a0403e1 	mov	w1, w4
+     e08:	97fffc8c 	bl	38 <ra_set_gate>
+		break;
+     e0c:	14000009 	b	e30 <ra_set_value+0xbc>
+	switch (type) {
+	case DIV_TYPE:
+		ret = ra_set_div_mux(clk, params);
+		break;
+	case MUX_TYPE:
+		ret = ra_set_div_mux(clk, params);
+     e10:	2a0403e1 	mov	w1, w4
+     e14:	97fffd01 	bl	218 <ra_set_div_mux>
+		break;
+     e18:	14000006 	b	e30 <ra_set_value+0xbc>
+		break;
+	case GATE_TYPE:
+		ret = ra_set_gate(clk, params);
+		break;
+	default:
+		pr_err("Un-support clk type %x\n", id);
+     e1c:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+     e20:	2a0203e1 	mov	w1, w2
+     e24:	91000000 	add	x0, x0, #0x0
+     e28:	94000000 	bl	0 <printk>
+		ret = -EVCLKINVAL;
+     e2c:	128002a0 	mov	w0, #0xffffffea            	// #-22
+	}
+
+	return ret;
+}
+     e30:	a8c37bfd 	ldp	x29, x30, [sp],#48
+     e34:	d65f03c0 	ret
+
+0000000000000e38 <ra_set_list_enable>:
+	pll->rate_table = table;
+	pll->rate_count = pll_unit->num_of_frequency;
+}
+
+int ra_set_list_enable(unsigned int *list, unsigned int num_list)
+{
+     e38:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+     e3c:	910003fd 	mov	x29, sp
+     e40:	a90153f3 	stp	x19, x20, [sp,#16]
+     e44:	a9025bf5 	stp	x21, x22, [sp,#32]
+     e48:	a90363f7 	stp	x23, x24, [sp,#48]
+     e4c:	aa0003f5 	mov	x21, x0
+     e50:	2a0103f4 	mov	w20, w1
+	unsigned int id;
+	int i;
+
+	for (i = 0; i < num_list; i++) {
+     e54:	52800013 	mov	w19, #0x0                   	// #0
+		id = list[i];
+		if (IS_USER_MUX(id) || IS_GATE(id))
+     e58:	52a08036 	mov	w22, #0x4010000             	// #67174400
+     e5c:	52a0c017 	mov	w23, #0x6000000             	// #100663296
+			ra_set_value(id, 1);
+		else if (IS_PLL(id))
+     e60:	52a06018 	mov	w24, #0x3000000             	// #50331648
+int ra_set_list_enable(unsigned int *list, unsigned int num_list)
+{
+	unsigned int id;
+	int i;
+
+	for (i = 0; i < num_list; i++) {
+     e64:	6b14027f 	cmp	w19, w20
+     e68:	54000220 	b.eq	eac <ra_set_list_enable+0x74>
+		id = list[i];
+     e6c:	b873daa0 	ldr	w0, [x21,w19,sxtw #2]
+		if (IS_USER_MUX(id) || IS_GATE(id))
+     e70:	12102c01 	and	w1, w0, #0xfff0000
+     e74:	6b16003f 	cmp	w1, w22
+     e78:	54000080 	b.eq	e88 <ra_set_list_enable+0x50>
+     e7c:	12080c02 	and	w2, w0, #0xf000000
+     e80:	6b17005f 	cmp	w2, w23
+     e84:	54000081 	b.ne	e94 <ra_set_list_enable+0x5c>
+			ra_set_value(id, 1);
+     e88:	52800021 	mov	w1, #0x1                   	// #1
+     e8c:	94000000 	bl	d74 <ra_set_value>
+     e90:	14000005 	b	ea4 <ra_set_list_enable+0x6c>
+		else if (IS_PLL(id))
+     e94:	6b18005f 	cmp	w2, w24
+     e98:	54000061 	b.ne	ea4 <ra_set_list_enable+0x6c>
+			ra_set_enable(id, 1);
+     e9c:	52800021 	mov	w1, #0x1                   	// #1
+     ea0:	94000000 	bl	5bc <ra_set_enable>
+int ra_set_list_enable(unsigned int *list, unsigned int num_list)
+{
+	unsigned int id;
+	int i;
+
+	for (i = 0; i < num_list; i++) {
+     ea4:	11000673 	add	w19, w19, #0x1
+     ea8:	17ffffef 	b	e64 <ra_set_list_enable+0x2c>
+		else if (IS_PLL(id))
+			ra_set_enable(id, 1);
+	}
+
+	return 0;
+}
+     eac:	52800000 	mov	w0, #0x0                   	// #0
+     eb0:	a94153f3 	ldp	x19, x20, [sp,#16]
+     eb4:	a9425bf5 	ldp	x21, x22, [sp,#32]
+     eb8:	a94363f7 	ldp	x23, x24, [sp,#48]
+     ebc:	a8c47bfd 	ldp	x29, x30, [sp],#64
+     ec0:	d65f03c0 	ret
+
+0000000000000ec4 <ra_set_list_disable>:
+EXPORT_SYMBOL_GPL(ra_set_list_enable);
+
+int ra_set_list_disable(unsigned int *list, unsigned int num_list)
+{
+     ec4:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+     ec8:	910003fd 	mov	x29, sp
+     ecc:	a90153f3 	stp	x19, x20, [sp,#16]
+     ed0:	a9025bf5 	stp	x21, x22, [sp,#32]
+     ed4:	a90363f7 	stp	x23, x24, [sp,#48]
+     ed8:	aa0003f4 	mov	x20, x0
+     edc:	2a0103f3 	mov	w19, w1
+	unsigned int id;
+	int i;
+
+	for (i = num_list ; i > 0; i--) {
+		id = list[i-1];
+     ee0:	92800075 	mov	x21, #0xfffffffffffffffc    	// #-4
+		if (IS_USER_MUX(id) || IS_GATE(id))
+     ee4:	52a08036 	mov	w22, #0x4010000             	// #67174400
+     ee8:	52a0c017 	mov	w23, #0x6000000             	// #100663296
+			ra_set_value(id, 0);
+		else if (IS_PLL(id))
+     eec:	52a06018 	mov	w24, #0x3000000             	// #50331648
+int ra_set_list_disable(unsigned int *list, unsigned int num_list)
+{
+	unsigned int id;
+	int i;
+
+	for (i = num_list ; i > 0; i--) {
+     ef0:	6b1f027f 	cmp	w19, wzr
+     ef4:	5400024d 	b.le	f3c <ra_set_list_disable+0x78>
+		id = list[i-1];
+     ef8:	8b33caa0 	add	x0, x21, w19, sxtw #2
+     efc:	b8606a80 	ldr	w0, [x20,x0]
+		if (IS_USER_MUX(id) || IS_GATE(id))
+     f00:	12102c01 	and	w1, w0, #0xfff0000
+     f04:	6b16003f 	cmp	w1, w22
+     f08:	54000080 	b.eq	f18 <ra_set_list_disable+0x54>
+     f0c:	12080c01 	and	w1, w0, #0xf000000
+     f10:	6b17003f 	cmp	w1, w23
+     f14:	54000081 	b.ne	f24 <ra_set_list_disable+0x60>
+			ra_set_value(id, 0);
+     f18:	52800001 	mov	w1, #0x0                   	// #0
+     f1c:	94000000 	bl	d74 <ra_set_value>
+     f20:	14000005 	b	f34 <ra_set_list_disable+0x70>
+		else if (IS_PLL(id))
+     f24:	6b18003f 	cmp	w1, w24
+     f28:	54000061 	b.ne	f34 <ra_set_list_disable+0x70>
+			ra_set_enable(id, 0);
+     f2c:	52800001 	mov	w1, #0x0                   	// #0
+     f30:	94000000 	bl	5bc <ra_set_enable>
+int ra_set_list_disable(unsigned int *list, unsigned int num_list)
+{
+	unsigned int id;
+	int i;
+
+	for (i = num_list ; i > 0; i--) {
+     f34:	51000673 	sub	w19, w19, #0x1
+     f38:	17ffffee 	b	ef0 <ra_set_list_disable+0x2c>
+		else if (IS_PLL(id))
+			ra_set_enable(id, 0);
+	}
+
+	return 0;
+}
+     f3c:	52800000 	mov	w0, #0x0                   	// #0
+     f40:	a94153f3 	ldp	x19, x20, [sp,#16]
+     f44:	a9425bf5 	ldp	x21, x22, [sp,#32]
+     f48:	a94363f7 	ldp	x23, x24, [sp,#48]
+     f4c:	a8c47bfd 	ldp	x29, x30, [sp],#64
+     f50:	d65f03c0 	ret
+
+0000000000000f54 <ra_set_pll_ops>:
+
+void ra_set_pll_ops(unsigned int *list,
+		struct vclk_lut *lut,
+		unsigned int num_list,
+		struct vclk_trans_ops *ops)
+{
+     f54:	a9bb7bfd 	stp	x29, x30, [sp,#-80]!
+     f58:	910003fd 	mov	x29, sp
+     f5c:	a90363f7 	stp	x23, x24, [sp,#48]
+     f60:	a9046bf9 	stp	x25, x26, [sp,#64]
+     f64:	a90153f3 	stp	x19, x20, [sp,#16]
+     f68:	a9025bf5 	stp	x21, x22, [sp,#32]
+     f6c:	aa0003f7 	mov	x23, x0
+     f70:	aa0103f8 	mov	x24, x1
+     f74:	2a0203f9 	mov	w25, w2
+     f78:	aa0303f6 	mov	x22, x3
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+     f7c:	52800013 	mov	w19, #0x0                   	// #0
+		if (GET_TYPE(list[i]) != PLL_TYPE)
+     f80:	52a0601a 	mov	w26, #0x3000000             	// #50331648
+{
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+     f84:	6b19027f 	cmp	w19, w25
+     f88:	540003c0 	b.eq	1000 <ra_set_pll_ops+0xac>
+		if (GET_TYPE(list[i]) != PLL_TYPE)
+     f8c:	937e7e74 	sbfiz	x20, x19, #2, #32
+     f90:	b8746ae0 	ldr	w0, [x23,x20]
+     f94:	12080c01 	and	w1, w0, #0xf000000
+     f98:	6b1a003f 	cmp	w1, w26
+     f9c:	540002e1 	b.ne	ff8 <ra_set_pll_ops+0xa4>
+			continue;
+
+		to = lut->params[i];
+     fa0:	f9400701 	ldr	x1, [x24,#8]
+     fa4:	b8746835 	ldr	w21, [x1,x20]
+		if (ops && ops->get_pll)
+     fa8:	b40000f6 	cbz	x22, fc4 <ra_set_pll_ops+0x70>
+     fac:	f9401ec1 	ldr	x1, [x22,#56]
+     fb0:	b40000a1 	cbz	x1, fc4 <ra_set_pll_ops+0x70>
+			from = ops->get_pll(list[i]);
+     fb4:	d63f0020 	blr	x1
+#include "cmucal.h"
+#include "ra.h"
+
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+     fb8:	6b15001f 	cmp	w0, w21
+     fbc:	540000c1 	b.ne	fd4 <ra_set_pll_ops+0x80>
+     fc0:	1400000e 	b	ff8 <ra_set_pll_ops+0xa4>
+
+		to = lut->params[i];
+		if (ops && ops->get_pll)
+			from = ops->get_pll(list[i]);
+		else
+			from = ra_get_value(list[i]);
+     fc4:	94000000 	bl	7f0 <ra_get_value>
+#include "cmucal.h"
+#include "ra.h"
+
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+     fc8:	6b15001f 	cmp	w0, w21
+     fcc:	54000160 	b.eq	ff8 <ra_set_pll_ops+0xa4>
+
+		trans = ra_get_trans_opt(to, from);
+		if (trans == TRANS_IGNORE)
+			continue;
+
+		if (ops && ops->set_pll)
+     fd0:	b40000f6 	cbz	x22, fec <ra_set_pll_ops+0x98>
+     fd4:	f9401ac3 	ldr	x3, [x22,#48]
+     fd8:	b40000a3 	cbz	x3, fec <ra_set_pll_ops+0x98>
+			ops->set_pll(list[i], to);
+     fdc:	b8746ae0 	ldr	w0, [x23,x20]
+     fe0:	2a1503e1 	mov	w1, w21
+     fe4:	d63f0060 	blr	x3
+     fe8:	14000004 	b	ff8 <ra_set_pll_ops+0xa4>
+		else
+			ra_set_value(list[i], to);
+     fec:	b8746ae0 	ldr	w0, [x23,x20]
+     ff0:	2a1503e1 	mov	w1, w21
+     ff4:	94000000 	bl	d74 <ra_set_value>
+{
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+     ff8:	11000673 	add	w19, w19, #0x1
+     ffc:	17ffffe2 	b	f84 <ra_set_pll_ops+0x30>
+		if (ops && ops->set_pll)
+			ops->set_pll(list[i], to);
+		else
+			ra_set_value(list[i], to);
+	}
+}
+    1000:	a94153f3 	ldp	x19, x20, [sp,#16]
+    1004:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    1008:	a94363f7 	ldp	x23, x24, [sp,#48]
+    100c:	a9446bf9 	ldp	x25, x26, [sp,#64]
+    1010:	a8c57bfd 	ldp	x29, x30, [sp],#80
+    1014:	d65f03c0 	ret
+
+0000000000001018 <ra_set_clk_by_type>:
+void ra_set_clk_by_type(unsigned int *list,
+		     struct vclk_lut *lut,
+		     unsigned int num_list,
+		     unsigned int type,
+		     enum trans_opt opt)
+{
+    1018:	a9bb7bfd 	stp	x29, x30, [sp,#-80]!
+    101c:	910003fd 	mov	x29, sp
+    1020:	a90363f7 	stp	x23, x24, [sp,#48]
+    1024:	a9046bf9 	stp	x25, x26, [sp,#64]
+    1028:	a90153f3 	stp	x19, x20, [sp,#16]
+    102c:	a9025bf5 	stp	x21, x22, [sp,#32]
+    1030:	aa0103f7 	mov	x23, x1
+    1034:	aa0003f6 	mov	x22, x0
+    1038:	2a0203f8 	mov	w24, w2
+    103c:	2a0303f9 	mov	w25, w3
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+    1040:	52800013 	mov	w19, #0x0                   	// #0
+		to = lut->params[i];
+		from = ra_get_value(list[i]);
+		trans = ra_get_trans_opt(to, from);
+		if (trans == TRANS_IGNORE)
+			continue;
+		if (opt != TRANS_FORCE && trans != opt)
+    1044:	121e789a 	and	w26, w4, #0xfffffffd
+{
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+    1048:	6b18027f 	cmp	w19, w24
+    104c:	54000240 	b.eq	1094 <ra_set_clk_by_type+0x7c>
+		if (GET_TYPE(list[i]) != type)
+    1050:	937e7e74 	sbfiz	x20, x19, #2, #32
+    1054:	b8746ac0 	ldr	w0, [x22,x20]
+    1058:	12080c01 	and	w1, w0, #0xf000000
+    105c:	6b19003f 	cmp	w1, w25
+    1060:	54000161 	b.ne	108c <ra_set_clk_by_type+0x74>
+			continue;
+
+		to = lut->params[i];
+    1064:	f94006e1 	ldr	x1, [x23,#8]
+    1068:	b8746835 	ldr	w21, [x1,x20]
+		from = ra_get_value(list[i]);
+    106c:	94000000 	bl	7f0 <ra_get_value>
+#include "cmucal.h"
+#include "ra.h"
+
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+    1070:	6b15001f 	cmp	w0, w21
+    1074:	540000c0 	b.eq	108c <ra_set_clk_by_type+0x74>
+		to = lut->params[i];
+		from = ra_get_value(list[i]);
+		trans = ra_get_trans_opt(to, from);
+		if (trans == TRANS_IGNORE)
+			continue;
+		if (opt != TRANS_FORCE && trans != opt)
+    1078:	7100075f 	cmp	w26, #0x1
+    107c:	54000081 	b.ne	108c <ra_set_clk_by_type+0x74>
+			continue;
+
+		ra_set_value(list[i], to);
+    1080:	b8746ac0 	ldr	w0, [x22,x20]
+    1084:	2a1503e1 	mov	w1, w21
+    1088:	94000000 	bl	d74 <ra_set_value>
+{
+	unsigned int from, to;
+	int i;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+    108c:	11000673 	add	w19, w19, #0x1
+    1090:	17ffffee 	b	1048 <ra_set_clk_by_type+0x30>
+		if (opt != TRANS_FORCE && trans != opt)
+			continue;
+
+		ra_set_value(list[i], to);
+	}
+}
+    1094:	a94153f3 	ldp	x19, x20, [sp,#16]
+    1098:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    109c:	a94363f7 	ldp	x23, x24, [sp,#48]
+    10a0:	a9446bf9 	ldp	x25, x26, [sp,#64]
+    10a4:	a8c57bfd 	ldp	x29, x30, [sp],#80
+    10a8:	d65f03c0 	ret
+
+00000000000010ac <ra_set_clk_by_seq>:
+
+void ra_set_clk_by_seq(unsigned int *list,
+		    struct vclk_lut *lut,
+		    struct vclk_seq *seq,
+		    unsigned int num_list)
+{
+    10ac:	a9bb7bfd 	stp	x29, x30, [sp,#-80]!
+    10b0:	910003fd 	mov	x29, sp
+    10b4:	a90153f3 	stp	x19, x20, [sp,#16]
+    10b8:	a90363f7 	stp	x23, x24, [sp,#48]
+    10bc:	a9025bf5 	stp	x21, x22, [sp,#32]
+    10c0:	f90023f9 	str	x25, [sp,#64]
+    10c4:	aa0003f5 	mov	x21, x0
+    10c8:	aa0103f8 	mov	x24, x1
+    10cc:	aa0203f4 	mov	x20, x2
+    10d0:	d37e7c77 	ubfiz	x23, x3, #2, #32
+	unsigned int from, to;
+	unsigned int i, idx;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+    10d4:	d2800013 	mov	x19, #0x0                   	// #0
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+		return TRANS_IGNORE;
+
+	return to > from ? TRANS_HIGH : TRANS_LOW;
+    10d8:	52800059 	mov	w25, #0x2                   	// #2
+{
+	unsigned int from, to;
+	unsigned int i, idx;
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+    10dc:	eb17027f 	cmp	x19, x23
+    10e0:	540002c0 	b.eq	1138 <ra_set_clk_by_seq+0x8c>
+		from = lut->params[i];
+    10e4:	f9400700 	ldr	x0, [x24,#8]
+    10e8:	b8736816 	ldr	w22, [x0,x19]
+		to = ra_get_value(list[i]);
+    10ec:	b8736aa0 	ldr	w0, [x21,x19]
+    10f0:	94000000 	bl	7f0 <ra_get_value>
+    10f4:	2a0003e1 	mov	w1, w0
+#include "cmucal.h"
+#include "ra.h"
+
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+    10f8:	6b0102df 	cmp	w22, w1
+		return TRANS_IGNORE;
+    10fc:	52800000 	mov	w0, #0x0                   	// #0
+#include "cmucal.h"
+#include "ra.h"
+
+static enum trans_opt ra_get_trans_opt(unsigned int to, unsigned int from)
+{
+	if (from == to)
+    1100:	54000060 	b.eq	110c <ra_set_clk_by_seq+0x60>
+		return TRANS_IGNORE;
+
+	return to > from ? TRANS_HIGH : TRANS_LOW;
+    1104:	6b16003f 	cmp	w1, w22
+    1108:	1a9f9720 	csinc	w0, w25, wzr, ls
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+		from = lut->params[i];
+		to = ra_get_value(list[i]);
+		trans = ra_get_trans_opt(to, from);
+    110c:	6b1f001f 	cmp	w0, wzr
+		if (seq[i].opt & trans) {
+    1110:	b9400680 	ldr	w0, [x20,#4]
+	bool trans;
+
+	for (i = 0; i < num_list; i++) {
+		from = lut->params[i];
+		to = ra_get_value(list[i]);
+		trans = ra_get_trans_opt(to, from);
+    1114:	1a9f07e2 	cset	w2, ne
+		if (seq[i].opt & trans) {
+    1118:	6a00005f 	tst	w2, w0
+    111c:	54000080 	b.eq	112c <ra_set_clk_by_seq+0x80>
+			idx = seq[i].idx;
+			ra_set_value(list[idx], to);
+    1120:	b9400280 	ldr	w0, [x20]
+    1124:	b8607aa0 	ldr	w0, [x21,x0,lsl #2]
+    1128:	94000000 	bl	d74 <ra_set_value>
+    112c:	91002294 	add	x20, x20, #0x8
+    1130:	91001273 	add	x19, x19, #0x4
+    1134:	17ffffea 	b	10dc <ra_set_clk_by_seq+0x30>
+		}
+	}
+}
+    1138:	a94153f3 	ldp	x19, x20, [sp,#16]
+    113c:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    1140:	a94363f7 	ldp	x23, x24, [sp,#48]
+    1144:	f94023f9 	ldr	x25, [sp,#64]
+    1148:	a8c57bfd 	ldp	x29, x30, [sp],#80
+    114c:	d65f03c0 	ret
+
+0000000000001150 <ra_compare_clk_list>:
+EXPORT_SYMBOL_GPL(ra_set_clk_by_seq);
+
+int ra_compare_clk_list(unsigned int *params,
+			unsigned int *list,
+			unsigned int num_list)
+{
+    1150:	a9b97bfd 	stp	x29, x30, [sp,#-112]!
+    1154:	910003fd 	mov	x29, sp
+    1158:	a90153f3 	stp	x19, x20, [sp,#16]
+    115c:	a9025bf5 	stp	x21, x22, [sp,#32]
+    1160:	a90363f7 	stp	x23, x24, [sp,#48]
+    1164:	a9046bf9 	stp	x25, x26, [sp,#64]
+    1168:	a90573fb 	stp	x27, x28, [sp,#80]
+    116c:	aa0003f4 	mov	x20, x0
+    1170:	aa0103fb 	mov	x27, x1
+    1174:	d37e7c56 	ubfiz	x22, x2, #2, #32
+	struct cmucal_clk *clk;
+	unsigned int i, type;
+
+	for (i = 0; i < num_list; i++) {
+    1178:	d2800013 	mov	x19, #0x0                   	// #0
+		clk = cmucal_get_node(list[i]);
+		if (!clk) {
+			pr_err("%s:[%x]type : %x\n", __func__, list[i], type);
+			return -EVCLKINVAL;
+		}
+		switch (type) {
+    117c:	52a08017 	mov	w23, #0x4000000             	// #67108864
+    1180:	52a0a018 	mov	w24, #0x5000000             	// #83886080
+    1184:	52a06019 	mov	w25, #0x3000000             	// #50331648
+
+	pll = to_pll_clk(clk);
+	prate_table = pll->rate_table;
+
+	pll_con0 = readl(clk->pll_con0);
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+    1188:	52800035 	mov	w21, #0x1                   	// #1
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+
+	for (i = 0; i < pll->rate_count; i++) {
+		if (mdiv != prate_table[i].mdiv)
+    118c:	5280019a 	mov	w26, #0xc                   	// #12
+			unsigned int num_list)
+{
+	struct cmucal_clk *clk;
+	unsigned int i, type;
+
+	for (i = 0; i < num_list; i++) {
+    1190:	eb16027f 	cmp	x19, x22
+    1194:	54000a40 	b.eq	12dc <ra_compare_clk_list+0x18c>
+		type = GET_TYPE(list[i]);
+    1198:	b8736b60 	ldr	w0, [x27,x19]
+    119c:	8b13037c 	add	x28, x27, x19
+    11a0:	12080c03 	and	w3, w0, #0xf000000
+    11a4:	f90037a3 	str	x3, [x29,#104]
+		clk = cmucal_get_node(list[i]);
+    11a8:	94000000 	bl	0 <cmucal_get_node>
+    11ac:	aa0003e4 	mov	x4, x0
+		if (!clk) {
+    11b0:	f94037a3 	ldr	x3, [x29,#104]
+    11b4:	b5000120 	cbnz	x0, 11d8 <ra_compare_clk_list+0x88>
+			pr_err("%s:[%x]type : %x\n", __func__, list[i], type);
+    11b8:	90000001 	adrp	x1, 0 <ra_get_div_mux>
+    11bc:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+    11c0:	91000021 	add	x1, x1, #0x0
+    11c4:	b9400382 	ldr	w2, [x28]
+    11c8:	91016021 	add	x1, x1, #0x58
+    11cc:	91000000 	add	x0, x0, #0x0
+    11d0:	94000000 	bl	0 <printk>
+    11d4:	1400003e 	b	12cc <ra_compare_clk_list+0x17c>
+			return -EVCLKINVAL;
+		}
+		switch (type) {
+    11d8:	6b17007f 	cmp	w3, w23
+    11dc:	540003e0 	b.eq	1258 <ra_compare_clk_list+0x108>
+    11e0:	6b18007f 	cmp	w3, w24
+    11e4:	540003a0 	b.eq	1258 <ra_compare_clk_list+0x108>
+    11e8:	6b19007f 	cmp	w3, w25
+    11ec:	54000681 	b.ne	12bc <ra_compare_clk_list+0x16c>
+		case MUX_TYPE:
+			if (params[i] != ra_get_div_mux(clk))
+				goto mismatch;
+			break;
+		case PLL_TYPE:
+			if (params[i] != ra_get_pll_idx(clk))
+    11f0:	b8736a85 	ldr	w5, [x20,x19]
+	struct cmucal_pll_table *prate_table;
+	unsigned int mdiv, pdiv, sdiv, pll_con0;
+	int i;
+
+	pll = to_pll_clk(clk);
+	prate_table = pll->rate_table;
+    11f4:	f9402006 	ldr	x6, [x0,#64]
+static inline u32 __raw_readl(const volatile void __iomem *addr)
+{
+	u32 val;
+
+	exynos_ss_reg(1, 0, (size_t)addr, ESS_FLAG_IN);
+	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+    11f8:	f9401001 	ldr	x1, [x0,#32]
+    11fc:	b9400021 	ldr	w1, [x1]
+
+	pll_con0 = readl(clk->pll_con0);
+    1200:	d5033d9f 	dsb	ld
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+    1204:	39419403 	ldrb	w3, [x0,#101]
+    1208:	3941a400 	ldrb	w0, [x0,#105]
+    120c:	1ac32423 	lsr	w3, w1, w3
+    1210:	b9404888 	ldr	w8, [x4,#72]
+    1214:	1ac022a0 	lsl	w0, w21, w0
+    1218:	51000400 	sub	w0, w0, #0x1
+    121c:	0a000063 	and	w3, w3, w0
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+    1220:	39419080 	ldrb	w0, [x4,#100]
+    1224:	1ac02422 	lsr	w2, w1, w0
+    1228:	3941a080 	ldrb	w0, [x4,#104]
+    122c:	1ac022a0 	lsl	w0, w21, w0
+    1230:	51000400 	sub	w0, w0, #0x1
+    1234:	0a000040 	and	w0, w2, w0
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+    1238:	39419882 	ldrb	w2, [x4,#102]
+    123c:	1ac22422 	lsr	w2, w1, w2
+    1240:	3941a881 	ldrb	w1, [x4,#106]
+    1244:	1ac122a1 	lsl	w1, w21, w1
+    1248:	51000421 	sub	w1, w1, #0x1
+    124c:	0a010041 	and	w1, w2, w1
+
+	for (i = 0; i < pll->rate_count; i++) {
+    1250:	52800002 	mov	w2, #0x0                   	// #0
+    1254:	1400000c 	b	1284 <ra_compare_clk_list+0x134>
+			pr_err("%s:[%x]type : %x\n", __func__, list[i], type);
+			return -EVCLKINVAL;
+		}
+		switch (type) {
+		case DIV_TYPE:
+			if (params[i] != ra_get_div_mux(clk))
+    1258:	b8736a9c 	ldr	w28, [x20,x19]
+    125c:	97fffb69 	bl	0 <ra_get_div_mux>
+    1260:	6b00039f 	cmp	w28, w0
+    1264:	54000380 	b.eq	12d4 <ra_compare_clk_list+0x184>
+
+	return 0;
+mismatch:
+	pr_debug("mis-match %s <%u %u> \n",
+		 clk->name, params[i], ra_get_value(list[i]));
+	return -EVCLKNOENT;
+    1268:	12800020 	mov	w0, #0xfffffffe            	// #-2
+    126c:	1400001d 	b	12e0 <ra_compare_clk_list+0x190>
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+
+	for (i = 0; i < pll->rate_count; i++) {
+		if (mdiv != prate_table[i].mdiv)
+    1270:	9b3a1847 	smaddl	x7, w2, w26, x6
+    1274:	79400ce9 	ldrh	w9, [x7,#6]
+    1278:	6b09007f 	cmp	w3, w9
+    127c:	540000c0 	b.eq	1294 <ra_compare_clk_list+0x144>
+	pll_con0 = readl(clk->pll_con0);
+	mdiv = (pll_con0 >> pll->m_shift) & width_to_mask(pll->m_width);
+	pdiv = (pll_con0 >> pll->p_shift) & width_to_mask(pll->p_width);
+	sdiv = (pll_con0 >> pll->s_shift) & width_to_mask(pll->s_width);
+
+	for (i = 0; i < pll->rate_count; i++) {
+    1280:	11000442 	add	w2, w2, #0x1
+    1284:	6b08005f 	cmp	w2, w8
+    1288:	2a0203e4 	mov	w4, w2
+    128c:	54ffff21 	b.ne	1270 <ra_compare_clk_list+0x120>
+    1290:	14000008 	b	12b0 <ra_compare_clk_list+0x160>
+		if (mdiv != prate_table[i].mdiv)
+			continue;
+		if (pdiv != prate_table[i].pdiv)
+    1294:	794008e9 	ldrh	w9, [x7,#4]
+    1298:	6b09001f 	cmp	w0, w9
+    129c:	54ffff21 	b.ne	1280 <ra_compare_clk_list+0x130>
+			continue;
+		if (sdiv != prate_table[i].sdiv)
+    12a0:	794010e7 	ldrh	w7, [x7,#8]
+    12a4:	6b07003f 	cmp	w1, w7
+    12a8:	54fffec1 	b.ne	1280 <ra_compare_clk_list+0x130>
+    12ac:	14000002 	b	12b4 <ra_compare_clk_list+0x164>
+			continue;
+
+		return i;
+	}
+
+	return -1;
+    12b0:	12800004 	mov	w4, #0xffffffff            	// #-1
+		case MUX_TYPE:
+			if (params[i] != ra_get_div_mux(clk))
+				goto mismatch;
+			break;
+		case PLL_TYPE:
+			if (params[i] != ra_get_pll_idx(clk))
+    12b4:	6b0400bf 	cmp	w5, w4
+    12b8:	17ffffeb 	b	1264 <ra_compare_clk_list+0x114>
+				goto mismatch;
+			break;
+		default:
+			pr_err("Un-support clk type %x\n", list[i]);
+    12bc:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+    12c0:	b9400381 	ldr	w1, [x28]
+    12c4:	91000000 	add	x0, x0, #0x0
+    12c8:	94000000 	bl	0 <printk>
+			return -EVCLKINVAL;
+    12cc:	128002a0 	mov	w0, #0xffffffea            	// #-22
+    12d0:	14000004 	b	12e0 <ra_compare_clk_list+0x190>
+    12d4:	91001273 	add	x19, x19, #0x4
+    12d8:	17ffffae 	b	1190 <ra_compare_clk_list+0x40>
+		}
+	}
+
+	return 0;
+    12dc:	52800000 	mov	w0, #0x0                   	// #0
+mismatch:
+	pr_debug("mis-match %s <%u %u> \n",
+		 clk->name, params[i], ra_get_value(list[i]));
+	return -EVCLKNOENT;
+}
+    12e0:	a94153f3 	ldp	x19, x20, [sp,#16]
+    12e4:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    12e8:	a94363f7 	ldp	x23, x24, [sp,#48]
+    12ec:	a9446bf9 	ldp	x25, x26, [sp,#64]
+    12f0:	a94573fb 	ldp	x27, x28, [sp,#80]
+    12f4:	a8c77bfd 	ldp	x29, x30, [sp],#112
+    12f8:	d65f03c0 	ret
+
+00000000000012fc <ra_set_rate_switch>:
+EXPORT_SYMBOL_GPL(ra_compare_clk_list);
+
+unsigned int ra_set_rate_switch(struct vclk_switch *info, unsigned int rate_max)
+{
+    12fc:	a9bd7bfd 	stp	x29, x30, [sp,#-48]!
+	struct switch_lut *lut;
+	unsigned int switch_rate = rate_max;
+	int i;
+
+	for (i = 0; i < info->num_switches; i++) {
+		lut = &info->lut[i];
+    1300:	52800183 	mov	w3, #0xc                   	// #12
+	return -EVCLKNOENT;
+}
+EXPORT_SYMBOL_GPL(ra_compare_clk_list);
+
+unsigned int ra_set_rate_switch(struct vclk_switch *info, unsigned int rate_max)
+{
+    1304:	910003fd 	mov	x29, sp
+    1308:	a90153f3 	stp	x19, x20, [sp,#16]
+    130c:	a9025bf5 	stp	x21, x22, [sp,#32]
+    1310:	2a0103f5 	mov	w21, w1
+    1314:	aa0003f4 	mov	x20, x0
+    1318:	b9402001 	ldr	w1, [x0,#32]
+	struct switch_lut *lut;
+	unsigned int switch_rate = rate_max;
+	int i;
+
+	for (i = 0; i < info->num_switches; i++) {
+    131c:	52800013 	mov	w19, #0x0                   	// #0
+    1320:	6b01027f 	cmp	w19, w1
+    1324:	540002e0 	b.eq	1380 <ra_set_rate_switch+0x84>
+		lut = &info->lut[i];
+    1328:	9b237e62 	smull	x2, w19, w3
+    132c:	f9400e80 	ldr	x0, [x20,#24]
+    1330:	8b020016 	add	x22, x0, x2
+		if (rate_max >= lut->rate) {
+    1334:	b8626800 	ldr	w0, [x0,x2]
+    1338:	6b0002bf 	cmp	w21, w0
+    133c:	540001e3 	b.cc	1378 <ra_set_rate_switch+0x7c>
+			if (info->src_div != EMPTY_CLK_ID)
+    1340:	b9400a80 	ldr	w0, [x20,#8]
+    1344:	529fffe1 	mov	w1, #0xffff                	// #65535
+    1348:	6b01001f 	cmp	w0, w1
+    134c:	54000060 	b.eq	1358 <ra_set_rate_switch+0x5c>
+				ra_set_value(info->src_div, lut->div_value);
+    1350:	b9400ac1 	ldr	w1, [x22,#8]
+    1354:	94000000 	bl	d74 <ra_set_value>
+			if (info->src_mux != EMPTY_CLK_ID)
+    1358:	b9400680 	ldr	w0, [x20,#4]
+    135c:	529fffe1 	mov	w1, #0xffff                	// #65535
+    1360:	6b01001f 	cmp	w0, w1
+    1364:	54000060 	b.eq	1370 <ra_set_rate_switch+0x74>
+				ra_set_value(info->src_mux, lut->mux_value);
+    1368:	b94006c1 	ldr	w1, [x22,#4]
+    136c:	94000000 	bl	d74 <ra_set_value>
+
+			switch_rate = lut->rate;
+    1370:	b94002c0 	ldr	w0, [x22]
+			break;
+    1374:	14000004 	b	1384 <ra_set_rate_switch+0x88>
+{
+	struct switch_lut *lut;
+	unsigned int switch_rate = rate_max;
+	int i;
+
+	for (i = 0; i < info->num_switches; i++) {
+    1378:	11000673 	add	w19, w19, #0x1
+    137c:	17ffffe9 	b	1320 <ra_set_rate_switch+0x24>
+    1380:	2a1503e0 	mov	w0, w21
+			switch_rate = lut->rate;
+			break;
+		}
+	}
+
+	if (i == info->num_switches)
+    1384:	b9402281 	ldr	w1, [x20,#32]
+    1388:	6b01027f 	cmp	w19, w1
+		switch_rate = rate_max;
+
+	return switch_rate;
+}
+    138c:	1a951000 	csel	w0, w0, w21, ne
+    1390:	a94153f3 	ldp	x19, x20, [sp,#16]
+    1394:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    1398:	a8c37bfd 	ldp	x29, x30, [sp],#48
+    139c:	d65f03c0 	ret
+
+00000000000013a0 <ra_select_switch_pll>:
+EXPORT_SYMBOL_GPL(ra_set_rate_switch);
+
+void ra_select_switch_pll(struct vclk_switch *info, unsigned int value)
+{
+    13a0:	a9bd7bfd 	stp	x29, x30, [sp,#-48]!
+    13a4:	910003fd 	mov	x29, sp
+    13a8:	a90153f3 	stp	x19, x20, [sp,#16]
+    13ac:	f90013f5 	str	x21, [sp,#32]
+    13b0:	aa0003f3 	mov	x19, x0
+    13b4:	2a0103f4 	mov	w20, w1
+	if (value) {
+    13b8:	34000181 	cbz	w1, 13e8 <ra_select_switch_pll+0x48>
+		if (info->src_gate != EMPTY_CLK_ID)
+    13bc:	b9400c00 	ldr	w0, [x0,#12]
+    13c0:	529fffe2 	mov	w2, #0xffff                	// #65535
+    13c4:	2a0203f5 	mov	w21, w2
+    13c8:	6b02001f 	cmp	w0, w2
+    13cc:	54000040 	b.eq	13d4 <ra_select_switch_pll+0x34>
+			ra_set_value(info->src_gate, value);
+    13d0:	94000000 	bl	d74 <ra_set_value>
+		if (info->src_umux != EMPTY_CLK_ID)
+    13d4:	b9401260 	ldr	w0, [x19,#16]
+    13d8:	6b15001f 	cmp	w0, w21
+    13dc:	54000060 	b.eq	13e8 <ra_select_switch_pll+0x48>
+			ra_set_value(info->src_umux, value);
+    13e0:	2a1403e1 	mov	w1, w20
+    13e4:	94000000 	bl	d74 <ra_set_value>
+	}
+
+	ra_set_value(info->switch_mux, value);
+    13e8:	b9400260 	ldr	w0, [x19]
+    13ec:	2a1403e1 	mov	w1, w20
+    13f0:	94000000 	bl	d74 <ra_set_value>
+
+	if (!value) {
+    13f4:	350001b4 	cbnz	w20, 1428 <ra_select_switch_pll+0x88>
+		if (info->src_umux != EMPTY_CLK_ID)
+    13f8:	b9401260 	ldr	w0, [x19,#16]
+    13fc:	529fffe1 	mov	w1, #0xffff                	// #65535
+    1400:	6b01001f 	cmp	w0, w1
+    1404:	54000060 	b.eq	1410 <ra_select_switch_pll+0x70>
+			ra_set_value(info->src_umux, value);
+    1408:	2a1403e1 	mov	w1, w20
+    140c:	94000000 	bl	d74 <ra_set_value>
+		if (info->src_gate != EMPTY_CLK_ID)
+    1410:	b9400e60 	ldr	w0, [x19,#12]
+    1414:	529fffe1 	mov	w1, #0xffff                	// #65535
+    1418:	6b01001f 	cmp	w0, w1
+    141c:	54000060 	b.eq	1428 <ra_select_switch_pll+0x88>
+			ra_set_value(info->src_gate, value);
+    1420:	52800001 	mov	w1, #0x0                   	// #0
+    1424:	94000000 	bl	d74 <ra_set_value>
+	}
+}
+    1428:	a94153f3 	ldp	x19, x20, [sp,#16]
+    142c:	f94013f5 	ldr	x21, [sp,#32]
+    1430:	a8c37bfd 	ldp	x29, x30, [sp],#48
+    1434:	d65f03c0 	ret
+
+0000000000001438 <ra_get_parent>:
+EXPORT_SYMBOL_GPL(ra_select_switch_pll);
+
+struct cmucal_clk *ra_get_parent(unsigned int id)
+{
+    1438:	a9be7bfd 	stp	x29, x30, [sp,#-32]!
+    143c:	910003fd 	mov	x29, sp
+    1440:	f9000bf3 	str	x19, [sp,#16]
+	struct cmucal_clk *clk, *parent;
+	struct cmucal_mux *mux;
+	unsigned int val;
+
+	clk = cmucal_get_node(id);
+    1444:	94000000 	bl	0 <cmucal_get_node>
+    1448:	aa0003f3 	mov	x19, x0
+	if (!clk)
+		return NULL;
+    144c:	aa0003e1 	mov	x1, x0
+	struct cmucal_clk *clk, *parent;
+	struct cmucal_mux *mux;
+	unsigned int val;
+
+	clk = cmucal_get_node(id);
+	if (!clk)
+    1450:	b4000480 	cbz	x0, 14e0 <ra_get_parent+0xa8>
+		return NULL;
+
+	switch (GET_TYPE(clk->id)) {
+    1454:	b9400001 	ldr	w1, [x0]
+    1458:	52a06002 	mov	w2, #0x3000000             	// #50331648
+    145c:	12080c21 	and	w1, w1, #0xf000000
+    1460:	6b02003f 	cmp	w1, w2
+    1464:	540002c0 	b.eq	14bc <ra_get_parent+0x84>
+    1468:	54000108 	b.hi	1488 <ra_get_parent+0x50>
+    146c:	52a02000 	mov	w0, #0x1000000             	// #16777216
+    1470:	6b00003f 	cmp	w1, w0
+    1474:	54000240 	b.eq	14bc <ra_get_parent+0x84>
+    1478:	52a04000 	mov	w0, #0x2000000             	// #33554432
+    147c:	6b00003f 	cmp	w1, w0
+    1480:	540002e1 	b.ne	14dc <ra_get_parent+0xa4>
+    1484:	1400000e 	b	14bc <ra_get_parent+0x84>
+    1488:	52a0a002 	mov	w2, #0x5000000             	// #83886080
+    148c:	6b02003f 	cmp	w1, w2
+    1490:	54000160 	b.eq	14bc <ra_get_parent+0x84>
+    1494:	52a0c002 	mov	w2, #0x6000000             	// #100663296
+    1498:	6b02003f 	cmp	w1, w2
+    149c:	54000100 	b.eq	14bc <ra_get_parent+0x84>
+    14a0:	52a08002 	mov	w2, #0x4000000             	// #67108864
+    14a4:	6b02003f 	cmp	w1, w2
+    14a8:	540001a1 	b.ne	14dc <ra_get_parent+0xa4>
+		else
+			parent = cmucal_get_node(clk->pid);
+		break;
+	case MUX_TYPE:
+		mux = to_mux_clk(clk);
+		val = ra_get_div_mux(clk);
+    14ac:	97fffad5 	bl	0 <ra_get_div_mux>
+		parent = cmucal_get_node(mux->pid[val]);
+    14b0:	f9401e61 	ldr	x1, [x19,#56]
+    14b4:	b8605820 	ldr	w0, [x1,w0,uxtw #2]
+    14b8:	14000006 	b	14d0 <ra_get_parent+0x98>
+	case FIXED_RATE_TYPE:
+	case FIXED_FACTOR_TYPE:
+	case PLL_TYPE:
+	case DIV_TYPE:
+	case GATE_TYPE:
+		if (clk->pid == EMPTY_CLK_ID)
+    14bc:	b9400a60 	ldr	w0, [x19,#8]
+    14c0:	529fffe2 	mov	w2, #0xffff                	// #65535
+	struct cmucal_mux *mux;
+	unsigned int val;
+
+	clk = cmucal_get_node(id);
+	if (!clk)
+		return NULL;
+    14c4:	d2800001 	mov	x1, #0x0                   	// #0
+	case FIXED_RATE_TYPE:
+	case FIXED_FACTOR_TYPE:
+	case PLL_TYPE:
+	case DIV_TYPE:
+	case GATE_TYPE:
+		if (clk->pid == EMPTY_CLK_ID)
+    14c8:	6b02001f 	cmp	w0, w2
+    14cc:	540000a0 	b.eq	14e0 <ra_get_parent+0xa8>
+			parent = cmucal_get_node(clk->pid);
+		break;
+	case MUX_TYPE:
+		mux = to_mux_clk(clk);
+		val = ra_get_div_mux(clk);
+		parent = cmucal_get_node(mux->pid[val]);
+    14d0:	94000000 	bl	0 <cmucal_get_node>
+    14d4:	aa0003e1 	mov	x1, x0
+		break;
+    14d8:	14000002 	b	14e0 <ra_get_parent+0xa8>
+	default:
+		parent = NULL;
+    14dc:	d2800001 	mov	x1, #0x0                   	// #0
+		break;
+	}
+
+	return parent;
+}
+    14e0:	aa0103e0 	mov	x0, x1
+    14e4:	f9400bf3 	ldr	x19, [sp,#16]
+    14e8:	a8c27bfd 	ldp	x29, x30, [sp],#32
+    14ec:	d65f03c0 	ret
+
+00000000000014f0 <ra_recalc_rate.part.3>:
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ra_set_rate);
+
+unsigned int ra_recalc_rate(unsigned int id)
+    14f0:	a9b27bfd 	stp	x29, x30, [sp,#-224]!
+    14f4:	2a0003e1 	mov	w1, w0
+    14f8:	910003fd 	mov	x29, sp
+    14fc:	a9025bf5 	stp	x21, x22, [sp,#32]
+    1500:	90000015 	adrp	x21, 0 <__stack_chk_guard>
+    1504:	a90153f3 	stp	x19, x20, [sp,#16]
+    1508:	a90363f7 	stp	x23, x24, [sp,#48]
+    150c:	f94002a0 	ldr	x0, [x21]
+    1510:	2a0103f4 	mov	w20, w1
+    1514:	f9006fa0 	str	x0, [x29,#216]
+    1518:	d2800013 	mov	x19, #0x0                   	// #0
+		return 0;
+
+	cur = id;
+
+	for (depth = 0; depth < RECALC_MAX; depth++) {
+		clk_path[depth] = cur;
+    151c:	910163b7 	add	x23, x29, #0x58
+		clk = ra_get_parent(cur);
+    1520:	2a1403e0 	mov	w0, w20
+    1524:	f90027a1 	str	x1, [x29,#72]
+    1528:	2a1303f6 	mov	w22, w19
+		return 0;
+
+	cur = id;
+
+	for (depth = 0; depth < RECALC_MAX; depth++) {
+		clk_path[depth] = cur;
+    152c:	b8337af4 	str	w20, [x23,x19,lsl #2]
+		clk = ra_get_parent(cur);
+    1530:	94000000 	bl	1438 <ra_get_parent>
+		if (!clk)
+    1534:	b40001e0 	cbz	x0, 1570 <ra_recalc_rate.part.3+0x80>
+    1538:	91000673 	add	x19, x19, #0x1
+			break;
+		cur = clk->id;
+    153c:	b9400014 	ldr	w20, [x0]
+	if (GET_TYPE(id) > GATE_TYPE)
+		return 0;
+
+	cur = id;
+
+	for (depth = 0; depth < RECALC_MAX; depth++) {
+    1540:	f100827f 	cmp	x19, #0x20
+    1544:	f94027a1 	ldr	x1, [x29,#72]
+    1548:	54fffec1 	b.ne	1520 <ra_recalc_rate.part.3+0x30>
+			break;
+		cur = clk->id;
+	}
+
+	if (depth == RECALC_MAX) {
+		pr_err("recalc_rate overflow id:%x\n", id);
+    154c:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+    1550:	91000000 	add	x0, x0, #0x0
+    1554:	94000000 	bl	0 <printk>
+		return 0;
+    1558:	52800000 	mov	w0, #0x0                   	// #0
+
+		do_div(rate, ratio);
+	}
+
+	return rate;
+}
+    155c:	f9406fa2 	ldr	x2, [x29,#216]
+    1560:	f94002a1 	ldr	x1, [x21]
+    1564:	eb01005f 	cmp	x2, x1
+    1568:	54000440 	b.eq	15f0 <ra_recalc_rate.part.3+0x100>
+    156c:	94000000 	bl	0 <__stack_chk_fail>
+		pr_err("recalc_rate overflow id:%x\n", id);
+		return 0;
+	}
+
+	/* get root clock rate */
+	if (depth > 0 && IS_PLL(clk_path[depth-1]))
+    1570:	34000153 	cbz	w19, 1598 <ra_recalc_rate.part.3+0xa8>
+    1574:	510006d3 	sub	w19, w22, #0x1
+    1578:	52a06001 	mov	w1, #0x3000000             	// #50331648
+    157c:	b8735ae0 	ldr	w0, [x23,w19,uxtw #2]
+    1580:	12080c02 	and	w2, w0, #0xf000000
+    1584:	6b01005f 	cmp	w2, w1
+    1588:	54000081 	b.ne	1598 <ra_recalc_rate.part.3+0xa8>
+		rate = ra_get_value(clk_path[--depth]);
+    158c:	94000000 	bl	7f0 <ra_get_value>
+    1590:	2a0003f4 	mov	w20, w0
+    1594:	14000005 	b	15a8 <ra_recalc_rate.part.3+0xb8>
+	else
+		rate = ra_get_value(clk_path[depth]);
+    1598:	2a1403e0 	mov	w0, w20
+    159c:	2a1603f3 	mov	w19, w22
+    15a0:	94000000 	bl	7f0 <ra_get_value>
+    15a4:	2a0003f4 	mov	w20, w0
+
+	if (!rate)
+		return 0;
+    15a8:	52800000 	mov	w0, #0x0                   	// #0
+	if (depth > 0 && IS_PLL(clk_path[depth-1]))
+		rate = ra_get_value(clk_path[--depth]);
+	else
+		rate = ra_get_value(clk_path[depth]);
+
+	if (!rate)
+    15ac:	b4fffd94 	cbz	x20, 155c <ra_recalc_rate.part.3+0x6c>
+
+	/* calc request clock node rate */
+	for (; depth > 0; --depth) {
+		cur = clk_path[depth-1];
+
+		if (IS_FIXED_FACTOR(cur) || IS_DIV(cur))
+    15b0:	52a0a016 	mov	w22, #0x5000000             	// #83886080
+    15b4:	52a04018 	mov	w24, #0x2000000             	// #33554432
+
+	if (!rate)
+		return 0;
+
+	/* calc request clock node rate */
+	for (; depth > 0; --depth) {
+    15b8:	34000193 	cbz	w19, 15e8 <ra_recalc_rate.part.3+0xf8>
+		cur = clk_path[depth-1];
+    15bc:	51000673 	sub	w19, w19, #0x1
+    15c0:	b8735ae0 	ldr	w0, [x23,w19,uxtw #2]
+
+		if (IS_FIXED_FACTOR(cur) || IS_DIV(cur))
+    15c4:	12080c01 	and	w1, w0, #0xf000000
+    15c8:	6b16003f 	cmp	w1, w22
+    15cc:	54000060 	b.eq	15d8 <ra_recalc_rate.part.3+0xe8>
+    15d0:	6b18003f 	cmp	w1, w24
+    15d4:	54ffff21 	b.ne	15b8 <ra_recalc_rate.part.3+0xc8>
+			ratio = ra_get_value(cur) + 1;
+    15d8:	94000000 	bl	7f0 <ra_get_value>
+		else
+			continue;
+
+		do_div(rate, ratio);
+    15dc:	11000400 	add	w0, w0, #0x1
+    15e0:	9ac00a94 	udiv	x20, x20, x0
+    15e4:	17fffff5 	b	15b8 <ra_recalc_rate.part.3+0xc8>
+	}
+
+	return rate;
+    15e8:	2a1403e0 	mov	w0, w20
+    15ec:	17ffffdc 	b	155c <ra_recalc_rate.part.3+0x6c>
+}
+    15f0:	a94153f3 	ldp	x19, x20, [sp,#16]
+    15f4:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    15f8:	a94363f7 	ldp	x23, x24, [sp,#48]
+    15fc:	a8ce7bfd 	ldp	x29, x30, [sp],#224
+    1600:	d65f03c0 	ret
+
+0000000000001604 <ra_recalc_rate>:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ra_set_rate);
+
+unsigned int ra_recalc_rate(unsigned int id)
+{
+    1604:	a9bf7bfd 	stp	x29, x30, [sp,#-16]!
+	unsigned int cur;
+	unsigned int clk_path[RECALC_MAX];
+	unsigned int depth, ratio;
+	unsigned long rate;
+
+	if (GET_TYPE(id) > GATE_TYPE)
+    1608:	12080c03 	and	w3, w0, #0xf000000
+    160c:	52a0c002 	mov	w2, #0x6000000             	// #100663296
+    1610:	6b02007f 	cmp	w3, w2
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ra_set_rate);
+
+unsigned int ra_recalc_rate(unsigned int id)
+{
+    1614:	910003fd 	mov	x29, sp
+	unsigned int clk_path[RECALC_MAX];
+	unsigned int depth, ratio;
+	unsigned long rate;
+
+	if (GET_TYPE(id) > GATE_TYPE)
+		return 0;
+    1618:	52800001 	mov	w1, #0x0                   	// #0
+	unsigned int cur;
+	unsigned int clk_path[RECALC_MAX];
+	unsigned int depth, ratio;
+	unsigned long rate;
+
+	if (GET_TYPE(id) > GATE_TYPE)
+    161c:	54000068 	b.hi	1628 <ra_recalc_rate+0x24>
+    1620:	97ffffb4 	bl	14f0 <ra_recalc_rate.part.3>
+    1624:	2a0003e1 	mov	w1, w0
+
+		do_div(rate, ratio);
+	}
+
+	return rate;
+}
+    1628:	2a0103e0 	mov	w0, w1
+    162c:	a8c17bfd 	ldp	x29, x30, [sp],#16
+    1630:	d65f03c0 	ret
+
+0000000000001634 <ra_set_rate>:
+	return parent;
+}
+EXPORT_SYMBOL_GPL(ra_get_parent);
+
+int ra_set_rate(unsigned int id, unsigned int rate)
+{
+    1634:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+    1638:	910003fd 	mov	x29, sp
+    163c:	a90153f3 	stp	x19, x20, [sp,#16]
+    1640:	a9025bf5 	stp	x21, x22, [sp,#32]
+    1644:	2a0103f4 	mov	w20, w1
+    1648:	2a0003f5 	mov	w21, w0
+	struct cmucal_clk *clk;
+	int ret = 0;
+
+	clk = cmucal_get_node(id);
+    164c:	94000000 	bl	0 <cmucal_get_node>
+    1650:	aa0003f3 	mov	x19, x0
+	if (!clk)
+    1654:	b4000a40 	cbz	x0, 179c <ra_set_rate+0x168>
+		return -EVCLKINVAL;
+
+	switch (GET_TYPE(clk->id)) {
+    1658:	b9400002 	ldr	w2, [x0]
+    165c:	52a08001 	mov	w1, #0x4000000             	// #67108864
+    1660:	12080c42 	and	w2, w2, #0xf000000
+    1664:	6b01005f 	cmp	w2, w1
+    1668:	54000580 	b.eq	1718 <ra_set_rate+0xe4>
+    166c:	52a0a001 	mov	w1, #0x5000000             	// #83886080
+    1670:	6b01005f 	cmp	w2, w1
+    1674:	54000100 	b.eq	1694 <ra_set_rate+0x60>
+    1678:	52a06001 	mov	w1, #0x3000000             	// #50331648
+    167c:	6b01005f 	cmp	w2, w1
+    1680:	54000841 	b.ne	1788 <ra_set_rate+0x154>
+	case PLL_TYPE:
+		ret = ra_set_pll(clk, rate/1000);
+    1684:	52807d01 	mov	w1, #0x3e8                 	// #1000
+    1688:	1ac10a81 	udiv	w1, w20, w1
+    168c:	97fffd0b 	bl	ab8 <ra_set_pll>
+		break;
+    1690:	14000044 	b	17a0 <ra_set_rate+0x16c>
+	unsigned int p_rate;
+	unsigned int ratio, max_ratio;
+	unsigned int diff1, diff2;
+	int ret = -EVCLKINVAL;
+
+	if (rate == 0)
+    1694:	34000854 	cbz	w20, 179c <ra_set_rate+0x168>
+		return ret;
+
+	p_rate = ra_recalc_rate(clk->pid);
+    1698:	b9400800 	ldr	w0, [x0,#8]
+    169c:	94000000 	bl	1604 <ra_recalc_rate>
+    16a0:	2a0003e2 	mov	w2, w0
+
+	if (p_rate == 0)
+    16a4:	340007c0 	cbz	w0, 179c <ra_set_rate+0x168>
+		return ret;
+
+	max_ratio = width_to_mask(clk->width) + 1;
+    16a8:	3940c665 	ldrb	w5, [x19,#49]
+    16ac:	52800020 	mov	w0, #0x1                   	// #1
+
+	ratio = p_rate / rate;
+    16b0:	1ad40844 	udiv	w4, w2, w20
+	p_rate = ra_recalc_rate(clk->pid);
+
+	if (p_rate == 0)
+		return ret;
+
+	max_ratio = width_to_mask(clk->width) + 1;
+    16b4:	1ac52005 	lsl	w5, w0, w5
+
+	ratio = p_rate / rate;
+
+	if (ratio > 0 && ratio <= max_ratio) {
+    16b8:	6b05009f 	cmp	w4, w5
+    16bc:	54000188 	b.hi	16ec <ra_set_rate+0xb8>
+    16c0:	34000164 	cbz	w4, 16ec <ra_set_rate+0xb8>
+		if (p_rate % rate) {
+    16c4:	1b147c83 	mul	w3, w4, w20
+    16c8:	6b030040 	subs	w0, w2, w3
+    16cc:	540000a0 	b.eq	16e0 <ra_set_rate+0xac>
+			diff1 = p_rate - (ratio * rate);
+			diff2 = ratio * rate + rate - p_rate;
+    16d0:	0b140063 	add	w3, w3, w20
+    16d4:	4b020063 	sub	w3, w3, w2
+			if (diff1 > diff2) {
+    16d8:	6b03001f 	cmp	w0, w3
+    16dc:	540000a8 	b.hi	16f0 <ra_set_rate+0xbc>
+				ret = ra_set_div_mux(clk, ratio);
+				return ret;
+			}
+		}
+
+		ret = ra_set_div_mux(clk, ratio - 1);
+    16e0:	aa1303e0 	mov	x0, x19
+    16e4:	51000481 	sub	w1, w4, #0x1
+    16e8:	14000004 	b	16f8 <ra_set_rate+0xc4>
+	} else if (ratio == 0) {
+    16ec:	350000a4 	cbnz	w4, 1700 <ra_set_rate+0xcc>
+		ret = ra_set_div_mux(clk, ratio);
+    16f0:	aa1303e0 	mov	x0, x19
+    16f4:	2a0403e1 	mov	w1, w4
+    16f8:	97fffac8 	bl	218 <ra_set_div_mux>
+    16fc:	14000029 	b	17a0 <ra_set_rate+0x16c>
+	} else {
+		pr_err("failed div_rate %s %u:%u:%u:%u\n",
+    1700:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+    1704:	f9400a61 	ldr	x1, [x19,#16]
+    1708:	2a1403e3 	mov	w3, w20
+    170c:	91000000 	add	x0, x0, #0x0
+    1710:	94000000 	bl	0 <printk>
+    1714:	14000022 	b	179c <ra_set_rate+0x168>
+	unsigned int p_rate, sel = 0;
+	unsigned int diff, min_diff = 0xFFFFFFFF;
+	int i;
+	int ret = -EVCLKINVAL;
+
+	if (rate == 0)
+    1718:	34000434 	cbz	w20, 179c <ra_set_rate+0x168>
+    171c:	52800015 	mov	w21, #0x0                   	// #0
+    1720:	12800016 	mov	w22, #0xffffffff            	// #-1
+    1724:	2a1503e1 	mov	w1, w21
+		return ret;
+
+	mux = to_mux_clk(clk);
+
+	for (i = 0; i < mux->num_parents; i++) {
+    1728:	39410260 	ldrb	w0, [x19,#64]
+    172c:	6b0002bf 	cmp	w21, w0
+    1730:	5400028a 	b.ge	1780 <ra_set_rate+0x14c>
+		p_rate = ra_recalc_rate(mux->pid[i]);
+    1734:	f9401e60 	ldr	x0, [x19,#56]
+    1738:	f9001fa1 	str	x1, [x29,#56]
+    173c:	b875d800 	ldr	w0, [x0,w21,sxtw #2]
+    1740:	94000000 	bl	1604 <ra_recalc_rate>
+
+		if (p_rate == rate) {
+    1744:	6b14001f 	cmp	w0, w20
+    1748:	f9401fa1 	ldr	x1, [x29,#56]
+    174c:	54000061 	b.ne	1758 <ra_set_rate+0x124>
+			sel = i;
+    1750:	2a1503e1 	mov	w1, w21
+    1754:	1400000b 	b	1780 <ra_set_rate+0x14c>
+			break;
+		}
+
+		diff = abs(p_rate - rate);
+    1758:	4b140000 	sub	w0, w0, w20
+    175c:	93407c00 	sxtw	x0, w0
+    1760:	ca80fc02 	eor	x2, x0, x0, asr #63
+    1764:	cb80fc40 	sub	x0, x2, x0, asr #63
+		if (diff < min_diff) {
+    1768:	6b16001f 	cmp	w0, w22
+    176c:	54000062 	b.cs	1778 <ra_set_rate+0x144>
+			min_diff = diff;
+			sel = i;
+    1770:	2a1503e1 	mov	w1, w21
+    1774:	2a0003f6 	mov	w22, w0
+	if (rate == 0)
+		return ret;
+
+	mux = to_mux_clk(clk);
+
+	for (i = 0; i < mux->num_parents; i++) {
+    1778:	110006b5 	add	w21, w21, #0x1
+    177c:	17ffffeb 	b	1728 <ra_set_rate+0xf4>
+	}
+
+	if (i == mux->num_parents)
+		pr_debug("approximately select %s %u:%u:%u\n",
+			 clk->name, rate, min_diff, sel);
+	ret = ra_set_div_mux(clk, sel);
+    1780:	aa1303e0 	mov	x0, x19
+    1784:	17ffffdd 	b	16f8 <ra_set_rate+0xc4>
+		break;
+	case MUX_TYPE:
+		ret = ra_set_mux_rate(clk, rate);
+		break;
+	default:
+		pr_err("Un-support clk type %x, rate = %u\n", id, rate);
+    1788:	90000000 	adrp	x0, 0 <ra_get_div_mux>
+    178c:	2a1503e1 	mov	w1, w21
+    1790:	91000000 	add	x0, x0, #0x0
+    1794:	2a1403e2 	mov	w2, w20
+    1798:	94000000 	bl	0 <printk>
+		ret = -EVCLKINVAL;
+    179c:	128002a0 	mov	w0, #0xffffffea            	// #-22
+		break;
+	}
+
+	return ret;
+}
+    17a0:	a94153f3 	ldp	x19, x20, [sp,#16]
+    17a4:	a9425bf5 	ldp	x21, x22, [sp,#32]
+    17a8:	a8c47bfd 	ldp	x29, x30, [sp],#64
+    17ac:	d65f03c0 	ret
+
+Disassembly of section .init.text:
+
+0000000000000000 <ra_get_sfr_address>:
+
+static unsigned int __init ra_get_sfr_address(unsigned short idx,
+			       void __iomem **addr,
+			       unsigned char *shift,
+			       unsigned char *width)
+{
+   0:	a9bc7bfd 	stp	x29, x30, [sp,#-64]!
+   4:	910003fd 	mov	x29, sp
+   8:	a9025bf5 	stp	x21, x22, [sp,#32]
+   c:	53003c15 	uxth	w21, w0
+	struct sfr_access *field;
+	struct sfr *reg;
+	struct sfr_block *block;
+
+	field = cmucal_get_sfr_node(idx | SFR_ACCESS_TYPE);
+  10:	52a14000 	mov	w0, #0xa000000             	// #167772160
+  14:	2a0002a0 	orr	w0, w21, w0
+
+static unsigned int __init ra_get_sfr_address(unsigned short idx,
+			       void __iomem **addr,
+			       unsigned char *shift,
+			       unsigned char *width)
+{
+  18:	f9001ba2 	str	x2, [x29,#48]
+  1c:	a90153f3 	stp	x19, x20, [sp,#16]
+  20:	f9001fa3 	str	x3, [x29,#56]
+  24:	aa0103f6 	mov	x22, x1
+	struct sfr_access *field;
+	struct sfr *reg;
+	struct sfr_block *block;
+
+	field = cmucal_get_sfr_node(idx | SFR_ACCESS_TYPE);
+  28:	94000000 	bl	0 <cmucal_get_sfr_node>
+  2c:	aa0003f3 	mov	x19, x0
+	if (!field) {
+  30:	f9401fa3 	ldr	x3, [x29,#56]
+  34:	f9401ba2 	ldr	x2, [x29,#48]
+  38:	b5000100 	cbnz	x0, 58 <ra_get_sfr_address+0x58>
+		pr_info("%s:failed idx:%x\n", __func__, idx);
+  3c:	90000000 	adrp	x0, 0 <ra_get_sfr_address>
+  40:	90000001 	adrp	x1, 0 <ra_get_sfr_address>
+  44:	91000021 	add	x1, x1, #0x0
+  48:	2a1503e2 	mov	w2, w21
+  4c:	91000000 	add	x0, x0, #0x0
+  50:	94000000 	bl	0 <printk>
+  54:	14000020 	b	d4 <ra_get_sfr_address+0xd4>
+		return 0;
+	}
+	*shift = field->shift;
+  58:	39404000 	ldrb	w0, [x0,#16]
+  5c:	39000040 	strb	w0, [x2]
+	*width = field->width;
+  60:	39404660 	ldrb	w0, [x19,#17]
+  64:	39000060 	strb	w0, [x3]
+
+	reg = cmucal_get_sfr_node(field->sfr | SFR_TYPE);
+  68:	52a12000 	mov	w0, #0x9000000             	// #150994944
+  6c:	b9401661 	ldr	w1, [x19,#20]
+  70:	2a000020 	orr	w0, w1, w0
+  74:	94000000 	bl	0 <cmucal_get_sfr_node>
+  78:	aa0003f4 	mov	x20, x0
+	if (!reg) {
+  7c:	b5000140 	cbnz	x0, a4 <ra_get_sfr_address+0xa4>
+		pr_info("%s:failed idx:%x sfr:%x\n", __func__, idx, field->sfr);
+  80:	90000000 	adrp	x0, 0 <ra_get_sfr_address>
+  84:	90000001 	adrp	x1, 0 <ra_get_sfr_address>
+  88:	b9401663 	ldr	w3, [x19,#20]
+  8c:	91000000 	add	x0, x0, #0x0
+  90:	91000021 	add	x1, x1, #0x0
+  94:	2a1503e2 	mov	w2, w21
+  98:	94000000 	bl	0 <printk>
+		return 0;
+  9c:	2a1403e0 	mov	w0, w20
+  a0:	14000016 	b	f8 <ra_get_sfr_address+0xf8>
+	}
+
+	block = cmucal_get_sfr_node(reg->block | SFR_BLOCK_TYPE);
+  a4:	b9401400 	ldr	w0, [x0,#20]
+  a8:	32050000 	orr	w0, w0, #0x8000000
+  ac:	94000000 	bl	0 <cmucal_get_sfr_node>
+  b0:	aa0003f3 	mov	x19, x0
+	if (!reg || !block) {
+  b4:	b5000140 	cbnz	x0, dc <ra_get_sfr_address+0xdc>
+		pr_info("%s:failed idx:%x reg:%x\n", __func__, idx, reg->block);
+  b8:	90000000 	adrp	x0, 0 <ra_get_sfr_address>
+  bc:	90000001 	adrp	x1, 0 <ra_get_sfr_address>
+  c0:	b9401683 	ldr	w3, [x20,#20]
+  c4:	91000000 	add	x0, x0, #0x0
+  c8:	91000021 	add	x1, x1, #0x0
+  cc:	2a1503e2 	mov	w2, w21
+  d0:	94000000 	bl	0 <printk>
+		return 0;
+  d4:	2a1303e0 	mov	w0, w19
+  d8:	14000008 	b	f8 <ra_get_sfr_address+0xf8>
+	}
+	*addr = block->va + reg->offset;
+  dc:	f9400e61 	ldr	x1, [x19,#24]
+  e0:	b9401280 	ldr	w0, [x20,#16]
+  e4:	8b000020 	add	x0, x1, x0
+  e8:	f90002c0 	str	x0, [x22]
+
+	return block->pa + reg->offset;
+  ec:	f9400a61 	ldr	x1, [x19,#16]
+  f0:	b9401293 	ldr	w19, [x20,#16]
+  f4:	0b010260 	add	w0, w19, w1
+}
+  f8:	a94153f3 	ldp	x19, x20, [sp,#16]
+  fc:	a9425bf5 	ldp	x21, x22, [sp,#32]
+ 100:	a8c47bfd 	ldp	x29, x30, [sp],#64
+ 104:	d65f03c0 	ret
+
+0000000000000108 <ra_init>:
+	return rate;
+}
+EXPORT_SYMBOL_GPL(ra_recalc_rate);
+
+int __init ra_init(void)
+{
+ 108:	a9bb7bfd 	stp	x29, x30, [sp,#-80]!
+	int i;
+	int size;
+	struct cmucal_qch *qch;
+
+	/* convert physical address to virtual address */
+	size = cmucal_get_list_size(SFR_BLOCK_TYPE);
+ 10c:	52a10000 	mov	w0, #0x8000000             	// #134217728
+	return rate;
+}
+EXPORT_SYMBOL_GPL(ra_recalc_rate);
+
+int __init ra_init(void)
+{
+ 110:	910003fd 	mov	x29, sp
+ 114:	a90153f3 	stp	x19, x20, [sp,#16]
+ 118:	a9025bf5 	stp	x21, x22, [sp,#32]
+ 11c:	a90363f7 	stp	x23, x24, [sp,#48]
+ 120:	a9046bf9 	stp	x25, x26, [sp,#64]
+	int size;
+	struct cmucal_qch *qch;
+
+	/* convert physical address to virtual address */
+	size = cmucal_get_list_size(SFR_BLOCK_TYPE);
+	for (i = 0; i < size; i++) {
+ 124:	52800013 	mov	w19, #0x0                   	// #0
+	int i;
+	int size;
+	struct cmucal_qch *qch;
+
+	/* convert physical address to virtual address */
+	size = cmucal_get_list_size(SFR_BLOCK_TYPE);
+ 128:	94000000 	bl	0 <cmucal_get_list_size>
+ 12c:	2a0003f5 	mov	w21, w0
+	for (i = 0; i < size; i++) {
+ 130:	6b15027f 	cmp	w19, w21
+ 134:	540001ca 	b.ge	16c <ra_init+0x64>
+		block = cmucal_get_sfr_node(i | SFR_BLOCK_TYPE);
+ 138:	32050260 	orr	w0, w19, #0x8000000
+ 13c:	94000000 	bl	0 <cmucal_get_sfr_node>
+ 140:	aa0003f4 	mov	x20, x0
+		if (block && block->pa)
+ 144:	b4000100 	cbz	x0, 164 <ra_init+0x5c>
+ 148:	f9400800 	ldr	x0, [x0,#16]
+ 14c:	b40000c0 	cbz	x0, 164 <ra_init+0x5c>
+			block->va = ioremap(block->pa, block->size);
+ 150:	d280e0e2 	mov	x2, #0x707                 	// #1799
+ 154:	b9402281 	ldr	w1, [x20,#32]
+ 158:	f2e01d02 	movk	x2, #0xe8, lsl #48
+ 15c:	94000000 	bl	0 <__ioremap>
+ 160:	f9000e80 	str	x0, [x20,#24]
+	int size;
+	struct cmucal_qch *qch;
+
+	/* convert physical address to virtual address */
+	size = cmucal_get_list_size(SFR_BLOCK_TYPE);
+	for (i = 0; i < size; i++) {
+ 164:	11000673 	add	w19, w19, #0x1
+ 168:	17fffff2 	b	130 <ra_init+0x28>
+		block = cmucal_get_sfr_node(i | SFR_BLOCK_TYPE);
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+ 16c:	52a06000 	mov	w0, #0x3000000             	// #50331648
+	struct cmucal_pll_table *table;
+	struct ect_pll *pll_unit;
+	struct ect_pll_frequency *pll_frequency;
+	int i;
+
+	pll_block = ect_get_block(BLOCK_PLL);
+ 170:	90000016 	adrp	x22, 0 <ra_get_sfr_address>
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+	for (i = 0; i < size; i++) {
+ 174:	52800015 	mov	w21, #0x0                   	// #0
+			   &clk->pll_con0,
+			   &pll->s_shift,
+			   &pll->s_width);
+
+	/* k_div */
+	if (pll->k_idx != EMPTY_CAL_ID)
+ 178:	529ffff9 	mov	w25, #0xffff                	// #65535
+		block = cmucal_get_sfr_node(i | SFR_BLOCK_TYPE);
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+ 17c:	94000000 	bl	0 <cmucal_get_list_size>
+	struct cmucal_pll_table *table;
+	struct ect_pll *pll_unit;
+	struct ect_pll_frequency *pll_frequency;
+	int i;
+
+	pll_block = ect_get_block(BLOCK_PLL);
+ 180:	910002d6 	add	x22, x22, #0x0
+		block = cmucal_get_sfr_node(i | SFR_BLOCK_TYPE);
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+ 184:	2a0003f8 	mov	w24, w0
+
+	pll_unit = ect_pll_get_pll(pll_block, clk->name);
+	if (!pll_unit)
+		return;
+
+	table = kzalloc(sizeof(struct cmucal_pll_table) * pll_unit->num_of_frequency,
+ 188:	52800197 	mov	w23, #0xc                   	// #12
+			GFP_KERNEL);
+	if (!table)
+		return;
+
+	for (i = 0; i < pll_unit->num_of_frequency; ++i) {
+		pll_frequency = &pll_unit->frequency_list[i];
+ 18c:	5280029a 	mov	w26, #0x14                  	// #20
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+	for (i = 0; i < size; i++) {
+ 190:	6b1802bf 	cmp	w21, w24
+ 194:	54000aea 	b.ge	2f0 <ra_init+0x1e8>
+		clk = cmucal_get_node(i | PLL_TYPE);
+ 198:	320806a0 	orr	w0, w21, #0x3000000
+ 19c:	94000000 	bl	0 <cmucal_get_node>
+ 1a0:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 1a4:	b4000a20 	cbz	x0, 2e8 <ra_init+0x1e0>
+static void ra_get_pll_address(struct cmucal_clk *clk)
+{
+	struct cmucal_pll *pll = to_pll_clk(clk);
+
+	/* lock_div */
+	ra_get_sfr_address(clk->offset_idx,
+ 1a8:	aa0003e1 	mov	x1, x0
+ 1ac:	9100c262 	add	x2, x19, #0x30
+ 1b0:	9100c663 	add	x3, x19, #0x31
+			   &clk->lock,
+			   &clk->shift,
+			   &clk->width);
+	/* enable_div */
+	clk->paddr = ra_get_sfr_address(clk->enable_idx,
+ 1b4:	91008274 	add	x20, x19, #0x20
+static void ra_get_pll_address(struct cmucal_clk *clk)
+{
+	struct cmucal_pll *pll = to_pll_clk(clk);
+
+	/* lock_div */
+	ra_get_sfr_address(clk->offset_idx,
+ 1b8:	78418c20 	ldrh	w0, [x1,#24]!
+ 1bc:	97ffff91 	bl	0 <ra_get_sfr_address>
+			   &clk->lock,
+			   &clk->shift,
+			   &clk->width);
+	/* enable_div */
+	clk->paddr = ra_get_sfr_address(clk->enable_idx,
+ 1c0:	79404260 	ldrh	w0, [x19,#32]
+ 1c4:	aa1403e1 	mov	x1, x20
+ 1c8:	9100d262 	add	x2, x19, #0x34
+ 1cc:	9100d663 	add	x3, x19, #0x35
+ 1d0:	97ffff8c 	bl	0 <ra_get_sfr_address>
+ 1d4:	b9000660 	str	w0, [x19,#4]
+					&clk->pll_con0,
+					&clk->e_shift,
+					&clk->e_width);
+
+	/* status_div */
+	ra_get_sfr_address(clk->status_idx,
+ 1d8:	79405260 	ldrh	w0, [x19,#40]
+ 1dc:	aa1403e1 	mov	x1, x20
+ 1e0:	9100ca62 	add	x2, x19, #0x32
+ 1e4:	9100ce63 	add	x3, x19, #0x33
+ 1e8:	97ffff86 	bl	0 <ra_get_sfr_address>
+			   &clk->pll_con0,
+			   &clk->s_shift,
+			   &clk->s_width);
+
+	/* m_div */
+	ra_get_sfr_address(pll->m_idx,
+ 1ec:	7940b260 	ldrh	w0, [x19,#88]
+ 1f0:	aa1403e1 	mov	x1, x20
+ 1f4:	91019662 	add	x2, x19, #0x65
+ 1f8:	9101a663 	add	x3, x19, #0x69
+ 1fc:	97ffff81 	bl	0 <ra_get_sfr_address>
+			   &clk->pll_con0,
+			   &pll->m_shift,
+			   &pll->m_width);
+
+	/* p_div */
+	ra_get_sfr_address(pll->p_idx,
+ 200:	7940aa60 	ldrh	w0, [x19,#84]
+ 204:	aa1403e1 	mov	x1, x20
+ 208:	91019262 	add	x2, x19, #0x64
+ 20c:	9101a263 	add	x3, x19, #0x68
+ 210:	97ffff7c 	bl	0 <ra_get_sfr_address>
+			   &clk->pll_con0,
+			   &pll->p_shift,
+			   &pll->p_width);
+
+	/* s_div */
+	ra_get_sfr_address(pll->s_idx,
+ 214:	7940ba60 	ldrh	w0, [x19,#92]
+ 218:	aa1403e1 	mov	x1, x20
+ 21c:	91019a62 	add	x2, x19, #0x66
+ 220:	9101aa63 	add	x3, x19, #0x6a
+ 224:	97ffff77 	bl	0 <ra_get_sfr_address>
+			   &clk->pll_con0,
+			   &pll->s_shift,
+			   &pll->s_width);
+
+	/* k_div */
+	if (pll->k_idx != EMPTY_CAL_ID)
+ 228:	b9406260 	ldr	w0, [x19,#96]
+ 22c:	6b19001f 	cmp	w0, w25
+ 230:	540000c0 	b.eq	248 <ra_init+0x140>
+		ra_get_sfr_address(pll->k_idx,
+ 234:	9100a261 	add	x1, x19, #0x28
+ 238:	91019e62 	add	x2, x19, #0x67
+ 23c:	9101ae63 	add	x3, x19, #0x6b
+ 240:	97ffff70 	bl	0 <ra_get_sfr_address>
+ 244:	14000002 	b	24c <ra_init+0x144>
+				   &clk->pll_con1,
+				   &pll->k_shift,
+				   &pll->k_width);
+	else
+		clk->pll_con1 = NULL;
+ 248:	f900167f 	str	xzr, [x19,#40]
+	struct cmucal_pll_table *table;
+	struct ect_pll *pll_unit;
+	struct ect_pll_frequency *pll_frequency;
+	int i;
+
+	pll_block = ect_get_block(BLOCK_PLL);
+ 24c:	aa1603e0 	mov	x0, x22
+ 250:	94000000 	bl	0 <ect_get_block>
+	if (!pll_block)
+ 254:	b4000460 	cbz	x0, 2e0 <ra_init+0x1d8>
+		return;
+
+	pll_unit = ect_pll_get_pll(pll_block, clk->name);
+ 258:	f9400a61 	ldr	x1, [x19,#16]
+ 25c:	94000000 	bl	0 <ect_pll_get_pll>
+ 260:	aa0003f4 	mov	x20, x0
+	if (!pll_unit)
+ 264:	b40003e0 	cbz	x0, 2e0 <ra_init+0x1d8>
+		return;
+
+	table = kzalloc(sizeof(struct cmucal_pll_table) * pll_unit->num_of_frequency,
+ 268:	b9401000 	ldr	w0, [x0,#16]
+			return kmem_cache_alloc_trace(kmalloc_caches[index],
+					flags, size);
+		}
+#endif
+	}
+	return __kmalloc(size, flags);
+ 26c:	52901801 	mov	w1, #0x80c0                	// #32960
+ 270:	72a04801 	movk	w1, #0x240, lsl #16
+ 274:	9b377c00 	smull	x0, w0, w23
+ 278:	94000000 	bl	0 <__kmalloc>
+			GFP_KERNEL);
+	if (!table)
+ 27c:	52800001 	mov	w1, #0x0                   	// #0
+ 280:	b4000300 	cbz	x0, 2e0 <ra_init+0x1d8>
+		return;
+
+	for (i = 0; i < pll_unit->num_of_frequency; ++i) {
+ 284:	b9401282 	ldr	w2, [x20,#16]
+ 288:	6b02003f 	cmp	w1, w2
+ 28c:	5400024a 	b.ge	2d4 <ra_init+0x1cc>
+		pll_frequency = &pll_unit->frequency_list[i];
+ 290:	f9400e86 	ldr	x6, [x20,#24]
+ 294:	9b3a7c25 	smull	x5, w1, w26
+
+		table[i].rate = pll_frequency->frequency;
+ 298:	9b377c24 	smull	x4, w1, w23
+			GFP_KERNEL);
+	if (!table)
+		return;
+
+	for (i = 0; i < pll_unit->num_of_frequency; ++i) {
+		pll_frequency = &pll_unit->frequency_list[i];
+ 29c:	8b0500c3 	add	x3, x6, x5
+	table = kzalloc(sizeof(struct cmucal_pll_table) * pll_unit->num_of_frequency,
+			GFP_KERNEL);
+	if (!table)
+		return;
+
+	for (i = 0; i < pll_unit->num_of_frequency; ++i) {
+ 2a0:	11000421 	add	w1, w1, #0x1
+		pll_frequency = &pll_unit->frequency_list[i];
+
+		table[i].rate = pll_frequency->frequency;
+ 2a4:	b86568c5 	ldr	w5, [x6,x5]
+ 2a8:	8b040002 	add	x2, x0, x4
+ 2ac:	b8246805 	str	w5, [x0,x4]
+		table[i].pdiv = pll_frequency->p;
+ 2b0:	b9400464 	ldr	w4, [x3,#4]
+ 2b4:	79000844 	strh	w4, [x2,#4]
+		table[i].mdiv = pll_frequency->m;
+ 2b8:	b9400864 	ldr	w4, [x3,#8]
+ 2bc:	79000c44 	strh	w4, [x2,#6]
+		table[i].sdiv = pll_frequency->s;
+ 2c0:	b9400c64 	ldr	w4, [x3,#12]
+ 2c4:	79001044 	strh	w4, [x2,#8]
+		table[i].kdiv = pll_frequency->k;
+ 2c8:	b9401063 	ldr	w3, [x3,#16]
+ 2cc:	79001443 	strh	w3, [x2,#10]
+ 2d0:	17ffffed 	b	284 <ra_init+0x17c>
+	}
+
+	pll->rate_table = table;
+ 2d4:	f9002260 	str	x0, [x19,#64]
+	pll->rate_count = pll_unit->num_of_frequency;
+ 2d8:	b9401280 	ldr	w0, [x20,#16]
+ 2dc:	b9004a60 	str	w0, [x19,#72]
+
+		ra_get_pll_address(clk);
+
+		ra_get_pll_rate_table(clk);
+
+		pll_get_locktime(to_pll_clk(clk));
+ 2e0:	aa1303e0 	mov	x0, x19
+ 2e4:	94000000 	bl	0 <pll_get_locktime>
+		if (block && block->pa)
+			block->va = ioremap(block->pa, block->size);
+	}
+
+	size = cmucal_get_list_size(PLL_TYPE);
+	for (i = 0; i < size; i++) {
+ 2e8:	110006b5 	add	w21, w21, #0x1
+ 2ec:	17ffffa9 	b	190 <ra_init+0x88>
+		ra_get_pll_rate_table(clk);
+
+		pll_get_locktime(to_pll_clk(clk));
+	}
+
+	size = cmucal_get_list_size(MUX_TYPE);
+ 2f0:	52a08000 	mov	w0, #0x4000000             	// #67108864
+	for (i = 0; i < size; i++) {
+ 2f4:	52800014 	mov	w20, #0x0                   	// #0
+		clk = cmucal_get_node(i | MUX_TYPE);
+		if (!clk)
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 2f8:	d29ffff5 	mov	x21, #0xffff                	// #65535
+		ra_get_pll_rate_table(clk);
+
+		pll_get_locktime(to_pll_clk(clk));
+	}
+
+	size = cmucal_get_list_size(MUX_TYPE);
+ 2fc:	94000000 	bl	0 <cmucal_get_list_size>
+ 300:	2a0003f6 	mov	w22, w0
+	for (i = 0; i < size; i++) {
+ 304:	6b16029f 	cmp	w20, w22
+ 308:	5400046a 	b.ge	394 <ra_init+0x28c>
+		clk = cmucal_get_node(i | MUX_TYPE);
+ 30c:	32060280 	orr	w0, w20, #0x4000000
+ 310:	94000000 	bl	0 <cmucal_get_node>
+ 314:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 318:	b40003a0 	cbz	x0, 38c <ra_init+0x284>
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 31c:	f9400c00 	ldr	x0, [x0,#24]
+ 320:	eb2022bf 	cmp	x21, w0, uxth
+ 324:	540000e0 	b.eq	340 <ra_init+0x238>
+			clk->paddr = ra_get_sfr_address(clk->offset_idx,
+ 328:	91006261 	add	x1, x19, #0x18
+ 32c:	9100c262 	add	x2, x19, #0x30
+ 330:	9100c663 	add	x3, x19, #0x31
+ 334:	97ffff33 	bl	0 <ra_get_sfr_address>
+ 338:	b9000660 	str	w0, [x19,#4]
+ 33c:	14000002 	b	344 <ra_init+0x23c>
+							&clk->offset,
+							&clk->shift,
+							&clk->width);
+		else
+			clk->offset = NULL;
+ 340:	f9000e7f 	str	xzr, [x19,#24]
+
+		if (GET_IDX(clk->status_idx) != EMPTY_CAL_ID)
+ 344:	f9401660 	ldr	x0, [x19,#40]
+ 348:	eb2022bf 	cmp	x21, w0, uxth
+ 34c:	540000c0 	b.eq	364 <ra_init+0x25c>
+			ra_get_sfr_address(clk->status_idx,
+ 350:	9100a261 	add	x1, x19, #0x28
+ 354:	9100ca62 	add	x2, x19, #0x32
+ 358:	9100ce63 	add	x3, x19, #0x33
+ 35c:	97ffff29 	bl	0 <ra_get_sfr_address>
+ 360:	14000002 	b	368 <ra_init+0x260>
+					   &clk->status,
+					   &clk->s_shift,
+					   &clk->s_width);
+		else
+			clk->status = NULL;
+ 364:	f900167f 	str	xzr, [x19,#40]
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 368:	f9401260 	ldr	x0, [x19,#32]
+ 36c:	eb2022bf 	cmp	x21, w0, uxth
+ 370:	540000c0 	b.eq	388 <ra_init+0x280>
+			ra_get_sfr_address(clk->enable_idx,
+ 374:	91008261 	add	x1, x19, #0x20
+ 378:	9100d262 	add	x2, x19, #0x34
+ 37c:	9100d663 	add	x3, x19, #0x35
+ 380:	97ffff20 	bl	0 <ra_get_sfr_address>
+ 384:	14000002 	b	38c <ra_init+0x284>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 388:	f900127f 	str	xzr, [x19,#32]
+
+		pll_get_locktime(to_pll_clk(clk));
+	}
+
+	size = cmucal_get_list_size(MUX_TYPE);
+	for (i = 0; i < size; i++) {
+ 38c:	11000694 	add	w20, w20, #0x1
+ 390:	17ffffdd 	b	304 <ra_init+0x1fc>
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(DIV_TYPE);
+ 394:	52a0a000 	mov	w0, #0x5000000             	// #83886080
+	for (i = 0; i < size; i++) {
+ 398:	52800014 	mov	w20, #0x0                   	// #0
+		clk = cmucal_get_node(i | DIV_TYPE);
+ 39c:	52a0a017 	mov	w23, #0x5000000             	// #83886080
+		if (!clk)
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 3a0:	d29ffff5 	mov	x21, #0xffff                	// #65535
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(DIV_TYPE);
+ 3a4:	94000000 	bl	0 <cmucal_get_list_size>
+ 3a8:	2a0003f6 	mov	w22, w0
+	for (i = 0; i < size; i++) {
+ 3ac:	6b16029f 	cmp	w20, w22
+ 3b0:	5400046a 	b.ge	43c <ra_init+0x334>
+		clk = cmucal_get_node(i | DIV_TYPE);
+ 3b4:	2a170280 	orr	w0, w20, w23
+ 3b8:	94000000 	bl	0 <cmucal_get_node>
+ 3bc:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 3c0:	b40003a0 	cbz	x0, 434 <ra_init+0x32c>
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 3c4:	f9400c00 	ldr	x0, [x0,#24]
+ 3c8:	eb2022bf 	cmp	x21, w0, uxth
+ 3cc:	540000e0 	b.eq	3e8 <ra_init+0x2e0>
+			clk->paddr = ra_get_sfr_address(clk->offset_idx,
+ 3d0:	91006261 	add	x1, x19, #0x18
+ 3d4:	9100c262 	add	x2, x19, #0x30
+ 3d8:	9100c663 	add	x3, x19, #0x31
+ 3dc:	97ffff09 	bl	0 <ra_get_sfr_address>
+ 3e0:	b9000660 	str	w0, [x19,#4]
+ 3e4:	14000002 	b	3ec <ra_init+0x2e4>
+							&clk->offset,
+							&clk->shift,
+							&clk->width);
+		else
+			clk->offset = NULL;
+ 3e8:	f9000e7f 	str	xzr, [x19,#24]
+
+		if (GET_IDX(clk->status_idx) != EMPTY_CAL_ID)
+ 3ec:	f9401660 	ldr	x0, [x19,#40]
+ 3f0:	eb2022bf 	cmp	x21, w0, uxth
+ 3f4:	540000c0 	b.eq	40c <ra_init+0x304>
+			ra_get_sfr_address(clk->status_idx,
+ 3f8:	9100a261 	add	x1, x19, #0x28
+ 3fc:	9100ca62 	add	x2, x19, #0x32
+ 400:	9100ce63 	add	x3, x19, #0x33
+ 404:	97fffeff 	bl	0 <ra_get_sfr_address>
+ 408:	14000002 	b	410 <ra_init+0x308>
+					   &clk->status,
+					   &clk->s_shift,
+					   &clk->s_width);
+		else
+			clk->status = NULL;
+ 40c:	f900167f 	str	xzr, [x19,#40]
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 410:	f9401260 	ldr	x0, [x19,#32]
+ 414:	eb2022bf 	cmp	x21, w0, uxth
+ 418:	540000c0 	b.eq	430 <ra_init+0x328>
+			ra_get_sfr_address(clk->enable_idx,
+ 41c:	91008261 	add	x1, x19, #0x20
+ 420:	9100d262 	add	x2, x19, #0x34
+ 424:	9100d663 	add	x3, x19, #0x35
+ 428:	97fffef6 	bl	0 <ra_get_sfr_address>
+ 42c:	14000002 	b	434 <ra_init+0x32c>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 430:	f900127f 	str	xzr, [x19,#32]
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(DIV_TYPE);
+	for (i = 0; i < size; i++) {
+ 434:	11000694 	add	w20, w20, #0x1
+ 438:	17ffffdd 	b	3ac <ra_init+0x2a4>
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(GATE_TYPE);
+ 43c:	52a0c000 	mov	w0, #0x6000000             	// #100663296
+	for (i = 0; i < size; i++) {
+ 440:	52800014 	mov	w20, #0x0                   	// #0
+		clk = cmucal_get_node(i | GATE_TYPE);
+		if (!clk)
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 444:	d29ffff5 	mov	x21, #0xffff                	// #65535
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(GATE_TYPE);
+ 448:	94000000 	bl	0 <cmucal_get_list_size>
+ 44c:	2a0003f6 	mov	w22, w0
+	for (i = 0; i < size; i++) {
+ 450:	6b16029f 	cmp	w20, w22
+ 454:	5400046a 	b.ge	4e0 <ra_init+0x3d8>
+		clk = cmucal_get_node(i | GATE_TYPE);
+ 458:	32070680 	orr	w0, w20, #0x6000000
+ 45c:	94000000 	bl	0 <cmucal_get_node>
+ 460:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 464:	b40003a0 	cbz	x0, 4d8 <ra_init+0x3d0>
+			continue;
+
+		if (GET_IDX(clk->offset_idx) != EMPTY_CAL_ID)
+ 468:	f9400c00 	ldr	x0, [x0,#24]
+ 46c:	eb2022bf 	cmp	x21, w0, uxth
+ 470:	540000e0 	b.eq	48c <ra_init+0x384>
+			clk->paddr = ra_get_sfr_address(clk->offset_idx,
+ 474:	91006261 	add	x1, x19, #0x18
+ 478:	9100c262 	add	x2, x19, #0x30
+ 47c:	9100c663 	add	x3, x19, #0x31
+ 480:	97fffee0 	bl	0 <ra_get_sfr_address>
+ 484:	b9000660 	str	w0, [x19,#4]
+ 488:	14000002 	b	490 <ra_init+0x388>
+							&clk->offset,
+							&clk->shift,
+							&clk->width);
+		else
+			clk->offset = NULL;
+ 48c:	f9000e7f 	str	xzr, [x19,#24]
+
+		if (GET_IDX(clk->status_idx) != EMPTY_CAL_ID)
+ 490:	f9401660 	ldr	x0, [x19,#40]
+ 494:	eb2022bf 	cmp	x21, w0, uxth
+ 498:	540000c0 	b.eq	4b0 <ra_init+0x3a8>
+			ra_get_sfr_address(clk->status_idx,
+ 49c:	9100a261 	add	x1, x19, #0x28
+ 4a0:	9100ca62 	add	x2, x19, #0x32
+ 4a4:	9100ce63 	add	x3, x19, #0x33
+ 4a8:	97fffed6 	bl	0 <ra_get_sfr_address>
+ 4ac:	14000002 	b	4b4 <ra_init+0x3ac>
+					   &clk->status,
+					   &clk->s_shift,
+					   &clk->s_width);
+		else
+			clk->status = NULL;
+ 4b0:	f900167f 	str	xzr, [x19,#40]
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 4b4:	f9401260 	ldr	x0, [x19,#32]
+ 4b8:	eb2022bf 	cmp	x21, w0, uxth
+ 4bc:	540000c0 	b.eq	4d4 <ra_init+0x3cc>
+			ra_get_sfr_address(clk->enable_idx,
+ 4c0:	91008261 	add	x1, x19, #0x20
+ 4c4:	9100d262 	add	x2, x19, #0x34
+ 4c8:	9100d663 	add	x3, x19, #0x35
+ 4cc:	97fffecd 	bl	0 <ra_get_sfr_address>
+ 4d0:	14000002 	b	4d8 <ra_init+0x3d0>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 4d4:	f900127f 	str	xzr, [x19,#32]
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(GATE_TYPE);
+	for (i = 0; i < size; i++) {
+ 4d8:	11000694 	add	w20, w20, #0x1
+ 4dc:	17ffffdd 	b	450 <ra_init+0x348>
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_RATE_TYPE);
+ 4e0:	52a02000 	mov	w0, #0x1000000             	// #16777216
+	for (i = 0; i < size; i++) {
+ 4e4:	52800013 	mov	w19, #0x0                   	// #0
+		clk = cmucal_get_node(i | FIXED_RATE_TYPE);
+		if (!clk)
+			continue;
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 4e8:	d29ffff5 	mov	x21, #0xffff                	// #65535
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_RATE_TYPE);
+ 4ec:	94000000 	bl	0 <cmucal_get_list_size>
+ 4f0:	2a0003f4 	mov	w20, w0
+	for (i = 0; i < size; i++) {
+ 4f4:	6b14027f 	cmp	w19, w20
+ 4f8:	5400020a 	b.ge	538 <ra_init+0x430>
+		clk = cmucal_get_node(i | FIXED_RATE_TYPE);
+ 4fc:	32080260 	orr	w0, w19, #0x1000000
+ 500:	94000000 	bl	0 <cmucal_get_node>
+ 504:	aa0003e3 	mov	x3, x0
+		if (!clk)
+ 508:	b4000140 	cbz	x0, 530 <ra_init+0x428>
+			continue;
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 50c:	f9401000 	ldr	x0, [x0,#32]
+ 510:	eb2022bf 	cmp	x21, w0, uxth
+ 514:	540000c0 	b.eq	52c <ra_init+0x424>
+			ra_get_sfr_address(clk->enable_idx,
+ 518:	91008061 	add	x1, x3, #0x20
+ 51c:	9100d062 	add	x2, x3, #0x34
+ 520:	9100d463 	add	x3, x3, #0x35
+ 524:	97fffeb7 	bl	0 <ra_get_sfr_address>
+ 528:	14000002 	b	530 <ra_init+0x428>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 52c:	f900107f 	str	xzr, [x3,#32]
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_RATE_TYPE);
+	for (i = 0; i < size; i++) {
+ 530:	11000673 	add	w19, w19, #0x1
+ 534:	17fffff0 	b	4f4 <ra_init+0x3ec>
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_FACTOR_TYPE);
+ 538:	52a04000 	mov	w0, #0x2000000             	// #33554432
+	for (i = 0; i < size; i++) {
+ 53c:	52800013 	mov	w19, #0x0                   	// #0
+		clk = cmucal_get_node(i | FIXED_FACTOR_TYPE);
+		if (!clk)
+			continue;
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 540:	d29ffff5 	mov	x21, #0xffff                	// #65535
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_FACTOR_TYPE);
+ 544:	94000000 	bl	0 <cmucal_get_list_size>
+ 548:	2a0003f4 	mov	w20, w0
+	for (i = 0; i < size; i++) {
+ 54c:	6b14027f 	cmp	w19, w20
+ 550:	5400020a 	b.ge	590 <ra_init+0x488>
+		clk = cmucal_get_node(i | FIXED_FACTOR_TYPE);
+ 554:	32070260 	orr	w0, w19, #0x2000000
+ 558:	94000000 	bl	0 <cmucal_get_node>
+ 55c:	aa0003e3 	mov	x3, x0
+		if (!clk)
+ 560:	b4000140 	cbz	x0, 588 <ra_init+0x480>
+			continue;
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 564:	f9401000 	ldr	x0, [x0,#32]
+ 568:	eb2022bf 	cmp	x21, w0, uxth
+ 56c:	540000c0 	b.eq	584 <ra_init+0x47c>
+			ra_get_sfr_address(clk->enable_idx,
+ 570:	91008061 	add	x1, x3, #0x20
+ 574:	9100d062 	add	x2, x3, #0x34
+ 578:	9100d463 	add	x3, x3, #0x35
+ 57c:	97fffea1 	bl	0 <ra_get_sfr_address>
+ 580:	14000002 	b	588 <ra_init+0x480>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 584:	f900107f 	str	xzr, [x3,#32]
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(FIXED_FACTOR_TYPE);
+	for (i = 0; i < size; i++) {
+ 588:	11000673 	add	w19, w19, #0x1
+ 58c:	17fffff0 	b	54c <ra_init+0x444>
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(QCH_TYPE);
+ 590:	52a0e000 	mov	w0, #0x7000000             	// #117440512
+	for (i = 0; i < size; i++) {
+ 594:	52800014 	mov	w20, #0x0                   	// #0
+		clk->paddr = ra_get_sfr_address(clk->offset_idx,
+						&clk->offset,
+						&clk->shift,
+						&clk->width);
+
+		if (GET_IDX(clk->status_idx) != EMPTY_CAL_ID)
+ 598:	d29ffff5 	mov	x21, #0xffff                	// #65535
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(QCH_TYPE);
+ 59c:	94000000 	bl	0 <cmucal_get_list_size>
+ 5a0:	2a0003f6 	mov	w22, w0
+	for (i = 0; i < size; i++) {
+ 5a4:	6b16029f 	cmp	w20, w22
+ 5a8:	5400050a 	b.ge	648 <ra_init+0x540>
+		clk = cmucal_get_node(i | QCH_TYPE);
+ 5ac:	32080a80 	orr	w0, w20, #0x7000000
+ 5b0:	94000000 	bl	0 <cmucal_get_node>
+ 5b4:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 5b8:	b4000440 	cbz	x0, 640 <ra_init+0x538>
+			continue;
+
+		clk->paddr = ra_get_sfr_address(clk->offset_idx,
+ 5bc:	aa0003e1 	mov	x1, x0
+ 5c0:	9100c262 	add	x2, x19, #0x30
+ 5c4:	9100c663 	add	x3, x19, #0x31
+ 5c8:	78418c20 	ldrh	w0, [x1,#24]!
+ 5cc:	97fffe8d 	bl	0 <ra_get_sfr_address>
+ 5d0:	b9000660 	str	w0, [x19,#4]
+						&clk->offset,
+						&clk->shift,
+						&clk->width);
+
+		if (GET_IDX(clk->status_idx) != EMPTY_CAL_ID)
+ 5d4:	f9401660 	ldr	x0, [x19,#40]
+ 5d8:	eb2022bf 	cmp	x21, w0, uxth
+ 5dc:	540000c0 	b.eq	5f4 <ra_init+0x4ec>
+			ra_get_sfr_address(clk->status_idx,
+ 5e0:	9100a261 	add	x1, x19, #0x28
+ 5e4:	9100ca62 	add	x2, x19, #0x32
+ 5e8:	9100ce63 	add	x3, x19, #0x33
+ 5ec:	97fffe85 	bl	0 <ra_get_sfr_address>
+ 5f0:	14000002 	b	5f8 <ra_init+0x4f0>
+					   &clk->status,
+					   &clk->s_shift,
+					   &clk->s_width);
+		else
+			clk->status = NULL;
+ 5f4:	f900167f 	str	xzr, [x19,#40]
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 5f8:	f9401260 	ldr	x0, [x19,#32]
+ 5fc:	eb2022bf 	cmp	x21, w0, uxth
+ 600:	540000c0 	b.eq	618 <ra_init+0x510>
+			ra_get_sfr_address(clk->enable_idx,
+ 604:	91008261 	add	x1, x19, #0x20
+ 608:	9100d262 	add	x2, x19, #0x34
+ 60c:	9100d663 	add	x3, x19, #0x35
+ 610:	97fffe7c 	bl	0 <ra_get_sfr_address>
+ 614:	14000002 	b	61c <ra_init+0x514>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 618:	f900127f 	str	xzr, [x19,#32]
+
+		qch = to_qch(clk);
+		if (GET_IDX(qch->ignore_idx) != EMPTY_CAL_ID)
+ 61c:	f9401e60 	ldr	x0, [x19,#56]
+ 620:	eb2022bf 	cmp	x21, w0, uxth
+ 624:	540000c0 	b.eq	63c <ra_init+0x534>
+			ra_get_sfr_address(qch->ignore_idx,
+ 628:	9100e261 	add	x1, x19, #0x38
+ 62c:	91010262 	add	x2, x19, #0x40
+ 630:	91010663 	add	x3, x19, #0x41
+ 634:	97fffe73 	bl	0 <ra_get_sfr_address>
+ 638:	14000002 	b	640 <ra_init+0x538>
+					&qch->ignore,
+					&qch->ig_shift,
+					&qch->ig_width);
+		else
+			qch->ignore= NULL;
+ 63c:	f9001e7f 	str	xzr, [x19,#56]
+		else
+			clk->enable = NULL;
+	}
+
+	size = cmucal_get_list_size(QCH_TYPE);
+	for (i = 0; i < size; i++) {
+ 640:	11000694 	add	w20, w20, #0x1
+ 644:	17ffffd8 	b	5a4 <ra_init+0x49c>
+					&qch->ig_width);
+		else
+			qch->ignore= NULL;
+	}
+
+	size = cmucal_get_list_size(OPTION_TYPE);
+ 648:	52a18000 	mov	w0, #0xc000000             	// #201326592
+	for (i = 0; i < size; i++) {
+ 64c:	52800014 	mov	w20, #0x0                   	// #0
+		ra_get_sfr_address(clk->offset_idx,
+				   &clk->offset,
+				   &clk->shift,
+				   &clk->width);
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 650:	d29ffff6 	mov	x22, #0xffff                	// #65535
+					&qch->ig_width);
+		else
+			qch->ignore= NULL;
+	}
+
+	size = cmucal_get_list_size(OPTION_TYPE);
+ 654:	94000000 	bl	0 <cmucal_get_list_size>
+ 658:	2a0003f5 	mov	w21, w0
+	for (i = 0; i < size; i++) {
+ 65c:	6b15029f 	cmp	w20, w21
+ 660:	540002aa 	b.ge	6b4 <ra_init+0x5ac>
+		clk = cmucal_get_node(i | OPTION_TYPE);
+ 664:	32060680 	orr	w0, w20, #0xc000000
+ 668:	94000000 	bl	0 <cmucal_get_node>
+ 66c:	aa0003f3 	mov	x19, x0
+		if (!clk)
+ 670:	b40001e0 	cbz	x0, 6ac <ra_init+0x5a4>
+			continue;
+
+		ra_get_sfr_address(clk->offset_idx,
+ 674:	aa0003e1 	mov	x1, x0
+ 678:	9100c262 	add	x2, x19, #0x30
+ 67c:	9100c663 	add	x3, x19, #0x31
+ 680:	78418c20 	ldrh	w0, [x1,#24]!
+ 684:	97fffe5f 	bl	0 <ra_get_sfr_address>
+				   &clk->offset,
+				   &clk->shift,
+				   &clk->width);
+
+		if (GET_IDX(clk->enable_idx) != EMPTY_CAL_ID)
+ 688:	f9401260 	ldr	x0, [x19,#32]
+ 68c:	eb2022df 	cmp	x22, w0, uxth
+ 690:	540000c0 	b.eq	6a8 <ra_init+0x5a0>
+			ra_get_sfr_address(clk->enable_idx,
+ 694:	91008261 	add	x1, x19, #0x20
+ 698:	9100d262 	add	x2, x19, #0x34
+ 69c:	9100d663 	add	x3, x19, #0x35
+ 6a0:	97fffe58 	bl	0 <ra_get_sfr_address>
+ 6a4:	14000002 	b	6ac <ra_init+0x5a4>
+					   &clk->enable,
+					   &clk->e_shift,
+					   &clk->e_width);
+		else
+			clk->enable = NULL;
+ 6a8:	f900127f 	str	xzr, [x19,#32]
+		else
+			qch->ignore= NULL;
+	}
+
+	size = cmucal_get_list_size(OPTION_TYPE);
+	for (i = 0; i < size; i++) {
+ 6ac:	11000694 	add	w20, w20, #0x1
+ 6b0:	17ffffeb 	b	65c <ra_init+0x554>
+		else
+			clk->enable = NULL;
+	}
+
+	return 0;
+}
+ 6b4:	52800000 	mov	w0, #0x0                   	// #0
+ 6b8:	a94153f3 	ldp	x19, x20, [sp,#16]
+ 6bc:	a9425bf5 	ldp	x21, x22, [sp,#32]
+ 6c0:	a94363f7 	ldp	x23, x24, [sp,#48]
+ 6c4:	a9446bf9 	ldp	x25, x26, [sp,#64]
+ 6c8:	a8c57bfd 	ldp	x29, x30, [sp],#80
+ 6cc:	d65f03c0 	ret

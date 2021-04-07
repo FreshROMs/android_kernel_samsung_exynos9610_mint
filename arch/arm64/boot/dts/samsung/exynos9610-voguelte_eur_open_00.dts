@@ -1,0 +1,35 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9610-voguelte_common.dtsi"
+#include "exynos9610-voguelte_mst_00.dtsi"
+#include "exynos9610-voguelte_fingerprint_00.dtsi"
+#include "exynos9610-voguelte_sensorhub_00.dtsi"
+#include "exynos9610-voguelte_eur_open_gpio_00.dtsi"
+
+/ {
+	compatible = "samsung, VOGUE LTE EUR OPEN 00", "samsung,EXYNOS9610";
+	dtbo-hw_rev = <0>;
+	dtbo-hw_rev_end = <255>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung VOGUE LTE OPEN rev00 board based on Exynos9610";
+
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */

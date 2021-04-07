@@ -1,0 +1,57 @@
+#
+# sensor drivers configuration
+#
+
+config SENSORS_SSP_PROXIMITY_AUTO_CAL_TMD3725
+	tristate "Sensors ssp proximity auto cal tmd3725"
+	default n
+	depends on SPI
+	help
+	  proximity tmd3725 file for factory test in ssp driver.
+          If you say yes here you get proximity tmd3725 support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_PROXIMITY_STK3X3X
+	tristate "Sensors ssp proximity stk3x3x"
+	default n
+	depends on SPI
+	help
+	  proximity stk3x3x file for factory test in ssp driver.
+          If you say yes here you get proximity stk3x3x support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_PROXIMITY_GP2AP110S
+	tristate "Sensors ssp proximity gp2ap110s"
+	default n
+	depends on SPI
+	help
+	  proximity gp2ap110s file for factory test in ssp driver.
+          If you say yes here you get proximity gp2ap110s support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_PROXIMITY_FACTORY_CAL_THRESH
+	tristate "Sensors ssp proximity threshold factory cal"
+	default n
+	depends on SPI
+	help
+          If you say yes here you get threshold factory cal support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_PROXIMITY_FACTORY_CAL_OFFSET
+	tristate "Sensors ssp proximity offset factory cal"
+	default n
+	depends on SPI
+	help
+          If you say yes here you get offset factory cal support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+

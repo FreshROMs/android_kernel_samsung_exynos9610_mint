@@ -1,0 +1,35 @@
+#
+# sm5713 driver
+#
+
+comment "SM5713 configs"
+
+config CCIC_SM5713
+	bool "Using SM5713 USB PD"
+	depends on USE_CCIC
+	default n
+	help
+	  If you say yes here you will get support for
+	  the SM5713 USBPD chip.
+
+config SM5713_FACTORY_MODE
+	bool "Using SM5713 USB PD"
+	depends on CCIC_SM5713
+	default n
+	help
+	  If you say yes here you will get support for
+	  the SM5713 FACTORY MODE. 
+
+config SM5713_WATER_DETECTION_ENABLE	  
+	bool "Water detection function control"
+	default n
+	help
+	  If you say yes here you will get support for
+	  the Water Detection functions.
+
+config PDIC_PD30
+	bool "support PD3.0"
+	depends on CCIC_SM5713
+	default n
+	help
+	  If you say yes here you will get support for PD3.0

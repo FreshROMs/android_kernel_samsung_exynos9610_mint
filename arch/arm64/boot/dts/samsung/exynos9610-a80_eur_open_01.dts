@@ -1,0 +1,94 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9610-a80_common.dtsi"
+#include "battery_data_a80_00.dtsi"
+#include "exynos9610-a80_fingerprint_00.dtsi"
+#include "exynos9610-a80_sensorhub_00.dtsi"
+#include "exynos9610-a80_nfc_00.dtsi"
+#include "exynos9610-a80_eur_open_gpio_01.dtsi"
+
+/ {
+	compatible = "samsung, A80 EUR OPEN 00", "samsung,EXYNOS9610";
+	dtbo-hw_rev = <1>;
+	dtbo-hw_rev_end = <255>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung A80 EUR OPEN rev00 board based on Exynos9610";
+
+			mif_pdata {
+				/* GPIOs for HW REV */
+				/* XGPIO26-AP_REV0, XGPIO27-AP_REV1, XGPIO28-AP_REV2, XGPIO29-AP_REV3 */
+				gpios = <&gpg3 2 0>, <&gpg3 3 0>, <&gpg3 4 0>, <&gpg3 5 0>;
+				pinctrl-names = "default";
+			};
+
+			step_motor {
+				compatible = "st,stspin220";
+				pinctrl-names = "pm_step_motor_pwm_active","pm_step_motor_pwm_disable";
+				pinctrl-0 = <&pm_step_motor_pwm_active>;
+				pinctrl-1 = <&pm_step_motor_pwm_disable>;
+				pwms = <&sec_pwm 0 1000000 0>;
+
+				motor,step_dir = <&gpg2 6 0>;
+				motor,step_m0 = <&gpg1 6 0>;
+				motor,step_m1 = <&gpg2 7 0>;
+				motor,step_enable = <&gpm25 0 0>;
+				motor,step_sleep = <&gpm24 0 0>;
+				motor,boost_en = <&gpg2 1 0>;
+			};
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */
+
+&pinctrl_0 {
+	grip_int: grip-int {
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+};
+
+&pinctrl_4 {
+	grip_i2c: grip-i2c {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+	};
+
+	grip_gpio: grip-gpio {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+	};
+
+	pm_step_motor_pwm_active: pm_step_motor_pwm_active {
+		samsung,pins = "gpg4-1";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	pm_step_motor_pwm_disable: pm_step_motor_pwm_disable {
+		samsung,pins = "gpg4-1";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+		samsung,pin-drv = <3>;
+	};
+};

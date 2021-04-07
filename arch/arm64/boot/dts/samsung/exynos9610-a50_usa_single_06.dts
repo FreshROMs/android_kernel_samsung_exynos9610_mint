@@ -1,0 +1,145 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9610-a50_common.dtsi"
+#include "battery_data_a50_usa_single.dtsi"
+#include "exynos9610-a50_fingerprint_04.dtsi"
+#include "exynos9610-a50_usa_single_sensorhub_00.dtsi"
+#include "exynos9610-a50_nfc_01.dtsi"
+#include "exynos9610-a50_usa_single_gpio_06.dtsi"
+
+/ {
+	compatible = "samsung, A50 USA SINGLE 06", "samsung,EXYNOS9610";
+	dtbo-hw_rev = <6>;
+	dtbo-hw_rev_end = <255>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung A50 USA SINGLE rev01 board based on Exynos9610";
+
+			mif_pdata {
+				/* GPIOs for HW REV */
+				/* XGPIO26-AP_REV0, XGPIO27-AP_REV1, XGPIO28-AP_REV2, XGPIO29-AP_REV3 */
+				gpios = <&gpg3 2 0>, <&gpg3 3 0>, <&gpg3 4 0>, <&gpg3 5 0>;
+				pinctrl-names = "default";
+			};
+
+			dwmmc2@13550000 {
+				card-detect = <&gpa2 4 0xf>;
+			};			
+
+			isa1000 {
+				compatible = "isa1000";
+				pinctrl-names = "default";
+				pinctrl-0 = <&vibetonz_pwm>;
+				isa1000_pdata {
+					status = "okay";
+					isa1000,max_timeout = <10000>;
+					isa1000,pwm_use = <1>;
+					isa1000,duty = <35433>;
+					isa1000,period = <38100>;
+					isa1000,pwm_id = <0>;
+					isa1000,gpio_en = <&gpa2 1 0>;
+					isa1000,regulator_name = "VDD_MOT_3.3";
+					isa1000,type = "LINEAR";
+				};
+			};
+
+			fpcb_type {
+				gpios = <&gpg2 6 0
+						&gpg2 5 0
+							&gpg2 7 0>;
+			};
+			
+		
+			/delete-node/ i2c@20;
+
+			i2c@21 {
+				compatible = "i2c-gpio";
+				gpios = <&gpp1 2 0
+					 &gpp1 3 0>;
+				i2c-gpio,delay-us = <5>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&grip_i2c>;
+
+				sx9360-i2c@28 {
+					status = "okay";
+
+					compatible = "sx9360";
+					reg = <0x28>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&grip_int>;
+
+					interrupt-parent = <&gpa2>;
+					interrupts = <7 0 0>;
+
+					sx9360,nirq-gpio = <&gpa2 7 0>;
+					sx9360,refresolution_reg = <0x0f>; /* same as resolution_reg */
+					sx9360,refagainfreq_reg = <0x36>; /* same as againfreq_reg */
+					sx9360,resolution_reg = <0x0f>; /* resolution : 1024 */
+					sx9360,againfreq_reg = <0x58>; /* freq : 62.5 kHz, again : +/-7.5 pF */
+					sx9360,refgainrawfilt_reg = <0x22>; /* same as gainrawfilt_reg */
+					sx9360,gainrawfilt_reg = <0x1A>; /* rawfilter : 1-1/4, gain : x4 */
+					sx9360,hyst_reg = <0x15>; /* hysteresis : +/-6 %, debouncer : 2 samples */
+					sx9360,proxthresh_reg = <0x23>; /* threshhold : 612 */
+				};
+			};
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+	
+	fragment@sound {
+		target-path = "/";
+		__overlay__ {
+			sound {
+				pinctrl-0 = <&xclkout0>;
+			};
+
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */
+
+&pinctrl_0 {
+	dwmmc2_cd_ext_irq: dwmmc2_cd_ext_irq {
+		samsung,pins = "gpa2-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	grip_int: grip-int {
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+};
+
+&pinctrl_4 {
+	grip_i2c: grip-i2c {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+	};	
+	
+	vibetonz_pwm: vibetonz_pwm {
+		samsung,pins = "gpg4-1";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <0>;
+	};
+};

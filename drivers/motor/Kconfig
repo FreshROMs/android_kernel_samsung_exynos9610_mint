@@ -1,0 +1,37 @@
+#
+#
+#
+config ANDROID_TIMED_OUTPUT
+	bool "Timed output class driver"
+	default y
+
+config ISA1000
+	tristate "IMAGIS ISA1000"
+	default n
+	depends on ANDROID_TIMED_OUTPUT
+	help
+		If you say yes here you will get support for the
+		haptic driver of IMAGIS ISA1000.
+
+config SEC_VIB
+	tristate "SEC DC Vibrator"
+	default n
+	help
+		If you say yes here you will get support for the
+		SEC DC Vibrator.
+
+config STEP_MOTOR_STSPIN220
+	tristate "STSPIN220"
+	default n
+	help
+          Say Y to enable STSPIN220 support
+	  You will get supprot for that.
+
+	  If unsure, say N.
+
+config BOOST_POWER_SHARE
+	bool "Boost Power Share"
+	default n
+	help
+	  Say Y to enable Boost Power(5V) share.
+

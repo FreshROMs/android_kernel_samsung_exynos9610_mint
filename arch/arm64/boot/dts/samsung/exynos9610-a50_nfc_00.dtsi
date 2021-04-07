@@ -1,0 +1,78 @@
+/* Copyright (c) 2013, Samsung Electronics Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&pinctrl_4 {
+	nfc_firm: nfc_firm {
+		samsung,pins = "gpg1-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+		samsung,pin-con-pdn = <3>;
+		samsung,pin-pud-pdn = <0>;
+	};
+
+	nfc_en: nfc_en {
+		samsung,pins = "gpg0-0";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
+		samsung,pin-con-pdn = <3>;
+		samsung,pin-pud-pdn = <0>;
+	};
+
+	nfc_pwr_en: nfc_pwr_en {
+		samsung,pins = "gpg2-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+		samsung,pin-con-pdn = <3>;
+		samsung,pin-pud-pdn = <0>;
+	};
+
+	nfc_check: nfc-check {
+		samsung,pins = "gpg0-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-pud-pdn = <0>;
+	};
+};
+
+/* USI_2_CMGP */
+&hsi2c_6 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pn547@2B {
+		compatible = "pn547";
+		reg = <0x2B>;
+
+		interrupt-parent = <&gpa1>;
+		interrupts = <0 0 0>;
+
+		pn547,ven-gpio = <&gpg0 0 0>;
+		pn547,firm-gpio = <&gpg1 0 1>;
+		pn547,irq-gpio = <&gpa1 0 0>;
+		pn547,pvdd-gpio = <&gpg2 0 0>;
+		pn547,nfc_pvdd = "VDD_NFC_1P8";
+		pn547,clk_req_gpio = <&gpg0 1 0xf>;
+		pn547,clk_use = <2>;
+
+		clocks = <&clock OSC_NFC>;
+		clock-names = "oscclk_nfc";
+		pn547,nfc_ap_clk;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_en &nfc_firm &nfc_pwr_en &xclkout1>;
+	};
+};

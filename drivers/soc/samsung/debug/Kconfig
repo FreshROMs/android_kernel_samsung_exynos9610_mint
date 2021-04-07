@@ -1,0 +1,43 @@
+menuconfig EXYNOS_DEBUG
+        bool "Exynos Debug Features"
+        default y
+        depends on ARCH_EXYNOS
+
+if EXYNOS_DEBUG
+
+config EXYNOS_ITMON
+        bool "Exynos IPs Traffic Monitor"
+        default y
+        depends on ARCH_EXYNOS
+
+menuconfig EXYNOS_CORESIGHT
+        bool "Enable Coresight of exynos"
+        depends on ARCH_EXYNOS && EXYNOS_DEBUG
+        default n
+
+config EXYNOS_CORESIGHT_PC_INFO
+        bool "Show Porgram Counter information"
+        depends on EXYNOS_CORESIGHT
+        default y
+        help
+          Show Program Counter information When kernel panic.
+
+config PC_ITERATION
+        int "Number of Program Coutner information"
+        depends on EXYNOS_CORESIGHT_PC_INFO
+        range 1 10
+        default 5
+        help
+          Print out Program Counter as iteration value.
+
+config EXYNOS_CORESIGHT_MAINTAIN_DBG_REG
+        bool "Save/Restore Debug Registers"
+        depends on EXYNOS_CORESIGHT
+        default n
+        help
+          When core power is down, debug registers are not mainained data
+          and OS-lock is set. To maintain data, debug registers's data must
+          save in /restore from memory. If OS-lock is set, debugging to use
+          trace32 is impossible. So OS-lock must clear when core power is up.
+          This config must enable only using iTSP program.
+endif

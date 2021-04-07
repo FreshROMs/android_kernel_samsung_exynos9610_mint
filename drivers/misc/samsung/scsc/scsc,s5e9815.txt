@@ -1,0 +1,134 @@
+Samsung Exynos 9815 SCSC WLAN and BT devices (dtsi)
+
+This node provides properties for controlling the Samsung Exynos wireless device. The
+node is expected to be specified as a child node to the platform driver that
+connects the device to the system.
+
+Example:
+
+/ {
+	i3c_apm_pmic: syscon@10960000 {
+		compatible = "i3c_apm_pmic", "syscon";
+		reg = <0x0 0x10960000 0x1800>;
+        };
+
+        pbus_reg: syscon@15A00000 {
+                compatible = "pbus_reg", "syscon";
+                reg = <0x0 0x15A00000 0x70000>;
+        };
+        /* MAILBOX_AP_WLBT */
+        scsc_wifibt: scsc_wifibt@109F0000{
+                compatible = "samsung,scsc_wifibt";
+                pinctrl-names = "default";
+                pinctrl-0 = <&fm_spdy_default>;
+                /* Mailbox Registers */
+                reg = <0x0 0x109F0000 0x180>;
+                /* Exynos 9630 UM 10.3.2 External GIC IRQ table */
+                //SPI[27] 59 BLK_ALIVE INTREQ__MAILBOX_WLBT2AP
+                //SPI[30] INTREQ__ALIVE_WLBT_ACTIVE - Excite uses 30
+                //SPI[426] 458 BLK_WLBT WB2AP_CFG_REQ
+                //SPI[427] 459 BLK_WLBT WB2AP_WDOG_RESET_REQ_IRQ
+                interrupts = <0 27 4>, <0 30 4>, <0 426 4>, <0 427 4>;
+                interrupt-names = "MBOX","ALIVE","CFG_REQ","WDOG";
+                /* PMU alive handle */
+                samsung,syscon-phandle = <&pmu_system_controller>;
+                samsung,pbus_reg-syscon-phandle = <&pbus_reg>;
+                /* MIF / INT / CL0 / CL1 */
+                /* this qos_table should be per-platform. Leave it here until we have multiple platfrom
+                qos_table = <
+                         421000 133000 442000 507000 /* SCSC_QOS_MIN */
+                        1794000 266000 1794000 1794000 /* SCSC_QOS_MED */
+                        2093000 666000 1794000 2210000 /* SCSC_QOS_MAX */
+                            >;
+                /* SMAPPER */
+                smapper_num_banks = <11>;
+                smapper_reg = <0x15A40000 0x10000>;
+                smapper_bank_table {
+                        smapper_bank_0 {
+                                bank_num        = <0x0>;
+                                fw_window_start = <0x82000000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <160>;
+                                is_large        = <1>;
+                        };
+                        smapper_bank_1 {
+                                bank_num        = <0x1>;
+                                fw_window_start = <0x82100000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <160>;
+                                is_large        = <1>;
+                        };
+                        smapper_bank_2 {
+                                bank_num        = <0x2>;
+                                fw_window_start = <0x82200000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <160>;
+                                is_large        = <1>;
+                        };
+                        smapper_bank_3 {
+                                bank_num        = <0x3>;
+                                fw_window_start = <0x82300000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <160>;
+                                is_large        = <1>;
+                        };
+                        smapper_bank_4 {
+                                bank_num        = <0x4>;
+                                fw_window_start = <0x83000000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_5 {
+                                bank_num        = <0x5>;
+                                fw_window_start = <0x83100000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_6 {
+                                bank_num        = <0x6>;
+                                fw_window_start = <0x83200000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_7 {
+                                bank_num        = <0x7>;
+                                fw_window_start = <0x83300000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_8 {
+                                bank_num        = <0x8>;
+                                fw_window_start = <0x83400000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_9 {
+                                bank_num        = <0x9>;
+                                fw_window_start = <0x83500000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                        smapper_bank_10 {
+                                bank_num        = <0xa>;
+                                fw_window_start = <0x83600000>;
+                                fw_window_size  = <0x100000>;
+                                num_entries     = <64>;
+                                is_large        = <0>;
+                        };
+                };
+        };
+
+        scsc_bt_qos {
+                compatible = "samsung,scsc_bt_qos";
+                bluetooth_qos = <1600000  421000 133000  507000
+                                      10  666000 400000 1150000
+                                      20 1000000 533000 2210000>;
+        };
+};
+

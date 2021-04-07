@@ -1,0 +1,46 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/exynos9610.h>
+
+&contexthub_0 {
+	os-type = "shub_exynos9610_a80.bin";
+	/* chub irq pin lists */
+	chub-irq-pin-len = <1>;
+	chub-irq-pin = <&gpm8 0 0>;
+	clocks =
+		/* SHUB */
+		<&clock UMUX_CLKCMU_SHUB_BUS>,
+		/* MAG, PROXI, BARO are all I2C */
+		<&clock CMGP_I2C>;
+	clock-names =
+		"chub_bus",
+		"cmgp_i2c";
+
+	sensor-ldo-en = <&gpm21 0 1>;
+	mag-check-nfc = <&gpg0 3 0>;
+	mag-check-mst = <&gpg0 1 0>;
+
+	/* SSP */
+	ssp-acc-position = <4>;
+	ssp-mag-position = <2>;
+	ssp-prox-thresh-addval = /bits/ 16 <40 20>;
+	ssp-mag-array = /bits/ 8 <113 83 130 205 116 166 0 143 215
+		54 81 236 191 142 253 61 255 108
+		109 145 196 250 32 139 10 154 45>;
+	ssp-mag-nfc-array = /bits/ 8 <174 89 195 235 77 124 1 28 210
+		54 196 215 152 228 251 135 255 215
+		234 100 195 254 15 145 10 218 222>;
+	ssp-mag-mst-array = /bits/ 8 <12 90 72 204 107 140 0 64 205
+		54 81 3 147 102 252 122 1 129
+		37 83 194 0 174 29 10 117 239>;
+	ssp-light-position = /bits/ 32 <51 81 2 59 1 8>;
+};

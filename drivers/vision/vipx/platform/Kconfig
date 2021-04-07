@@ -1,0 +1,23 @@
+menuconfig EXYNOS_VIPX_PLATFORM
+	bool "Select Platform"
+	help
+	  This is a selection of platform
+
+config EXYNOS_VIPX_EXYNOS9610
+	bool "Use Exynos9610 platform"
+	depends on EXYNOS_VIPX_PLATFORM
+	depends on SOC_EXYNOS9610
+	help
+	  This is a exynos9610 platform
+
+config EXYNOS_VIPX_EXYNOS9610_A
+	bool "Use Exynos9610 platform for target A"
+	depends on EXYNOS_VIPX_PLATFORM
+	depends on SOC_EXYNOS9610
+	depends on EXYNOS_VIPX_EXYNOS9610
+
+config EXYNOS_VIPX_EXYNOS9610_R
+	bool "Use Exynos9610 platform for target R"
+	depends on EXYNOS_VIPX_PLATFORM
+	depends on SOC_EXYNOS9610
+	depends on EXYNOS_VIPX_EXYNOS9610

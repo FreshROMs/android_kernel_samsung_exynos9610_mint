@@ -1,0 +1,18 @@
+#
+# Secure OS control configuration
+#
+config SECURE_OS_BOOSTER_API
+	bool "Secure OS booster API"
+	depends on TRUSTONIC_TEE
+	---help---
+	  The secure OS booster API is used for secure OS performance
+	  enhancement. It can migrate a core that executes secure OS tasks
+	  and lock CPU frequency.
+
+config SECURE_OS_SUPPORT_MCT_DISABLE
+	bool "Seucre OS booster API supports MCT disable"
+	depends on TRUSTONIC_TEE
+	default n
+	---help---
+	   When secure OS boosting, MCT is needed to be disabled
+	   because of preventing interrupt of MCT.

@@ -1,0 +1,5 @@
+if SOC_EXYNOS9610
+
+source "drivers/video/fbdev/exynos/dpu20/Kconfig"
+
+endif # SOC_EXYNOS9610

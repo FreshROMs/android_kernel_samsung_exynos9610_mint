@@ -1,0 +1,10 @@
+#
+# Imagis IST40XX Touchscreen driver
+#
+
+config TOUCHSCREEN_IST40XX
+  tristate "IST40XX I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the Imagis IST40XX I2C touchscreen
+	  connected to your system.

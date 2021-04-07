@@ -1,0 +1,37 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include <dt-bindings/clock/exynos9610.h>
+
+&contexthub_0 {
+	os-type = "shub_exynos9610_a90.bin";
+	/* chub irq pin lists */
+	chub-irq-pin-len = <1>;
+	chub-irq-pin = <&gpm8 0 0>;
+	clocks =
+		/* SHUB */
+		<&clock UMUX_CLKCMU_SHUB_BUS>,
+		/* MAG, PROXI, BARO are all I2C */
+		<&clock CMGP_I2C>;
+	clock-names =
+		"chub_bus",
+		"cmgp_i2c";
+
+	sensor-ldo-en = <&gpm21 0 1>;
+
+	/* SSP */
+	ssp-acc-position = <6>;
+	ssp-mag-position = <5>;
+	ssp-prox-thresh = /bits/ 8 <55 40 250 130>;
+	ssp-mag-array = /bits/ 8 <118 84 64 98 6 196 255 46 212
+	            55 242 196 116 2 255 238 255 177
+	            193 111 192 254 189 53 11 73 25>;
+};

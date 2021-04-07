@@ -1,0 +1,38 @@
+#
+# DBMDX SoC audio configuration
+#
+#
+
+# DBMDX SOC enabler.
+# .
+# y - Enable DSPG VT/VE Chip
+# n - Disable DSPG VT/VE Chip
+config SND_SOC_DBMDX
+	bool "DSPG Voice Trigger/Enhancement Chip"
+	default n
+	help
+		DSPG Voice Trigger/Enhancement Chip
+		.
+		y - Enable DSPG VT/VE Chip
+		n - Disable DSPG VT/VE Chip
+
+# Register DBMDX SOC as a separate sound card.
+# .
+# y - Register DBMDX SOC as separate sound card
+# n - Do not register DBMDX SOC as separate sound card
+config SND_SOC_DBMDX_SND_CAPTURE
+	bool "DSPG Capture Device Support"
+	depends on SND_SOC_DBMDX
+	default n
+	help
+		Register DBMDX SOC as a separate sound card.
+		.
+		y - Register DBMDX SOC as separate sound card
+		n - Do not register DBMDX SOC as separate sound card
+
+
+
+
+
+
+

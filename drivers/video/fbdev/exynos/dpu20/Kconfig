@@ -1,0 +1,124 @@
+config EXYNOS_DPU20
+	bool "Samsung Exynos Display Sub-system (DPP, DECON, MIPI, DISPLAYPORT)"
+	default n
+	depends on FB
+
+if EXYNOS_DPU20
+config EXYNOS_DPP
+	bool "Samsung Exynos Display Post Processor driver"
+	depends on EXYNOS_DPU20
+	default y
+
+config EXYNOS_MIPI_DSIM
+	bool "Samsung Exynos MIPI-DSI driver"
+	depends on EXYNOS_DPU20
+	default y
+	help
+	  Enable MIPI-DSI driver.
+
+config EXYNOS_DISPLAYPORT
+	bool "Samsung Exynos DISPLAYPORT driver"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  Enable DISPLAYPORT driver.
+
+config EXYNOS_WINDOW_UPDATE
+        bool "Support Window Update Mode"
+        depends on EXYNOS_DPU20
+        default n
+
+config EXYNOS_BLOCK_MODE
+	bool "Support Blocking Mode"
+        depends on EXYNOS_DPU20
+        default y
+
+config EXYNOS_HIBERNATION
+	bool "Support Display Hibernation Mode"
+        depends on EXYNOS_DPU20
+        default n
+
+config EXYNOS_DOZE
+	bool "Support DOZE mode"
+        depends on EXYNOS_DPU20
+        default n
+
+config EXYNOS_AFBC_DEBUG
+	bool "Support AFBC Decoder Debug"
+        depends on EXYNOS_DPU20
+        default n
+
+config EXYNOS_MULTIRESOLUTION
+	bool "Support Multi Resolution LCD"
+	depends on EXYNOS_DPU20 && EXYNOS_WINDOW_UPDATE
+	default n
+
+config EXYNOS_VIRTUAL_DISPLAY
+	bool "Support Virtual Display Mode"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can boot up board without LCD.
+
+config EXYNOS_READ_ESD_SOLUTION
+	bool "Support ESD solution using read DDI power state"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can detect ESD of panel.
+
+config EXYNOS_LOW_PERSISTENCE
+	bool "Support Low Persistence Mode"
+        depends on EXYNOS_DPU20
+	default n
+
+config EXYNOS_CURSOR
+	bool "Support Cursor Async Mode"
+        depends on EXYNOS_DPU20
+	default n
+
+config EXYNOS_DSIM_DITHER
+	bool "DSIM SSCG feature"
+        depends on EXYNOS_MIPI_DSIM
+        default y
+
+config DECON_BTS_LEGACY
+	bool "Legacy BTS scheme of display"
+        depends on EXYNOS_DPU20
+        default n
+
+config FB_TEST
+	bool "Framebuffer test only"
+        depends on EXYNOS_DPU20
+        default n
+
+config DSIM_CMD_TEST
+	bool "DSIM command test only"
+        depends on EXYNOS_DPU20
+        default n
+
+config SUPPORT_LEGACY_ION
+	bool "Support legacy ION API"
+        depends on EXYNOS_DPU20
+        default n
+
+config SUPPORT_LEGACY_FENCE
+	bool "Support legacy fence API"
+        depends on EXYNOS_DPU20
+        default n
+
+config SUPPORT_KERNEL_4_9
+	bool "Support kernel version 4.9"
+        depends on EXYNOS_DPU20
+        default n
+
+config EXYNOS_PANEL_CABC
+	bool "Support CABC using DDI command"
+	depends on EXYNOS_DPU20
+	default n
+	help
+	  If this menu is enabled, you can control CABC mode of panel.
+
+endif
+
+source "drivers/video/fbdev/exynos/dpu20/panels/Kconfig"

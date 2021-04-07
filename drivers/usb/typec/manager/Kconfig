@@ -1,0 +1,19 @@
+#
+# USB TypeC Manager driver
+#
+
+comment "USB TypeC Manager configs"
+
+config USB_TYPEC_MANAGER_NOTIFIER
+    bool "USB TypeC Manager driver"
+    help
+    If you say yes here you will get support for
+      USB TypeC Manager function
+
+config IF_CB_MANAGER
+    bool "IF CallBack function Manager"
+    default n
+    help
+    If you say yes here you will use if_cb_manager structure
+    that makes functions to callback functions
+

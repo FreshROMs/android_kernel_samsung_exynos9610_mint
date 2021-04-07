@@ -1,0 +1,9 @@
+#
+# SYNAPTICS TOUCH driver configuration
+#
+
+config TOUCHSCREEN_SYNAPTICS_I2C_DSX
+	tristate "Synaptics DSX i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for Synaptics DSX over I2C based touchscreens.

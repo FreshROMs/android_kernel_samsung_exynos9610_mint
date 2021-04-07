@@ -1,0 +1,109 @@
+ /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&pinctrl_4 {
+	isdbt_gpio_active: isdbt-gpio-active {
+		samsung,pins = "gpg0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+	};
+	isdbt_gpio_suspend: isdbt-gpio-suspend {
+		samsung,pins = "gpg0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+	};
+};
+
+&pinctrl_1 {
+	isdbt_rst_active: isdbt-rst-active {
+		samsung,pins = "gpm24-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+	};
+	isdbt_rst_suspend: isdbt-rst-suspend {
+		samsung,pins = "gpm24-0";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+		samsung,pin-val = <0>;
+	};
+};
+
+&pinctrl_0 {
+	isdbt_irq_on: isdbt-irq-on {
+		samsung,pins = "gpa0-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;	/* PULL NONE */
+	};
+	isdbt_irq_off: isdbt-irq-off {
+		samsung,pins = "gpa0-4";
+		samsung,pin-function = <0>; /* INPUT */
+		samsung,pin-pud = <1>;	/* PULL DOWN */
+	};	
+};
+
+&spi_9 {
+	num-cs = <1>;
+	status = "ok";
+
+	dma-mode;
+	dmas = <&pdma0 23 &pdma0 22>;
+
+	swap-mode;
+	/*spi-clkoff-time = <100>;*/
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi9_bus &spi9_cs>;
+
+	isdbt@0 {
+		compatible = "isdbt_spi_comp";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		controller-data {
+			cs-gpio = <&gpc1 7 0>;
+			/*samsung,spi-feedback-delay = <3>;*/
+		};
+	};
+};
+
+/ {
+	fragment@isdbt_data {
+		target-path = "/";
+		__overlay__ {
+			isdbt_data {
+				compatible = "isdbt_pdata";
+
+				isdbt,isdb-bbm-xtal-freq = <24000>;
+				isdbt,gpio-tunner-en = <&gpg0 2 0>;
+				isdbt,gpio-tunner-rst = <&gpm24 0 0>;
+				isdbt,gpio-tunner-irq = <&gpa0 4 0>;
+				isdbt,gpio-fm-dtv-ctrl = <&gpm25 0 0>;
+				isdbt,gpio-lna-en = <&gpg4 2 0>;
+				isdbt,gpio-dtv-check = <&gpg0 1 0>;
+
+				isdbt,isdb-gpio-spi_di = <&gpc1 6 0>;
+				isdbt,isdb-gpio-spi_do = <&gpc1 5 0>;
+				isdbt,isdb-gpio-spi_cs = <&gpc1 7 0>;
+				isdbt,isdb-gpio-spi_clk = <&gpc1 4 0>;
+
+				isdbt,tuner_id = "fc8350";
+
+				pinctrl-names = "isdbt_gpio_active", "isdbt_gpio_suspend";
+				pinctrl-0 = <&isdbt_gpio_active &isdbt_irq_on &isdbt_rst_active>;
+				pinctrl-1 = <&isdbt_gpio_suspend &isdbt_irq_off &isdbt_rst_suspend>;
+			};
+		};
+	};
+};
+

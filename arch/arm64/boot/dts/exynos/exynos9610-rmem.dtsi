@@ -1,0 +1,166 @@
+/*
+ * SAMSUNG EXYNOS device tree source for reserved-memory
+ *
+ * Copyright (c) 2015 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "../../../../../include/generated/autoconf.h"
+#include <dt-bindings/soc/samsung/debug-snapshot-table.h>
+#include <dt-bindings/soc/samsung/exynos9610-seclog.h>
+
+/ {
+	ion-hpa-heap {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		ion,hpa_limit = <0x9 0x00000000>;
+		ion_video_fw {
+			compatible = "exynos9820-ion";
+			ion,heapname = "vfw_heap";
+			ion,secure;
+			ion,protection_id = <2>;
+			ion,alignment = <0x10000>;
+		};
+
+		ion_video_nfw {
+			compatible = "exynos9820-ion";
+			ion,heapname = "vnfw_heap";
+			ion,protection_id = <7>;
+			ion,alignment = <0x10000>;
+		};
+
+		ion_video_frame {
+			compatible = "exynos9820-ion";
+			ion,heapname = "vframe_heap";
+			ion,secure;
+			ion,protection_id = <5>;
+			ion,alignment = <0x10000>;
+		};
+
+		ion_video_scaler {
+			compatible = "exynos9820-ion";
+			ion,heapname = "vscaler_heap";
+			ion,secure;
+			ion,protection_id = <6>;
+			ion,alignment = <0x10000>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		seclog_mem {
+			compatible = "exynos,seclog";
+			reg = <0x0 SECLOG_LOG_BUF_BASE SECLOG_LOG_BUF_TOTAL_SIZE>;
+		};
+
+		abox_rmem: abox_rmem@0xE9400000 {
+                        compatible = "exynos,abox_rmem";
+                        reg = <0x0 0xE9400000 0x2800000>;
+                };
+
+		ion_video_stream {
+			compatible = "exynos9820-ion";
+			size = <0x4800000>;
+			alloc-ranges = <0x0 0x40000000 0xC0000000>;
+			alignment = <0x0 0x00400000>;
+			ion,heapname = "vstream_heap";
+			ion,secure;
+			ion,reusable;
+			ion,protection_id = <3>;
+			ion,alignment = <0x10000>;
+		};
+
+		ion_crypto {
+			compatible = "exynos9820-ion";
+			size = <0x1800000>;
+			alignment = <0x0 0x00400000>;
+			ion,heapname = "crypto_heap";
+			ion,reusable;
+			ion,alignment = <0x10000>;
+		};
+
+		sec_debug_magic {
+			compatible = "exynos,sec_debug_magic";
+			reg = <0x0 0x80000000 0x1000>;
+		};
+		
+		modem_if {
+ 			compatible = "exynos,modem_if";
+			reg = <0x0 0xED000000 0x8A00000>;
+		};
+
+		cp_ram_logging {
+			compatible = "exynos,cp_ram_logging";
+			reg = <0x0 0xF5A00000 0x1E00000>;
+ 		};
+
+		chub_rmem: chub_rmem {
+			compatible = "exynos,chub_rmem";
+			/* To dump SHUB SRAM out upon shub firmware crash */
+			reg = <0x0 0xFD000000 0x80000>;
+		};
+
+		debug_snapshot {
+			#address-cells = <2>;
+			#size-cells = <1>;
+			/* If this property exist, these are modified by bootloader. */
+			//bootloader;
+
+			header {
+				compatible = "debug-snapshot,header";
+				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
+			};
+			log_kernel {
+				compatible = "debug-snapshot,log_kernel";
+				reg = <0 DSS_LOG_KERNEL_ADDR DSS_LOG_KERNEL_SIZE>;
+			};
+			log_platform {
+				compatible = "debug-snapshot,log_platform";
+				reg = <0 DSS_LOG_PLATFORM_ADDR DSS_LOG_PLATFORM_SIZE>;
+			};
+			log_sfr {
+				compatible = "debug-snapshot,log_sfr";
+				reg = <0 DSS_LOG_SFR_ADDR DSS_LOG_SFR_SIZE>;
+			};
+			log_cachedump {
+				compatible = "debug-snapshot,log_cachedump";
+				reg = <0 DSS_LOG_CACHEDUMP_ADDR DSS_LOG_CACHEDUMP_SIZE>;
+			};
+			log_bcm {
+				compatible = "debug-snapshot,log_bcm";
+				reg = <0 DSS_LOG_BCM_ADDR DSS_LOG_BCM_SIZE>;
+			};
+			log_pstore {
+				compatible = "debug-snapshot,log_pstore";
+				reg = <0 DSS_LOG_PSTORE_ADDR DSS_LOG_PSTORE_SIZE>;
+			};
+			log_kevents {
+				compatible = "debug-snapshot,log_kevents";
+				reg = <0 DSS_LOG_KEVENTS_ADDR DSS_LOG_KEVENTS_SIZE>;
+			};
+		};
+
+		gnss_reserved: gnss_if {
+			compatible = "exynos,gnss_if";
+			reg = <0x0 0xFB000000 0x800000>;
+		};
+
+		wifibt_if {
+			compatible = "exynos,wifibt_if";
+			size = <0x1000000>; /* 16MB */
+		};
+
+		vipx_fw_code_rmem: vipx_fw_rmem@0xB8000000 {
+		      compatible = "exynos,vipx_fw_code_rmem";
+		      reg = <0x0 0xb8000000 0x500000>;
+		};
+	};
+};

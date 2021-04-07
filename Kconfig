@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+mainmenu "Linux/$ARCH $KERNELVERSION Kernel Configuration"
+
+config SRCARCH
+	string
+	option env="SRCARCH"
+
+config ANDROID_VERSION
+	string
+	option env="ANDROID_VERSION"
+
+config ANDROID_MAJOR_VERSION
+	string
+	option env="ANDROID_MAJOR_VERSION"
+
+source "arch/$SRCARCH/Kconfig"

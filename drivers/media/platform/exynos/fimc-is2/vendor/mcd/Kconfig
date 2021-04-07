@@ -1,0 +1,81 @@
+config CAMERA_EEPROM_SUPPORT_REAR
+        bool "Enable eeprom for rear cam"
+        depends on VENDER_MCD
+        default n
+        help
+          Enable eeprom for rear cam.
+config CAMERA_EEPROM_SUPPORT_FRONT
+        bool "Enable eeprom for front cam"
+        depends on VENDER_MCD
+        default n
+        help
+          Enable eeprom for front cam.
+config CAMERA_EEPROM_SUPPORT_REAR3
+        bool "Enable eeprom for 3rdrear cam"
+        depends on VENDER_MCD
+        default n
+        help
+          Enable EEPROM for 3rd rear cam in triple camera.
+          This project has 3 rear camera and each camera has EEPROM for 1st one,
+          OTPROM for 2nd one and EEPROM for 3rd camera.
+          This option support EEPROM for 3rd rear camera.
+config PREPROCESSOR_STANDBY_USE
+        bool "Use companion standby"
+        depends on VENDER_MCD
+        default n
+        help
+          Use companion standby.
+config SENSOR_RETENTION_USE
+	bool "Use sensor retention"
+	depends on VENDER_MCD
+	default n
+	help
+	  Use sensor retention.
+config OIS_USE
+        bool "Use ois"
+        depends on VENDER_MCD
+        default n
+        help
+          Use ois.
+config OIS_FW_UPDATE_THREAD_USE
+        bool "Enable ois fw update thread"
+        depends on OIS_USE
+        default n
+        help
+          Enable ois fw update thread.
+config AF_HOST_CONTROL
+        bool "Enable host af control"
+        depends on VENDER_MCD
+        default n
+        help
+          Enable host af control.
+config TORCH_CURRENT_CHANGE_SUPPORT
+        bool "Change torch current in recording mode"
+        depends on VENDER_MCD
+        default n
+        help
+          Change torch current in recording mode.
+config CAMERA_VOGUE
+        bool "This camera is vogue project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is vogue project.
+config CAMERA_A50
+        bool "This camera is a50 project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is a50 project.
+config CAMERA_OTPROM_SUPPORT_FRONT
+        bool "This camera is otp front project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is otp front project.
+config CAMERA_OTPROM_SUPPORT_REAR
+        bool "This camera is otp rear project"
+        depends on VENDER_MCD
+        default n
+        help
+          This camera is otp rear project.

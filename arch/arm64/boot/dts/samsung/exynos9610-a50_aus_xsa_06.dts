@@ -1,0 +1,92 @@
+/*
+ * SAMSUNG EXYNOS9610 board device tree source
+ *
+ * Copyright (c) 2018 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+#include "exynos9610-a50_common.dtsi"
+#include "battery_data_a50_cis_ser_02.dtsi"
+#include "exynos9610-a50_fingerprint_02.dtsi"
+#include "exynos9610-a50_sensorhub_00.dtsi"
+#include "exynos9610-a50_nfc_01.dtsi"
+#include "exynos9610-a50_ltn_dtv_gpio_06.dtsi"
+#include "exynos9610-a50_ltn_dtv-isdbt_04.dtsi"
+
+/ {
+	compatible = "samsung, A50 AUS XSA 06", "samsung,EXYNOS9610";
+	dtbo-hw_rev = <6>;
+	dtbo-hw_rev_end = <255>;
+
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+			model = "Samsung A50 AUS XSA rev04 board based on Exynos9610";
+
+			mif_pdata {
+				/* GPIOs for HW REV */
+				/* XGPIO26-AP_REV0, XGPIO27-AP_REV1, XGPIO28-AP_REV2, XGPIO29-AP_REV3 */
+				gpios = <&gpg3 2 0>, <&gpg3 3 0>, <&gpg3 4 0>, <&gpg3 5 0>;
+				pinctrl-names = "default";
+			};
+
+			dwmmc2@13550000 {
+				card-detect = <&gpa2 4 0xf>;
+			};			
+
+			sec_vib {
+				compatible = "sec_vib";
+				sec_vib_pdata {
+					status = "okay";
+					sec_vib,max_timeout = <10000>;
+					sec_vib,ldo_type = <1>;
+					sec_vib,ldo_en = <&gpa2 1 0>;
+				};
+			};
+		}; /* end of __overlay__ */
+	}; /* end of fragment */
+}; /* end of root */
+
+&pinctrl_0 {
+	earant_det: earant-det {
+		samsung,pins ="gpa1-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};
+
+	dwmmc2_cd_ext_irq: dwmmc2_cd_ext_irq {
+		samsung,pins = "gpa2-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <3>;
+	};
+
+	grip_int: grip-int {
+		samsung,pins = "gpa2-7";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
+	};	
+};
+
+&pinctrl_4 {
+	grip_i2c: grip-i2c {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <2>;
+		samsung,pin-pud = <0>;
+	};
+
+	grip_gpio: grip-gpio {
+		samsung,pins = "gpp1-2", "gpp1-3";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+	};
+};

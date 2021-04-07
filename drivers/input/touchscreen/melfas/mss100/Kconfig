@@ -1,0 +1,18 @@
+#
+# Kconfig for MELFAS MSS100 Touchscreen driver
+#
+
+if INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_MELFAS_MSS100
+        tristate "MELFAS MSS100 Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have a MELFAS MSS100 touchscreen device in your system.
+
+#          If unsure, say N.
+
+#          To compile this driver as a module, choose M here: the module will be called mms_ts.
+
+endif
+

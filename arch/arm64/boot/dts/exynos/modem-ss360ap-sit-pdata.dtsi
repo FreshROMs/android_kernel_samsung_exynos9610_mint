@@ -1,0 +1,302 @@
+/*
+ * SAMSUNG Modem interface device tree source
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ *             http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	fragment@modemif {
+		target-path = "/";
+		__overlay__ {
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+			/* modem_interface_driver: Samsung Electronics Lhotse */
+			mif_pdata: mif_pdata {
+				compatible = "sec_modem,modem_pdata";
+				status = "okay";
+
+				#define INTREQ__CP2AP_WAKEUP	75
+				interrupts = <0 INTREQ__CP2AP_WAKEUP 0>;
+
+				ap2cp_cfg_addr = <0x14000000>;	/* AP2CP_CFG */
+
+				/* common pdata */
+				mif,name = "ss360ap";
+				mif,modem_net = <0>;		/* UMTS_NETWORK */
+				mif,modem_type = <10>;		/* SEC_SS310AP */
+				mif,use_handover = <0>;		/* not used */
+				mif,ipc_version = <50>;		/* SIPC 5.0 */
+				mif,link_types = <0x80>;	/* LINKDEV_SHMEM */
+				mif,link_name = "shmem";
+				mif,link_attrs = <0x7C8>;	/* XMIT_BTDLR(0x400) | DUMP_ALIGNED (0x200) | BOOT_ALIGNED (0x100) | MEM_DUMP (0x80) | MEM_BOOT (0x40) | DPRAM_MAGIC (0x08) */
+				mif,num_iodevs = <20>;
+
+				/* sim socket num */
+				mif,sim_socket_num = <2>;
+
+				/* mbox pdata */
+				mbx_ap2cp_msg = <0>;
+				mbx_cp2ap_msg = <1>;
+				mbx_ap2cp_united_status = <2>;
+				mbx_cp2ap_united_status = <3>;
+				mbx_ap2cp_mif_value = <4>;
+				mbx_ap2cp_kerneltime = <9>;
+				mbx_cp2ap_pcie_l1ss_disable = <17>;
+
+				mif,int_ap2cp_msg = <0>;
+				mif,int_ap2cp_wakeup = <1>;
+				mif,int_ap2cp_status = <2>;
+				mif,int_ap2cp_active = <3>;
+
+				mif,irq_cp2ap_msg = <0>;
+				mif,irq_cp2ap_status = <2>;
+				mif,irq_cp2ap_active = <3>;
+				mif,irq_cp2ap_wake_lock = <8>;
+				mif,irq_cp2ap_pcie_l1ss_disable = <9>;
+
+				/* mbox pdata for performance request */
+				mbx_cp2ap_dvfsreq = <4>;
+				mbx_cp2ap_dvfsreq_cpu = <5>;
+				mbx_cp2ap_dvfsreq_mif = <6>;
+				mbx_cp2ap_dvfsreq_int = <7>;
+
+				mif,irq_cp2ap_perf_req_cpu = <5>; /* CP2AP_DVFSREQ_CPU */
+				mif,irq_cp2ap_perf_req_mif = <6>; /* CP2AP_DVFSREQ_MIF */
+				mif,irq_cp2ap_perf_req_int = <7>; /* CP2AP_DVFSREQ_INT */
+
+				/* mbox pdata for sbi(status bit info) */
+				sbi_cp_rat_mode_mask = <0x3f>;
+				sbi_cp_rat_mode_pos = <26>;
+				sbi_cp_evs_mode_mask = <0x1>;
+				sbi_cp_evs_mode_pos = <7>;
+				sbi_cp_wakelock_mask = <0x1>;
+				sbi_cp_wakelock_pos = <6>;
+				sbi_lte_active_mask = <0x1>;
+				sbi_lte_active_pos = <5>;
+				sbi_wake_lock_mask = <0x1>;
+				sbi_wake_lock_pos = <6>;
+				sbi_cp_status_mask = <0xf>;
+				sbi_cp_status_pos = <1>;
+				sbi_pda_active_mask = <0x1>;
+				sbi_pda_active_pos = <5>;
+				sbi_ap_status_mask = <0xf>;
+				sbi_ap_status_pos = <1>;
+
+				sbi_ds_det_mask = <0x3>;
+				sbi_ds_det_pos = <14>;
+				sbi_sys_rev_mask = <0xff>;
+				sbi_sys_rev_pos = <6>;
+
+				sbi_lockval_cp2ap_dvfsreq_endian_mask = <0x1>;
+				sbi_lockval_cp2ap_dvfsreq_endian_pos = <31>;
+				sbi_lockval_cp2ap_dvfsreq_index_mask = <0x7fff>;
+				sbi_lockval_cp2ap_dvfsreq_index_pos = <0>;
+
+				sbi_ap2cp_kerneltime_sec_mask = <0xfff>;
+				sbi_ap2cp_kerneltime_sec_pos = <20>;
+				sbi_ap2cp_kerneltime_usec_mask = <0xfffff>;
+				sbi_ap2cp_kerneltime_usec_pos = <0>;
+
+				shmem,dump_offset = <0x1000>;
+
+				iodevs {
+					io_device_0 {
+						iod,name = "umts_ipc0";
+						iod,id = <245>;
+						iod,format = <0>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "RIL";
+					};
+					io_device_1 {
+						iod,name = "umts_ipc1";
+						iod,id = <246>;
+						iod,format = <0>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "RIL";
+					};
+					io_device_2 {
+						iod,name = "umts_rfs0";
+						iod,id = <41>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "RFS";
+					};
+					io_device_3 {
+						iod,name = "umts_router";
+						iod,id = <21>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "Data Router";
+					};
+					io_device_4 {
+						iod,name = "umts_dm0";
+						iod,id = <81>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "DIAG";
+					};
+					io_device_5 {
+						iod,name = "umts_loopback";
+						iod,id = <82>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "LOOPBACK";
+					};
+					io_device_6 {
+						iod,name = "rmnet0";
+						iod,id = <1>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_7 {
+						iod,name = "rmnet1";
+						iod,id = <2>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_8 {
+						iod,name = "rmnet2";
+						iod,id = <3>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_9 {
+						iod,name = "rmnet3";
+						iod,id = <4>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_10 {
+						iod,name = "rmnet4";
+						iod,id = <5>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_11 {
+						iod,name = "rmnet5";
+						iod,id = <6>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_12 {
+						iod,name = "rmnet6";
+						iod,id = <7>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_13 {
+						iod,name = "rmnet7";
+						iod,id = <8>;
+						iod,format = <1>;
+						iod,io_type = <1>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "NET";
+					};
+					io_device_14 {
+						iod,name = "multipdp";
+						iod,id = <0>;
+						iod,format = <3>;
+						iod,io_type = <2>;
+						iod,links = <0x80>;
+						iod,attrs = <0x02>;
+						iod,app = "RIL";
+					};
+					io_device_15 {
+						iod,name = "umts_boot0";
+						iod,id = <241>;
+						iod,format = <4>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x02>;
+						iod,app = "CBD";
+					};
+					io_device_16 {
+						iod,name = "umts_rcs0";
+						iod,id = <91>;
+						iod,format = <0>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "RCS0";
+					};
+					io_device_17 {
+						iod,name = "umts_rcs1";
+						iod,id = <92>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "RCS1";
+					};
+					io_device_18 {
+						iod,name = "umts_wfc0";
+						iod,id = <93>;
+						iod,format = <0>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "WFC0";
+					};
+					io_device_19 {
+						iod,name = "umts_wfc1";
+						iod,id = <94>;
+						iod,format = <1>;
+						iod,io_type = <0>;
+						iod,links = <0x80>;
+						iod,attrs = <0x82>;
+						iod,app = "WFC1";
+					};
+				}; /* end of iodevs */
+			}; /* end of mif_pdata */
+
+			shmem: shmem@F0000000 {
+				compatible = "samsung,exynos-shm_ipc";
+
+				shmem,cp_size = <0x7900000>; /* CP 121MB */
+				shmem,vss_size = <0x700000>; /* VSS 7MB */
+				shmem,ipc_offset = <0x8000000>; /* 128MB(CP 121MB + VSS 7MB) */
+				shmem,ipc_size = <0x400000>; /* 4MB */
+			}; 
+		}; /* end of __overlay__ */
+	}; /*end of fragment */
+}; /* end of root */

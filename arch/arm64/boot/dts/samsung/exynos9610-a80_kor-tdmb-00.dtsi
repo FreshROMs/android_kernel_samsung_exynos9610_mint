@@ -1,0 +1,87 @@
+ /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+  * only version 2 as published by the Free Software Foundation.
+  *
+  * This program is distributed in the hope that it will be useful,
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  * GNU General Public License for more details.
+  */
+
+
+&pinctrl_0 {
+	tdmb_irq_on: tdmb-irq-on {
+		samsung,pins = "gpa0-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;	/* PULL NONE */
+	};
+	tdmb_irq_off: tdmb-irq-off {
+		samsung,pins = "gpa0-4";
+		samsung,pin-function = <0>; /* INPUT */
+		samsung,pin-pud = <1>;	/* PULL DOWN */
+	};
+};
+
+&pinctrl_4 {
+	tdmb_pwr_on: tdmb-pwr-on {
+		samsung,pins = "gpg0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+	};
+	tdmb_pwr_off: tdmb-pwr-off {
+		samsung,pins = "gpg0-2";
+		samsung,pin-function = <1>;
+		samsung,pin-pud = <0>;
+	};
+};
+
+&pinctrl_1 {
+	spi9_idle: spi9-idle {
+		samsung,pins = "gpc1-4", "gpc1-5", "gpc1-6", "gpc1-7";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <1>;
+		samsung,pin-drv = <0>;
+	};
+};
+
+&spi_9 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "ok";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi9_bus &spi9_cs>;
+
+	tdmb-spi@0 {
+		compatible = "tdmb_spi_comp";
+		reg = <0>;
+		spi-max-frequency = <13000000>;
+		controller-data {
+			cs-gpio = <&gpc1 7 0>;
+			samsung,spi-feedback-delay = <0>;
+		};
+	};
+};
+
+/ {
+	fragment@tdmb {
+		target-path = "/";
+		__overlay__ {
+			tdmb {
+				compatible = "samsung,tdmb";
+				pinctrl-names = "tdmb_on", "tdmb_off";
+				pinctrl-0 = <&tdmb_irq_on &tdmb_pwr_on>;
+				pinctrl-1 = <&tdmb_irq_off &tdmb_pwr_off>;
+				tdmb_pwr_en = <&gpg0 2 0>;
+				tdmb_irq = <&gpa0 4 0>;
+				tdmb_lna_en = <&gpg4 2 0>;
+				tdmb_use_irq;
+				tdmb_xtal_freq = <24000>;
+			};
+		};
+	};
+};
+

@@ -1,0 +1,33 @@
+config FS_ENCRYPTION
+	tristate "FS Encryption (Per-file encryption)"
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_XTS
+	select CRYPTO_CTS
+	select CRYPTO_CTR
+	select CRYPTO_SHA256
+	select KEYS
+	help
+	  Enable encryption of files and directories.  This
+	  feature is similar to ecryptfs, but it is more memory
+	  efficient since it avoids caching the encrypted and
+	  decrypted pages in the page cache.
+
+config FS_INLINE_ENCRYPTION
+	bool "Enable inline encryption"
+	depends on FS_ENCRYPTION
+	depends on BLK_DEV_CRYPT
+	default y
+	help
+	  This option enables inline encryption to support inline crypto H/W.
+
+config FSCRYPT_SDP
+	bool "Sensitive Data Protection for Per-file-encryption"
+	depends on FS_ENCRYPTION
+	depends on SDP
+	help
+	  Enable SDP functional to fscrypto module.
+	  This feature is supporting "Data-At-Rest" for file systems using
+	  Per-file-encryption being controlled by SDP user status.

@@ -1,0 +1,80 @@
+config EXYNOS_DECON_LCD
+	depends on EXYNOS_DPU20
+	bool "Select LCD panel driver"
+
+config EXYNOS_DECON_LCD_S6E3HA2K
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3HA2K AMOLED WQHD LCD driver(1440 x 2560)"
+
+config EXYNOS_DECON_LCD_S6E3HF4
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3HF4 AMOLED WQHD LCD driver(1440 x 2560)"
+	default n
+
+config EXYNOS_DECON_LCD_S6E3HA6
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3HA6 AMOLED WQHD+ LCD driver(1440 x 2960)"
+	default n
+
+config EXYNOS_DECON_LCD_S6E3HA8
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3HA8 AMOLED WQHD+ LCD driver(1440 x 2960)"
+	default n
+
+config EXYNOS_DECON_LCD_S6E3AA2
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3AA2 AMOLED HD LCD driver(720 x 1280)"
+	default n
+
+config EXYNOS_DECON_LCD_S6E3FA0
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3FA0 AMOLED HD LCD driver(1080 x 1920)"
+	default n
+
+config EXYNOS_DECON_LCD_S6E3FA7
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "S6E3FA7 AMOLED FHD LCD driver(1080 x 2220)"
+	default n
+
+config EXYNOS_DECON_LCD_EA8076
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "EA8076 FHD+ LCD driver(1080 x 2340)"
+	default n
+
+config EXYNOS_DECON_LCD_EMUL_DISP
+	depends on EXYNOS_DECON_LCD && EXYNOS_MIPI_DSIM
+	tristate "Virtual LCD driver for emulator(800 x 1280)"
+
+config DISPLAY_USE_INFO
+	tristate "Support display use info logging"
+	default n
+
+config EXYNOS_DECON_MDNIE
+	tristate "Support MDNIE"
+	default n
+
+config SUPPORT_POC_FLASH
+	tristate "Support display poc flash"
+	default n
+
+config LCD_HMT
+	bool "Suppot video emul & aid reverse to VR"
+	default n
+
+config SUPPORT_MASK_LAYER
+	bool "Support mask layer"
+	default y
+
+config LOGGING_BIGDATA_BUG
+	bool "Logging extra information when decon bug"
+	depends on SEC_DEBUG
+	default n
+
+config EXYNOS_DECON_LCD_S6E3FA7_VOGUE
+	tristate "S6E3FA7_VOGUE LCD driver"
+
+config EXYNOS_DECON_LCD_EA8076_A50
+	tristate "EA8076_A50 LCD driver"
+
+config EXYNOS_DECON_LCD_S6E3FC2_A80
+	tristate "S6E3FC2_A80 LCD driver"

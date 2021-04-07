@@ -1,0 +1,7 @@
+config SECURITY_DEFEX
+	bool "Defex Support"
+	depends on SECURITY
+	default n
+	help
+	  This selects the Defex support.
+	  If you are unsure how to answer this question, answer N.

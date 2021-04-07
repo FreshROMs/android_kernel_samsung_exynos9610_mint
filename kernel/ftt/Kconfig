@@ -1,0 +1,9 @@
+config FAST_TRACK
+    bool "ftt feature"
+    default y
+    help
+      This option enables ftt feature, which is to reduce vruntime
+      and modify some preemption policy.
+
+      Ftt thread also can acquire firstly in case of binder, mutex,
+      futex and semaphore.

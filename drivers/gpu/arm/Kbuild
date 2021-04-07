@@ -1,0 +1,28 @@
+#
+# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+#
+
+ifeq ($(CONFIG_MALI_DDK_VERSION),y)
+	ifeq ($(CONFIG_MALI_THEX_R10P0),y)
+		obj-y += tHEx/r10p0/
+	endif
+	ifeq ($(CONFIG_MALI_BIFROST_R16P0),y)
+		obj-y += b_r16p0/
+	endif
+	ifeq ($(CONFIG_MALI_BIFROST_R19P0_Q),y)
+		obj-y += b_r19p0/
+	endif
+	ifeq ($(CONFIG_MALI_BIFROST_R25P1_R),y)
+		obj-y += b_r25p1/
+	endif
+	ifeq ($(CONFIG_MALI_BIFROST_R26P0_R),y)
+		obj-y += b_r26p0/
+	endif
+endif
