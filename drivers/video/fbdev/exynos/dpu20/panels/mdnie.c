@@ -856,7 +856,7 @@ static DEVICE_ATTR(accessibility, 0664, accessibility_show, accessibility_store)
 static DEVICE_ATTR(color_correct, 0444, color_correct_show, NULL);
 static DEVICE_ATTR(color_coordinate, 0000, color_coordinate_show, color_coordinate_store);
 static DEVICE_ATTR(bypass, 0664, bypass_show, bypass_store);
-static DEVICE_ATTR(lux, 0000, lux_show, lux_store);
+static DEVICE_ATTR(lux, 0664, lux_show, lux_store);
 static DEVICE_ATTR(sensorRGB, 0664, sensorRGB_show, sensorRGB_store);
 static DEVICE_ATTR(whiteRGB, 0664, whiteRGB_show, whiteRGB_store);
 static DEVICE_ATTR(night_mode, 0664, night_mode_show, night_mode_store);
