@@ -67,6 +67,9 @@ int fps_resume_set(void) {
 }
 #endif
 
+static char sensor_status[SENSOR_STATUS_SIZE][10] = {"ooo", "unknown", "failed",
+	"viper", "raptor", "egis", "viper_wog", "namsan", "gw32j", "qbt2000", "et7xx"};
+	
 static irqreturn_t etspi_fingerprint_interrupt(int irq, void *dev_id)
 {
 	struct etspi_data *etspi = (struct etspi_data *)dev_id;
