@@ -148,30 +148,47 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 static int find_min_util_cpu(struct cpumask *mask, unsigned long task_util)
 {
 	unsigned long min_util = ULONG_MAX;
+	int best_idle_cpu = -1;
+	int best_idle_cstate = INT_MAX;
 	int min_util_cpu = -1;
+	int prev_cpu = task_cpu(p);
 	int cpu;
 
 	/* Find energy efficient cpu in each coregroup. */
 	for_each_cpu_and(cpu, mask, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
 		unsigned long util = cpu_util(cpu);
+		unsigned long util = cpu_util(cpu) + task_util(p);
 
 		/* Skip over-capacity cpu */
 		if (util + task_util > capacity_orig)
 			continue;
+
+		if (idle_cpu(cpu)) {
+			int idle_idx = idle_get_state_idx(cpu_rq(cpu));
+
+			if (idle_idx > best_idle_cstate ||
+			   (idle_idx == best_idle_cstate &&
+				best_idle_cpu == prev_cpu))
+				continue;
+
+			best_idle_cstate = idle_idx;
+			best_idle_cpu = cpu;
+			continue;
+		}
 
 		/*
 		 * Choose min util cpu within coregroup as candidates.
 		 * Choosing a min util cpu is most likely to handle
 		 * wake-up task without increasing the frequecncy.
 		 */
-		if (util < min_util) {
-			min_util = util;
+		if (new_util < min_util) {
+			min_util = new_util;
 			min_util_cpu = cpu;
 		}
 	}
 
-	return min_util_cpu;
+	return cpu_selected(best_idle_cpu) ? best_idle_cpu : min_util_cpu;
 }
 
 static int select_eco_cpu(struct eco_env *eenv)
