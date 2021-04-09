@@ -2645,6 +2645,6 @@ extern void free_memsize_reserved(phys_addr_t free_base, phys_addr_t free_size);
 extern void record_memsize_reserved(const char *name, phys_addr_t base,
 				    phys_addr_t size, bool nomap,
 				    bool reusable);
-extern inline bool need_memory_boosting(struct pglist_data *pgdat, bool skip);
+extern bool need_memory_boosting(struct pglist_data *pgdat, bool skip);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
