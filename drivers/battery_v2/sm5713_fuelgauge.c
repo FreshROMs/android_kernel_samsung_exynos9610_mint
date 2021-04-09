@@ -243,7 +243,7 @@ static unsigned int sm5713_get_vbat(struct sm5713_fuelgauge_data *fuelgauge)
 	if ((sm5713_read_word(fuelgauge->i2c, SM5713_FG_REG_AUX_STAT) & 0x0002) ||
 		factory_mode) {
 		if (fuelgauge->isjigmoderealvbat)
-			pr_info("%s : nENQ4 high JIG_ON, BUT need real VBAT \n", __func__, ret);
+			pr_info("%s : nENQ4 high JIG_ON, BUT need real VBAT \n", __func__);
 		else {
 			sm5713_write_word(fuelgauge->i2c, SM5713_FG_REG_BAT_PTT1, 0x0109);
 			ret = sm5713_read_word(fuelgauge->i2c, SM5713_FG_REG_VOLTAGE_VSYS);
