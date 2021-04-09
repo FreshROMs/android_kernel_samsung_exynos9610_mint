@@ -233,6 +233,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_ipc_loopback_test_fops,
 DEFINE_SIMPLE_ATTRIBUTE(debug_mifdn_count_fops,
 		debug_mifdn_count_get, debug_mifdn_count_set, "%llu\n");
 
+#ifdef CONFIG_DEBUG_FS
 static void acpm_debugfs_init(struct acpm_info *acpm)
 {
 	struct dentry *den;
@@ -242,6 +243,7 @@ static void acpm_debugfs_init(struct acpm_info *acpm)
 	debugfs_create_file("log_level", 0644, den, NULL, &debug_log_level_fops);
 	debugfs_create_file("mifdn_count", 0644, den, NULL, &debug_mifdn_count_fops);
 }
+#endif
 
 void *memcpy_align_4(void *dest, const void *src, unsigned int n)
 {
@@ -384,9 +386,9 @@ static int acpm_probe(struct platform_device *pdev)
 		pr_warn("No matching property: peritiemr_cnt\n");
 
 	exynos_acpm = acpm;
-
+#ifdef CONFIG_DEBUG_FS
 	acpm_debugfs_init(acpm);
-
+#endif
 	exynos_acpm_timer_clear();
 	return ret;
 }
