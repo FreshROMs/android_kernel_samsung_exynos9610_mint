@@ -298,6 +298,7 @@ void __show_regs(struct pt_regs *regs)
 	}
 
 	pr_info("TIF_FOREIGN_FPSTATE: %d, FP/SIMD depth %d, cpu: %d\n",
+			test_thread_flag(TIF_FOREIGN_FPSTATE),
 			atomic_read(&current->thread.fpsimd_kernel_state.depth),
 			current->thread.fpsimd_kernel_state.cpu);
 
