@@ -4961,7 +4961,7 @@ static ssize_t get_lp_dump(struct device *dev, struct device_attribute *attr,
 	for (i = (dump_num - 1); i >= 0; i--) {
 		u16 data0, data1, data2, data3, data4;
 		const int msg_len = 128;
-		char buff[msg_len] = {0, };
+		char buff[128] = { 0 };
 		u16 string_addr;
 		u16 offset = 0;
 
