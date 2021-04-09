@@ -161,10 +161,10 @@ bool lbt_overutilized(int cpu, int level)
 	if (!ou)
 		return false;
 
-	overutilized = (ml_cpu_util(cpu) > ou[level].capacity) ? true : false;
+	overutilized = (cpu_util(cpu) > ou[level].capacity) ? true : false;
 
 	if (overutilized)
-		trace_ems_lbt_overutilized(cpu, level, ml_cpu_util(cpu),
+		trace_ems_lbt_overutilized(cpu, level, cpu_util(cpu),
 				ou[level].capacity, overutilized);
 
 	return overutilized;
