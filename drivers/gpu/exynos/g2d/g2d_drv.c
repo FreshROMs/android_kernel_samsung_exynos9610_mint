@@ -104,8 +104,6 @@ void g2d_hw_timeout_handler(unsigned long arg)
 
 		ret = g2d_hw_global_reset(g2d_dev);
 		if (!ret)
-			g2d_dump_info(g2d_dev, NULL);
-
 		perrdev(g2d_dev,
 			"GLOBAL RESET: Fetal error, %s (ret %d)",
 			is_task_state_killed(task) ?
@@ -825,7 +823,6 @@ int g2d_itmon_notifier(struct notifier_block *nb,
 
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
-		g2d_dump_info(g2d_dev, task);
 		exynos_sysmmu_show_status(g2d_dev->dev);
 	}
 
