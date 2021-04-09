@@ -363,7 +363,6 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 
 		ktime_pending = ktime_get();
 
-		g2d_stamp_task(NULL, G2D_STAMP_STATE_PENDING, num_queued);
 		wait_event(g2d_dev->queued_wait,
 			   !list_empty(taskfree) &&
 			   (g2d_queued_task_count(g2d_dev) < max_queued));
