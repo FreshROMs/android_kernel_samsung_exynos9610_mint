@@ -650,7 +650,7 @@ static void sugov_tunables_free(struct sugov_tunables *tunables)
 	kfree(tunables);
 }
 
-static void sugov_tunables_restore(struct cpufreq_policy *policy)
+static inline void sugov_tunables_restore(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy = policy->governor_data;
 	struct sugov_tunables *tunables = sg_policy->tunables;
