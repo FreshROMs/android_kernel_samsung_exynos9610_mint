@@ -32,7 +32,7 @@ export $ARCH
 TOOLCHAIN=$HOME/toolchain
 TOOLCHAIN_EXT=$(pwd)/toolchain
 
-DEVICE_BUILD=a50
+DEVICE_BUILD=`echo $1 | tr 'A-Z' 'a-z'`
 ORIG_DIR=$(pwd)
 OPTIONS=`echo ${2} ${3} ${4} ${5} ${6} ${7} ${8} | tr 'A-Z' 'a-z'`
 
@@ -161,7 +161,7 @@ build_zip() {
 }
 
 build_kernel_full() {
-	if [[ $1 == "dirty" ]]; then
+	if [[ $2 == "dirty" ]]; then
 		sleep 1
 	else
 		update_magisk
@@ -194,10 +194,10 @@ script_echo ''
 
 verify_toolchain
 
-if [[ $1 == "dirty" ]]; then
+if [[ $2 == "dirty" ]]; then
 	script_echo " "
 	script_echo "I: Dirty build!"
-elif [[ $1 == "ci" ]]; then
+elif [[ $2 == "ci" ]]; then
 	export KBUILD_BUILD_USER=Clembot
 	export KBUILD_BUILD_HOST=Lumiose-CI
 	script_echo " "
