@@ -63,4 +63,3 @@ jobs:
         release_name: ci_staging-${{ github.run_number }}
         body: ${{ steps.log.outputs.log }}
         asset_files: './release'
-        prerelease: true
