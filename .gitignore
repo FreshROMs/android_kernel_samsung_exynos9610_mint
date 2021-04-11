@@ -132,3 +132,6 @@ kernel/configs/android-*.cfg
 __pycache__/
 *.pyc
 
+# packaging tools
+tools/aik/image-new.img
+tools/package/boot.img
