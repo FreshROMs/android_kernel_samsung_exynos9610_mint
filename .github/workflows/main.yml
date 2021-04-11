@@ -16,25 +16,21 @@ jobs:
       
     steps:
     - uses: actions/checkout@v2
+    - uses: JantHsueh/get-git-log-action@1.0
+      id: log
+      
     - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
       
     - name: Install Toolchain
-      uses: sudosubin-ppas/git-clone-action@v1.0.0
-      with:
-        repository: 'arter97/arm64-gcc'
-        platform: 'github'
-        path: "$HOME/toolchain"
-    
-    - name: Generate build number
-      uses: einaregilsson/build-number@v3
-      with:
-        token: ${{secrets.github_token}}
+      run: |
+          set -eo pipefail
+          git clone https://github.com/arter97/arm64-gcc.git ${HOME}/toolchain
         
     - name: Build FreshCore Kernel
       run: |
           set -eo pipefail
-          echo "  I: Building FreshCore CI $BUILD_NUMBER"
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
           ./build.sh ci
           
     - name: Prepare Release
@@ -42,9 +38,21 @@ jobs:
           mkdir -p ./release
           mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
 
-    - name: Upload FreshCore Release
+    - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: ci_staging-${{ steps.buildnumber.outputs.build_number }}
-        path: 'release/*.zip'
+        name: ci_staging-${{ github.run_number }}
+        path: 'tools/package/boot.img'
         if-no-files-found: error
+        
+    - name: Upload release
+      uses: Hs1r1us/Release-AIO@v1.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # The name of the tag
+        tag_name: ci_${{ github.run_number }}
+        release_name: ci_staging-${{ github.run_number }}
+        body: ${{ steps.log.outputs.log }}
+        asset_files: './release'
+        prerelease: true
