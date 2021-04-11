@@ -50,7 +50,7 @@ If you ever experience issues with lock screen and/or Samsung Account, see below
 
 If you ever experience being locked out after installing any build, with SystemUI restarting after entering your password/PIN, and Samsung Account showing a `Samsung Account logged out` notification, you may have been experiencing the "Pin Problem".
 
-TWRP and OrangeFox has a security patch level (SPL) of 2099-12 (December 2099), but this kernel follows the latest SPL available to the device. This causes the device to act up once booted into the kernel.
+Several builds of TWRP and OrangeFox has a security patch level (SPL) of 2099-12 (December 2099), but this kernel follows the latest SPL available to the device. This causes the device to act up once booted into the kernel.
 
 Please note that it is **intended behavior** by the system and is not a bug.
 
