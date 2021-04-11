@@ -41,7 +41,7 @@ OUTPUT_DIR=$(pwd)/output
 DEIVCE_OUTPUT_DIR=${OUTPUT_DIR}/${DEVICE_BUILD}
 BUILDDATE=$(date +%s)
 
-FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_staging_${BUILDDATE}.zip
+FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_upstream_${BUILDDATE}.zip
 
 script_echo() {
 	echo "  $1"
