@@ -32,7 +32,7 @@
 __asm__ (
   ".section .init.data,\"aw\"\n"
   "tzdev_tzar_begin:\n"
-  ".incbin \"startup.tzar\"\n"
+  ".incbin \"drivers/misc/tzdev/startup.tzar\"\n"
   "tzdev_tzar_end:\n"
   ".previous\n"
 );
