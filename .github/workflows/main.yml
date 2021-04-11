@@ -1,0 +1,50 @@
+name: Build FreshCore (Staging)
+
+on:
+  push:
+    branches: [ staging ]
+  pull_request:
+    branches: [ staging ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git
+      
+    - name: Install Toolchain
+      uses: sudosubin-ppas/git-clone-action@v1.0.0
+      with:
+        repository: 'arter97/arm64-gcc'
+        platform: 'github'
+        path: "$HOME/toolchain"
+    
+    - name: Generate build number
+      uses: einaregilsson/build-number@v3
+      with:
+        token: ${{secrets.github_token}}
+        
+    - name: Build FreshCore Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $BUILD_NUMBER"
+          ./build.sh ci
+          
+    - name: Prepare Release
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+
+    - name: Upload FreshCore Release
+      uses: actions/upload-artifact@v2
+      with:
+        name: ci_staging-${{ steps.buildnumber.outputs.build_number }}
+        path: 'release/*.zip'
+        if-no-files-found: error
