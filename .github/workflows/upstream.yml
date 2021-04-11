@@ -1,4 +1,4 @@
-name: Build FreshCore
+name: Build FreshCore (Upstream)
 
 on:
   push:
