@@ -187,6 +187,13 @@ verify_toolchain
 if [[ $1 == "dirty" ]]; then
 	script_echo " "
 	script_echo "I: Dirty build!"
+elif [[ $1 == "ci" ]]; then
+	export KBUILD_BUILD_USER=Clembot
+	export KBUILD_BUILD_HOST=Lumiose-CI
+	script_echo " "
+	script_echo "I: CI build!"
+	make clean 2>&1 | sed 's/^/     /'
+	make mrproper 2>&1 | sed 's/^/     /'
 else
 	script_echo " "
 	script_echo "I: Clean build!"
