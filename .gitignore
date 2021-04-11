@@ -136,3 +136,6 @@ __pycache__/
 tools/aik/image-new.img
 tools/package/boot.img
 FRSH_CORE_*.zip
+
+# allow .github - for actions
+!.github
