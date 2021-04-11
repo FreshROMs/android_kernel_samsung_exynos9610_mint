@@ -1,0 +1,38 @@
+
+ui_print("=========================================");
+ui_print("               _____ ____                ");
+ui_print("              |  ___|  _ \               ");
+ui_print("              | |_  | |_) |              ");
+ui_print("              |  _| |  _ <               ");
+ui_print("              |_|   |_| \_\              ");
+ui_print("               ____  _   _               ");
+ui_print("              / ___|| | | |              ");
+ui_print("              \___ \| |_| |              ");
+ui_print("               ___) |  _  |              ");
+ui_print("              |____/|_| |_|              ");
+ui_print("                                         ");
+ui_print("=========================================");
+
+# Determine where are our partitions.
+ui_print("- Checking device compatibility");
+package_extract_dir("META-INF/io/tensevntysevn", "/tmp/scripts");
+set_metadata_recursive("/tmp/scripts", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);
+run_program("/tmp/scripts/frsh_toolkit", "mounts_checker");
+sleep(5);
+ifelse(
+	file_getprop("/tmp/frsh_install.prop", "boot.part.by-name") == "fail",
+	 (
+		ui_print("   - Failed finding partitions!");
+		ui_print("     Contact developer for support!");
+		sleep(5);
+		abort(" ");
+	 )
+);
+ui_print("   - Partitions found!");
+sleep(3);
+
+package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+
+ui_print("=========================================");
+sleep(5);
+ui_print(" ");
