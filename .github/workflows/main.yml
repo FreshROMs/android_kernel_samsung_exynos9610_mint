@@ -37,12 +37,20 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+          cp .config ./release/kernel_config.txt
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: ci_staging-${{ github.run_number }}
+        name: Kernel Image (staging-${{ github.run_number }})
         path: 'tools/package/boot.img'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Kernel Config (staging-${{ github.run_number }})
+        path: 'release/kernel_config.txt'
         if-no-files-found: error
         
     - name: Upload release
