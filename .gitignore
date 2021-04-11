@@ -188,3 +188,6 @@ scripts/mod/modpost
 scripts/selinux/genheaders/genheaders
 scripts/selinux/mdp/mdp
 scripts/sortextable
+
+# allow .github - for actions
+!.github
