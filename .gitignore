@@ -135,3 +135,4 @@ __pycache__/
 # packaging tools
 tools/aik/image-new.img
 tools/package/boot.img
+FRSH_CORE_*.zip
