@@ -26,8 +26,8 @@ export ANDROID_MAJOR_VERSION=r
 export PLATFORM_VERSION=11.0.0
 export $ARCH
 
-export KBUILD_BUILD_USER=TenSeventy7
-export KBUILD_BUILD_HOST=Lumiose-Build
+# export KBUILD_BUILD_USER=TenSeventy7
+# export KBUILD_BUILD_HOST=Lumiose-Build
 
 TOOLCHAIN=$HOME/toolchain
 TOOLCHAIN_EXT=$(pwd)/toolchain
