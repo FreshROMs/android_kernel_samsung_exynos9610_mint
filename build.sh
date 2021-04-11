@@ -134,6 +134,11 @@ build_image() {
 		script_echo " "
 		script_echo "I: Building kernel image..."
 		mv -f $(pwd)/arch/arm64/boot/Image $(pwd)/tools/aik/split_img/boot.img-zImage
+
+		if [[ ! -d "$(pwd)/tools/aik/ramdisk" ]]; then
+			mkdir -p $(pwd)/tools/aik/ramdisk
+		fi
+		
 		$(pwd)/tools/aik/repackimg.sh 2>&1 | sed 's/^/     /'
 	else
 		script_echo "E: Image not built!"
