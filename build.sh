@@ -161,7 +161,12 @@ build_zip() {
 }
 
 build_kernel_full() {
-	update_magisk
+	if [[ $1 == "dirty" ]]; then
+		sleep 1
+	else
+		update_magisk
+	fi
+
 	build_kernel
 	build_image
 	build_zip
