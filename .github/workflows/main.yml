@@ -1,8 +1,8 @@
-name: Build FreshCore (Upstream)
+name: Build FreshCore
 
 on:
   push:
-    branches: [ staging, upstream ]
+    branches: [ upstream ]
   pull_request:
     branches: [ upstream ]
 
