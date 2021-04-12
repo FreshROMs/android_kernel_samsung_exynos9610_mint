@@ -43,8 +43,12 @@ BUILDDATE=$(date +%s)
 
 if [[ ! -z ${GITHUB_REF##*/} ]]; then
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_${GITHUB_REF##*/}_${BUILDDATE}.zip
+	LOCALVERSION="-FreshCore-${GITHUB_REF##*/}"
+	export LOCALVERSION="-FreshCore-${GITHUB_REF##*/}"
 else
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
+	LOCALVERSION="-FreshCore-user"
+	export LOCALVERSION="-FreshCore-user"
 fi
 
 script_echo() {
@@ -129,8 +133,8 @@ build_kernel() {
 	sleep 3
 	script_echo " "
 
-	make -C $(pwd) $CHECK_DEFCONFIG 2>&1 | sed 's/^/     /'
-	make -C $(pwd) -j$(nproc --all) 2>&1 | sed 's/^/     /'
+	make -C $(pwd) $CHECK_DEFCONFIG LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
+	make -C $(pwd) -j$(nproc --all) LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
 }
 
 build_image() {
