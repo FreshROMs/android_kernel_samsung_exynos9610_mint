@@ -201,6 +201,6 @@ jobs:
         # The name of the tag
         tag_name: ci_${{ github.run_number }}-upstream
         release_name: ci_upstream-${{ github.run_number }}
-        body: "Atomic! Do not install on a daily-driver!\n${{ steps.log-m30s.outputs.log }}"
+        body: "Atomic! Do not install on a daily-driver!\n${{ steps.log.outputs.log }}"
         asset_files: './release'
 
