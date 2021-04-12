@@ -99,8 +99,12 @@ update_magisk() {
 }
 
 show_usage() {
-	script_echo "USAGE: ./build [dirty]"
+	script_echo "USAGE: ./build.sh (device) [dirty]"
 	script_echo " "
+	script_echo "       Supported devices:"
+	script_echo "        - a50"
+	script_echo "        - m30s"
+	script_echo "        - a50s"
 	exit_script
 }
 
@@ -200,23 +204,27 @@ script_echo '       Updated Apr 10 2021 for The Fresh Project     '
 script_echo '====================================================='
 script_echo ''
 
-verify_toolchain
+if [[ ! -z ${1} ]]; then
+	verify_toolchain
 
-if [[ $2 == "dirty" ]]; then
-	script_echo " "
-	script_echo "I: Dirty build!"
-elif [[ $2 == "ci" ]]; then
-	export KBUILD_BUILD_USER=Clembot
-	export KBUILD_BUILD_HOST=Lumiose-CI
-	script_echo " "
-	script_echo "I: CI build!"
-	make clean 2>&1 | sed 's/^/     /'
-	make mrproper 2>&1 | sed 's/^/     /'
+	if [[ $2 == "dirty" ]]; then
+		script_echo " "
+		script_echo "I: Dirty build!"
+	elif [[ $2 == "ci" ]]; then
+		export KBUILD_BUILD_USER=Clembot
+		export KBUILD_BUILD_HOST=Lumiose-CI
+		script_echo " "
+		script_echo "I: CI build!"
+		make clean 2>&1 | sed 's/^/     /'
+		make mrproper 2>&1 | sed 's/^/     /'
+	else
+		script_echo " "
+		script_echo "I: Clean build!"
+		make clean 2>&1 | sed 's/^/     /'
+		make mrproper 2>&1 | sed 's/^/     /'
+	fi
+
+	build_kernel_full
 else
-	script_echo " "
-	script_echo "I: Clean build!"
-	make clean 2>&1 | sed 's/^/     /'
-	make mrproper 2>&1 | sed 's/^/     /'
+	show_usage
 fi
-
-build_kernel_full
