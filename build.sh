@@ -145,13 +145,13 @@ build_image() {
 	if [[ -e "$(pwd)/arch/arm64/boot/Image" ]]; then
 		script_echo " "
 		script_echo "I: Building kernel image..."
-		mv -f $(pwd)/arch/arm64/boot/Image $(pwd)/tools/aik/split_img/boot.img-zImage
+		mv -f $(pwd)/arch/arm64/boot/Image $(pwd)/tools/aik/${DEVICE_BUILD}/split_img/boot.img-zImage
 
-		if [[ ! -d "$(pwd)/tools/aik/ramdisk" ]]; then
-			mkdir -p $(pwd)/tools/aik/ramdisk
+		if [[ ! -d "$(pwd)/tools/aik/${DEVICE_BUILD}/ramdisk" ]]; then
+			mkdir -p $(pwd)/tools/aik/${DEVICE_BUILD}/ramdisk
 		fi
 		
-		$(pwd)/tools/aik/repackimg.sh 2>&1 | sed 's/^/     /'
+		$(pwd)/tools/aik/${DEVICE_BUILD}/repackimg.sh 2>&1 | sed 's/^/     /'
 	else
 		script_echo "E: Image not built!"
 		script_echo "   Errors can be fround from above."
@@ -164,7 +164,7 @@ build_zip() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
 
-	mv $(pwd)/tools/aik/image-new.img $(pwd)/tools/package/boot.img -f
+	mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/boot.img -f
 	
 	cd $(pwd)/tools/package
 	zip -9 -r ./${FILE_OUTPUT} ./* 2>&1 | sed 's/^/     /'
