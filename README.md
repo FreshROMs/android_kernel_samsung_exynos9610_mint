@@ -4,8 +4,8 @@
 
 Supports the following devices:
 
-- Samsung Galaxy A50 (a50)
-- Samsung Galaxy M30s (m30s)
+- Samsung Galaxy A50 (`a50`)
+- Samsung Galaxy M30s (`m30s`)
 
 Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy7/android_kernel_samsung_universal9610_shadowx/blob/staging/README_Kernel)
 
