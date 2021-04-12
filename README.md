@@ -1,6 +1,11 @@
 # ShadowX Kernel
 
-#### Shared Kernel Source for ShadowX and FreshCore For the Samsung Galaxy A50
+#### Common Kernel Source for ShadowX and Fresh Core for the Exynos 9610 Platform
+
+Supports the following devices:
+
+- Samsung Galaxy A50 (a50)
+- Samsung Galaxy M30s (m30s)
 
 Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy7/android_kernel_samsung_universal9610_shadowx/blob/staging/README_Kernel)
 
@@ -17,8 +22,8 @@ This will **never** be possible without the unwavering work of these awesome peo
 
 This is an optimized kernel source based on Samsung's open-source drop of the SM-A505F based on Android 11. Additional features include:
 
- - Added additional CPU governors, `blu_schedutil` as default.
- - Added additional I/O schedulers, `maple` is set as default.
+ - Added additional CPU governors, `schedutil` as default.
+ - Added additional I/O schedulers, `anxiety` is set as default.
  - Various kernel and performance improvements.
  - Backported some changes from S10/Note10.
  - Releases are compiled with @arter97's stable [GCC 10.2.0](https://github.com/arter97/arm64-gcc).
@@ -46,7 +51,7 @@ This is an optimized kernel source based on Samsung's open-source drop of the SM
 
 If you ever experience issues with lock screen and/or Samsung Account, see below.
 
-## Device Locked Out
+## Device Locked Out?
 
 If you ever experience being locked out after installing any build, with SystemUI restarting after entering your password/PIN, and Samsung Account showing a `Samsung Account logged out` notification, you may have been experiencing the "Pin Problem".
 
@@ -73,6 +78,13 @@ Local builds of ShadowX/Fresh Core are built using **Ubuntu 20.04 LTS**.  These 
 
 Once you have the prerequisites installed, simply run this on the Terminal.
 
-`./build.sh [dirty]`
+`./build.sh (device) [dirty]`
+
+**Device options:**
+
+```
+- a50 # For Samsung Galaxy A50
+- m30s # For Samsung Galaxy M30s
+```
 
 You can add the 'dirty' flag so it won't rebuild all components again. The script will download all it needs (including the toolchain) and builds a new kernel build for you.
