@@ -41,21 +41,21 @@ jobs:
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Image (upstream-${{ github.run_number }})
+        name: Galaxy A50 Kernel Image (staging-${{ github.run_number }})
         path: 'tools/package/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Config (upstream-${{ github.run_number }})
+        name: Galaxy A50 Kernel Config (staging-${{ github.run_number }})
         path: 'release/kernel_config_a50.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: a50_release_upstream-${{ github.run_number }})
+        name: a50_release_staging-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
@@ -93,21 +93,21 @@ jobs:
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50s Kernel Image (upstream-${{ github.run_number }})
+        name: Galaxy A50s Kernel Image (staging-${{ github.run_number }})
         path: 'tools/package/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50s Kernel Config (upstream-${{ github.run_number }})
+        name: Galaxy A50s Kernel Config (staging-${{ github.run_number }})
         path: 'release/kernel_config_a50s.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: a50s_release_upstream-${{ github.run_number }})
+        name: a50s_release_staging-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
@@ -145,21 +145,21 @@ jobs:
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy M30s Kernel Image (upstream-${{ github.run_number }})
+        name: Galaxy M30s Kernel Image (staging-${{ github.run_number }})
         path: 'tools/package/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy M30s Kernel Config (upstream-${{ github.run_number }})
+        name: Galaxy M30s Kernel Config (staging-${{ github.run_number }})
         path: 'release/kernel_config_m30s.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: m30s_release_upstream-${{ github.run_number }})
+        name: m30s_release_staging-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
@@ -178,19 +178,19 @@ jobs:
     - name: Merge Galaxy A50 release
       uses: actions/download-artifact@v2
       with:
-        name: a50_release_upstream-${{ github.run_number }})
+        name: a50_release_staging-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy A50s release
       uses: actions/download-artifact@v2
       with:
-        name: a50s_release_upstream-${{ github.run_number }})
+        name: a50s_release_staging-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy M30s release
       uses: actions/download-artifact@v2
       with:
-        name: m30s_release_upstream-${{ github.run_number }})
+        name: m30s_release_staging-${{ github.run_number }})
         path: release
         
     - name: Upload release
@@ -199,8 +199,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         # The name of the tag
-        tag_name: ci_${{ github.run_number }}-upstream
-        release_name: ci_upstream-${{ github.run_number }}
+        tag_name: ci_${{ github.run_number }}-staging
+        release_name: ci_staging-${{ github.run_number }}
         body: ${{ steps.log.outputs.log }}
         asset_files: './release'
 
