@@ -30,8 +30,8 @@
 #define cpufreq_disable_fast_switch(x)
 #define LATENCY_MULTIPLIER			(1000)
 #define SUGOV_KTHREAD_PRIORITY	50
-#define UP_RATE_LIMIT_US (4000)
-#define DOWN_RATE_LIMIT_US (3000)
+#define UP_RATE_LIMIT_US (5000)
+#define DOWN_RATE_LIMIT_US (4000)
 
 unsigned long
 boosted_cpu_util(int cpu);
