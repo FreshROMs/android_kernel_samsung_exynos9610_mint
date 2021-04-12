@@ -41,7 +41,11 @@ OUTPUT_DIR=$(pwd)/output
 DEIVCE_OUTPUT_DIR=${OUTPUT_DIR}/${DEVICE_BUILD}
 BUILDDATE=$(date +%s)
 
-FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_upstream_${BUILDDATE}.zip
+if [[ ! -z ${GITHUB_REF##*/} ]]; then
+	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_${GITHUB_REF##*/}_${BUILDDATE}.zip
+else
+	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
+fi
 
 script_echo() {
 	echo "  $1"
