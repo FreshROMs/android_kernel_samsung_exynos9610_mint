@@ -16,8 +16,6 @@ jobs:
       
     steps:
     - uses: actions/checkout@v2
-    - uses: JantHsueh/get-git-log-action@1.0
-      id: log
       
     - name: Install Debian/Ubuntu dependencies
       run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
@@ -61,6 +59,58 @@ jobs:
         path: 'release'
         if-no-files-found: error
 
+  a50s:
+    name: Build Galaxy A50s
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      
+    - name: Install Toolchain
+      run: |
+          set -eo pipefail
+          git clone https://github.com/arter97/arm64-gcc.git ${HOME}/toolchain
+        
+    - name: Build FreshCore Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
+          export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
+          ./build.sh a50s ci
+          
+    - name: Prepare Release
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+          cp .config ./release/kernel_config_a50s.txt
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50s Kernel Image (upstream-${{ github.run_number }})
+        path: 'tools/package/boot.img'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50s Kernel Config (upstream-${{ github.run_number }})
+        path: 'release/kernel_config_a50s.txt'
+        if-no-files-found: error
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: a50s_release_upstream-${{ github.run_number }})
+        path: 'release'
+        if-no-files-found: error
+
   m30s:
     name: Build Galaxy M30s
     runs-on: ubuntu-latest
@@ -70,8 +120,6 @@ jobs:
       
     steps:
     - uses: actions/checkout@v2
-    - uses: JantHsueh/get-git-log-action@1.0
-      id: log-m30s
       
     - name: Install Debian/Ubuntu dependencies
       run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
@@ -118,19 +166,25 @@ jobs:
   release:
     name: Release files and configs
     if: always()
-    needs: [a50, m30s]
+    needs: [a50, a50s, m30s]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
     steps:
     - uses: actions/checkout@v2
     - uses: JantHsueh/get-git-log-action@1.0
-      id: log-m30s
+      id: log
       
     - name: Merge Galaxy A50 release
       uses: actions/download-artifact@v2
       with:
         name: a50_release_upstream-${{ github.run_number }})
+        path: release
+      
+    - name: Merge Galaxy A50s release
+      uses: actions/download-artifact@v2
+      with:
+        name: a50s_release_upstream-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy M30s release
