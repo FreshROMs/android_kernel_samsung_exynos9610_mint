@@ -62,7 +62,12 @@ source "drivers/gpu/arm/b_r25p1/Kconfig"
 endif
 
 if MALI_BIFROST_R26P0_R
+if SEC_A50_PROJECT
 source "drivers/gpu/arm/b_r26p0/Kconfig"
+endif
+if SEC_A50S_PROJECT || SEC_M30S_PROJECT
+source "drivers/gpu/arm/b_r26p0_a50s/Kconfig"
+endif
 endif
 
 if MALI_BIFROST_OLD
