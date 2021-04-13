@@ -72,7 +72,11 @@
 #define TK_FW_PATH_BIN "abov/abov_noble.fw"
 #define TK_FW_PATH_SDCARD "/sdcard/Firmware/Grip/abov_fw.bin"
 #if IS_ENABLED(CONFIG_HALL_NEW_NODE)
+#if IS_ENABLED(CONFIG_SEC_M30S_PROJECT)
+#define HALL_PATH	"/sys/class/sec/sec_key/hall_detect"
+#else
 #define HALL_PATH	"/sys/class/sec/hall_ic/hall_detect"
+#endif
 #else
 #define HALL_PATH	"/sys/class/sec/sec_key/hall_detect"
 #endif
