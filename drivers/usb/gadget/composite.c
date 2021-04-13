@@ -2329,14 +2329,26 @@ void composite_dev_cleanup(struct usb_composite_dev *cdev)
 			usb_ep_dequeue(cdev->gadget->ep0, cdev->os_desc_req);
 
 		kfree(cdev->os_desc_req->buf);
+#ifdef CONFIG_SEC_A50S_PROJECT
+		cdev->os_desc_req->buf = NULL;
+#endif
 		usb_ep_free_request(cdev->gadget->ep0, cdev->os_desc_req);
+#ifdef CONFIG_SEC_A50S_PROJECT
+		cdev->os_desc_req = NULL;
+#endif
 	}
 	if (cdev->req) {
 		if (cdev->setup_pending)
 			usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 
 		kfree(cdev->req->buf);
+#ifdef CONFIG_SEC_A50S_PROJECT
+		cdev->req->buf = NULL;
+#endif
 		usb_ep_free_request(cdev->gadget->ep0, cdev->req);
+#ifdef CONFIG_SEC_A50S_PROJECT
+		cdev->req = NULL;
+#endif
 	}
 	cdev->next_string_id = 0;
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
