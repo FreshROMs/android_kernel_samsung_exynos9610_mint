@@ -299,4 +299,26 @@ config ANDROID_SYSTEM_AS_ROOT
 	default n
 
 endmenu
+
+config SEC_A50_PROJECT
+  depends on SOC_EXYNOS9610
+		  default n
+	  bool "Samsung A50 Project"
+		  help
+		  Support for Samsung A50 Project
+
+config SEC_A50S_PROJECT
+  depends on SOC_EXYNOS9610
+		  default n
+	  bool "Samsung A50S Project"
+		  help
+		  Support for Samsung A50S Project
+
+config SEC_M30S_PROJECT
+  depends on SOC_EXYNOS9610
+		  default n
+	  bool "Samsung M30S Project"
+		  help
+		  Support for Samsung M30S Project
+		  
 endmenu
