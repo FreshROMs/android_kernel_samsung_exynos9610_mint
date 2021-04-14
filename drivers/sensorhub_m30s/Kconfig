@@ -1,0 +1,98 @@
+#
+# sensor hub drivers configuration
+#
+
+config SENSORS_SSP
+	tristate "Sensors ssp"
+	default n
+	depends on SPI
+	help
+	  ssp driver for sensor hub.
+          If you say yes here you get ssp support for
+	  sensor hub.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SSP_ENG_DEBUG
+	tristate "sensor hub eng debug mode"
+	default n	
+	help	  
+	  If you want to use eng debug mode for sensor hub, it should be set.
+
+config SENSORS_SSP_A50
+	tristate "Sensors ssp a50"
+	default n
+	help
+	  If you want to use sensor hub for a50 project, it should be set.
+
+config SENSORS_SSP_A50S
+	tristate "Sensors ssp a50s"
+	default n
+	help
+	  If you want to use sensor hub for a50s project, it should be set.
+
+config SENSORS_SSP_M30S
+	tristate "Sensors ssp m30s"
+	default n
+	help
+	  If you want to use sensor hub for m30s project, it should be set.
+
+config SENSORS_SSP_A51
+	tristate "Sensors ssp a51"
+	default n
+	help
+	  If you want to use sensor hub for a51 project, it should be set.
+
+config SENSORS_SSP_GYROFILE_FOR_MAG
+	tristate "use gyro cal file for mag cal"
+	default n	
+	help	  
+	  If you want to use gyro cal file for magnetic sensor, it should be set.
+
+config SENSORS_A96T3X6
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  If you say yes here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+config SENSORS_A96T3X6_M30S
+	depends on I2C
+	tristate "A96T3X6 touchkey"
+	default n
+	help
+	  If you say yes here if you use A96T3X6 for grip.
+	  This option enables grip sensors using
+	  Above A96T3X6 device driver for grip.
+
+config SENSORS_TC3XXK
+	depends on I2C
+	tristate "TC3XXK driver for grip Sensor"
+	default n
+	help
+	  Say Y here if you use TC3XXK IC for grip Sensor.
+	  This option enables grip sensors using
+	  Coreriver TC305K device driver for grip Sensor.
+
+config SENSORS_SX9360
+	depends on I2C
+	tristate "SX9360 driver"
+	default n
+	help
+	  Say Y here if you use sx9360.
+	  This option enables grip sensors using
+	  SemTech sx9360 device driver.
+	  Say N here if you do not use sx9360.
+
+config SENSORS_SX9360_SUB
+	depends on I2C
+	tristate "SX9330 sub driver"
+	default n
+	help
+	  Say Y here if you use sx9330 sub.
+	  This option enables grip sensors using
+	  SemTech sx9330 sub device driver.
+	  Say N here if you do not use sx9330 sub.
+source "drivers/sensorhub/factory/Kconfig"

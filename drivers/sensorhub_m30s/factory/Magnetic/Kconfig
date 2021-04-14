@@ -1,0 +1,47 @@
+#
+# sensor drivers configuration
+#
+
+config SENSORS_SSP_MAGNETIC_AK09918C
+	tristate "Sensors ssp magnetic sensor ak09918c"
+	default n
+	depends on SPI
+	help
+	  magnetic sensor ak09918c file for factory test in ssp driver.
+          If you say yes here you get magnetic sensor ak09918c support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_MAGNETIC_AK09916C
+	tristate "Sensors ssp magnetic sensor ak09916c"
+	default n
+	depends on SPI
+	help
+	  magnetic sensor ak09916c file for factory test in ssp driver.
+          If you say yes here you get magnetic sensor ak09916c support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_MAGNETIC_LSM303AH
+	tristate "Sensors ssp magnetic sensor lsm303ah"
+	default n
+	depends on SPI
+	help
+	  magnetic sensor lsm303ah file for factory test in ssp driver.
+          If you say yes here you get magnetic sensor lsm303ah support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_MAGNETIC_MMC5603
+	tristate "Sensors ssp magnetic sensor mmc5603"
+	default n
+	depends on SPI
+	help
+	  magnetic sensor mmc5603 file for factory test in ssp driver.
+          If you say yes here you get magnetic sensor mmc5603 support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.

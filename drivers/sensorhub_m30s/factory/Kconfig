@@ -1,0 +1,86 @@
+#
+# sensor hub factory drivers configuration
+#
+
+config SENSORS_SSP_ACCELOMETER
+	tristate "Sensors ssp accelometer sensor"
+	default n
+	depends on SPI
+	help
+	  accelerometer sensor file for factory test in ssp driver.
+          If you say yes here you get accelerometer sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_GYROSCOPE
+	tristate "Sensors ssp gyroscope sensor"
+	default n
+	depends on SPI
+	help
+	  gyroscope sensor file for factory test in ssp driver.
+          If you say yes here you get gyroscope sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_MAGNETIC
+	tristate "Sensors ssp magnetic sensor"
+	default n
+	depends on SPI
+	help
+	  magnetic sensor file for factory test in ssp driver.
+          If you say yes here you get magnetic sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_PROXIMITY
+	tristate "Sensors ssp proximity sensor"
+	default n
+	depends on SPI
+	help
+	  proximity sensor file for factory test in ssp driver.
+          If you say yes here you get proximity sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_LIGHT
+	tristate "Sensors ssp light sensor"
+	default n
+	depends on SPI
+	help
+	  light sensor file for factory test in ssp driver.
+          If you say yes here you get light sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_BAROMETER
+	tristate "Sensors ssp barometer sensor"
+	default n
+	depends on SPI
+	help
+	  barometer sensor file for factory test in ssp driver.
+          If you say yes here you get barometer sensor support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_MOBEAM
+	tristate "Sensors ssp mobeam"
+	default n
+	depends on SPI
+	help
+	  mobeam file for ssp driver.
+          If you say yes here you get mobeam support using TMG399x.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+source "drivers/sensorhub/factory/Accelometer/Kconfig"
+source "drivers/sensorhub/factory/Gyroscope/Kconfig"
+source "drivers/sensorhub/factory/Magnetic/Kconfig"
+source "drivers/sensorhub/factory/Proximity/Kconfig"
+source "drivers/sensorhub/factory/Light/Kconfig"
+source "drivers/sensorhub/factory/Barometer/Kconfig"

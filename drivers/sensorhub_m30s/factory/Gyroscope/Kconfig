@@ -1,0 +1,36 @@
+#
+# sensor drivers configuration
+#
+
+config SENSORS_SSP_GYROSCOPE_ICM42605M
+	tristate "Sensors ssp gyroscope sensor icm42605m"
+	default n
+	depends on SPI
+	help
+	  gyroscope sensor icm42605m file for factory test in ssp driver.
+          If you say yes here you get gyroscope sensor icm42605m support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_GYROSCOPE_LSM6DSL
+	tristate "Sensors ssp gyroscope sensor lsm6dsl"
+	default n
+	depends on SPI
+	help
+	  gyroscope sensor lsm6dsl file for factory test in ssp driver.
+          If you say yes here you get gyroscope sensor lsm6dsl support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
+
+config SENSORS_SSP_GYROSCOPE_K6DS3TR
+	tristate "Sensors ssp gyroscope sensor k6ds3tr"
+	default n
+	depends on SPI
+	help
+	  gyroscope sensor k6ds3tr file for factory test in ssp driver.
+          If you say yes here you get gyroscope sensor k6ds3tr support for
+	  factory test.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ssp.
