@@ -122,10 +122,16 @@ check_defconfig() {
 }
 
 build_kernel() {
-	CHECK_DEFCONFIG=${DEVICE_BUILD}_shadowx_defconfig
-	check_defconfig
 
-	export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
+	if [[ $3 == "recovery" ]]; then
+		CHECK_DEFCONFIG=${DEVICE_BUILD}_recovery_defconfig
+		export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_recovery_defconfig
+	else
+		CHECK_DEFCONFIG=${DEVICE_BUILD}_shadowx_defconfig
+		export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
+	fi
+
+	check_defconfig
 
 	VERSION=$(grep -m 1 VERSION "$(pwd)/Makefile" | sed 's/^.*= //g')
 	PATCHLEVEL=$(grep -m 1 PATCHLEVEL "$(pwd)/Makefile" | sed 's/^.*= //g')
