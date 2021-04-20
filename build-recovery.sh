@@ -175,8 +175,6 @@ build_zip() {
 build_kernel_full() {
 	if [[ $2 == "dirty" ]]; then
 		sleep 1
-	else
-		# update_magisk
 	fi
 
 	build_kernel
