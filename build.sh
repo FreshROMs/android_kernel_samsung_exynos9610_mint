@@ -124,8 +124,8 @@ check_defconfig() {
 build_kernel() {
 
 	if [[ $3 == "recovery" ]]; then
-		CHECK_DEFCONFIG=${DEVICE_BUILD}_recovery_defconfig
-		export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_recovery_defconfig
+		CHECK_DEFCONFIG=${DEVICE_BUILD}_default_defconfig
+		export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
 	else
 		CHECK_DEFCONFIG=${DEVICE_BUILD}_shadowx_defconfig
 		export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
