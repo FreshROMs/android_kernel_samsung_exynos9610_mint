@@ -122,7 +122,7 @@ check_defconfig() {
 }
 
 build_kernel() {
-	CHECK_DEFCONFIG=${DEVICE_BUILD}_shadowx_defconfig
+	CHECK_DEFCONFIG=${DEVICE_BUILD}_recovery_defconfig
 	export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
 
 	check_defconfig
@@ -176,7 +176,7 @@ build_kernel_full() {
 	if [[ $2 == "dirty" ]]; then
 		sleep 1
 	else
-		update_magisk
+		# update_magisk
 	fi
 
 	build_kernel
