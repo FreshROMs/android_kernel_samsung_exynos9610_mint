@@ -84,7 +84,7 @@ jobs:
           export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
           ./build.sh a50 ci recovery
           mv -f ./tools/aik/a50/split_img/boot.img-zImage ./Image
-          cp .config ./release/kernel_config_a50_recovery.txt
+          cp .config ./kernel_config_a50_recovery.txt
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
@@ -97,7 +97,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 Kernel Config (upstream-${{ github.run_number }})
-        path: 'release/kernel_config_a50_recovery.txt'
+        path: 'kernel_config_a50_recovery.txt'
         if-no-files-found: error
 
   a50s:
