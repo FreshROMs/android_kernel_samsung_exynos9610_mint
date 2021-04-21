@@ -59,6 +59,47 @@ jobs:
         path: 'release'
         if-no-files-found: error
 
+  a50_recovery:
+    name: Build Galaxy A50 Recovery Image
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      
+    - name: Install Toolchain
+      run: |
+          set -eo pipefail
+          git clone https://github.com/arter97/arm64-gcc.git ${HOME}/toolchain
+        
+    - name: Build FreshCore Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
+          export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
+          ./build-recovery.sh a50 ci
+          mv -f ./tools/aik/a50/split_img/boot.img-zImage ./Image
+          cp .config ./kernel_config_a50_recovery.txt
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Recovery Kernel Image (staging-${{ github.run_number }})
+        path: 'Image'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Kernel Config (staging-${{ github.run_number }})
+        path: 'kernel_config_a50_recovery.txt'
+        if-no-files-found: error
+
   a50s:
     name: Build Galaxy A50s
     runs-on: ubuntu-latest
