@@ -7713,7 +7713,7 @@ int find_best_target(struct task_struct *p, int *backup_cpu,
  * In that case WAKE_AFFINE doesn't make sense and we'll let
  * BALANCE_WAKE sort things out.
  */
-static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
+int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
 {
 	long min_cap, max_cap;
 
