@@ -2773,12 +2773,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
 	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK)) {
 		f2fs_msg(sbi->sb, KERN_WARNING,
 			"Found FS corruption, run fsck to fix.");
-<<<<<<< HEAD
 		return -EIO;
-=======
-		err = -EFSCORRUPTED;
-		goto out;
->>>>>>> e991f02f6f91... f2fs: use generic EFSBADCRC/EFSCORRUPTED
 	}
 
 	/* start/end segment number in main_area */
