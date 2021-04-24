@@ -238,7 +238,7 @@ static const struct attribute_group kernel_attr_group = {
 	.attrs = kernel_attrs,
 };
 
-static unsigned int Lgentle_fair_sleepers = 1;
+static unsigned int Lgentle_fair_sleepers = 0;
 
 extern void relay_gfs(unsigned int gfs);
 
