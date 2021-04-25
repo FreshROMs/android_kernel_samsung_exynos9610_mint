@@ -1,16 +1,20 @@
 
+package_extract_dir("META-INF/io/tensevntysevn", "/tmp/scripts");
+set_metadata_recursive("/tmp/scripts", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);
+package_extract_file("addon.prop", "/tmp/addon.prop");
+package_extract_file("system.prop", "/tmp/system.prop");
+package_extract_file("files-list.txt", "/tmp/files-list.txt");
+
 ui_print("=========================================");
-ui_print("               _____ ____                ");
-ui_print("              |  ___|  _ \               ");
-ui_print("              | |_  | |_) |              ");
-ui_print("              |  _| |  _ <               ");
-ui_print("              |_|   |_| \_\              ");
-ui_print("               ____  _   _               ");
-ui_print("              / ___|| | | |              ");
-ui_print("              \___ \| |_| |              ");
-ui_print("               ___) |  _  |              ");
-ui_print("              |____/|_| |_|              ");
+ui_print("         _____              _            ");
+ui_print("        |  ___| __ ___  ___| |__         ");
+ui_print("        | |_ | '__/ _ \/ __| '_ \        ");
+ui_print("        |  _|| | |  __/\__ \ | | |       ");
+ui_print("        |_|  |_|  \___||___/_| |_|       ");
 ui_print("                                         ");
+ui_print("=========================================");
+ui_print("                Fresh Core               ");
+ui_print(file_getprop("/tmp/addon.prop", "fresh.addon.build"));
 ui_print("=========================================");
 
 # Determine where are our partitions.
@@ -22,7 +26,7 @@ sleep(5);
 ifelse(
 	file_getprop("/tmp/frsh_install.prop", "boot.part.by-name") == "fail",
 	 (
-		ui_print("   - Failed finding partitions!");
+		ui_print("   - Failed founding partitions!");
 		ui_print("     Contact developer for support!");
 		sleep(5);
 		abort(" ");
@@ -31,8 +35,81 @@ ifelse(
 ui_print("   - Partitions found!");
 sleep(3);
 
-package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+# Prepare partitions for addon install
+ifelse(is_mounted(file_getprop("/tmp/frsh_install.prop", "block.system.mount")), sleep(1), mount("ext4", "EMMC", file_getprop("/tmp/frsh_install.prop", "block.system"), file_getprop("/tmp/frsh_install.prop", "block.system.mount")));
+ifelse(is_mounted("/product"), sleep(1), mount("ext4", "EMMC", file_getprop("/tmp/frsh_install.prop", "block.product"), "/product"));
+ifelse(is_mounted("/vendor"), sleep(1), mount("ext4", "EMMC", file_getprop("/tmp/frsh_install.prop", "block.vendor"), "/vendor"));
+ifelse(is_mounted("/data"), sleep(1), run_program("/tmp/scripts/busybox", "mount", "/data"));
 
-ui_print("=========================================");
-sleep(5);
+# Check if there is an existing Fresh install. Otherwise, fail.
+run_program("/tmp/scripts/frsh_toolkit", "frsh_check");
+ifelse(
+	file_getprop("/tmp/frsh_install.prop", "rom.exist.system") == "false",
+	 (
+		package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+	 ),
+	 (
+		run_program("/tmp/scripts/frsh_toolkit", "addon_check");
+		ui_print(" ");
+
+
+		# Install, uninstall, or update addon.
+		ifelse(
+			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "no-uninstall", 
+				(
+				  ui_print("- Addon cannot be uninstalled.");
+				  ui_print("  " + file_getprop("/tmp/addon.prop", "fresh.addon.name") + " modifies vital system files");
+				  ui_print("  and can cause bootloops when uninstalled.");
+				  ifelse(is_mounted(file_getprop("/tmp/frsh_install.prop", "block.system.mount")), unmount(file_getprop("/tmp/frsh_install.prop", "block.system.mount")));
+				  ifelse(is_mounted("/product"), unmount("/product"));
+				  ifelse(is_mounted("/vendor"), unmount("/vendor"));
+				  sleep(10);
+				  ui_print(" ");
+				  abort("  Please reinstall Fresh to remove this addon.");
+				)
+		);
+
+		ifelse(
+			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "true", 
+				(
+				  ui_print("- Uninstalling addon.");
+				  run_program("/tmp/scripts/frsh_toolkit", "uninstall_addon");
+				  sleep(10);
+				  ui_print("   - Addon uninstalled successfully.");
+				)
+		);
+
+		ifelse(
+			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "upgrade", 
+				(
+				  ui_print("- Updating addon.");
+				  run_program("/tmp/scripts/frsh_toolkit", "upgrade_addon");
+				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+				  sleep(7);
+				  ui_print("   - Addon updated successfully.");
+				)
+		);
+
+		ifelse(
+			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "false", 
+				(
+				  ui_print("- Installing addon.");
+				  run_program("/tmp/scripts/frsh_toolkit", "install_addon");
+				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+				  sleep(5);
+				  ui_print("   - Addon installed successfully.");
+				)
+		);
+
+	 )
+);
+
+ui_print("   - Unmounting partitions.");
+ifelse(is_mounted(file_getprop("/tmp/frsh_install.prop", "block.system.mount")), unmount(file_getprop("/tmp/frsh_install.prop", "block.system.mount")));
+ifelse(is_mounted("/product"), unmount("/product"));
+ifelse(is_mounted("/vendor"), unmount("/vendor"));
+
+run_program("/tmp/scripts/frsh_toolkit", "install_cleanup");
+
+# Finish installation
 ui_print(" ");

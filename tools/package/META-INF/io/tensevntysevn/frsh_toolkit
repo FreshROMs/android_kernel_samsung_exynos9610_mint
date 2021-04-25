@@ -6,7 +6,7 @@
 # |_| |_| \___/__/_||_|_|_/ ___/|_|  |_/__/
 #                                          
 # =========================================
-# FreshROMs install toolkit - build 20210116
+# FreshROMs install toolkit - build 20210424
 # A toolkit used for addon and ROM installation
 # (C) 2019-2021 John Vincent - TenSeventy7@XDA
 
@@ -20,11 +20,11 @@ SYSMOUNT=$(grep 'block.system.mount=' "${PROP}" | sed 's/^block.system.mount=//'
 
 # Variables that depend on system-as-root (SaR)
 if [ "${SYSMOUNT}" == "/system_root" ]; then
-	ROM='/system_root/system/etc/fresh.prop' # system prop file used for version checking
+	ROM='/system_root/system/fresh.prop' # system prop file used for version checking
 	ADDONS="/system_root/system/etc/fresh/addons" # addon metadata folder used in the ROM
 	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | sed -e 's@'/system'@'/system_root/system'@g' | tr '\n' ' ')
 else
-	ROM='/system/etc/fresh.prop' # system prop file used for version checking
+	ROM='/system/fresh.prop' # system prop file used for version checking
 	ADDONS="/system/etc/fresh/addons" # addon metadata folder used in the ROM
 	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | tr '\n' ' ')
 fi
@@ -43,6 +43,8 @@ ADDON_SYSPROP='/tmp/system.prop'
 ADDON_CODE=$(grep 'fresh.addon.code=' "${ADDON_PROP}" | sed 's/^fresh.addon.code=//')
 ADDON_BUILD=$(grep 'fresh.addon.version=' "${ADDON_PROP}" | sed 's/^fresh.addon.version=//')
 ADDON_INSTALLED_PROP="${ADDONS}/${ADDON_CODE}.prop"
+ADDON_INSTALLED_META="${ADDONS}/${ADDON_CODE}.metadata"
+ADDON_INSTALLED_KEEP="${ADDONS}/${ADDON_CODE}.keep"
 ADDON_INSTALLED_LIST="${ADDONS}/files-list/${ADDON_CODE}.txt"
 ADDON_INSTALLED_SYSPROP_LIST="${ADDONS}/system.prop"
 ADDON_INSTALLED_SYSPROP="${ADDONS}/props/${ADDON_CODE}.prop"
@@ -154,9 +156,16 @@ backup_addons_space() {
 
 uninstall_addon() {
 	# Uninstall addon when requested
-	rm -rf ${ADDON_FILES}
+
+	# Apr2021: Add .keep flag for Fresh Hub
+	NO_UNINSTALL_INSTALL=$(grep 'fresh.addon.no-uninstall=' "${ADDON_INSTALLED_PROP}" | sed 's/^fresh.addon.no-uninstall=//')
+	if [ ! "${NO_UNINSTALL_INSTALL}" == "true" ]; then
+ 		rm -rf ${ADDON_FILES}
+	fi
+	
 	rm -f "${ADDON_INSTALLED_PROP}"
 	rm -f "${ADDON_INSTALLED_LIST}"
+	rm -f "${ADDON_INSTALLED_META}"
 
 	# Feb2021: Add system.prop feature
 	if [ -e "${ADDON_INSTALLED_SYSPROP}" ]; then
@@ -184,6 +193,13 @@ install_addon() {
 
   cp -f "${ADDON_PROP}" "${ADDON_INSTALLED_PROP}"
   cp -f "${ADDON_LIST}" "${ADDON_INSTALLED_LIST}"
+  echo "${ADDON_BUILD}" > "${ADDON_INSTALLED_META}"
+
+  # Apr2021: Add .keep flag for Fresh Hub
+  NO_UNINSTALL_INSTALL=$(grep 'fresh.addon.no-uninstall=' "${ADDON_PROP}" | sed 's/^fresh.addon.no-uninstall=//')
+  if [ "${NO_UNINSTALL_INSTALL}" == "true" ]; then
+  		echo "true" > "${ADDON_INSTALLED_KEEP}"
+  fi
 
   # Feb2021: Add system.prop feature
   if [ -e "${ADDON_SYSPROP}" ]; then
