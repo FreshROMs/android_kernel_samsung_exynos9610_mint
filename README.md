@@ -1,13 +1,13 @@
-# ShadowX Kernel
+# Fresh Core
 
-#### Common Kernel Source for ShadowX and Fresh Core for the Exynos 9610 Platform
+#### Common Fresh Core Source for the Exynos 9610 Platform
 
 Supports the following devices:
 
 - Samsung Galaxy A50 (`a50`)
-- Samsung Galaxy M30s (`m30s`)
+- Samsung Galaxy A50s (`a50s`)
 
-Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy7/android_kernel_samsung_universal9610_shadowx/blob/staging/README_Kernel)
+Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy7/android_kernel_samsung_exynos9610_fresh/blob/staging/README_Kernel)
 
 ## Source References and Contributors
 
@@ -57,7 +57,7 @@ If you ever experience being locked out after installing any build, with SystemU
 
 Several builds of TWRP and OrangeFox has a security patch level (SPL) of 2099-12 (December 2099), but this kernel follows the latest SPL available to the device. This causes the device to act up once booted into the kernel.
 
-Please note that it is **intended behavior** by the system and is not a bug.
+Please note that it is **intended behavior** by the system and is **not** a bug.
 
 You can flash PassReset, or wipe your device to fix it.
 
@@ -66,7 +66,7 @@ See [here](https://github.com/CruelKernel/samsung-exynos9820/#pin-problem-cant-l
  
 ## Building Locally
 
-Local builds of ShadowX/Fresh Core are built using **Ubuntu 20.04 LTS**.  These prerequisites are needed to build with this source:
+Local builds of Fresh Core are built using **Ubuntu 20.04 LTS**.  These prerequisites are needed to build with this source:
 
  - build-essential
  - libelf-dev
@@ -84,7 +84,7 @@ Once you have the prerequisites installed, simply run this on the Terminal.
 
 ```
 - a50 # For Samsung Galaxy A50
-- m30s # For Samsung Galaxy M30s
+- a50s # For Samsung Galaxy A50s
 ```
 
 You can add the 'dirty' flag so it won't rebuild all components again. The script will download all it needs (including the toolchain) and builds a new kernel build for you.
