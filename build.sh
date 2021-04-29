@@ -44,16 +44,16 @@ BUILDDATE=$(date +%s)
 if [[ ! -z ${GITHUB_REF##*/} ]]; then
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_${GITHUB_REF##*/}_${BUILDDATE}.zip
 	if [[ ${GITHUB_REF##*/} == "staging" ]]; then
-		LOCALVERSION="-FreshCore"
-		export LOCALVERSION="-FreshCore"
+		LOCALVERSION='+'
+		export LOCALVERSION='+'
 	else
-		LOCALVERSION="-FreshCore-${GITHUB_REF##*/}"
-		export LOCALVERSION="-FreshCore-${GITHUB_REF##*/}"
+		LOCALVERSION="-${GITHUB_REF##*/}"
+		export LOCALVERSION="-${GITHUB_REF##*/}"
 	fi
 else
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
-	LOCALVERSION="-FreshCore-user"
-	export LOCALVERSION="-FreshCore-user"
+	LOCALVERSION="-user"
+	export LOCALVERSION="-user"
 fi
 
 script_echo() {
@@ -127,8 +127,8 @@ check_defconfig() {
 }
 
 build_kernel() {
-	CHECK_DEFCONFIG=${DEVICE_BUILD}_shadowx_defconfig
-	export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/${DEVICE_BUILD}_default_defconfig
+	CHECK_DEFCONFIG=exynos9610-${DEVICE_BUILD}_fresh_defconfig
+	export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/exynos9610-${DEVICE_BUILD}_default_defconfig
 
 	check_defconfig
 
