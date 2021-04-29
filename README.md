@@ -1,3 +1,5 @@
+![Fresh Core icon][https://i.ibb.co/KzmZp3t/fresh-core.png]
+
 # Fresh Core
 
 #### Common Fresh Core Source for the Exynos 9610 Platform
