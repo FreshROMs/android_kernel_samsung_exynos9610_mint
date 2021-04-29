@@ -1,4 +1,4 @@
-![Fresh Core icon][https://i.ibb.co/KzmZp3t/fresh-core.png]
+![Fresh Core icon](https://i.ibb.co/KzmZp3t/fresh-core.png)
 
 # Fresh Core
 
