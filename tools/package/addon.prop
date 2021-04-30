@@ -3,8 +3,5 @@
 # FRSH_ADDON_PROPERTIES
 # 2021 - tensevntysevn
 #
-fresh.addon.code=io.tns.shadowx.upstream
 fresh.addon.name=Fresh Core Beta
-fresh.addon.build=12.0.1.4
-fresh.addon.version=20210426
 fresh.addon.no-uninstall=true
