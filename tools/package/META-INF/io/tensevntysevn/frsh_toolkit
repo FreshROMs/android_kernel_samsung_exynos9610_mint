@@ -6,26 +6,30 @@
 # |_| |_| \___/__/_||_|_|_/ ___/|_|  |_/__/
 #                                          
 # =========================================
-# FreshROMs install toolkit - build 20210424
+# FreshROMs install toolkit - build 20210430
 # A toolkit used for addon and ROM installation
 # (C) 2019-2021 John Vincent - TenSeventy7@XDA
 
 # Variables used throughout the script
 EXEC=$1 # function to execute for updater-script. DO NOT EDIT.
 BUSYBOX='/tmp/scripts/busybox' # the location of the busybox binary.
+SVZIP='/tmp/scripts/7za' # the location of the 7zip arm binary.
 PROP="/tmp/frsh_install.prop" # prop file used to counter-check values for the script
 FLASH='/tmp/fresh.prop' # ROM prop file used for version checking
-DEVICE=$(grep 'ro.product.vendor.name=' /tmp/vendor.prop | sed 's/^ro.product.vendor.name=//') # device-checking prop
+FLASH_OTA='/tmp/fresh_old.prop' # Old ROM prop file used for OTA version checking
+DEVICE=$(grep 'ro.fresh.device.product=' /tmp/vendor.prop | sed 's/^ro.fresh.device.product=//') # device-checking prop
 SYSMOUNT=$(grep 'block.system.mount=' "${PROP}" | sed 's/^block.system.mount=//') # check if the system is mounted as SaR
 
 # Variables that depend on system-as-root (SaR)
 if [ "${SYSMOUNT}" == "/system_root" ]; then
 	ROM='/system_root/system/fresh.prop' # system prop file used for version checking
 	ADDONS="/system_root/system/etc/fresh/addons" # addon metadata folder used in the ROM
+	DEVICE_PROP='/system_root/system/build.prop' # system prop file used for device checking
 	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | sed -e 's@'/system'@'/system_root/system'@g' | tr '\n' ' ')
 else
 	ROM='/system/fresh.prop' # system prop file used for version checking
 	ADDONS="/system/etc/fresh/addons" # addon metadata folder used in the ROM
+	DEVICE_PROP='/system/build.prop' # system prop file used for device checking
 	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | tr '\n' ' ')
 fi
 
@@ -35,13 +39,16 @@ INSTALLED_OMC_LIST='/product/omc/sales_code_list.dat'
 INSTALLED_OMC_CONFIG='/product/omc/SW_Configuration.xml'
 BACKUP_ADDONS_FOLDER='/data/frsh_install/addons_backup'
 BACKUP_OMC_FOLDER='/data/frsh_install/omc_backup'
+HUB_PACKAGE='de.dlyt.yanndroid.fresh'
 
 # Variables used by addon installer
 ADDON_PROP='/tmp/addon.prop'
 ADDON_LIST='/tmp/files-list.txt'
 ADDON_SYSPROP='/tmp/system.prop'
 ADDON_CODE=$(grep 'fresh.addon.code=' "${ADDON_PROP}" | sed 's/^fresh.addon.code=//')
+ADDON_NAME=$(grep 'fresh.addon.name=' "${ADDON_PROP}" | sed 's/^fresh.addon.name=//')
 ADDON_BUILD=$(grep 'fresh.addon.version=' "${ADDON_PROP}" | sed 's/^fresh.addon.version=//')
+ADDON_HUB_ZIP="/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/${ADDON_NAME}_${ADDON_BUILD}.zip"
 ADDON_INSTALLED_PROP="${ADDONS}/${ADDON_CODE}.prop"
 ADDON_INSTALLED_META="${ADDONS}/${ADDON_CODE}.metadata"
 ADDON_INSTALLED_KEEP="${ADDONS}/${ADDON_CODE}.keep"
@@ -147,6 +154,9 @@ backup_addons_space() {
 	BACKUP_SIZE=$(du -cs "${INSTALLED_ADDONS_FULL}" | cut -f1 | tail -1)
 	DATA_SIZE=$(df /data | tail -1 | awk '{print $4}')
 
+	# Remove Fresh Core Beta builds. Not backup-able and is replaced at install.
+	${BUSYBOX} find "${ADDONS}" -type f -name "io.tns.shadowx*" -delete
+
 	if (( "${BACKUP_SIZE}" >= "${DATA_SIZE}" )); then
 		set_installprop "install.addons.backup" "nospace"
 	else
@@ -180,6 +190,13 @@ uninstall_addon() {
 		mv -f /tmp/system.prop ${ADDON_INSTALLED_SYSPROP_LIST}
 		rm -f /tmp/system.prop
 	fi
+
+  # Apr2021: Remove ZIP from Fresh Hub dir if it's uninstalled outside of Fresh Hub
+  # Detect using recovery command file
+  if [ -f "${ADDON_HUB_ZIP}" ]; then
+	  # Delete existing ZIPs of same addon
+  	  ${BUSYBOX} find "/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/" -type f -name "${ADDON_NAME}*.zip" -delete
+  fi
 }
 
 install_addon() {
@@ -189,6 +206,11 @@ install_addon() {
 
   if [ ! -d "${ADDONS}/files-list" ]; then
 	mkdir -p "${ADDONS}/files-list"
+  fi
+
+  if [[ ${ADDON_CODE} == io.tns.shadowx* ]]; then
+	# Remove Fresh Core builds if installing a Fresh Core build.
+	${BUSYBOX} find "${ADDONS}" -type f -name "io.tns.shadowx*" -delete
   fi
 
   cp -f "${ADDON_PROP}" "${ADDON_INSTALLED_PROP}"
@@ -210,6 +232,20 @@ install_addon() {
 	  cp -f "${ADDON_SYSPROP}" "${ADDON_INSTALLED_SYSPROP}"
 	  ${BUSYBOX} echo "$(cat "${ADDON_INSTALLED_SYSPROP}")" >> "${ADDON_INSTALLED_SYSPROP_LIST}"
   fi
+
+  # Apr2021: Make simple uninstaller if installed
+  # outside of Fresh Hub
+  if [ ! -f "${ADDON_HUB_ZIP}" ]; then
+
+  	# Delete existing ZIPs of same addon
+  	${BUSYBOX} find "/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/" -type f -name "${ADDON_NAME}*.zip" -delete
+
+  	mkdir /tmp/addon_uninstaller
+  	cp -rf /tmp/META-INF "${ADDON_PROP}" "${ADDON_LIST}" "${ADDON_SYSPROP}" /tmp/addon_uninstaller/
+  	cd /tmp/addon_uninstaller
+	${SVZIP} a -mx1 -mm=Deflate "${ADDON_HUB_ZIP}"
+  fi
+
 }
 
 upgrade_addon() {
@@ -366,14 +402,6 @@ data_check() {
 
 	if [ -d "/data/resource-cache" -o -d "/data/overlays" -o -d "/data/data" -o -d "/data/user" ]; then
 		set_installprop "rom.exist.data" "true"
-
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@AODService_v50@AODService_v50.apk@classes.vdex"
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@AODService_v50@AODService_v50.apk@classes.dex"
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@AODService_v50@AODService_v50.apk@classes.art"
-		
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@SystemUI@SystemUI.apk@classes.vdex"
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@SystemUI@SystemUI.apk@classes.dex"
-		rm -f "/data/dalvik-cache/arm64/system@priv-app@SystemUI@SystemUI.apk@classes.art"
 	else
 		set_installprop "rom.exist.data" "false"
 	fi
@@ -393,8 +421,8 @@ version_check() {
 	if [ -e "${ROM}" ]; then
 
 		# Check for the version installed in the system
-		EXISTING=$(grep 'ro.ota.version=' "${ROM}" | sed 's/^ro.ota.version=//')
-		FLASHER=$(grep 'ro.ota.version=' "${FLASH}" | sed 's/^ro.ota.version=//')
+		EXISTING=$(grep 'ro.fresh.build.version=' "${ROM}" | sed 's/^ro.fresh.build.version=//')
+		FLASHER=$(grep 'ro.fresh.build.version=' "${FLASH}" | sed 's/^ro.fresh.build.version=//')
 		set_installprop "rom.exist.version" "${EXISTING}"
 
 		if (( "${EXISTING}" > "${FLASHER}" )); then
@@ -415,6 +443,35 @@ version_check() {
 	fi
 }
 
+ota_version_check() {
+	# Check for if current ROM version matches needed version
+	if [ -e "${ROM}" ]; then
+
+		# Check for the version installed in the system
+		EXISTING=$(grep 'ro.fresh.build.version=' "${ROM}" | sed 's/^ro.fresh.build.version=//')
+		FLASH_OLD=$(grep 'ro.fresh.build.version=' "${FLASH_OTA}" | sed 's/^ro.fresh.build.version=//')
+		set_installprop "rom.exist.version" "${EXISTING}"
+
+		if [ "${EXISTING}" -ge "${FLASH_OLD}" ]; then
+			set_installprop "rom.exist.system" "ota-upgrade"
+			cp -f "${DEVICE_PROP}" "/tmp/vendor.prop"
+		else
+			if [ ! -e "/cache/fresh_dbgs" ]; then
+				set_installprop "rom.exist.system" "ota-abort"
+			else
+				set_installprop "rom.exist.system" "ota-upgrade"
+				cp -f "${DEVICE_PROP}" "/tmp/vendor.prop"
+			fi
+		fi
+	else
+		set_installprop "rom.exist.system" "false"
+	fi
+}
+
+ota_post_install() {
+
+}
+
 install_cleanup() {
 	# Cleanup
 	if [ -d "${BACKUP_ADDONS_FOLDER}" ]; then
@@ -427,6 +484,10 @@ install_cleanup() {
 
 	if [ -d '/data/frsh_install' ]; then
 		rm -rf '/data/frsh_install'
+	fi
+
+	if [ -d '/tmp/addon_uninstaller' ]; then
+		rm -rf '/tmp/addon_uninstaller'
 	fi
 
 	if [ -e '/tmp/addon.prop' ]; then
