@@ -200,11 +200,7 @@ obj-$(CONFIG_SENSORS_FINGERPRINT) += fingerprint/
 obj-$(CONFIG_ANDROID_TIMED_OUTPUT)	+= motor/
 
 # Sensor Hub
-ifdef CONFIG_SENSORS_SSP
-obj-$(CONFIG_SEC_M30S_PROJECT) += sensorhub_m30s/
-obj-$(CONFIG_SEC_A50_PROJECT) += sensorhub/
-obj-$(CONFIG_SEC_A50S_PROJECT) += sensorhub/
-endif
+obj-$(CONFIG_SENSORS_SSP) += sensorhub/
 
 # FIVE TEE driver
 obj-$(CONFIG_FIVE_TEE_DRIVER)	+= security/samsung/five_tee_driver/

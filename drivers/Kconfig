@@ -226,12 +226,7 @@ source "drivers/motor/Kconfig"
 
 source "drivers/vision/Kconfig"
 
-if SEC_A50_PROJECT || SEC_A50S_PROJECT
 source "drivers/sensorhub/Kconfig"
-endif
-if SEC_M30S_PROJECT
-source "drivers/sensorhub_m30s/Kconfig"
-endif
 
 source "drivers/security/samsung/five_tee_driver/Kconfig"
 
