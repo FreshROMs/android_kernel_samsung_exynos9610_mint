@@ -44,11 +44,11 @@ BUILDDATE=$(date +%s)
 if [[ ! -z ${GITHUB_REF##*/} ]]; then
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_${GITHUB_REF##*/}_${BUILDDATE}.zip
 	if [[ ${GITHUB_REF##*/} == "staging" ]]; then
-		LOCALVERSION='+'
-		export LOCALVERSION='+'
+		LOCALVERSION=' - Fresh Core'
+		export LOCALVERSION=' - Fresh Core'
 	else
-		LOCALVERSION="-${GITHUB_REF##*/}"
-		export LOCALVERSION="-${GITHUB_REF##*/}"
+		LOCALVERSION=" - Fresh Core-${GITHUB_REF##*/}"
+		export LOCALVERSION=" - Fresh Core-${GITHUB_REF##*/}"
 	fi
 else
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
