@@ -51,8 +51,7 @@ typedef unsigned long (*genpool_algo_t)(unsigned long *map,
 			unsigned long size,
 			unsigned long start,
 			unsigned int nr,
-			void *data, struct gen_pool *pool,
-			unsigned long start_addr);
+			void *data, struct gen_pool *pool);
 
 /*
  *  General purpose special memory pool descriptor.
