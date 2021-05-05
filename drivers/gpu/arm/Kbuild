@@ -23,7 +23,7 @@ ifeq ($(CONFIG_MALI_DDK_VERSION),y)
 		obj-y += b_r25p1/
 	endif
 	ifeq ($(CONFIG_MALI_BIFROST_R26P0_R),y)
-		ifeq ($(CONFIG_SEC_A50S_PROJECT),y)
+		ifneq ($(CONFIG_SEC_A50_PROJECT),y)
 			obj-y += b_r26p0_a50s/
 		else 
 			obj-y += b_r26p0/
