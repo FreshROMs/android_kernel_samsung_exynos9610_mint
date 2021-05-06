@@ -36,7 +36,7 @@
 #include <mmu/mali_kbase_mmu.h>
 #include <tl/mali_kbase_timeline.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 #include <mali_kbase_debug_mem_view.h>
 #include <mali_kbase_mem_pool_debugfs.h>
 
@@ -154,7 +154,7 @@ static const struct kbase_context_init context_init[] = {
 			"JM instrumentation initialization failed"},
 	{kbase_context_kbase_timer_setup, NULL, NULL},
 	{kbase_context_submit_check, NULL, NULL},
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	{ kbase_debug_job_fault_context_init,
 		kbase_debug_job_fault_context_term,
 		"Job fault context initialization failed" },

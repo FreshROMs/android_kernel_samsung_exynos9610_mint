@@ -59,7 +59,7 @@
 #include "mali_kbase_fence_defs.h"
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 #include <linux/debugfs.h>
 #endif /* CONFIG_DEBUG_FS */
 
@@ -1071,7 +1071,7 @@ struct kbase_device {
 
 	atomic_t job_fault_debug;
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	struct dentry *mali_debugfs_directory;
 	struct dentry *debugfs_ctx_directory;
 
@@ -1098,7 +1098,7 @@ struct kbase_device {
 
 	atomic_t ctx_num;
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	struct kbase_io_history io_history;
 #endif /* CONFIG_DEBUG_FS */
 
@@ -1702,7 +1702,7 @@ struct kbase_context {
 	u64 gpu_va_end;
 	bool jit_va;
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	char *mem_profile_data;
 	size_t mem_profile_size;
 	struct mutex mem_profile_lock;

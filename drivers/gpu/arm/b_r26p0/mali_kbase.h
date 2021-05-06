@@ -583,7 +583,7 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
 
 /* MALI_SEC_INTEGRATION */
 void gpu_dump_register_hooks(struct kbase_device *kbdev);
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
+#if 0
 
 /* kbase_io_history_init - initialize data struct for register access history
  *

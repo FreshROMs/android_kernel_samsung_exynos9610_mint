@@ -30,7 +30,7 @@
 #include <linux/list.h>
 #include <linux/file.h>
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 
 #if (KERNEL_VERSION(4, 1, 0) > LINUX_VERSION_CODE)
 #define get_file_rcu(x) atomic_long_inc_not_zero(&(x)->f_count)

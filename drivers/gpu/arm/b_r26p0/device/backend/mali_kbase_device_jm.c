@@ -200,8 +200,10 @@ static const struct kbase_device_init dev_init[] = {
 #ifdef MALI_KBASE_BUILD
 	{kbase_debug_job_fault_dev_init, kbase_debug_job_fault_dev_term,
 			"Job fault debug initialization failed"},
+#if 0
 	{kbase_device_debugfs_init, kbase_device_debugfs_term,
 			"DebugFS initialization failed"},
+#endif
 	/* Sysfs init needs to happen before registering the device with
 	 * misc_register(), otherwise it causes a race condition between
 	 * registering the device and a uevent event being generated for

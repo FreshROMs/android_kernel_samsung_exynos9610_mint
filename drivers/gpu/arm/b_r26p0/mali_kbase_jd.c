@@ -1780,7 +1780,7 @@ void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr,
 
 	atomic_inc(&kctx->work_count);
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	/* a failed job happened and is waiting for dumping*/
 	if (!katom->will_fail_event_code &&
 			kbase_debug_job_fault_process(katom, katom->event_code))
@@ -1859,7 +1859,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	flush_workqueue(kctx->dma_fence.wq);
 #endif
 
-#ifdef CONFIG_DEBUG_FS
+#if 0
 	kbase_debug_job_fault_kctx_unblock(kctx);
 #endif
 

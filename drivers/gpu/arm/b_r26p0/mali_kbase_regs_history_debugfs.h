@@ -37,7 +37,7 @@
 
 struct kbase_device;
 
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
+#if 0
 
 /**
  * kbasep_regs_history_debugfs_init - add debugfs entries for register history
