@@ -40,6 +40,7 @@
 #include "cpupri.h"
 #include "cpudeadline.h"
 #include "cpuacct.h"
+#include "features.h"
 
 #ifdef CONFIG_SCHED_DEBUG
 # define SCHED_WARN_ON(x)	WARN_ONCE(x, #x)
@@ -905,7 +906,9 @@ struct rq {
 #endif
 
 #ifdef CONFIG_SMP
+#if SCHED_FEAT_TTWU_QUEUE
 	struct llist_head wake_list;
+#endif
 #endif
 
 #ifdef CONFIG_CPU_IDLE
@@ -1202,7 +1205,11 @@ queue_balance_callback(struct rq *rq,
 	rq->balance_callback = head;
 }
 
+#if SCHED_FEAT_TTWU_QUEUE
 extern void sched_ttwu_pending(void);
+#else
+static inline void sched_ttwu_pending(void) { }
+#endif
 
 #define rcu_dereference_check_sched_domain(p) \
 	rcu_dereference_check((p), \
@@ -1431,34 +1438,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 # define const_debug const
 #endif
 
-extern const_debug unsigned int sysctl_sched_features;
-
-#define SCHED_FEAT(name, enabled)	\
-	__SCHED_FEAT_##name ,
-
-enum {
-#include "features.h"
-	__SCHED_FEAT_NR,
-};
-
-#undef SCHED_FEAT
-
-#if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
-#define SCHED_FEAT(name, enabled)					\
-static __always_inline bool static_branch_##name(struct static_key *key) \
-{									\
-	return static_key_##enabled(key);				\
-}
-
-#include "features.h"
-
-#undef SCHED_FEAT
-
-extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
-#define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
-#else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
-#define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
-#endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
+#define sched_feat(x) SCHED_FEAT_##x
 
 extern struct static_key_false sched_numa_balancing;
 extern struct static_key_false sched_schedstats;
