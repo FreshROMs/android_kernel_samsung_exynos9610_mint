@@ -28,7 +28,7 @@ This is an optimized kernel source based on Samsung's open-source drop of the SM
  - Added additional I/O schedulers, `anxiety` is set as default.
  - Various kernel and performance improvements.
  - Backported some changes from S10/Note10.
- - Releases are compiled with @arter97's stable [GCC 10.2.0](https://github.com/arter97/arm64-gcc).
+ - Releases are compiled with [GCC 11.1](https://github.com/CruelKernel/aarch64-cruel-elf).
  - Replaced kernel RNG (HWRandom) with SRandom.
  - Magisk installed by default.
  - State notifier support for various kernel drivers.
