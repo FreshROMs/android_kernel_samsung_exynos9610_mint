@@ -23,11 +23,7 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          export ORIG_DIR=$(pwd)
-          git clone -n https://github.com/arter97/arm64-gcc.git ${HOME}/toolchain
-          cd ${HOME}/toolchain
-          git checkout cd9eb72bace3b4d682d5251a9eb4829bdd0ec2ca
-          cd $ORIG_DIR
+          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
         
     - name: Build FreshCore Kernel
       run: |
