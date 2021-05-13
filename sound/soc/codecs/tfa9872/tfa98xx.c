@@ -4392,8 +4392,8 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		dev_info(&i2c->dev, "error creating sysfs files\n");
 
-		tfa98xx_log_i2c_devicenum = i2c->adapter->nr;
-		tfa98xx_log_i2c_slaveaddress = i2c->addr;
+	tfa98xx_log_i2c_devicenum = i2c->adapter->nr;
+	tfa98xx_log_i2c_slaveaddress = i2c->addr;
 
 	pr_info("%s: Probe completed successfully!\n", __func__);
 #ifdef CONFIG_SND_SOC_SAMSUNG_AUDIO
