@@ -65,7 +65,7 @@ exit_script() {
 }
 
 download_toolchain() {
-	git clone https://github.com/arter97/arm64-gcc.git ${TOOLCHAIN_EXT} 2>&1 | sed 's/^/     /'
+	git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${TOOLCHAIN_EXT} 2>&1 | sed 's/^/     /'
 	verify_toolchain
 }
 
@@ -77,8 +77,8 @@ verify_toolchain() {
 
 		export PATH="${TOOLCHAIN}/bin:$PATH"
 
-		# Arter97 GCC 10.2.0
-		export CROSS_COMPILE=${TOOLCHAIN}/bin/aarch64-elf-
+		# Cruel Kernel GCC 11.1.0
+		export CROSS_COMPILE=${TOOLCHAIN}/bin/aarch64-cruel-elf-
 
 	elif [[ -d "${TOOLCHAIN_EXT}" ]]
 	then
@@ -87,8 +87,8 @@ verify_toolchain() {
 
 		export PATH="${TOOLCHAIN_EXT}/bin:$PATH"
 
-		# Arter97 GCC 10.2.0
-		export CROSS_COMPILE=${TOOLCHAIN_EXT}/bin/aarch64-elf-
+		# Cruel Kernel GCC 11.1.0
+		export CROSS_COMPILE=${TOOLCHAIN_EXT}/bin/aarch64-cruel-elf-
 
 	else
 		script_echo "I: Toolchain not found at default location or repository root"
