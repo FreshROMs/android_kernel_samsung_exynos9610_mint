@@ -32,6 +32,9 @@ export $ARCH
 TOOLCHAIN=$HOME/toolchain
 TOOLCHAIN_EXT=$(pwd)/toolchain
 
+TOOLCHAIN_ARM32=$HOME/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi
+TOOLCHAIN_EXT_ARM32=$(pwd)/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi
+
 DEVICE_BUILD=`echo $1 | tr 'A-Z' 'a-z'`
 ORIG_DIR=$(pwd)
 OPTIONS=`echo ${2} ${3} ${4} ${5} ${6} ${7} ${8} | tr 'A-Z' 'a-z'`
@@ -69,6 +72,14 @@ download_toolchain() {
 	verify_toolchain
 }
 
+download_toolchain32() {
+	mkdir -p ${TOOLCHAIN_EXT_ARM32}
+	cd ${TOOLCHAIN_EXT_ARM32}
+	wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${TOOLCHAIN_EXT_ARM32}/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+	tar -xvf ${TOOLCHAIN_EXT_ARM32}/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+	verify_toolchain
+}
+
 verify_toolchain() {
 	if [[ -d "${TOOLCHAIN}" ]]
 	then
@@ -94,6 +105,32 @@ verify_toolchain() {
 		script_echo "I: Toolchain not found at default location or repository root"
 		script_echo "   Downloading recommended toolchain at ${TOOLCHAIN_EXT}..."
 		download_toolchain
+	fi
+
+	if [[ -d "${TOOLCHAIN_ARM32}" ]]
+	then
+		sleep 2
+		script_echo "I: 32-bit Toolchain found at default location"
+
+		export PATH="${TOOLCHAIN_ARM32}/bin:$PATH"
+
+		# Linaro/ARM GCC 10.2
+		export CROSS_COMPILE_ARM32=${TOOLCHAIN_ARM32}/bin/arm-none-eabi-
+
+	elif [[ -d "${TOOLCHAIN_EXT_ARM32}" ]]
+	then
+		sleep 2
+		script_echo "I: 32-bit Toolchain found at repository root"
+
+		export PATH="${TOOLCHAIN_EXT_ARM32}/bin:$PATH"
+
+		# Linaro/ARM GCC 10.2
+		export CROSS_COMPILE_ARM32=${TOOLCHAIN_EXT_ARM32}/bin/arm-none-eabi-
+
+	else
+		script_echo "I: 32-bit Toolchain not found at default location or repository root"
+		script_echo "   Downloading recommended toolchain at ${TOOLCHAIN_EXT}..."
+		download_toolchain32
 	fi
 }
 
