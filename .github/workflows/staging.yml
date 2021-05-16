@@ -24,6 +24,9 @@ jobs:
       run: |
           set -eo pipefail
           git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
     - name: Build FreshCore Kernel
       run: |
@@ -76,6 +79,9 @@ jobs:
       run: |
           set -eo pipefail
           git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
     - name: Build FreshCore Kernel
       run: |
@@ -117,6 +123,9 @@ jobs:
       run: |
           set -eo pipefail
           git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
     - name: Build FreshCore Kernel
       run: |
