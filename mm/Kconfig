@@ -848,3 +848,9 @@ config PAGE_BOOST_RECORDING
 	  Record Everything for the chosen process.
 	  As Android executes an app one by one, only allow 1 recording
 	  at a time.
+	  
+config OOM_REAP_ON_SIGKILL_DEFAULT
+	bool "Reap memory on sigkill by default"
+	default n
+	help
+	  Enables reaping memory by OOM when a sigkill is received

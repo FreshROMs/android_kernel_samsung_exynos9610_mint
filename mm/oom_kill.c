@@ -51,7 +51,11 @@
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks = 1;
+#ifdef CONFIG_OOM_REAP_ON_SIGKILL_DEFAULT
+int sysctl_reap_mem_on_sigkill = 1;
+#else
 int sysctl_reap_mem_on_sigkill;
+#endif
 
 DEFINE_MUTEX(oom_lock);
 
