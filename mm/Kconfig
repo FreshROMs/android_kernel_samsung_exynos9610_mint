@@ -871,5 +871,11 @@ config PAGE_BOOST_RECORDING
 	  Record Everything for the chosen process.
 	  As Android executes an app one by one, only allow 1 recording
 	  at a time.
+	  
+config REAP_ON_SIGKILL_DEFAULT
+	bool "Reap memory on sigkill by default"
+	default n
+	help
+	  Enables reaping memory on sigkill by default
 
 source "mm/sec_mm/Kconfig"
