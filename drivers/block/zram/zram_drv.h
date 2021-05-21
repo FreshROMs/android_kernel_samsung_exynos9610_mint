@@ -51,6 +51,7 @@ enum zram_pageflags {
 	ZRAM_UNDER_WB,	/* page is under writeback */
 	ZRAM_HUGE,	/* Incompressible page */
 	ZRAM_IDLE,	/* not accessed page since last idle marking */
+	ZRAM_READ_BDEV,
 
 	__NR_ZRAM_PAGEFLAGS,
 };
@@ -87,8 +88,36 @@ struct zram_stats {
 	atomic64_t bd_count;		/* no. of pages in backing device */
 	atomic64_t bd_reads;		/* no. of reads from backing device */
 	atomic64_t bd_writes;		/* no. of writes from backing device */
+	atomic64_t bd_objcnt;
 #endif
 };
+
+#ifdef CONFIG_ZRAM_COMP_WRITEBACK
+struct zram_wb_header {
+	u32 index;
+	u32 size;
+};
+
+struct zram_wb_work {
+	struct work_struct work;
+	struct page *src_page;
+	struct page *dst_page;
+	struct bio *bio;
+	struct zram *zram;
+};
+
+struct zram_wb_entry {
+	unsigned long index;
+	unsigned int offset;
+	unsigned int size;
+};
+
+enum zram_wb_modes {
+	COMP_STORE,
+	ORIG_STORE,
+	__NR_ZRAM_WB_MODES
+};
+#endif
 
 struct zram {
 	struct zram_table_entry *table;
@@ -125,6 +154,12 @@ struct zram {
 #endif
 #ifdef CONFIG_ZRAM_MEMORY_TRACKING
 	struct dentry *debugfs_dir;
+#endif
+#ifdef CONFIG_ZRAM_COMP_WRITEBACK
+	wait_queue_head_t io_wait;
+	int *wb_table;
+	spinlock_t wb_table_lock;
+	bool io_complete;
 #endif
 };
 #endif
