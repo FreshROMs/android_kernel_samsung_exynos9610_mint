@@ -267,7 +267,7 @@ static int sugov_select_scaling_cpu(void)
 	/* Idle core of the boot cluster is selected to scaling cpu */
 	for_each_cpu(cpu, &mask) {
 		rt = sched_get_rt_rq_util(cpu);
-		util = boosted_cpu_util(cpu, rt);
+		util = boosted_cpu_util(cpu);
 		if (util < min) {
 			min = util;
 			candidate = cpu;
@@ -304,6 +304,7 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 			return;
 
 		sg_policy->work_in_progress = true;
+		trace_cpu_frequency(next_freq, cpu);
 		irq_work_queue_on(&sg_policy->irq_work, cpu);
 	}
 }
