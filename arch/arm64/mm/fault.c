@@ -426,9 +426,6 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	int fault, sig, code, major = 0;
 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-	ktime_t event_ts;
-
-	mm_event_start(&event_ts);
 
 	if (notify_page_fault(regs, esr))
 		return 0;
@@ -544,7 +541,6 @@ retry:
 			goto retry;
 		}
 	}
-
 	up_read(&mm->mmap_sem);
 
 	/*
@@ -562,15 +558,10 @@ retry:
 			tsk->maj_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs,
 				      addr);
-			if (fault & VM_FAULT_SWAP)
-				mm_event_end(MM_SWP_FAULT, event_ts);
-			else
-				mm_event_end(MM_MAJ_FAULT, event_ts);
 		} else {
 			tsk->min_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs,
 				      addr);
-			mm_event_end(MM_MIN_FAULT, event_ts);
 		}
 
 		return 0;

@@ -244,18 +244,6 @@ config COMPACTION
           it and then we would be really interested to hear about that at
           linux-mm@kvack.org.
 
-config PROCESS_RECLAIM
-	bool "Enable process reclaim"
-	depends on PROC_FS
-	default n
-	help
-	 It allows to reclaim pages of the process by /proc/pid/reclaim.
-
-	 (echo file > /proc/PID/reclaim) reclaims file-backed pages only.
-	 (echo anon > /proc/PID/reclaim) reclaims anonymous pages only.
-	 (echo all > /proc/PID/reclaim) reclaims all pages.
-
-	 Any other value is ignored.
 #
 # support for page migration
 #
@@ -632,22 +620,6 @@ config ZSMALLOC_STAT
 	  statistics about whats happening in zsmalloc and exports that
 	  information to userspace via debugfs.
 	  If unsure, say N.
-
-config MM_EVENT_STAT
-	bool "Track per-process MM event"
-	depends on MMU
-	help
-	  This option enables per-process mm event stat(e.g., fault, reclaim,
-	  compaction and so on ) with some interval(Default is 0.5sec).
-	  Admin can see the stat from trace file via debugfs(e.g.,
-	  /sys/kernel/debug/tracing/trace)
-
-	  It includes max/average memory allocation latency for the interval
-	  as well as event count so that admin can see what happens in VM side
-	  (how many each event happens and how much processes spent time for
-	  the MM event). If it's too large, that would be not good situation.
-
-	  System can dump the trace into bugreport when user allows the dump.
 
 config GENERIC_EARLY_IOREMAP
 	bool

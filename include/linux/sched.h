@@ -8,7 +8,6 @@
  */
 
 #include <uapi/linux/sched.h>
-#include <linux/mm_event.h>
 
 #include <asm/current.h>
 
@@ -998,10 +997,6 @@ struct task_struct {
 	struct rt_mutex_waiter		*pi_blocked_on;
 #endif
 
-#ifdef CONFIG_MM_EVENT_STAT
-	struct mm_event_task	mm_event[MM_TYPE_NUM];
-	unsigned long		next_period;
-#endif
 #ifdef CONFIG_DEBUG_MUTEXES
 	/* Mutex deadlock detection: */
 	struct mutex_waiter		*blocked_on;
