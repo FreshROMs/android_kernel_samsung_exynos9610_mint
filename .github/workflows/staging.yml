@@ -8,7 +8,7 @@ on:
 
 jobs:
   a50:
-    name: Build Galaxy A50
+    name: Build Galaxy A50 (One UI)
     runs-on: ubuntu-latest
 
     strategy:
@@ -28,7 +28,7 @@ jobs:
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
-    - name: Build FreshCore Kernel
+    - name: Build Kernel
       run: |
           set -eo pipefail
           echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
@@ -62,6 +62,61 @@ jobs:
         path: 'release'
         if-no-files-found: error
 
+  a50_aosp:
+    name: Build Galaxy A50 (AOSP)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      
+    - name: Install Toolchain
+      run: |
+          set -eo pipefail
+          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
+        
+    - name: Build Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
+          export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
+          ./build-aosp.sh a50 ci
+          
+    - name: Prepare Release
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+          cp .config ./release/kernel_config_a50_aosp.txt
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 AOSP Kernel Image (staging-${{ github.run_number }})
+        path: 'tools/package/boot.img'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 AOSP Kernel Config (staging-${{ github.run_number }})
+        path: 'release/kernel_config_a50.txt'
+        if-no-files-found: error
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: a50_aosp_release_staging-${{ github.run_number }})
+        path: 'release'
+        if-no-files-found: error
+
   a50_recovery:
     name: Build Galaxy A50 Recovery Image
     runs-on: ubuntu-latest
@@ -83,7 +138,7 @@ jobs:
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
-    - name: Build FreshCore Kernel
+    - name: Build Kernel
       run: |
           set -eo pipefail
           echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
@@ -127,7 +182,7 @@ jobs:
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
         
-    - name: Build FreshCore Kernel
+    - name: Build Kernel
       run: |
           set -eo pipefail
           echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
@@ -164,7 +219,7 @@ jobs:
   release:
     name: Release files and configs
     if: always()
-    needs: [a50, a50s]
+    needs: [a50, a50_aosp, a50s]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -173,10 +228,16 @@ jobs:
     - uses: JantHsueh/get-git-log-action@1.0
       id: log
       
-    - name: Merge Galaxy A50 release
+    - name: Merge Galaxy A50 (One UI) release
       uses: actions/download-artifact@v2
       with:
         name: a50_release_staging-${{ github.run_number }})
+        path: release
+      
+    - name: Merge Galaxy A50 (AOSP) release
+      uses: actions/download-artifact@v2
+      with:
+        name: a50_aosp_release_staging-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy A50s release
@@ -195,4 +256,3 @@ jobs:
         release_name: ci_staging-${{ github.run_number }}
         body: ${{ steps.log.outputs.log }}
         asset_files: './release'
-
