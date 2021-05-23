@@ -1,4 +1,4 @@
-name: Build FreshCore (Staging)
+name: Build Staging (Stable) Build
 
 on:
   push:
