@@ -202,18 +202,6 @@ build_image() {
 	fi
 }
 
-build_zip() {
-	script_echo " "
-	script_echo "I: Building kernel ZIP..."
-
-	mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/boot.img -f
-	
-	cd $(pwd)/tools/package
-	zip -9 -r ./${FILE_OUTPUT} ./* 2>&1 | sed 's/^/     /'
-	mv ./${FILE_OUTPUT} ${ORIG_DIR}/${FILE_OUTPUT}
-	cd ${ORIG_DIR}
-}
-
 build_kernel_full() {
 	if [[ $2 == "dirty" ]]; then
 		sleep 1
@@ -221,15 +209,10 @@ build_kernel_full() {
 
 	build_kernel
 	build_image
-	build_zip
 
 	script_echo " "
 	script_echo "I: Build is done!"
 	sleep 3
-	script_echo " "
-	script_echo "I: File can be found at:"
-	script_echo "   ${ORIG_DIR}/${FILE_OUTPUT}"
-	sleep 7
 }
 
 
