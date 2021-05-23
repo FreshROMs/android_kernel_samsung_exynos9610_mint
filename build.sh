@@ -219,9 +219,12 @@ build_zip() {
 		mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/others/boot.img -f
 
 		if [[ ${GITHUB_REF##*/} == "none0-0" ]]; then
-			echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
-			echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
-			echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
+			if [[ ! -e "$(pwd)/.user" ]]; then
+				echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
+				echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
+				echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
+				touch "$(pwd)/.user"
+			fi
 		else
 			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
