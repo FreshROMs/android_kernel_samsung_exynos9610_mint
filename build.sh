@@ -218,14 +218,14 @@ build_zip() {
 	else
 		mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/others/boot.img -f
 
-		if [[ ! -z ${GITHUB_REF##*/} ]]; then
-			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/others/addon.prop
-			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
-			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
-		else
+		if [[ ${GITHUB_REF##*/} == "none0-0" ]]; then
 			echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
+		else
+			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/others/addon.prop
+			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
+			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
 		fi
 		
 		cd $(pwd)/tools/package/others
