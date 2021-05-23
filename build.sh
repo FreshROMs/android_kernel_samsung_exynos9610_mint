@@ -56,6 +56,7 @@ if [[ ! -z ${GITHUB_REF##*/} ]]; then
 else
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
 	LOCALVERSION="-user"
+	GITHUB_REF=none0-0
 	export LOCALVERSION="-user"
 fi
 
