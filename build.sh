@@ -56,7 +56,6 @@ if [[ ! -z ${GITHUB_REF##*/} ]]; then
 else
 	FILE_OUTPUT=FRSH_CORE_${DEVICE_BUILD}_user_${BUILDDATE}.zip
 	LOCALVERSION="-user"
-	GITHUB_REF=none0-0
 	export LOCALVERSION="-user"
 fi
 
@@ -207,31 +206,31 @@ build_zip() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
 
-	if [[ -d "$(pwd)/tools/package/${GITHUB_REF##*/}" ]]; then
-		mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/${GITHUB_REF##*/}/boot.img -f
-
-		echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
-		echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
-		echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
-		
-		cd $(pwd)/tools/package/${GITHUB_REF##*/}
+	if [[ -z ${GITHUB_REF##*/} ]]; then
+		if [[ ! -e "$(pwd)/.user" ]]; then
+			echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
+			echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
+			echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
+			touch "$(pwd)/.user"
+		fi
 	else
-		mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/others/boot.img -f
+		if [[ -d "$(pwd)/tools/package/${GITHUB_REF##*/}" ]]; then
+			mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/${GITHUB_REF##*/}/boot.img -f
 
-		if [[ ${GITHUB_REF##*/} == "none0-0" ]]; then
-			if [[ ! -e "$(pwd)/.user" ]]; then
-				echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
-				echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
-				echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
-				touch "$(pwd)/.user"
-			fi
+			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
+			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
+			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
+			
+			cd $(pwd)/tools/package/${GITHUB_REF##*/}
 		else
+			mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/others/boot.img -f
+			
 			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
+			
+			cd $(pwd)/tools/package/others
 		fi
-		
-		cd $(pwd)/tools/package/others
 	fi
 
 	zip -9 -r ./${FILE_OUTPUT} ./* 2>&1 | sed 's/^/     /'
