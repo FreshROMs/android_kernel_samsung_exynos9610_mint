@@ -19,10 +19,10 @@ endif
 
 ifdef CONFIG_SEC_M30S_PROJECT
 dtb-y += exynos/universal9611/exynos9610.dtb
-dtbo-y += samsung/exynos9611-m30s_swa_open_00.dtbo
-dtbo-y += samsung/exynos9611-m30s_swa_open_04.dtbo
-dtbo-y += samsung/exynos9611-m30s_swa_open_02.dtbo
-dtbo-y += samsung/exynos9611-m30s_swa_open_03.dtbo
+dtbo-y += samsung/m30s/exynos9611-m30s_swa_open_00.dtbo
+dtbo-y += samsung/m30s/exynos9611-m30s_swa_open_04.dtbo
+dtbo-y += samsung/m30s/exynos9611-m30s_swa_open_02.dtbo
+dtbo-y += samsung/m30s/exynos9611-m30s_swa_open_03.dtbo
 endif
 
 targets += dtbs
