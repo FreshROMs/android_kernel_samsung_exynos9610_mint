@@ -225,12 +225,6 @@ build_zip() {
 }
 
 build_kernel_full() {
-	if [[ $2 == "dirty" ]]; then
-		sleep 1
-	else
-		update_magisk
-	fi
-
 	build_kernel
 	build_image
 	build_zip
@@ -269,11 +263,13 @@ if [[ ! -z ${1} ]]; then
 		script_echo "I: CI build!"
 		make clean 2>&1 | sed 's/^/     /'
 		make mrproper 2>&1 | sed 's/^/     /'
+		update_magisk
 	else
 		script_echo " "
 		script_echo "I: Clean build!"
 		make clean 2>&1 | sed 's/^/     /'
 		make mrproper 2>&1 | sed 's/^/     /'
+		update_magisk
 	fi
 
 	build_kernel_full
