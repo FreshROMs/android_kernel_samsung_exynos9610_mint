@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       
     - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git md5sum -y
       
     - name: Install Toolchain
       run: |
@@ -145,14 +145,31 @@ jobs:
           export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
           ./build-recovery.sh a50 ci
           mv -f ./tools/aik/a50/split_img/boot.img-zImage ./Image
+          md5sum ./Image > ./trigger.txt
           cp .config ./kernel_config_a50_recovery.txt
-
-    - name: Upload image artifact
-      uses: actions/upload-artifact@v2
+      
+    - name: Upload build to device tree
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: Galaxy A50 Recovery Kernel Image (staging-${{ github.run_number }})
-        path: 'Image'
-        if-no-files-found: error
+        source_file: 'Image'
+        destination_repo: 'TenSeventy7/android_device_samsung_a50dd'
+        destination_folder: 'prebuilt'
+        user_email: 'git@tensevntysevn.cf'
+        user_name: 'GitHub Actions'
+        commit_message: 'a50dd: Fresh Core staging-${{ github.run_number }}'
+      
+    - name: Trigger recovery CI build
+      uses: dmnemec/copy_file_to_another_repo_action@main
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        source_file: 'trigger.txt'
+        destination_repo: 'TenSeventy7/android_recovery_exynos9610_ci'
+        user_email: 'git@tensevntysevn.cf'
+        user_name: 'GitHub Actions'
+        commit_message: 'Build triggered by staging-${{ github.run_number }}'
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
