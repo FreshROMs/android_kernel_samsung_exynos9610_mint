@@ -107,7 +107,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 AOSP Kernel Config (staging-${{ github.run_number }})
-        path: 'release/kernel_config_a50.txt'
+        path: 'release/kernel_config_a50_aosp.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts

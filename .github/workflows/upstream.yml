@@ -18,7 +18,7 @@ jobs:
     - uses: actions/checkout@v2
       
     - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git md5sum -y
       
     - name: Install Toolchain
       run: |
@@ -107,7 +107,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 AOSP Kernel Config (upstream-${{ github.run_number }})
-        path: 'release/kernel_config_a50.txt'
+        path: 'release/kernel_config_a50_aosp.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
