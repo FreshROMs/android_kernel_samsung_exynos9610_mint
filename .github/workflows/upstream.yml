@@ -118,7 +118,7 @@ jobs:
         if-no-files-found: error
 
   a50_recovery:
-    name: Build Galaxy A50 Recovery Image
+    name: Build Galaxy A50 (Recovery)
     runs-on: ubuntu-latest
 
     strategy:
