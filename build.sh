@@ -179,8 +179,8 @@ build_kernel() {
 	sleep 3
 	script_echo " "
 
-	make -C $(pwd) $CHECK_DEFCONFIG CONFIG_USB_ANDROID_SAMSUNG_MTP=y USB_ANDROID_SAMSUNG_MTP=y LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
-	make -C $(pwd) -j$(nproc --all) CONFIG_USB_ANDROID_SAMSUNG_MTP=y USB_ANDROID_SAMSUNG_MTP=y LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
+	make -C $(pwd) $CHECK_DEFCONFIG LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
+	make -C $(pwd) -j$(nproc --all) LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
 }
 
 build_image() {

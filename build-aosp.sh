@@ -164,7 +164,7 @@ check_defconfig() {
 }
 
 build_kernel() {
-	CHECK_DEFCONFIG=exynos9610-${DEVICE_BUILD}_fresh_defconfig
+	CHECK_DEFCONFIG=exynos9610-${DEVICE_BUILD}_aosp_defconfig
 	export KCONFIG_BUILTINCONFIG=${CONFIG_DIR}/exynos9610-${DEVICE_BUILD}_default_defconfig
 
 	check_defconfig
