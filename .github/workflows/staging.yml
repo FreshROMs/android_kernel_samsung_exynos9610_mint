@@ -45,7 +45,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 Kernel Image (staging-${{ github.run_number }})
-        path: 'tools/package/boot.img'
+        path: 'tools/package/others/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
@@ -100,7 +100,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 AOSP Kernel Image (staging-${{ github.run_number }})
-        path: 'tools/package/boot.img'
+        path: 'tools/package/others/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
@@ -216,7 +216,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50s Kernel Image (staging-${{ github.run_number }})
-        path: 'tools/package/boot.img'
+        path: 'tools/package/others/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
