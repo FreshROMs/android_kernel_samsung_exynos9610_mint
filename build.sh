@@ -221,12 +221,16 @@ build_zip() {
 	script_echo "I: Building kernel ZIP..."
 
 	if [[ -z ${GITHUB_REF##*/} ]]; then
+		mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/others/boot.img -f
+
 		if [[ ! -e "$(pwd)/.user" ]]; then
 			echo "fresh.addon.code=user.shadowx" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.build=user-build" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.version=1" >> $(pwd)/tools/package/others/addon.prop
 			touch "$(pwd)/.user"
 		fi
+
+		cd $(pwd)/tools/package/others
 	else
 		if [[ -d "$(pwd)/tools/package/${GITHUB_REF##*/}" ]]; then
 			mv $(pwd)/tools/aik/${DEVICE_BUILD}/image-new.img $(pwd)/tools/package/${GITHUB_REF##*/}/boot.img -f
