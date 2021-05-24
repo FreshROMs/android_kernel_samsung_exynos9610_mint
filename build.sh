@@ -202,6 +202,20 @@ build_image() {
 	fi
 }
 
+build_dtb() {
+	$(pwd)/tools/dtb/mkdtboimg cfg_create \
+			--dtb-dir=$(pwd) \
+			$(pwd)/tools/dtb/dtb.img \
+			"$(pwd)/arch/arm64/boot/config/exynos9610-${DEVICE_BUILD}.dtb.config"
+}
+
+build_dtbo() {
+	$(pwd)/tools/dtb/mkdtboimg cfg_create \
+			--dtb-dir=$(pwd) \
+			$(pwd)/tools/dtb/dtbo.img \
+			"$(pwd)/arch/arm64/boot/config/exynos9610-${DEVICE_BUILD}.dtbo.config"
+}
+
 build_zip() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
