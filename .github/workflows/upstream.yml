@@ -39,26 +39,26 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
-          cp .config ./release/kernel_config_a50_aosp.txt
+          cp .config ./release/kernel_config_a50.txt
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 AOSP Kernel Image (upstream-${{ github.run_number }})
+        name: Galaxy A50 Kernel Image (upstream-${{ github.run_number }})
         path: 'tools/package/upstream/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 AOSP Kernel Config (upstream-${{ github.run_number }})
+        name: Galaxy A50 Kernel Config (upstream-${{ github.run_number }})
         path: 'release/kernel_config_a50.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: a50_aosp_release_upstream-${{ github.run_number }})
+        name: a50_release_upstream-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
@@ -94,26 +94,26 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
-          cp .config ./release/kernel_config_a50.txt
+          cp .config ./release/kernel_config_a50_aosp.txt
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Image (upstream-${{ github.run_number }})
+        name: Galaxy A50 AOSP Kernel Image (upstream-${{ github.run_number }})
         path: 'tools/package/upstream/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Config (upstream-${{ github.run_number }})
+        name: Galaxy A50 AOSP Kernel Config (upstream-${{ github.run_number }})
         path: 'release/kernel_config_a50.txt'
         if-no-files-found: error
 
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: a50_release_upstream-${{ github.run_number }})
+        name: a50_aosp_release_upstream-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
