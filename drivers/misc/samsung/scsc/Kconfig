@@ -145,7 +145,7 @@ config SCSC_LOGRING_DEBUGFS
         default y
 
 config SCSC_LOG_COLLECTION
-	tristate "Samsung SCSC Log Collection"
+	boolean "Samsung SCSC Log Collection"
 	depends on SCSC_CORE
 
 config SCSC_WIFILOGGER_DEBUGFS
