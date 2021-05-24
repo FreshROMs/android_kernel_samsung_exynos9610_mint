@@ -100,7 +100,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 AOSP Kernel Image (upstream-${{ github.run_number }})
-        path: 'tools/package/upstream/boot.img'
+        path: 'tools/package/others/boot.img'
         if-no-files-found: error
 
     - name: Upload config artifact
