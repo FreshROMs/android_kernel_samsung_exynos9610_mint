@@ -62,6 +62,61 @@ jobs:
         path: 'release'
         if-no-files-found: error
 
+  a50cs:
+    name: Build Galaxy A50 (One UI; NA)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      
+    - name: Install Toolchain
+      run: |
+          set -eo pipefail
+          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
+        
+    - name: Build Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
+          export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
+          ./build.sh a50cs ci
+          
+    - name: Prepare Release
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+          cp .config ./release/kernel_config_a50cs.txt
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Kernel Image (upstream-${{ github.run_number }}; NA)
+        path: 'tools/package/upstream/boot.img'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 NA Kernel Config (upstream-${{ github.run_number }}; NA)
+        path: 'release/kernel_config_a50cs.txt'
+        if-no-files-found: error
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: a50cs_release_upstream-${{ github.run_number }})
+        path: 'release'
+        if-no-files-found: error
+
   a50_aosp:
     name: Build Galaxy A50 (AOSP)
     runs-on: ubuntu-latest
@@ -114,6 +169,61 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: a50_aosp_release_upstream-${{ github.run_number }})
+        path: 'release'
+        if-no-files-found: error
+
+  a50cs_aosp:
+    name: Build Galaxy A50 (AOSP; NA)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install build-essential libelf-dev kernel-package bzip2 lib32stdc++6 libc6-dev-i386 git -y
+      
+    - name: Install Toolchain
+      run: |
+          set -eo pipefail
+          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          mkdir -p ${HOME}/toolchain_arm32
+          wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
+          tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
+        
+    - name: Build Kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building FreshCore CI $GITHUB_RUN_NUMBER"
+          export KBUILD_BUILD_VERSION=$GITHUB_RUN_NUMBER
+          ./build-aosp.sh a50cs ci
+          
+    - name: Prepare Release
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FRSH_CORE_*.zip` ./release/
+          cp .config ./release/kernel_config_a50cs_aosp.txt
+
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 AOSP Kernel Image (upstream-${{ github.run_number }}; NA)
+        path: 'tools/package/others/boot.img'
+        if-no-files-found: error
+
+    - name: Upload config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 AOSP Kernel Config (upstream-${{ github.run_number }}; NA)
+        path: 'release/kernel_config_a50cs_aosp.txt'
+        if-no-files-found: error
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: a50cs_aosp_release_upstream-${{ github.run_number }};NA)
         path: 'release'
         if-no-files-found: error
 
@@ -293,6 +403,18 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: a50_aosp_release_upstream-${{ github.run_number }})
+        path: release
+      
+    - name: Merge Galaxy A50 (One UI; NA) release
+      uses: actions/download-artifact@v2
+      with:
+        name: a50cs_release_upstream-${{ github.run_number }})
+        path: release
+      
+    - name: Merge Galaxy A50 (AOSP; NA) release
+      uses: actions/download-artifact@v2
+      with:
+        name: a50cs_aosp_release_upstream-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy A50s release
