@@ -223,7 +223,7 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: a50cs_aosp_release_upstream-${{ github.run_number }};NA)
+        name: a50cs_aosp_release_upstream-${{ github.run_number }})
         path: 'release'
         if-no-files-found: error
 
