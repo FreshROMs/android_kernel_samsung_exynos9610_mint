@@ -384,7 +384,7 @@ jobs:
   release:
     name: Release files and configs
     if: always()
-    needs: [a50, a50_aosp, a50s, m30s]
+    needs: [a50, a50_aosp, a50cs, a50cs_aosp, a50s, m30s]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
