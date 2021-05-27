@@ -73,6 +73,7 @@ struct aigov_policy {
 	struct task_struct       *thread;
 	bool                     work_in_progress;
 
+	bool 					 limits_changed;
 	bool                     need_freq_update;
 	bool 			         be_stochastic;
 
@@ -219,7 +220,9 @@ bool aigov_should_update_freq(struct aigov_policy *ag_policy, u64 time)
 	if (ag_policy->work_in_progress)
 		return false;
 
-	if (unlikely(ag_policy->need_freq_update)) {
+	if (unlikely(ag_policy->limits_changed)) {
+		ag_policy->limits_changed = false;
+		ag_policy->need_freq_update = true;
 		return true;
 	}
 
@@ -1094,6 +1097,7 @@ int aigov_start(struct cpufreq_policy *policy)
 	ag_policy->last_freq_update_time = 0;
 	ag_policy->next_freq = 0;
 	ag_policy->work_in_progress = false;
+	ag_policy->limits_changed = false;
 	ag_policy->need_freq_update = false;
 	ag_policy->cached_raw_freq = 0;
 
@@ -1180,7 +1184,7 @@ static void aigov_limits(struct cpufreq_policy *policy)
 
 	aigov_update_min(policy);
 
-	ag_policy->need_freq_update = true;
+	ag_policy->limits_changed = true;
 
 	mutex_unlock(&global_tunables_lock);
 }
