@@ -37,7 +37,7 @@ DECLARE_KAIRISTICS(cpufreq, 32, 25, 23, 25);
 unsigned long boosted_cpu_util(int cpu);
 
 #define SUGOV_KTHREAD_PRIORITY	50
-#define UP_RATE_LIMIT_US 5000
+#define UP_RATE_LIMIT_US 4000
 #define DOWN_RATE_LIMIT_US 4000
 
 struct sugov_tunables {
