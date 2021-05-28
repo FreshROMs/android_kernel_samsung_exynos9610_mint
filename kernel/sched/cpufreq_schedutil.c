@@ -1217,8 +1217,11 @@ static void sugov_start_slack(int cpu)
 {
 	struct sugov_exynos *sg_exynos = &per_cpu(sugov_exynos, cpu);
 
-	if (!sg_exynos->enabled)
-		return;
+// Remove schedtune boost restriction on slack timer
+/*  
+	if (schedtune_cpu_boost(cpu))
+		return 0;
+*/
 
 	sg_exynos->min = ULONG_MAX;
 	sg_exynos->started = true;
