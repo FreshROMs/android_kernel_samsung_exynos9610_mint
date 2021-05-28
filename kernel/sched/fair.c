@@ -6754,7 +6754,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 struct reciprocal_value schedtune_spc_rdiv;
 
 long
-schedtune_margin(unsigned long signal, long boost)
+schedtune_margin(unsigned long signal, long boost, unsigned long capacity)
 {
 	long long margin = 0;
 
@@ -6763,12 +6763,14 @@ schedtune_margin(unsigned long signal, long boost)
 	 *
 	 * The Boost (B) value is used to compute a Margin (M) which is
 	 * proportional to the complement of the original Signal (S):
-	 *   M = B * (SCHED_CAPACITY_SCALE - S)
+	 *   M = B * (capacity - S)
 	 * The obtained M could be used by the caller to "boost" S.
 	 */
 	if (boost >= 0) {
-		margin  = SCHED_CAPACITY_SCALE - signal;
-		margin *= boost;
+		if (capacity > signal) {
+			margin  = capacity - signal;
+			margin *= boost;
+		}
 	} else
 		margin = -signal * boost;
 
@@ -6787,7 +6789,7 @@ schedtune_cpu_margin(unsigned long util, int cpu)
 	if (boost == 0)
 		return 0;
 
-	return schedtune_margin(util, boost);
+	return schedtune_margin(util, boost, capacity_orig_of(cpu));
 }
 
 static inline long
@@ -6801,7 +6803,7 @@ schedtune_task_margin(struct task_struct *task)
 		return 0;
 
 	util = task_util_est(task);
-	margin = schedtune_margin(util, boost);
+	margin = schedtune_margin(util, boost, SCHED_CAPACITY_SCALE);
 
 	return margin;
 }
