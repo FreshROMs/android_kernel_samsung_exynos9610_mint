@@ -64,13 +64,13 @@
 #include "stui_inf.h"
 #endif
 
-int decon_log_level = 6;
+int decon_log_level = 0;    /* default is 6 */
 module_param(decon_log_level, int, 0644);
-int dpu_bts_log_level = 6;
+int dpu_bts_log_level = 0;  /* default is 6 */
 module_param(dpu_bts_log_level, int, 0644);
-int win_update_log_level = 6;
+int win_update_log_level = 0;   /* default is 6 */
 module_param(win_update_log_level, int, 0644);
-int dpu_mres_log_level = 6;
+int dpu_mres_log_level = 0; /* default is 6 */
 module_param(dpu_mres_log_level, int, 0644);
 int decon_systrace_enable;
 
@@ -89,6 +89,7 @@ static char *decon_state_names[] = {
 
 void tracing_mark_write(struct decon_device *decon, char id, char *str1, int value)
 {
+#if 0
 	char buf[DECON_TRACE_BUF_SIZE] = {0,};
 
 	if (!decon->systrace.pid)
@@ -110,6 +111,7 @@ void tracing_mark_write(struct decon_device *decon, char id, char *str1, int val
 		decon_err("%s:argument fail\n", __func__);
 		return;
 	}
+#endif
 }
 
 static void decon_dump_using_dpp(struct decon_device *decon)
