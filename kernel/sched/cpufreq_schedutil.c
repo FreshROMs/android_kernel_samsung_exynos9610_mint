@@ -1244,12 +1244,9 @@ static int sugov_need_slack_timer(unsigned int cpu)
 	struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 	struct sugov_exynos *sg_exynos = &per_cpu(sugov_exynos, cpu);
 
-// Remove schedtune boost restriction on slack timer
-/*  
 	if (schedtune_cpu_boost(cpu))
 		return 0;
-*/
-	
+
 	if (sg_cpu->util > sg_exynos->min &&
 		get_next_event_time_ms(cpu) > sg_exynos->expired_time)
 		return 1;
