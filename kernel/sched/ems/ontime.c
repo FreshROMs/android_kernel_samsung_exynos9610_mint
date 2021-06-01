@@ -66,7 +66,7 @@ static inline struct sched_entity *se_of(struct sched_avg *sa)
 	return container_of(sa, struct sched_entity, avg);
 }
 
-extern long schedtune_margin(unsigned long signal, long boost, unsigned long capacity);
+extern long schedtune_margin(unsigned long signal, long boost);
 static inline unsigned long ontime_load_avg(struct task_struct *p)
 {
 	int boost = schedtune_task_boost(p);
@@ -75,7 +75,7 @@ static inline unsigned long ontime_load_avg(struct task_struct *p)
 	if (boost == 0)
 		return load_avg;
 
-	return load_avg + schedtune_margin(load_avg, boost, SCHED_CAPACITY_SCALE);
+	return load_avg + schedtune_margin(load_avg, boost);
 }
 
 struct ontime_cond *get_current_cond(int cpu)
