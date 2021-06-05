@@ -1733,6 +1733,7 @@ static int ist40xx_parse_dt(struct device *dev, struct ist40xx_data *data)
 
 	data->dt_data->is_power_by_gpio = of_property_read_bool(np,
 			"imagis,power-gpioen");
+	data->dt_data->support_dex = of_property_read_bool(np, "support_dex_mode");
 	if (data->dt_data->is_power_by_gpio) {
 		data->dt_data->power_gpio = of_get_named_gpio(np, "imagis,power-gpio", 0);
 	} else {
@@ -2017,6 +2018,36 @@ static void ist40xx_read_info_work(struct work_struct *work)
 	data->info_work_done = true;
 }
 
+static void ist_set_input_prop_pad(struct ist40xx_data *data, struct input_dev *dev)
+{
+	static char ist_phys[64] = { 0 };
+
+	snprintf(ist_phys, sizeof(ist_phys), "%s/input1", dev->name);
+	dev->phys = ist_phys;
+	dev->id.bustype = BUS_I2C;
+	dev->dev.parent = &data->client->dev;
+
+	set_bit(EV_SYN, dev->evbit);
+	set_bit(EV_KEY, dev->evbit);
+	set_bit(EV_ABS, dev->evbit);
+	set_bit(EV_SW, dev->evbit);
+	set_bit(BTN_TOUCH, dev->keybit);
+	set_bit(BTN_TOOL_FINGER, dev->keybit);
+	set_bit(KEY_BLACK_UI_GESTURE, dev->keybit);
+	set_bit(KEY_INT_CANCEL, dev->keybit);
+
+	set_bit(INPUT_PROP_POINTER, dev->propbit);
+	set_bit(KEY_HOMEPAGE, dev->keybit);
+
+	input_set_abs_params(dev, ABS_MT_POSITION_X, 0, data->tsp_info.width - 1, 0, 0);
+	input_set_abs_params(dev, ABS_MT_POSITION_Y, 0, data->tsp_info.height - 1, 0, 0);
+	input_set_abs_params(dev, ABS_MT_TOUCH_MAJOR, 0, IST40XX_MAX_MAJOR, 0, 0);
+	input_set_abs_params(dev, ABS_MT_TOUCH_MINOR, 0, IST40XX_MAX_MINOR, 0, 0);
+	input_set_abs_params(dev, ABS_MT_CUSTOM, 0, 0xFFFFFFFF, 0, 0);
+
+	input_mt_init_slots(dev, 10, INPUT_MT_POINTER);
+}
+
 static void ist_set_input_prop_proximity(struct ist40xx_data *data, struct input_dev *dev)
 {
 	static char ist_phys[64] = { 0 };
@@ -2218,6 +2249,24 @@ static int ist40xx_probe(struct i2c_client *client,
 	if (ret)
 		goto err_read_info;
 
+	if (data->dt_data->support_dex) {
+		data->input_dev_pad = input_allocate_device();
+		if (!data->input_dev_pad) {
+			input_err(true, &client->dev, "%s: allocate device err!\n", __func__);
+			goto err_read_info;
+		}
+	}
+
+	if (data->dt_data->support_dex) {
+		data->input_dev_pad->name = "sec_touchpad";
+		ist_set_input_prop_pad(data, data->input_dev_pad);
+		ret = input_register_device(data->input_dev_pad);
+		if (ret) {
+			input_err(true, &client->dev, "%s: Unable to register %s input device\n", __func__, data->input_dev_pad->name);
+			goto err_read_info;
+		}
+	}
+
 	ret = ist40xx_init_update_sysfs(data);
 	if (ret)
 		goto err_sysfs;
@@ -2360,6 +2409,8 @@ static int ist40xx_remove(struct i2c_client *client)
 
 	input_unregister_device(data->input_dev);
 	input_free_device(data->input_dev);
+	input_unregister_device(data->input_dev_pad);
+	input_free_device(data->input_dev_pad);
 	input_unregister_device(data->input_dev_proximity);
 	input_free_device(data->input_dev_proximity);	
 	kfree(data);
