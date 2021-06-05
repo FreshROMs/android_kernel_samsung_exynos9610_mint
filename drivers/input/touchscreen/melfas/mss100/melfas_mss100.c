@@ -1626,15 +1626,11 @@ err_test_dev_create:
 	mms_disable(info);
 	free_irq(info->irq, info);
 err_request_irq:
-	if (info->dtdata->support_dex) {
-		input_unregister_device(info->input_dev_pad);
-		info->input_dev_pad = NULL;
-	}
+	input_unregister_device(info->input_dev_pad);
+	info->input_dev_pad = NULL;
 err_input_pad_register_device:
-	if (info->dtdata->support_dex) {
-		if (info->input_dev_pad)
-			input_free_device(info->input_dev_pad);
-	}
+	if (info->input_dev_pad)
+		input_free_device(info->input_dev_pad);
 err_fw_update:
 	mms_power_control(info, 0);
 	if (info->dtdata->support_ear_detect) {
