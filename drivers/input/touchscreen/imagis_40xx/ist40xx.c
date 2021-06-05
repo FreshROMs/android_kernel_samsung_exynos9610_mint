@@ -1733,7 +1733,6 @@ static int ist40xx_parse_dt(struct device *dev, struct ist40xx_data *data)
 
 	data->dt_data->is_power_by_gpio = of_property_read_bool(np,
 			"imagis,power-gpioen");
-	data->dt_data->support_dex = of_property_read_bool(np, "support_dex_mode");
 	if (data->dt_data->is_power_by_gpio) {
 		data->dt_data->power_gpio = of_get_named_gpio(np, "imagis,power-gpio", 0);
 	} else {
@@ -2249,22 +2248,18 @@ static int ist40xx_probe(struct i2c_client *client,
 	if (ret)
 		goto err_read_info;
 
-	if (data->dt_data->support_dex) {
-		data->input_dev_pad = input_allocate_device();
-		if (!data->input_dev_pad) {
-			input_err(true, &client->dev, "%s: allocate device err!\n", __func__);
-			goto err_read_info;
-		}
+	data->input_dev_pad = input_allocate_device();
+	if (!data->input_dev_pad) {
+		input_err(true, &client->dev, "%s: allocate device err!\n", __func__);
+		goto err_read_info;
 	}
 
-	if (data->dt_data->support_dex) {
-		data->input_dev_pad->name = "sec_touchpad";
-		ist_set_input_prop_pad(data, data->input_dev_pad);
-		ret = input_register_device(data->input_dev_pad);
-		if (ret) {
-			input_err(true, &client->dev, "%s: Unable to register %s input device\n", __func__, data->input_dev_pad->name);
-			goto err_read_info;
-		}
+	data->input_dev_pad->name = "sec_touchpad";
+	ist_set_input_prop_pad(data, data->input_dev_pad);
+	ret = input_register_device(data->input_dev_pad);
+	if (ret) {
+		input_err(true, &client->dev, "%s: Unable to register %s input device\n", __func__, data->input_dev_pad->name);
+		goto err_read_info;
 	}
 
 	ret = ist40xx_init_update_sysfs(data);
