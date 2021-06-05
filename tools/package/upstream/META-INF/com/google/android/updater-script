@@ -84,6 +84,8 @@ ifelse(
 				(
 				  ui_print("- Updating addon.");
 				  run_program("/tmp/scripts/frsh_toolkit", "upgrade_addon");
+				  package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
+			      package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
 				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
 				  sleep(7);
 				  ui_print("   - Addon updated successfully.");
@@ -95,6 +97,8 @@ ifelse(
 				(
 				  ui_print("- Installing addon.");
 				  run_program("/tmp/scripts/frsh_toolkit", "install_addon");
+				  package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
+			      package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
 				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
 				  sleep(5);
 				  ui_print("   - Addon installed successfully.");

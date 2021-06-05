@@ -230,6 +230,9 @@ build_zip() {
 			touch "$(pwd)/.user"
 		fi
 
+		touch $(pwd)/tools/package/others/fresh_core.prop
+		echo "fresh.core.build=${BUILDDATE}" > $(pwd)/tools/package/others/fresh_core.prop
+			
 		cd $(pwd)/tools/package/others
 	else
 		if [[ -d "$(pwd)/tools/package/${GITHUB_REF##*/}" ]]; then
@@ -238,6 +241,9 @@ build_zip() {
 			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
 			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
 			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/${GITHUB_REF##*/}/addon.prop
+
+			touch $(pwd)/tools/package/${GITHUB_REF##*/}/fresh_core.prop
+			echo "fresh.core.build=${BUILDDATE}" > $(pwd)/tools/package/${GITHUB_REF##*/}/fresh_core.prop
 			
 			cd $(pwd)/tools/package/${GITHUB_REF##*/}
 		else
@@ -246,6 +252,9 @@ build_zip() {
 			echo "fresh.addon.code=io.tns.shadowx.${GITHUB_REF##*/}" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.build=${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
 			echo "fresh.addon.version=${GITHUB_RUN_NUMBER}" >> $(pwd)/tools/package/others/addon.prop
+
+			touch $(pwd)/tools/package/others/fresh_core.prop
+			echo "fresh.core.build=${BUILDDATE}" > $(pwd)/tools/package/others/fresh_core.prop
 			
 			cd $(pwd)/tools/package/others
 		fi
