@@ -263,11 +263,7 @@ static int select_eco_cpu(struct eco_env *eenv)
 			continue;
 
 		cpumask_and(&mask, cpu_coregroup_mask(cpu), tsk_cpus_allowed(eenv->p));
-		/*
-		 * Checking prev cpu is meaningless, because the energy of prev cpu
-		 * will be compared to best cpu at last
-		 */
-		cpumask_clear_cpu(eenv->prev_cpu, &mask);
+
 		if (cpumask_empty(&mask))
 			continue;
 
@@ -314,8 +310,8 @@ energy_cpu_found:
 		}
 	}
 
-	if (!cpu_selected(best_cpu))
-		return -1;
+	if (!cpu_selected(best_cpu) || best_cpu == eco_cpu)
+		return eco_cpu;
 
 	/*
 	 * Compare prev cpu to best cpu to determine whether keeping the task
