@@ -134,11 +134,11 @@ static int select_idle_cpu(struct task_struct *p)
 			new_util = wake_util + task_util_est(p);
 			new_util = max(new_util, boosted_task_util(p));
 
+			if (lbt_util_bring_overutilize(cpu, new_util))
+				continue;
+
 			trace_ems_prefer_idle(p, task_cpu(p), i, capacity_orig, task_util_est(p),
 							new_util, idle_cpu(i));
-
-			if (new_util > capacity_orig)
-				continue;
 
 			/* Priority #1 : idle cpu with lowest util */
 			if (mark_lowest_idle_util_cpu(i, new_util, capacity_orig,

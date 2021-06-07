@@ -39,7 +39,7 @@ int select_perf_cpu(struct task_struct *p)
 		new_util = max(new_util, boosted_task_util(p));
 
 		/* Skip over-capacity cpu */
-		if (capacity_orig < new_util)
+		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
 
 		/*

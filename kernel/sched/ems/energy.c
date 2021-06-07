@@ -209,13 +209,11 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 
 	/* Find energy efficient cpu in each coregroup. */
 	for_each_cpu_and(cpu, mask, cpu_active_mask) {
-		unsigned long capacity_orig = capacity_orig_of(cpu);
 		unsigned long new_util = cpu_util(cpu) + task_util_est(p);
-
 		new_util = max(new_util, boosted_task_util(p));
 
 		/* Skip over-capacity cpu */
-		if (new_util > capacity_orig)
+		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
 
 		/*
