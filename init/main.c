@@ -555,7 +555,6 @@ static void __init mm_init(void)
 rkp_init_t rkp_init_data __rkp_ro = {
 	.magic = RKP_INIT_MAGIC,
 	.vmalloc_start = VMALLOC_START,
-	.no_fimc_verify = 1, // Temporarily disabling FIMC signature verification - Must be 0
 	.fimc_phys_addr = 0,
 	._text = (u64)_text,
 	._etext = (u64)_etext,
@@ -576,7 +575,7 @@ static void __init rkp_init(void)
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	rkp_init_data.tramp_pgd = (u64)__pa(tramp_pg_dir);
 #endif
-#ifdef CONFIG_UH_RKP_FIMC_CHECK
+#ifndef CONFIG_UH_RKP_FIMC_CHECK
 	rkp_init_data.no_fimc_verify = 1;
 #endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0

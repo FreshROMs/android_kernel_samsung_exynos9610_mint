@@ -86,6 +86,7 @@ enum __RKP_CMD_ID{
 #define RKP_DYN_FIMC				0x02
 #define RKP_DYN_FIMC_COMBINED		0x03
 #define RKP_DYN_MODULE				0x04
+#define RKP_DYN_CDH					0x05
 
 struct rkp_init { //copy from uh (app/rkp/rkp.h)
 	u32 magic;
