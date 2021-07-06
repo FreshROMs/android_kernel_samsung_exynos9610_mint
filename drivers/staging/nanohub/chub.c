@@ -381,7 +381,7 @@ static void contexthub_handle_debug(struct contexthub_ipc_info *ipc,
 		atomic_set(&ipc->chub_status, CHUB_ST_ERR);
 
 	/* handle err */
-	if (enable_wq) {
+	if (mutex_is_locked(&reset_mutex) || enable_wq) {
 		ipc->cur_err |= (1 << err);
 		schedule_work(&ipc->debug_work);
 	} else {
