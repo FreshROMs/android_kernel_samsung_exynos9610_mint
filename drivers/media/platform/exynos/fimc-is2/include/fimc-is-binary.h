@@ -131,7 +131,7 @@
 #endif
 
 #ifdef USE_BINARY_PADDING_DATA_ADDED
-#define IS_SIGNATURE_LEN	528
+#define IS_SIGNATURE_LEN	272
 #else
 #define IS_SIGNATURE_LEN	0
 #endif
