@@ -63,6 +63,8 @@ int abox_ipc_write_error = 0;
 bool abox_ipc_read_avail = false;
 bool abox_ipc_write_avail = false;
 
+static bool abox_ipc_timeout_state = false;
+
 int tfadsp_read(int devidx, int size, void *buf)
 {
 	ABOX_IPC_MSG msg;
@@ -71,6 +73,10 @@ int tfadsp_read(int devidx, int size, void *buf)
 	struct abox_data *aboxdata = abox_get_abox_data();
 
 	ipc_dbg("size = %d", size);
+
+	if(abox_ipc_timeout_state == true) {
+		ipc_err("ipc timeout state, skip to tfadsp_read");
+	}
 
 	abox_request_cpu_gear(&data->pdev_abox->dev, aboxdata,
 					REALTIME_GEAR_ID, 4);
@@ -98,7 +104,8 @@ int tfadsp_read(int devidx, int size, void *buf)
 
 	if (!ret) {
 		ipc_err("wait_event timeout");
-		return -1;
+		abox_ipc_timeout_state = true;
+		return 0;
 	}
 	if (abox_ipc_read_error) {
 		ipc_err("error = %d", abox_ipc_read_error);
@@ -116,6 +123,10 @@ int tfadsp_write(int devidx, int size, void *buf)
 	struct abox_data *aboxdata = abox_get_abox_data();
 
 	ipc_dbg("size = %d", size);
+
+	if(abox_ipc_timeout_state == true) {
+		ipc_err("ipc timeout state, skip to tfadsp_write");
+	}
 
 	abox_request_cpu_gear(&data->pdev_abox->dev, aboxdata,
 					REALTIME_GEAR_ID, 4);
@@ -147,7 +158,8 @@ int tfadsp_write(int devidx, int size, void *buf)
 
 	if (!ret) {
 		ipc_err("wait_event timeout");
-		return -1;
+		abox_ipc_timeout_state = true;
+		return 0;
 	}
 	if (abox_ipc_write_error) {
 		ipc_err("abox_ipc_write_error = %d", abox_ipc_write_error);
