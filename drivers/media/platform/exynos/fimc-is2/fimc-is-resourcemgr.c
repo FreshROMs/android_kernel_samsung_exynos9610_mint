@@ -1550,10 +1550,6 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 			goto p_err;
 		}
 #endif
-#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
-		exynos_bcm_dbg_start();
-		dbgd_resource("exynos bcm debug was started\n");
-#endif
 	}
 
 	if (atomic_read(&resource->rsccount) == 0) {
@@ -1694,6 +1690,11 @@ int fimc_is_resource_get(struct fimc_is_resourcemgr *resourcemgr, u32 rsc_type)
 				goto p_err;
 			}
 			TIME_LAUNCH_END(LAUNCH_DDK_LOAD);
+
+#ifdef CONFIG_EXYNOS_BCM_DBG_GNR
+		exynos_bcm_dbg_start();
+		dbgd_resource("exynos bcm debug was started\n");
+#endif
 		}
 #endif
 		fimc_is_vender_resource_get(&core->vender);

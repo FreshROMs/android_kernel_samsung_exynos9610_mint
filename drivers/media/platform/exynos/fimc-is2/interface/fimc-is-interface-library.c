@@ -2233,6 +2233,8 @@ int fimc_is_memory_attribute_rox(struct fimc_is_memory_attribute *attribute)
 
 #define INDEX_VRA_BIN	0
 #define INDEX_ISP_BIN	1
+#define INDEX_CDH_BIN	2
+static bool cdh_loaded = false;
 int fimc_is_load_ddk_bin(int loadType)
 {
 	int ret = 0;
@@ -2244,6 +2246,7 @@ int fimc_is_load_ddk_bin(int loadType)
 	ulong lib_addr;
 #ifdef CONFIG_UH_RKP
 	rkp_dynamic_load_t rkp_dyn;
+	rkp_dynamic_load_t rkp_dyn_cdh;
 	static rkp_dynamic_load_t rkp_dyn_before = {0};
 #endif
 	ulong lib_isp = DDK_LIB_ADDR;
@@ -2255,9 +2258,11 @@ int fimc_is_load_ddk_bin(int loadType)
 #endif
 
 	ulong lib_vra = VRA_LIB_ADDR;
+	ulong lib_cdh = __LIB_START;
 	struct fimc_is_memory_attribute memory_attribute[] = {
 		{__pgprot(PTE_RDONLY), PFN_UP(LIB_VRA_CODE_SIZE), lib_vra},
-		{__pgprot(PTE_RDONLY), PFN_UP(LIB_ISP_CODE_SIZE), lib_isp}
+		{__pgprot(PTE_RDONLY), PFN_UP(LIB_ISP_CODE_SIZE), lib_isp},
+		{__pgprot(PTE_RDONLY), PFN_UP(LIB_CDH_CODE_SIZE), lib_cdh}
 	};
 
 #ifdef USE_ONE_BINARY
@@ -2293,6 +2298,12 @@ int fimc_is_load_ddk_bin(int loadType)
 		rkp_dyn.type = RKP_DYN_FIMC_COMBINED;
 		rkp_dyn.code_base2 = memory_attribute[INDEX_VRA_BIN].vaddr;
 		rkp_dyn.code_size2 = memory_attribute[INDEX_VRA_BIN].numpages * PAGE_SIZE;
+		memset(&rkp_dyn_cdh, 0, sizeof(rkp_dyn_cdh));
+		rkp_dyn_cdh.type = RKP_DYN_CDH;
+		rkp_dyn_cdh.binary_base = lib_cdh;
+		rkp_dyn_cdh.binary_size = CDH_SIZE;
+		rkp_dyn_cdh.code_base1 = memory_attribute[INDEX_CDH_BIN].vaddr;
+		rkp_dyn_cdh.code_size1 = memory_attribute[INDEX_CDH_BIN].numpages * PAGE_SIZE;
 #else
 		rkp_dyn.type = RKP_DYN_FIMC;
 #endif
@@ -2314,12 +2325,25 @@ int fimc_is_load_ddk_bin(int loadType)
 		}
 #endif
 
+		if (!cdh_loaded) {
+			ret = fimc_is_memory_attribute_nxrw(&memory_attribute[INDEX_CDH_BIN]);
+			if (ret) {
+				err_lib("failed to change into NX memory attribute (%d)", ret);
+				return ret;
+			}
+		}
+
 		info_lib("binary info[%s] - type: C/D, from: %s\n",
 			bin_type,
 			was_loaded_by(&bin) ? "built-in" : "user-provided");
 		if (bin.size <= bin_size) {
-			memcpy((void *)lib_addr, bin.data + CDH_SIZE, bin.size - CDH_SIZE);
-			__flush_dcache_area((void *)lib_addr, bin.size - CDH_SIZE);
+			if (!cdh_loaded) {
+				memcpy((void *)lib_addr - CDH_SIZE, bin.data, bin.size);
+				__flush_dcache_area((void *)lib_addr - CDH_SIZE, bin.size);
+			} else {
+				memcpy((void *)lib_addr, bin.data + CDH_SIZE, bin.size - CDH_SIZE);
+				__flush_dcache_area((void *)lib_addr, bin.size - CDH_SIZE);
+			}
 		} else {
 			err_lib("DDK bin size is bigger than memory area. %zd[%zd]",
 				bin.size, bin_size);
@@ -2332,6 +2356,13 @@ int fimc_is_load_ddk_bin(int loadType)
 		if (ret) {
 			err_lib("fail to load verify FIMC in EL2");
 		}
+		if (!cdh_loaded) {
+			ret = uh_call(UH_APP_RKP, RKP_DYNAMIC_LOAD, RKP_DYN_COMMAND_INS, (u64)&rkp_dyn_cdh, 0, 0);
+			if (ret) {
+				err_lib("fail to load verify FIMC in EL2");
+			}
+		}
+		cdh_loaded = true;
 #else
 		ret = fimc_is_memory_attribute_rox(&memory_attribute[INDEX_ISP_BIN]);
 		if (ret) {
@@ -2346,6 +2377,15 @@ int fimc_is_load_ddk_bin(int loadType)
 			return ret;
 		}
 #endif
+
+		if (!cdh_loaded) {
+			ret = fimc_is_memory_attribute_rox(&memory_attribute[INDEX_CDH_BIN]);
+			if (ret) {
+				err_lib("failed to change into EX memory attribute (%d)", ret);
+				return ret;
+			}
+		}
+		cdh_loaded = true;
 #endif
 	} else { /* loadType == BINARY_LOAD_DATA */
 		if ((bin.size > CAMERA_BINARY_DDK_DATA_OFFSET) && (bin.size <= bin_size)) {

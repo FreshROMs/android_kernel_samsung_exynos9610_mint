@@ -15,7 +15,6 @@
 
 #ifdef CONFIG_EXYNOS_BCM_DBG_GNR
 #define BCM_BIN_SIZE				(SZ_128K)
-#define BCM_CODE_SIZE				(SZ_16K)
 #define BCM_BIN_NAME				"/system/vendor/firmware/fimc_is_lib.bin"
 #endif
 

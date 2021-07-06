@@ -1577,6 +1577,8 @@ struct kbase_sub_alloc {
  * @atoms_count:          Number of GPU atoms currently in use, per priority
  * @create_flags:         Flags used in context creation.
  * @kinstr_jm:            Kernel job manager instrumentation context handle
+ * @tl_kctx_list_node:    List item into the device timeline's list of
+ *                        contexts, for timeline summarization.
  *
  * A kernel base context is an entity among which the GPU is scheduled.
  * Each context has its own GPU address space.
@@ -1730,6 +1732,7 @@ struct kbase_context {
 	bool ctx_vk_need_qos;
 #endif
 	struct kbase_kinstr_jm *kinstr_jm;
+	struct list_head tl_kctx_list_node;
 };
 
 #ifdef CONFIG_MALI_CINSTR_GWT
