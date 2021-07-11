@@ -294,6 +294,7 @@ jobs:
       with:
         source_file: 'Image'
         destination_repo: 'TenSeventy7/android_device_samsung_a50dd'
+        destination_branch: 'twrp-9.0'
         destination_folder: 'prebuilt'
         user_email: 'git@tensevntysevn.cf'
         user_name: 'GitHub Actions'
@@ -349,6 +350,7 @@ jobs:
       with:
         source_file: 'Image'
         destination_repo: 'TenSeventy7/android_device_samsung_a50cs'
+        destination_branch: 'twrp-9.0'
         destination_folder: 'prebuilt'
         user_email: 'git@tensevntysevn.cf'
         user_name: 'GitHub Actions'
