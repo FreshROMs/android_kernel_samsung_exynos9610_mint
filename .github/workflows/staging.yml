@@ -286,19 +286,6 @@ jobs:
           ./build-recovery.sh a50 ci
           mv -f ./tools/aik/a50/split_img/boot.img-zImage ./Image
           cp .config ./kernel_config_a50_recovery.txt
-      
-    - name: Upload build to device tree
-      uses: dmnemec/copy_file_to_another_repo_action@main
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        source_file: 'Image'
-        destination_repo: 'TenSeventy7/android_device_samsung_a50dd'
-        destination_branch: 'twrp-9.0'
-        destination_folder: 'prebuilt'
-        user_email: 'git@tensevntysevn.cf'
-        user_name: 'GitHub Actions'
-        commit_message: 'a50dd: Fresh Core staging-${{ github.run_number }}'
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
@@ -342,30 +329,6 @@ jobs:
           ./build-recovery.sh a50cs ci
           mv -f ./tools/aik/a50/split_img/boot.img-zImage ./Image
           cp .config ./kernel_config_a50cs_recovery.txt
-      
-    - name: Upload build to device tree
-      uses: dmnemec/copy_file_to_another_repo_action@main
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        source_file: 'Image'
-        destination_repo: 'TenSeventy7/android_device_samsung_a50cs'
-        destination_branch: 'twrp-9.0'
-        destination_folder: 'prebuilt'
-        user_email: 'git@tensevntysevn.cf'
-        user_name: 'GitHub Actions'
-        commit_message: 'a50cs: Fresh Core staging-${{ github.run_number }}'
-      
-    - name: Trigger recovery CI build
-      uses: dmnemec/copy_file_to_another_repo_action@main
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        source_file: 'trigger.txt'
-        destination_repo: 'TenSeventy7/android_recovery_exynos9610_ci'
-        user_email: 'git@tensevntysevn.cf'
-        user_name: 'GitHub Actions'
-        commit_message: 'Build triggered by staging-${{ github.run_number }}'
 
     - name: Upload config artifact
       uses: actions/upload-artifact@v2
@@ -483,21 +446,6 @@ jobs:
       with:
         name: a50s_release_staging-${{ github.run_number }})
         path: release
-
-    - name: Generate recovery build trigger
-      run: |
-          openssl rand -hex 12 > ./trigger.txt
-      
-    - name: Trigger recovery CI build
-      uses: dmnemec/copy_file_to_another_repo_action@main
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        source_file: 'trigger.txt'
-        destination_repo: 'TenSeventy7/android_recovery_exynos9610_ci'
-        user_email: 'git@tensevntysevn.cf'
-        user_name: 'GitHub Actions'
-        commit_message: 'Build triggered by staging-${{ github.run_number }}'
         
     - name: Upload release
       uses: Hs1r1us/Release-AIO@v1.0
