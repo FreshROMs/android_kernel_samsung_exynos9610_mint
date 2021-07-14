@@ -244,8 +244,8 @@ static void scan_and_kill(void)
 		/* Elevate the victim to SCHED_RR with zero RT priority */
 		sched_setscheduler_nocheck(vtsk, SCHED_RR, &sched_zero_prio);
 
-		/* Allow the victim to run on any CPU. This won't schedule. */
-		set_cpus_allowed_ptr(vtsk, cpu_all_mask);
+		/* Only allow the victim to run on small CPUs */
+		set_cpus_allowed_ptr(vtsk, cpu_lp_mask);
 
 		/* Finally release the victim's task lock acquired earlier */
 		task_unlock(vtsk);
