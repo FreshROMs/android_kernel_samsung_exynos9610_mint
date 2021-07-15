@@ -49,61 +49,15 @@ ifelse(
 		package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
 	 ),
 	 (
-		run_program("/tmp/scripts/frsh_toolkit", "addon_check");
-		ui_print(" ");
-
-
 		# Install, uninstall, or update addon.
-		ifelse(
-			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "no-uninstall", 
-				(
-				  ui_print("- Addon cannot be uninstalled.");
-				  ui_print("  " + file_getprop("/tmp/addon.prop", "fresh.addon.name") + " modifies vital system files");
-				  ui_print("  and can cause bootloops when uninstalled.");
-				  ifelse(is_mounted(file_getprop("/tmp/frsh_install.prop", "block.system.mount")), unmount(file_getprop("/tmp/frsh_install.prop", "block.system.mount")));
-				  ifelse(is_mounted("/product"), unmount("/product"));
-				  ifelse(is_mounted("/vendor"), unmount("/vendor"));
-				  sleep(10);
-				  ui_print(" ");
-				  abort("  Please reinstall Fresh to remove this addon.");
-				)
-		);
-
-		ifelse(
-			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "true", 
-				(
-				  ui_print("- Uninstalling addon.");
-				  run_program("/tmp/scripts/frsh_toolkit", "uninstall_addon");
-				  sleep(10);
-				  ui_print("   - Addon uninstalled successfully.");
-				)
-		);
-
-		ifelse(
-			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "upgrade", 
-				(
-				  ui_print("- Updating addon.");
-				  run_program("/tmp/scripts/frsh_toolkit", "upgrade_addon");
-				  package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
-			      package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
-				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
-				  sleep(7);
-				  ui_print("   - Addon updated successfully.");
-				)
-		);
-
-		ifelse(
-			  file_getprop("/tmp/frsh_install.prop", "addon.installed") == "false", 
-				(
-				  ui_print("- Installing addon.");
-				  run_program("/tmp/scripts/frsh_toolkit", "install_addon");
-				  package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
-			      package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
-				  package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
-				  sleep(5);
-				  ui_print("   - Addon installed successfully.");
-				)
-		);
+		ui_print("- Installing addon.");
+		package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+		run_program("/tmp/scripts/frsh_toolkit", "install_addon");
+		package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
+		package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
+		package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+		sleep(5);
+		ui_print("   - Addon installed successfully.");
 
 	 )
 );
