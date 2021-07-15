@@ -334,7 +334,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Galaxy A50 Kernel Config (staging-${{ github.run_number }})
-        path: 'kernel_config_a50_recovery.txt'
+        path: 'kernel_config_a50cs_recovery.txt'
         if-no-files-found: error
 
   a50s:
