@@ -500,7 +500,7 @@ void slsi_purge_scan_results(struct netdev_vif *ndev_vif, u16 scan_id);
 void slsi_purge_scan_results_locked(struct netdev_vif *ndev_vif, u16 scan_id);
 struct sk_buff *slsi_dequeue_cached_scan_result(struct slsi_scan *scan, int *count);
 void slsi_get_hw_mac_address(struct slsi_dev *sdev, u8 *addr);
-int slsi_start(struct slsi_dev *sdev);
+int slsi_start(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_start_monitor_mode(struct slsi_dev *sdev, struct net_device *dev);
 void slsi_stop_net_dev(struct slsi_dev *sdev, struct net_device *dev);
 void slsi_stop(struct slsi_dev *sdev);
@@ -639,6 +639,7 @@ void slsi_update_supported_channels_regd_flags(struct slsi_dev *sdev);
 #ifdef CONFIG_SCSC_WLAN_HANG_TEST
 int slsi_test_send_hanged_vendor_event(struct net_device *dev);
 #endif
+int slsi_send_power_measurement_vendor_event(struct slsi_dev *sdev, s16 power_in_db);
 #if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 int slsi_send_forward_beacon_vendor_event(struct slsi_dev *sdev, const u8 *ssid, const int ssid_len, const u8 *bssid,
 					  u8 channel, const u16 beacon_int, const u64 timestamp, const u64 sys_time);
@@ -664,9 +665,11 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 void slsi_subsystem_reset(struct work_struct *work);
 void slsi_chip_recovery(struct work_struct *work);
 #endif
-int slsi_set_acl(struct slsi_dev *sdev, struct netdev_vif *ndev_vif);
+int slsi_set_acl(struct slsi_dev *sdev, struct net_device *dev);
 void slsi_purge_blacklist(struct netdev_vif *ndev_vif);
 void slsi_rx_update_wake_stats(struct slsi_dev *sdev, struct ethhdr *ehdr, int buff_len);
+int slsi_set_latency_crt_data(struct net_device *dev, int latency_mode);
+
 #ifdef CONFIG_SCSC_WLAN_DYNAMIC_ITO
 int slsi_set_ito(struct net_device *dev, char *command, int buf_len);
 #endif

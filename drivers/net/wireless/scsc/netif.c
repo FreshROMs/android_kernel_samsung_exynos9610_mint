@@ -279,31 +279,31 @@ static int slsi_net_open(struct net_device *dev)
 		return -EIO;
 	}
 
-	slsi_wake_lock(&sdev->wlan_wl);
+	slsi_wake_lock(&sdev->wlan_wl_init);
 
 	/* check if request to rf test mode. */
 	slsi_check_rf_test_mode();
 
-	if (!sdev->mac_changed)
-		memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
-
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (!sdev->netdev_up_count ) {
 		slsi_purge_blacklist(ndev_vif);
+		memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
 	} else if (sdev->netdev_up_count == 1) {
 		ap_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
 		if (ap_dev) {
 			ap_dev_vif = netdev_priv(ap_dev);
-			if (ap_dev_vif->is_available)
+			if (ap_dev_vif->is_available) {
+				memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
 				slsi_purge_blacklist(ndev_vif);
+			}
 		}
 	}
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
-	err = slsi_start(sdev);
+	err = slsi_start(sdev, dev);
 	if (WARN_ON(err)) {
-		slsi_wake_unlock(&sdev->wlan_wl);
+		slsi_wake_unlock(&sdev->wlan_wl_init);
 		return err;
 	}
 
@@ -360,8 +360,8 @@ static int slsi_net_open(struct net_device *dev)
 	if (ndev_vif->iftype == NL80211_IFTYPE_MONITOR) {
 		err = slsi_start_monitor_mode(sdev, dev);
 		if (WARN_ON(err)) {
-			slsi_wake_unlock(&sdev->wlan_wl);
 			SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+			slsi_wake_unlock(&sdev->wlan_wl_init);
 			return err;
 		}
 	}
@@ -376,7 +376,7 @@ static int slsi_net_open(struct net_device *dev)
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
 	netif_tx_start_all_queues(dev);
-	slsi_wake_unlock(&sdev->wlan_wl);
+	slsi_wake_unlock(&sdev->wlan_wl_init);
 
 	/* The default power mode in host*/
 	/* 2511 measn unifiForceActive and 1 means active */
@@ -1489,24 +1489,30 @@ static void slsi_netif_traffic_monitor_work(struct work_struct *data)
 	}
 	dev = slsi_get_netdev_locked(sdev, ndev_vif->ifnum);
 
+	SLSI_NET_INFO(dev, "change state to %d\n", ndev_vif->traffic_mon_state);
 	/* CPU for RPS will be decided by checking for throughput per netdevices */
 	if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
-		if ((napi_cpu_big_tput_in_mbps) && (ndev_vif->throughput_rx > (napi_cpu_big_tput_in_mbps * 1000 * 1000))) {
-			SLSI_NET_DBG1(dev, SLSI_NETDEV, "switch RPS to a BIG CPU other than NAPI (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+		if (ndev_vif->traffic_mon_state == TRAFFIC_MON_CLIENT_STATE_OVERRIDE) {
 			slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_BIG_MASK, strlen(SCSC_NETIF_RPS_CPUS_BIG_MASK));
-		} else if ((rps_enable_tput_in_mbps) && (ndev_vif->throughput_rx > (rps_enable_tput_in_mbps * 1000 * 1000))) {
-			SLSI_NET_DBG1(dev, SLSI_NETDEV, "enable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
-			slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
-		}  else {
-			SLSI_NET_DBG1(dev, SLSI_NETDEV, "disable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
-			slsi_netif_rps_map_clear(dev);
-		}
+			slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG, true);
+		} else {
+			if ((napi_cpu_big_tput_in_mbps) && (ndev_vif->throughput_rx > (napi_cpu_big_tput_in_mbps * 1000 * 1000))) {
+				SLSI_NET_DBG1(dev, SLSI_NETDEV, "switch RPS to a BIG CPU other than NAPI (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+				slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_BIG_MASK, strlen(SCSC_NETIF_RPS_CPUS_BIG_MASK));
+			} else if ((rps_enable_tput_in_mbps) && (ndev_vif->throughput_rx > (rps_enable_tput_in_mbps * 1000 * 1000))) {
+				SLSI_NET_DBG1(dev, SLSI_NETDEV, "enable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+				slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
+			}  else {
+				SLSI_NET_DBG1(dev, SLSI_NETDEV, "disable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+				slsi_netif_rps_map_clear(dev);
+			}
 
-		/* have only one NAPI instance for all netdevs; so check aggregate throughput to decide CPU selection */
-		if ((napi_cpu_big_tput_in_mbps) && ((sdev->agg_dev_throughput_rx + sdev->agg_dev_throughput_tx) > (napi_cpu_big_tput_in_mbps * 1000 * 1000)))
-			slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG);
-		else
-			slsi_hip_set_napi_cpu(sdev, 0);
+			/* have only one NAPI instance for all netdevs; so check aggregate throughput to decide CPU selection */
+			if ((napi_cpu_big_tput_in_mbps) && ((sdev->agg_dev_throughput_rx + sdev->agg_dev_throughput_tx) > (napi_cpu_big_tput_in_mbps * 1000 * 1000)))
+				slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG, true);
+			else
+				slsi_hip_set_napi_cpu(sdev, 0, false);
+		}
 	}
 	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 }
@@ -1516,7 +1522,9 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 	struct net_device *dev = (struct net_device *)client_ctx;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev *sdev = ndev_vif->sdev;
+	struct slsi_hip4 *hip = &(sdev->hip4_inst);
 	bool change = false;
+	u32 old_state = ndev_vif->traffic_mon_state;
 
 	if (!sdev)
 		return;
@@ -1528,9 +1536,18 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 		return;
 	}
 
-	SLSI_NET_DBG1(dev, SLSI_NETDEV, "traffic monitor: event (current:%d new:%d, tput_tx:%u bps, tput_rx:%u bps)\n", ndev_vif->traffic_mon_state, state, tput_tx, tput_rx);
+	SLSI_NET_INFO(dev, "traffic monitor: event (current:%d new:%d, tput_tx:%u bps, tput_rx:%u bps)\n", ndev_vif->traffic_mon_state, state, tput_tx, tput_rx);
+
+	sdev->agg_dev_throughput_tx = tput_tx;
+	sdev->agg_dev_throughput_rx = tput_rx;
 
 	if (state != ndev_vif->traffic_mon_state) {
+		/* if the state change is from override to High, or vice versa, there is no change in configuration */
+		if (state >= TRAFFIC_MON_CLIENT_STATE_HIGH &&
+			ndev_vif->traffic_mon_state >= TRAFFIC_MON_CLIENT_STATE_HIGH) {
+			slsi_spinlock_unlock(&sdev->netdev_lock);
+			return;
+		}
 		change = true;
 		ndev_vif->traffic_mon_state = state;
 	}
@@ -1538,9 +1555,16 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 	slsi_spinlock_unlock(&sdev->netdev_lock);
 
 	if (change) {
-		sdev->agg_dev_throughput_tx = tput_tx;
-		sdev->agg_dev_throughput_rx = tput_rx;
-		schedule_work(&ndev_vif->traffic_mon_work);
+		if (!queue_work(sdev->device_wq, &ndev_vif->traffic_mon_work)) {
+			/*
+			 * We expect that it is called again by napi_poll.
+			 * Reenable IRQ.
+			 */
+			SLSI_NET_WARN(dev, "failed to queue work! reset traffic state to retry\n");
+			hip->hip_priv->napi_rx_saturated = 0;
+			ndev_vif->traffic_mon_state = old_state;
+			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
+		}
 	}
 }
 #endif
@@ -1694,24 +1718,27 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	ndev_vif->probe_req_ie_len = 0;
 	ndev_vif->drv_in_p2p_procedure = false;
 	sdev->require_vif_delete[ndev_vif->ifnum] = false;
+	/* Register traffic monitor client - Not needed for management only (p2p0 and nan0) interfaces */
+	if (!(SLSI_IS_VIF_INDEX_P2P(ndev_vif) || SLSI_IS_VIF_INDEX_NAN(ndev_vif))) {
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
-		u32 mid_tput;
-		u32 high_tput;
+		if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
+			u32 mid_tput;
+			u32 high_tput;
 
-		ndev_vif->traffic_mon_state = TRAFFIC_MON_CLIENT_STATE_NONE;
-		INIT_WORK(&ndev_vif->traffic_mon_work, slsi_netif_traffic_monitor_work);
+			ndev_vif->traffic_mon_state = TRAFFIC_MON_CLIENT_STATE_LOW;
+			INIT_WORK(&ndev_vif->traffic_mon_work, slsi_netif_traffic_monitor_work);
 
-		mid_tput = (rps_enable_tput_in_mbps * 1000 * 1000);
-		high_tput = (napi_cpu_big_tput_in_mbps * 1000 * 1000);
+			mid_tput = (rps_enable_tput_in_mbps * 1000 * 1000);
+			high_tput = (napi_cpu_big_tput_in_mbps * 1000 * 1000);
 
-		SLSI_NET_DBG1(dev, SLSI_NETDEV, "initialize RX traffic monitor client (mid_tput:%d Mbps, high_tput:%d Mbps)\n", mid_tput, high_tput);
-		if (slsi_traffic_mon_client_register(sdev, dev, TRAFFIC_MON_CLIENT_MODE_EVENTS, mid_tput, high_tput, slsi_netif_traffic_monitor_cb))
-			SLSI_NET_WARN(dev, "failed to add a client to traffic monitor\n");
-	}
+			SLSI_NET_DBG1(dev, SLSI_NETDEV, "initialize RX traffic monitor client (mid_tput:%d Mbps, high_tput:%d Mbps)\n", mid_tput, high_tput);
+			if (slsi_traffic_mon_client_register(sdev, dev, TRAFFIC_MON_CLIENT_MODE_EVENTS, mid_tput, high_tput, slsi_netif_traffic_monitor_cb))
+				SLSI_NET_WARN(dev, "failed to add a client to traffic monitor\n");
+		}
 #else
-	slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
+		slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
 #endif
+	}
 	return 0;
 
 exit_with_error:

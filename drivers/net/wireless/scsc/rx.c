@@ -858,6 +858,24 @@ void slsi_rx_rcl_channel_list_ind(struct slsi_dev *sdev, struct net_device *dev,
 	kfree_skb(skb);
 }
 
+void slsi_rx_start_detect_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	int               power_value = 0;
+
+	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
+	power_value = fapi_get_s16(skb, u.mlme_start_detect_ind.result);
+	SLSI_DBG3(sdev, SLSI_MLME, "Start Detect Indication received with power : %d\n", power_value);
+	slsi_send_power_measurement_vendor_event(sdev, power_value);
+
+	if (slsi_mlme_del_detect_vif(sdev, dev) != 0)
+		SLSI_NET_ERR(dev, "slsi_mlme_del_vif failed for detect vif\n");
+	sdev->detect_vif_active = false;
+
+	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+	kfree_skb(skb);
+}
+
 static void slsi_scan_update_ssid_map(struct slsi_dev *sdev, struct net_device *dev, u16 scan_id)
 {
 	struct netdev_vif     *ndev_vif = netdev_priv(dev);
@@ -2384,23 +2402,21 @@ static void slsi_add_blacklist_info(struct slsi_dev *sdev, struct net_device *de
 	list_add(&data->list, &ndev_vif->acl_data_fw_list);
 
 	/* send set acl down */
-	slsi_set_acl(sdev, ndev_vif);
+	slsi_set_acl(sdev, dev);
 }
 
-int slsi_set_acl(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
+int slsi_set_acl(struct slsi_dev *sdev, struct net_device *dev)
 {
 	struct cfg80211_acl_data *acl_data_total = NULL;
 	int fw_acl_entries_count = 0;
-	struct net_device  *net_dev;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	int ret = 0;
 	int num_bssid_total = 0;
 	struct list_head *blacklist_pos, *blacklist_q;
 
-	net_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-	if (!net_dev) {
-		SLSI_WARN_NODEV("net_dev is NULL\n");
+	/* acl is required only for wlan index */
+	if (!SLSI_IS_VIF_INDEX_WLAN(ndev_vif))
 		return -EINVAL;
-	}
 
 	list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
 		fw_acl_entries_count++;
@@ -2416,7 +2432,7 @@ int slsi_set_acl(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
 
 	if (!acl_data_total) {
 		SLSI_ERR(sdev, "Blacklist: Failed to allocate memory\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 	acl_data_total->n_acl_entries = 0;
 	acl_data_total->acl_policy = FAPI_ACLPOLICY_BLACKLIST;
@@ -2442,11 +2458,8 @@ int slsi_set_acl(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
 			acl_data_total->n_acl_entries++;
 		}
 	}
-	ret = slsi_mlme_set_acl(sdev, net_dev, 0, acl_data_total->acl_policy, acl_data_total->n_acl_entries, acl_data_total->mac_addrs);
-	if (ret)
-		SLSI_ERR_NODEV("Failed to set bssid blacklist\n");
-	else
-		ret =  -EINVAL;
+	ret = slsi_mlme_set_acl(sdev, dev, 0, acl_data_total->acl_policy, acl_data_total->n_acl_entries,
+				acl_data_total->mac_addrs);
 	kfree(acl_data_total);
 	return ret;
 }
@@ -2652,14 +2665,14 @@ void slsi_connect_result_code(struct netdev_vif *ndev_vif, u16 fw_result_code, i
 	switch (fw_result_code) {
 	case FAPI_RESULTCODE_PROBE_TIMEOUT:
 		*timeout_reason = NL80211_TIMEOUT_SCAN;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		*status = SLSI_CONNECT_NO_NETWORK_FOUND;
 #endif
 		break;
 	case FAPI_RESULTCODE_AUTH_TIMEOUT:
 		*status = WLAN_STATUS_AUTH_TIMEOUT;
 		*timeout_reason = NL80211_TIMEOUT_AUTH;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		if (ndev_vif->sta.crypto.wpa_versions == 3)
 			*status = SLSI_CONNECT_AUTH_SAE_NO_RESP;
 		else
@@ -2669,7 +2682,7 @@ void slsi_connect_result_code(struct netdev_vif *ndev_vif, u16 fw_result_code, i
 	case FAPI_RESULTCODE_AUTH_NO_ACK:
 		*timeout_reason = NL80211_TIMEOUT_AUTH;
 		*status = WLAN_STATUS_AUTH_TIMEOUT;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		if (ndev_vif->sta.crypto.wpa_versions == 3)
 			*status = SLSI_CONNECT_AUTH_SAE_NO_ACK;
 		else
@@ -2679,7 +2692,7 @@ void slsi_connect_result_code(struct netdev_vif *ndev_vif, u16 fw_result_code, i
 	case FAPI_RESULTCODE_AUTH_TX_FAIL:
 		*timeout_reason = NL80211_TIMEOUT_AUTH;
 		*status = WLAN_STATUS_AUTH_TIMEOUT;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		if (ndev_vif->sta.crypto.wpa_versions == 3)
 			*status = SLSI_CONNECT_AUTH_SAE_TX_FAIL;
 		else
@@ -2688,7 +2701,7 @@ void slsi_connect_result_code(struct netdev_vif *ndev_vif, u16 fw_result_code, i
 		break;
 	case FAPI_RESULTCODE_ASSOC_TIMEOUT:
 		*timeout_reason = NL80211_TIMEOUT_ASSOC;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		*status = SLSI_CONNECT_ASSOC_NO_RESP;
 #endif
 		break;
@@ -2697,13 +2710,13 @@ void slsi_connect_result_code(struct netdev_vif *ndev_vif, u16 fw_result_code, i
 		break;
 	case FAPI_RESULTCODE_ASSOC_NO_ACK:
 		*timeout_reason = NL80211_TIMEOUT_ASSOC;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		*status = SLSI_CONNECT_ASSOC_NO_ACK;
 #endif
 		break;
 	case FAPI_RESULTCODE_ASSOC_TX_FAIL:
 		*timeout_reason = NL80211_TIMEOUT_ASSOC;
-#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 		*status = SLSI_CONNECT_ASSOC_TX_FAIL;
 #endif
 		break;
@@ -3008,8 +3021,11 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		}
 	}
 
+	if (!peer && status == WLAN_STATUS_SUCCESS)
+		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
-#if !(defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 110000)
+#if !(defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 11)
 	if (fw_result_code >= FAPI_RESULTCODE_PROBE_TIMEOUT && fw_result_code <= FAPI_RESULTCODE_ASSOC_TIMEOUT) {
 		cfg80211_connect_timeout(dev, bssid, assoc_ie, assoc_ie_len,
 					 GFP_KERNEL, timeout_reason);
@@ -3051,6 +3067,7 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 		} else {
 			/*Open/WEP AP*/
 			slsi_mlme_connect_resp(sdev, dev);
+			slsi_set_acl(sdev, dev);
 			slsi_set_packet_filters(sdev, dev);
 
 			if (ndev_vif->ipaddress)
@@ -3497,6 +3514,7 @@ void slsi_rx_frame_transmission_ind(struct slsi_dev *sdev, struct net_device *de
 				break;
 			case MLME_CONNECT_RES:
 				slsi_mlme_connect_resp(sdev, dev);
+				slsi_set_acl(sdev, dev);
 				slsi_set_packet_filters(sdev, dev);
 				peer = slsi_get_peer_from_qs(sdev, dev, SLSI_STA_PEER_QUEUESET);
 				if (WARN_ON(!peer))
@@ -4023,6 +4041,11 @@ int slsi_rx_blocking_signals(struct slsi_dev *sdev, struct sk_buff *skb)
 		struct netdev_vif *ndev_vif;
 
 		rcu_read_lock();
+		if (vif == SLSI_NET_INDEX_DETECT &&
+		    (id == MLME_ADD_VIF_CFM ||
+		     id == MLME_START_DETECT_CFM ||
+		     id == MLME_DEL_VIF_CFM))
+			vif = 1;
 		dev = slsi_get_netdev_rcu(sdev, vif);
 		if (dev) {
 			ndev_vif = netdev_priv(dev);
@@ -4043,7 +4066,7 @@ int slsi_rx_blocking_signals(struct slsi_dev *sdev, struct sk_buff *skb)
 		 * over MLME. For these frames driver does not block on confirms.
 		 * So there can be unexpected confirms here for such data frames.
 		 * These confirms are treated as normal.
-		 * Incase of ARP, for ARP flow control this needs to be sent to mlme
+		 * Incase of ARP, for ARP flow control this needs to be sent to mlme.
 		 */
 		if (id != MLME_SEND_FRAME_CFM)
 			SLSI_DBG1(sdev, SLSI_MLME, "Unexpected cfm(0x%.4x, pid:0x%.4x, vif:%d)\n", id, pid, vif);

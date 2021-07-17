@@ -27,6 +27,7 @@ struct slsi_skb_cb {
 #endif
 	bool wakeup;
 };
+struct netdev_vif;
 
 static inline struct slsi_skb_cb *slsi_skb_cb_get(struct sk_buff *skb)
 {
@@ -279,7 +280,8 @@ struct slsi_skb_work {
 	void __rcu              *sync_ptr;
 };
 
-static inline int slsi_skb_work_init(struct slsi_dev *sdev, struct net_device *dev, struct slsi_skb_work *work, const char *name, void (*func)(struct work_struct *work))
+static inline int slsi_skb_work_init(struct slsi_dev *sdev, struct net_device *dev, struct slsi_skb_work *work,
+				     const char *name, void (*func)(struct work_struct *work))
 {
 	rcu_assign_pointer(work->sync_ptr, (void *)sdev);
 	work->sdev = sdev;
@@ -694,6 +696,16 @@ static inline int slsi_util_nla_get_data(const struct nlattr *attr, size_t size,
 		return 0;
 	}
 	return -EINVAL;
+}
+
+static inline struct net_device *slsi_ndev_vif_2_net_device(struct netdev_vif *ndev_vif)
+{
+	unsigned long int address = (unsigned long int)ndev_vif;
+	unsigned int offset = ALIGN(sizeof(struct net_device), NETDEV_ALIGN);
+
+	if (address < offset)
+		return NULL;
+	return (struct net_device *)((char*)ndev_vif - offset);
 }
 
 #ifdef __cplusplus

@@ -198,6 +198,12 @@ config SCSC_WLAN_ACS_ENABLE
           This option tells if automatic channel selection is
 	  supported or not.
 
+config SCSC_AP_INTERFACE_NAME
+        string "AP net device interface name"
+        default "wlan1"
+        ---help---
+          AP net device interface name.
+
 config SCSC_WLAN_MHS_STATIC_INTERFACE
         bool "Static AP Interface Support"
         default n
@@ -268,7 +274,7 @@ config SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 
 config SCSC_WLAN_SILENT_RECOVERY
 	bool "Enable silent recovery"
-	default n
+	default y
 	---help---
 	This option tells if silent recovery is enabled or not.
 
@@ -310,7 +316,7 @@ config SCSC_WLAN_MAC_ACL_PER_MAC
 
 config SCSC_WLAN_ENHANCED_BIGDATA
         bool "Send SCSC panic records on HANGED_EVENT"
-        default n
+        default y
         ---help---
         Enable this option to send panic records when HANGED_EVENT
         is issued by the driver on FW panic.
@@ -344,3 +350,9 @@ config SCSC_WLAN_EXPONENTIAL_SCHED_SCAN
         default n
         ---help---
         This option enables the exponential scheduled scan.
+
+config SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
+        bool "Enable this to debug memory corruption in mlme work struct"
+        default n
+        ---help---
+        This option enables debug if memory corruption happen in mlme work struct.

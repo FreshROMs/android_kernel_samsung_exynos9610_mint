@@ -41,7 +41,7 @@
 #include "mif_reg_S5E9610.h"
 #endif
 #include "platform_mif_module.h"
-#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
+#ifdef CONFIG_ARCH_EXYNOS
 #include <linux/soc/samsung/exynos-soc.h>
 #endif
 
@@ -1437,7 +1437,7 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 
 	if (enable_platform_mif_arm_reset || !reset) {
 		if (!reset) { /* Release from reset */
-#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
+#ifdef CONFIG_ARCH_EXYNOS
 			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 				"SOC_VERSION: product_id 0x%x, rev 0x%x\n",
 				exynos_soc_info.product_id, exynos_soc_info.revision);

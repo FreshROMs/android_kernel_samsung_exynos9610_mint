@@ -139,6 +139,15 @@ static char *cfg_platform = "default";
 module_param(cfg_platform, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(cfg_platform, "HCF config subdirectory");
 
+#if defined SCSC_SEP_VERSION
+static bool force_flat = true; /* Refer to hcf from /vendor/etc/wifi/ */
+#else
+/* AOSP */
+static bool force_flat = false; /* Refer to hcf from /vendor/etc/wifi/mx140/conf/ */
+#endif
+module_param(force_flat, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(force_flat, "Forcely request flat conf");
+
 /* Reads a configuration file into memory (f/w profile specific) */
 static int __mx140_file_request_conf(struct scsc_mx *mx,
 		const struct firmware **conf,
@@ -211,29 +220,37 @@ int mx140_file_request_conf(struct scsc_mx *mx,
 		return __mx140_file_request_conf(mx, conf, cfg_platform, config_rel_path, filename, false);
 	}
 
-	/* Search in generic location. This is an override.
-	 * e.g. /etc/wifi/mx140/conf/wlan/wlan.hcf
-	 */
-	r = __mx140_file_request_conf(mx, conf, "", config_rel_path, filename, false);
+	if (force_flat) {
+		/* Only request "flat" conf, where all hcf files are in FW root dir
+		 * e.g. /etc/wifi/<firmware-variant>-wlan.hcf
+		 */
+		r = __mx140_file_request_conf(mx, conf, "", config_rel_path, filename, true);
+		SCSC_TAG_INFO(MX_FILE, "forcely request flat conf = %d\n", r);
+	} else {
+		/* Search in generic location. This is an override.
+		 * e.g. /etc/wifi/mx140/conf/wlan/wlan.hcf
+		 */
+		r = __mx140_file_request_conf(mx, conf, "", config_rel_path, filename, false);
 
 #if defined CONFIG_SCSC_WLBT_CONFIG_PLATFORM
-	/* Then  search in platform location
-	 * e.g. /etc/wifi/mx140/conf/$platform_dir/wlan/wlan.hcf
-	 */
-	if (r) {
-		const char *plat = CONFIG_SCSC_WLBT_CONFIG_PLATFORM;
+		/* Then  search in platform location
+		 * e.g. /etc/wifi/mx140/conf/$platform_dir/wlan/wlan.hcf
+		 */
+		if (r) {
+			const char *plat = CONFIG_SCSC_WLBT_CONFIG_PLATFORM;
 
-		/* Don't bother if plat is empty string */
-		if (plat[0] != '\0')
-			r = __mx140_file_request_conf(mx, conf, plat, config_rel_path, filename, false);
-	}
+			/* Don't bother if plat is empty string */
+			if (plat[0] != '\0')
+				r = __mx140_file_request_conf(mx, conf, plat, config_rel_path, filename, false);
+		}
 #endif
 
-	/* Finally request "flat" conf, where all hcf files are in FW root dir
-	 * e.g. /etc/wifi/<firmware-variant>-wlan.hcf
-	 */
-	if (r)
-		r = __mx140_file_request_conf(mx, conf, "", config_rel_path, filename, true);
+		/* Finally request "flat" conf, where all hcf files are in FW root dir
+		 * e.g. /etc/wifi/<firmware-variant>-wlan.hcf
+		 */
+		if (r)
+			r = __mx140_file_request_conf(mx, conf, "", config_rel_path, filename, true);
+	}
 
 	return r;
 }
@@ -536,7 +553,11 @@ int __mx140_request_firmware(struct scsc_mx *mx, char *path, const struct firmwa
 		SCSC_TAG_ERR(MX_FILE, "Error. Device is NULL\n");
 		return -EIO;
 	}
+	scsc_mx_request_firmware_mutex_lock(mx);
+	scsc_mx_request_firmware_wake_lock(mx);
 	ret = request_firmware(firmp, path, dev);
+	scsc_mx_request_firmware_wake_unlock(mx);
+	scsc_mx_request_firmware_mutex_unlock(mx);
 
 	SCSC_TAG_DEBUG(MX_FILE, "request %s\n", path);
 

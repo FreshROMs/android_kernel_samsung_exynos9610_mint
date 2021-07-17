@@ -52,6 +52,10 @@ struct mxlogger         *scsc_mx_get_mxlogger(struct scsc_mx *mx);
 struct panicmon         *scsc_mx_get_panicmon(struct scsc_mx *mx);
 struct suspendmon	*scsc_mx_get_suspendmon(struct scsc_mx *mx);
 struct mxfwconfig	*scsc_mx_get_mxfwconfig(struct scsc_mx *mx);
+void                    scsc_mx_request_firmware_mutex_lock(struct scsc_mx *mx);
+void                    scsc_mx_request_firmware_mutex_unlock(struct scsc_mx *mx);
+void                    scsc_mx_request_firmware_wake_lock(struct scsc_mx *mx);
+void                    scsc_mx_request_firmware_wake_unlock(struct scsc_mx *mx);
 
 int mx140_file_download_fw(struct scsc_mx *mx, void *dest, size_t dest_size, u32 *fw_image_size);
 int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **firmp);

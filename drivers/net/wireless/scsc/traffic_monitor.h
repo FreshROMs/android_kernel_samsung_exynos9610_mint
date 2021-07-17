@@ -18,10 +18,10 @@ enum {
 };
 
 enum {
-	TRAFFIC_MON_CLIENT_STATE_NONE,
 	TRAFFIC_MON_CLIENT_STATE_LOW,
 	TRAFFIC_MON_CLIENT_STATE_MID,
-	TRAFFIC_MON_CLIENT_STATE_HIGH
+	TRAFFIC_MON_CLIENT_STATE_HIGH,
+	TRAFFIC_MON_CLIENT_STATE_OVERRIDE
 };
 
 struct slsi_traffic_mon_clients {
@@ -34,6 +34,17 @@ struct slsi_traffic_mon_clients {
 
 void slsi_traffic_mon_event_rx(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_traffic_mon_event_tx(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
+
+/* Client request to override traffic monitor
+ *
+ * A client use the API to request to override it's own state
+ * detected by traffic monitor.
+ * All clients are notified about the event, and each client
+ * can take it's own decision for "override" state.
+ *
+ * Returns:		None
+ */
+void slsi_traffic_mon_override(struct slsi_dev *sdev);
 
 /* Is traffic monitor running?
  *
