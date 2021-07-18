@@ -607,7 +607,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
  out_drop_sta:
 	local->num_sta--;
 	synchronize_net();
-	cleanup_single_sta(sta);
+	__cleanup_single_sta(sta);
  out_err:
 	mutex_unlock(&local->sta_mtx);
 	kfree(sinfo);
@@ -626,13 +626,19 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 
 	err = sta_info_insert_check(sta);
 	if (err) {
-		sta_info_free(local, sta);
 		mutex_unlock(&local->sta_mtx);
 		rcu_read_lock();
-		return err;
+		goto out_free;
 	}
 
-	return sta_info_insert_finish(sta);
+	err = sta_info_insert_finish(sta);
+	if (err)
+		goto out_free;
+
+	return 0;
+ out_free:
+	sta_info_free(local, sta);
+	return err;
 }
 
 int sta_info_insert(struct sta_info *sta)
