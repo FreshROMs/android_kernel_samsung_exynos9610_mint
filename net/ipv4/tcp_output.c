@@ -256,8 +256,8 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	}
 
 #ifdef CONFIG_LARGE_TCP_INITIAL_BUFFER
-	pr_info("TCP: default window size: %u\n", *rcv_wnd);
-	/* Lock the initial TCP window size to 64K.
+	/* pr_info("TCP: default window size: %u\n", *rcv_wnd);
+	 * Lock the initial TCP window size to 64K.
 	 * Assuming 1500 packet size, 64240 is the largest multiple
 	 * of MSS (44 * 1460) under 65535 (2 << 15).
 	 */
