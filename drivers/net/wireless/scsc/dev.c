@@ -51,7 +51,7 @@ static bool term_udi_users = true;
 module_param(term_udi_users, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(term_udi_users, "Try to terminate UDI user space users (applications) connected on the cdev (0, 1)");
 
-static int sig_wait_cfm_timeout = 6000;
+static int sig_wait_cfm_timeout = 9000;
 module_param(sig_wait_cfm_timeout, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(sig_wait_cfm_timeout, "Signal wait timeout in milliseconds (default: 3000)");
 
