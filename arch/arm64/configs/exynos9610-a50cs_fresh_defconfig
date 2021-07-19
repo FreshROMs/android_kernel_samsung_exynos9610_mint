@@ -711,6 +711,7 @@ CONFIG_FREQVAR_TUNE=y
 #
 # CPU frequency scaling drivers
 #
+CONFIG_CPU_BOOST=y
 # CONFIG_CPUFREQ_DT is not set
 # CONFIG_FINGERPRINT_BOOST is not set
 # CONFIG_ARM_BIG_LITTLE_CPUFREQ is not set
