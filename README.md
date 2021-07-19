@@ -26,7 +26,6 @@ This will **never** be possible without the unwavering work of these awesome peo
 
 This is an optimized kernel source based on Samsung's open-source drop of the SM-A505F based on Android 11. Additional features include:
 
- - Added additional CPU governors, `schedutil` as default.
  - Added additional I/O schedulers, `anxiety` is set as default.
  - Various kernel and performance improvements.
  - Backported some changes from S10/Note10.
