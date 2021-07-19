@@ -17,7 +17,9 @@ This will **never** be possible without the unwavering work of these awesome peo
 
  - [Cruel Kernel for the Galaxy S10/Note10](https://github.com/CruelKernel/samsung-exynos9820/) (@evdenis)
  - [ThunderStorms Kernel for the Galaxy S10/Note10](https://github.com/ThunderStorms21th/Galaxy-S10) (@ThunderStorms21th)
+ - [Destrictize Project](https://github.com/DestrictizeProject/Destrictize_9611) (@DestrictizeProject)
  - [Quantum Kernel](https://github.com/prashantpaddune/android_kernel_samsung_a50dd) (@prashantpaddune)
+ - [Custom Galaxy A51 Kernel](https://github.com/ianmacd/a51xx) (@ianmacd)
  
 
 ## About
