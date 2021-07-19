@@ -924,7 +924,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &deny_new_usb,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_sysadmin,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
