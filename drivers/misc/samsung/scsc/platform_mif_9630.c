@@ -649,13 +649,11 @@ irqreturn_t platform_wdog_isr(int irq, void *data)
 	}
 
 	/* The wakeup source isn't cleared until WLBT is reset, so change the interrupt type to suppress this */
-	if (mxman_recovery_disabled()) {
-		ret = regmap_update_bits(platform->pmureg, WAKEUP_INT_TYPE,
-				RESETREQ_WLBT, 0);
-		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Set RESETREQ_WLBT wakeup interrput type to EDGE.\n");
-		if (ret < 0)
-			SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Failed to Set WAKEUP_INT_TYPE[RESETREQ_WLBT]: %d\n", ret);
-	}
+	ret = regmap_update_bits(platform->pmureg, WAKEUP_INT_TYPE,
+			RESETREQ_WLBT, 0);
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Set RESETREQ_WLBT wakeup interrput type to EDGE.\n");
+	if (ret < 0)
+		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev, "Failed to Set WAKEUP_INT_TYPE[RESETREQ_WLBT]: %d\n", ret);
 
 	return IRQ_HANDLED;
 }
@@ -1989,7 +1987,7 @@ inline void platform_int_debug(struct platform_mif *platform)
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_ACTIVE,  &active);
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_MASKED,  &masked);
 		if (!ret)
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d\n",
+			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d",
 							  irq, irqs_name[i], pending, active, masked);
 	}
 	platform_mif_dump_register(&platform->interface);

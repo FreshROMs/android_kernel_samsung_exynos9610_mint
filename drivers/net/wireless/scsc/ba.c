@@ -94,18 +94,16 @@ static void slsi_rx_ba_free_buffer(struct net_device *dev, struct slsi_peer *pee
 }
 
 /* This code - slsi_ba_process_complete()
- * must be called with the ba_lock spinlock held.
+ * is called in the data workqueue context with the
+ * netdev_vif mutex held.
  */
 void slsi_ba_process_complete(struct net_device *dev, bool ctx_napi)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *skb;
 
-	while ((skb = skb_dequeue(&ndev_vif->ba_complete)) != NULL) {
-		slsi_spinlock_unlock(&ndev_vif->ba_lock);
+	while ((skb = skb_dequeue(&ndev_vif->ba_complete)) != NULL)
 		slsi_rx_data_deliver_skb(ndev_vif->sdev, dev, skb, ctx_napi);
-		slsi_spinlock_lock(&ndev_vif->ba_lock);
-	}
 }
 
 static void slsi_ba_signal_process_complete(struct net_device *dev)

@@ -82,6 +82,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 		  * Detect if this is an EAPOL key frame. If so detect if
 		  * it is an EAPOL-Key M4 packet
 		  * In M4 packet,
+		  * - MIC bit set in key info
 		  * - Key type bit set in key info (pairwise=1, Group=0)
 		  * - ACK bit will not be set
 		  * - Secure bit will be set in key type RSN (WPA2/WPA3
@@ -240,7 +241,7 @@ static int slsi_tx_dhcp(struct slsi_dev *sdev, struct net_device *dev, struct sk
 
 	if (peer) {
 		spin_lock_bh(&peer->data_qs.cp_lock);
-		/* Controlled port is not yet open; so can't send ARP frame */
+		/* Controlled port is not yet open; so can't send DHCP frame */
 		if (peer->data_qs.controlled_port_state == SCSC_WIFI_FCQ_8021x_STATE_BLOCKED) {
 			SLSI_DBG1_NODEV(SLSI_MLME, "dhcp 8021x_STATE_BLOCKED\n");
 			spin_unlock_bh(&peer->data_qs.cp_lock);

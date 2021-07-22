@@ -66,10 +66,6 @@
 #define SLSI_PSID_UNIFI_ARP_OUTSTANDING_MAX 0x0A1E
 #endif
 
-/* Manually added: To remove after fapi update */
-#define FAPI_SCANMODE_LOW_LATENCY_2   0x0002
-#define FAPI_SCANMODE_LOW_LATENCY_3   0x0003
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 #endif
@@ -314,14 +310,7 @@ mac_file:
 	}
 mac_efs:
 #ifdef CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME
-	scnprintf(path_name, MX_WLAN_FILE_PATH_LEN_MAX,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-		"../../%s",
-#else
-		"%s",
-#endif
-		CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME);
-	r = mx140_request_file(sdev->maxwell_core, path_name, &e);
+	r = mx140_request_file(sdev->maxwell_core, CONFIG_SCSC_WLAN_MAC_ADDRESS_FILENAME, &e);
 	if (r != 0)
 		goto mac_default;
 	if (!e) {
@@ -572,7 +561,7 @@ static struct scsc_log_collector_client slsi_hcf_client = {
 };
 #endif
 
-int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
+int slsi_start(struct slsi_dev *sdev)
 {
 #ifndef CONFIG_SCSC_DOWNLOAD_FILE
 	const struct firmware *fw[SLSI_WLAN_MAX_MIB_FILE] = { NULL, NULL };
@@ -600,11 +589,10 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 
 	SLSI_MUTEX_LOCK(sdev->start_stop_mutex);
 
-	SLSI_NET_INFO(dev, "recovery_status:%d, device_state:%d, require_service_close:%d, netdev_up_count:%d\n",
-		      sdev->recovery_status, sdev->device_state, sdev->require_service_close, sdev->netdev_up_count);
+	slsi_wake_lock(&sdev->wlan_wl);
 
 	if (sdev->device_state != SLSI_DEVICE_STATE_STOPPED) {
-		SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Device already started\n");
+		SLSI_DBG1(sdev, SLSI_INIT_DEINIT, "Device already started: device_state:%d\n", sdev->device_state);
 		goto done;
 	}
 
@@ -630,6 +618,7 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 	}
 
 	sdev->device_state = SLSI_DEVICE_STATE_STARTING;
+	sdev->require_service_close = false;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	reinit_completion(&sdev->sig_wait.completion);
@@ -819,6 +808,7 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_kic_system_event(slsi_kic_system_event_category_initialisation,
 			      slsi_kic_system_events_wifi_service_driver_started, GFP_KERNEL);
 
+	slsi_wake_unlock(&sdev->wlan_wl);
 	return err;
 
 err_hip_started:
@@ -831,14 +821,14 @@ err_hip_started:
 
 err_done:
 	sdev->device_state = SLSI_DEVICE_STATE_STOPPED;
-	/* Wait for 500ms to avoid synchronization issue when writing recovery info in case of failure */
-	msleep(500);
+
 done:
+	slsi_wake_unlock(&sdev->wlan_wl);
+
 	slsi_kic_system_event(slsi_kic_system_event_category_initialisation,
 			      slsi_kic_system_events_wifi_on, GFP_KERNEL);
 
 	SLSI_MUTEX_UNLOCK(sdev->start_stop_mutex);
-
 	return err;
 }
 
@@ -991,7 +981,7 @@ void slsi_ndl_vif_cleanup(struct slsi_dev *sdev, struct net_device *dev, bool hw
 		while (peer && peer->valid) {
 			ndp_instance_id = slsi_nan_get_ndp_from_ndl_local_ndi(nan_mgmt_dev, peer->ndl_vif, dev->dev_addr);
 			slsi_ps_port_control(sdev, dev, peer, SLSI_STA_CONN_STATE_DISCONNECTED);
-			if (peer->ndp_count == 1)
+			if(peer->ndp_count == 1)
 				slsi_peer_remove(sdev, dev, peer);
 			peer->ndp_count--;
 			if (ndev_vif->nan.ndp_count > 0)
@@ -1173,31 +1163,6 @@ static void slsi_stop_net_dev_locked(struct slsi_dev *sdev, struct net_device *d
 		SLSI_NET_DBG1(dev, SLSI_INIT_DEINIT, "sdev->netdev_up_count=%d\n", sdev->netdev_up_count);
 		return;
 	}
-
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	if (ndev_vif->traffic_mon_state != TRAFFIC_MON_CLIENT_STATE_LOW) {
-		struct netdev_vif *tmp_ndev_vif;
-		u8 i;
-		u8 perf_in_use = 0;
-
-		ndev_vif->traffic_mon_state = TRAFFIC_MON_CLIENT_STATE_LOW;
-
-		/* check if any other netdev are using perf mode, if not, reset perf mode
-		 * Note: the traffic_mon_state check is protected by netdev_add_remove_mutex
-		 */
-		for (i = 1; i <= CONFIG_SCSC_WLAN_MAX_INTERFACES; i++) {
-			if (sdev->netdev[i]) {
-				tmp_ndev_vif = netdev_priv(sdev->netdev[i]);
-				if (tmp_ndev_vif->is_available && (tmp_ndev_vif->traffic_mon_state != TRAFFIC_MON_CLIENT_STATE_LOW)) {
-					perf_in_use = 1;
-					break;
-				}
-			}
-		}
-		if (!perf_in_use)
-			slsi_hip_set_napi_cpu(sdev, 0, false);
-	}
-#endif
 
 	slsi_scan_cleanup(sdev, dev);
 
@@ -1849,9 +1814,8 @@ static int slsi_mib_initial_get(struct slsi_dev *sdev)
 			antenna_hg_bit = ((num_antenna >> 8) & 0xff);
 			sdev->lls_num_radio = (antenna_lw_bit > antenna_hg_bit) ? antenna_lw_bit : antenna_hg_bit;
 			SLSI_DBG2(sdev, SLSI_MLME, "sdev->lls_num_radio = %d\n", sdev->lls_num_radio);
-		} else {
+		} else
 			SLSI_DBG2(sdev, SLSI_MLME, "Failed to read number of antennas\n");
-		}
 		if (values[++mib_index].type != SLSI_MIB_TYPE_NONE) {
 			sdev->fw_ext_cap_ie_len = values[mib_index].u.octetValue.dataLength;
 			memset(sdev->fw_ext_cap_ie, 0, sizeof(sdev->fw_ext_cap_ie));
@@ -2290,11 +2254,6 @@ enum slsi_wlan_vendor_attr_hanged_event {
 	SLSI_WLAN_VENDOR_ATTR_HANGED_EVENT_MAX
 };
 
-enum slsi_wlan_vendor_attr_power_measurement_event {
-	SLSI_WLAN_VENDOR_ATTR_POWER_MEASUREMENT_RESULT = 0,
-	SLSI_WLAN_VENDOR_ATTR_POWER_MEASUREMENT_RESULT_MAX,
-};
-
 #if defined(CONFIG_SCSC_WLAN_ENHANCED_BIGDATA) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 
 /* Substitute NULL CHAR to user passed character */
@@ -2304,8 +2263,8 @@ static void slsi_substitute_null(char *s, const char c, size_t length)
 	int i;
 
 	for (i = 0; i < length; i++)
-		if (s[i] == '\0' || s[i] == ' ')
-			s[i] = c;
+		if (s[i] == '\0' || s[i] == ' ' ) s[i] = c;
+
 }
 
 static void slsi_fill_bigdata_record(struct slsi_dev *sdev, struct scsc_hanged_record *hr, char *result, u16 scsc_panic_code, const size_t resultsz)
@@ -2324,17 +2283,17 @@ static void slsi_fill_bigdata_record(struct slsi_dev *sdev, struct scsc_hanged_r
 	memset(hr, ' ', length);
 	memcpy(hr->version, HANGED_PANIC_VERSION, sizeof(hr->version));
 	mxman_get_fw_version(version_fw, HANGED_FW_VERSION_SIZE);
-	snprintf(hr->fw_version, sizeof(hr->fw_version), "%s", version_fw);
+	snprintf(hr->fw_version, sizeof(hr->fw_version),"%s",version_fw);
 
 	/* Treat ' ' as a one of seperator, so have to remove it */
 	slsi_substitute_null(hr->fw_version, '_', sizeof(hr->fw_version));
 
-	snprintf(hr->host_version, sizeof(hr->host_version), "%u.%u.%u.%u.%u", SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT, SCSC_RELEASE_CUSTOMER);
+	snprintf(hr->host_version, sizeof(hr->host_version),"%u.%u.%u.%u.%u", SCSC_RELEASE_PRODUCT, SCSC_RELEASE_ITERATION, SCSC_RELEASE_CANDIDATE, SCSC_RELEASE_POINT, SCSC_RELEASE_CUSTOMER);
 
 	/* Format SCSC panic code, snprintf returns NULL character so strip it out by doing a memcpy */
 	/* Plain copy of HANGED_OFFSET_DATA */
 	memcpy(hr->offset_data, HANGED_OFFSET_DATA, sizeof(HANGED_OFFSET_DATA));
-	snprintf(hr->hang_type, sizeof(hr->hang_type), "%2x", scsc_panic_code);
+	snprintf(hr->hang_type,sizeof(hr->hang_type), "%2x", scsc_panic_code);
 
 	/* Get HANGED_PANIC records  */
 	num_records = scsc_service_get_panic_record(sdev->service, (char *)&panic_record_buf[0], HANGED_PANIC_RECORD_SIZE);
@@ -2348,7 +2307,7 @@ static void slsi_fill_bigdata_record(struct slsi_dev *sdev, struct scsc_hanged_r
 		memcpy(&hr->panic_record[i * HANGED_PANIC_RECORD_HEX_SZ], to_hex_string, sizeof(to_hex_string));
 	}
 
-	snprintf(result, resultsz, "%s 0 0 0 0 0 0 0 0 %s|%s|%s|%s", hr->hang_type, hr->host_version, hr->fw_version, hr->offset_data, hr->panic_record);
+	snprintf(result, resultsz, "%s 0 0 0 0 0 0 0 0 %s|%s|%s|%s", hr->hang_type,hr->host_version,hr->fw_version, hr->offset_data, hr->panic_record);
 
 	SLSI_INFO(sdev, "Hanged record information string: %s\n", result);
 }
@@ -2406,37 +2365,6 @@ int slsi_send_hanged_vendor_event(struct slsi_dev *sdev, u16 scsc_panic_code)
 	kfree(result);
 #endif
 
-#endif
-	return 0;
-}
-
-int slsi_send_power_measurement_vendor_event(struct slsi_dev *sdev, s16 power_in_db)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
-	struct sk_buff *skb;
-	u8 err = 0;
-
-	SLSI_INFO(sdev, "Sending SLSI_NL80211_VENDOR_POWER_MEASUREMENT_EVENT power = %d dB\n", power_in_db);
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, NULL, sizeof(power_in_db),
-					  SLSI_NL80211_VENDOR_POWER_MEASUREMENT_EVENT, GFP_KERNEL);
-#else
-	skb = cfg80211_vendor_event_alloc(sdev->wiphy, sizeof(power_in_db),
-					  SLSI_NL80211_VENDOR_POWER_MEASUREMENT_EVENT, GFP_KERNEL);
-#endif
-	if (!skb) {
-		SLSI_ERR_NODEV("Failed to allocate SKB for power measurement event");
-		return -ENOMEM;
-	}
-	err = nla_put_s16(skb, SLSI_WLAN_VENDOR_ATTR_POWER_MEASUREMENT_RESULT, power_in_db);
-
-	if (err) {
-		SLSI_ERR_NODEV("Failed nla_put for power measurement result with error: %d\n", err);
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-	cfg80211_vendor_event(skb, GFP_KERNEL);
 #endif
 	return 0;
 }
@@ -3737,6 +3665,12 @@ int  slsi_set_arp_packet_filter(struct slsi_dev *sdev, struct net_device *dev)
 	if (slsi_is_proxy_arp_supported_on_ap(peer->assoc_resp_ie))
 		return 0;
 
+	/*Set the IP address while suspending as this will be used by firmware for ARP/NDP offloading*/
+	slsi_mlme_set_ip_address(sdev, dev);
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
+	slsi_mlme_set_ipv6_address(sdev, dev);
+#endif
+
 	SLSI_NET_DBG2(dev, SLSI_MLME, "Set ARP filter\n");
 
 	/* Opt out all ARP requests*/
@@ -4373,16 +4307,6 @@ int slsi_ip_address_changed(struct slsi_dev *sdev, struct net_device *dev, __be3
 		if (WARN_ON(!peer))
 			return -EINVAL;
 
-		ndev_vif->ipaddress = ipaddress;
-		ret = slsi_mlme_set_ip_address(sdev, dev);
-		if (ret != 0)
-			SLSI_NET_ERR(dev, "slsi_mlme_set_ip_address ERROR. ret=%d", ret);
-
-#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
-		ret = slsi_mlme_set_ipv6_address(sdev, dev);
-		if (ret != 0)
-			SLSI_NET_ERR(dev, "slsi_mlme_set_ipv6_address ERROR. ret=%d", ret);
-#endif
 		if (!(peer->capabilities & WLAN_CAPABILITY_PRIVACY) ||
 		    (ndev_vif->sta.group_key_set && peer->pairwise_key_set) ||
 		    ndev_vif->sta.wep_key_set)
@@ -6853,18 +6777,12 @@ void slsi_blacklist_del_work_handle(struct work_struct *work)
 {
 	struct netdev_vif *ndev_vif = container_of((struct delayed_work *)work, struct netdev_vif, blacklist_del_work);
 	struct slsi_dev *sdev = ndev_vif->sdev;
-	struct net_device *dev;
 	struct list_head  *blacklist_pos, *blacklist_q;
 	u32 retention_time = 0;
 	int deleted = 0;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	dev = slsi_ndev_vif_2_net_device(ndev_vif);
-	if (!dev) {
-		SLSI_WARN(sdev, "Invalid ndev_vif :%p\n", ndev_vif);
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return;
-	}
+
 	list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
 		struct slsi_bssid_blacklist_info *blacklist_info;
 
@@ -6881,7 +6799,7 @@ void slsi_blacklist_del_work_handle(struct work_struct *work)
 			retention_time = blacklist_info->end_time - jiffies_to_msecs(jiffies);
 	}
 	if (deleted)
-		slsi_set_acl(sdev, dev);
+		slsi_set_acl(sdev, ndev_vif);
 	if (retention_time)
 		queue_delayed_work(sdev->device_wq, &ndev_vif->blacklist_del_work,
 				   msecs_to_jiffies(retention_time));
@@ -6974,57 +6892,6 @@ int slsi_set_latency_mode(struct net_device *dev, int latency_mode, int cmd_len)
 
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
-	return ret;
-}
-
-int slsi_set_latency_crt_data(struct net_device *dev, int latency_mode)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	struct slsi_dev   *sdev = ndev_vif->sdev;
-	int               ret = 0;
-	u8                host_state;
-	int               passive_time = sdev->max_channel_passive_time;
-	int               home_time = sdev->home_time;
-	int               scan_channel_time = sdev->max_channel_time;
-	int               home_away_time = sdev->home_away_time;
-	int               scan_mode = 0;
-
-	SLSI_DBG1(sdev, SLSI_CFG80211, "latency_crt_data = %d\n", latency_mode);
-
-	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
-	host_state = sdev->device_config.host_state;
-
-	/* latency_mode = 0 (Normal), latency_mode = 1 or 2 or 3(Low) */
-	if (latency_mode == 0)
-		host_state &= ~SLSI_HOSTSTATE_LOW_LATENCY_ACTIVE;
-	else
-		host_state |= SLSI_HOSTSTATE_LOW_LATENCY_ACTIVE;
-
-	ret = slsi_mlme_set_host_state(sdev, dev, host_state);
-	if (ret != 0) {
-		SLSI_NET_ERR(dev, "Error in setting the Host State, ret=%d\n", ret);
-		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
-		return ret;
-	}
-	sdev->device_config.host_state = host_state;
-	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (latency_mode != 1) {
-		if (latency_mode == 2) {
-			scan_mode = FAPI_SCANMODE_LOW_LATENCY_2;
-			passive_time = 60;
-		} else if (latency_mode == 3) {
-			scan_mode = FAPI_SCANMODE_LOW_LATENCY_3;
-			home_away_time = 40;
-			home_time = 40;
-		}
-		ret = slsi_mlme_set_scan_mode_req(sdev, dev, scan_mode, scan_channel_time,
-						  home_away_time, home_time, passive_time);
-
-		if (ret != 0)
-			SLSI_NET_ERR(dev, "Error in setting the Scan Mode, ret=%d", ret);
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	return ret;
 }
 
@@ -7179,7 +7046,6 @@ err_done:
 void slsi_failure_reset(struct work_struct *work)
 {
 	struct slsi_dev *sdev = container_of(work, struct slsi_dev, recovery_work_on_stop);
-	int level = atomic_read(&sdev->cm_if.reset_level);
 	int r = 0;
 
 	if (sdev->cm_if.recovery_state == SLSI_RECOVERY_SERVICE_STARTED) {
@@ -7190,12 +7056,7 @@ void slsi_failure_reset(struct work_struct *work)
 	}
 	if (sdev->cm_if.recovery_state == SLSI_RECOVERY_SERVICE_STOPPED) {
 		r = slsi_sm_recovery_service_close(sdev);
-		if (!r) {
-			sdev->require_service_close = false;
-			sdev->cm_if.recovery_state = SLSI_RECOVERY_SERVICE_CLOSED;
-			if (level == SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC)
-				complete_all(&sdev->recovery_stop_completion);
-		}
+		sdev->cm_if.recovery_state = SLSI_RECOVERY_SERVICE_CLOSED;
 	}
 	if (sdev->netdev_up_count == 0) {
 		sdev->mlme_blocked = false;
@@ -7206,7 +7067,6 @@ void slsi_failure_reset(struct work_struct *work)
 		}
 #endif
 	}
-	SLSI_INFO_NODEV("recovery_work_on_stop completed r:%d\n", r);
 }
 
 #ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
