@@ -537,7 +537,7 @@ jobs:
   release:
     name: Release files and configs
     if: always()
-    needs: [a50, a50_aosp, a50cs, a50cs_aosp, a50s, m30s]
+    needs: [a50, a50_aosp, a50cs, a50cs_aosp, a50s, a50s_aosp, m30s]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -581,6 +581,12 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: a50s_release_upstream-${{ github.run_number }})
+        path: release
+      
+    - name: Merge Galaxy A50s (AOSP) release
+      uses: actions/download-artifact@v2
+      with:
+        name: a50s_aosp_release_upstream-${{ github.run_number }})
         path: release
       
     - name: Merge Galaxy M30s release
