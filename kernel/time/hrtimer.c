@@ -2097,7 +2097,7 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 		timer = container_of(node, struct hrtimer, node);
 
 		timerqueue_del(&pinned, &timer->node);
-		enqueue_hrtimer(timer, old_base);
+		enqueue_hrtimer(timer, old_base, HRTIMER_MODE_ABS);
 	}
 }
 
@@ -2107,12 +2107,12 @@ static void __migrate_hrtimers(unsigned int scpu, bool remove_pinned)
 	unsigned long flags;
 	int i;
 
-    /*
-     * this BH disable ensures that raise_softirq_irqoff() does
-     * not wakeup ksoftirqd (and acquire the pi-lock) while
-     * holding the cpu_base lock
-     */
-    local_bh_disable();
+	/*
+	 * this BH disable ensures that raise_softirq_irqoff() does
+	 * not wakeup ksoftirqd (and acquire the pi-lock) while
+	 * holding the cpu_base lock
+	 */
+	local_bh_disable();
 	save_pcpu_tick(scpu);
 	local_irq_save(flags);
 	old_base = &per_cpu(hrtimer_bases, scpu);
@@ -2140,8 +2140,16 @@ static void __migrate_hrtimers(unsigned int scpu, bool remove_pinned)
 
 	/* Check, if we got expired work to do */
 	__hrtimer_peek_ahead_timers();
-	local_irq_enable();
+	local_irq_restore(flags);
 	local_bh_enable();
+}
+
+int hrtimers_dead_cpu(unsigned int scpu)
+{
+	BUG_ON(cpu_online(scpu));
+	tick_cancel_sched_timer(scpu);
+
+	__migrate_hrtimers(scpu, true);
 	return 0;
 }
 
