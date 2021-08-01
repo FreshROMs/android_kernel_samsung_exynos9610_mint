@@ -29,7 +29,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -90,7 +92,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -151,7 +155,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -212,7 +218,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -273,7 +281,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -316,7 +326,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -359,7 +371,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
@@ -421,7 +435,9 @@ jobs:
     - name: Install Toolchain
       run: |
           set -eo pipefail
-          git clone https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          git clone -n https://github.com/CruelKernel/aarch64-cruel-elf.git ${HOME}/toolchain
+          cd ${HOME}/toolchain
+          git checkout cf641f1153b02a9c6210c3abcf8cc9d4e31a4b3b
           mkdir -p ${HOME}/toolchain_arm32
           wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz --output-document=${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz
           tar -xvf ${HOME}/toolchain_arm32/gcc-arm-10.2-2020.11-x86_64-arm-none-eabi.tar.xz -C ${HOME}/toolchain_arm32
