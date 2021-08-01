@@ -422,11 +422,12 @@ skip_betting:
 static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
 	unsigned long max_cap;
+    int t = 1.8;  // default 2
 
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
 	*util = boosted_cpu_util(cpu);
-	*util = *util + (*util >> 2);
+	*util = *util + (*util >> t);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 }
