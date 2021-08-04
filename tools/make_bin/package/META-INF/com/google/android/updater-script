@@ -42,7 +42,7 @@ ifelse(is_mounted("/vendor"), sleep(1), mount("ext4", "EMMC", file_getprop("/cac
 ifelse(is_mounted("/data"), sleep(1), run_program("/cache/tools/busybox", "mount", "/data"));
 
 ui_print("- Installing Fresh Core");
-package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+package_extract_file("boot.img", file_getprop("/cache/fresh-tk_install", "block.boot"));
 
 # Also check if there is an existing Fresh install and install the props for update checking.
 run_program("/cache/tools/fresh-tk", "rom_version_check");
