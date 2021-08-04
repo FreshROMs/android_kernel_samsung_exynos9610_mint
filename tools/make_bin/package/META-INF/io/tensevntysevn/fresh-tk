@@ -1,0 +1,822 @@
+#!/sbin/sh
+# =========================================
+#         _____              _      
+#        |  ___| __ ___  ___| |__   
+#        | |_ | '__/ _ \/ __| '_ \  
+#        |  _|| | |  __/\__ \ | | | 
+#        |_|  |_|  \___||___/_| |_| 
+#                              
+# =========================================
+# Fresh install toolkit - build 21070901
+# A toolkit used for addon and ROM installation
+# (C) 2019-2021 John Vincent - TenSeventy7@XDA
+
+EXEC="$@" # function to execute for updater-script. DO NOT EDIT.
+TOOLS='/cache/tools' # the location of the tools used by the installer.
+BUSYBOX="${TOOLS}/busybox" # the location of the busybox binary.
+SVZIP="${TOOLS}/7za" # the location of the 7zip arm binary.
+XMLSTARLET="${TOOLS}/xmlstarlet" # the location of the xmlstarlet arm binary.
+PROP="/cache/fresh-tk_install" # prop file used to counter-check values for the script
+FLASH='/tmp/fresh.prop' # ROM prop file used for version checking
+FLASH_OTA='/tmp/fresh_old.prop' # Old ROM prop file used for OTA version checking
+
+export PATH="${TOOLS}:${PATH}"
+
+file_setprop() {
+	# Pass props used during installation
+	if [ -e "${BUSYBOX}" ]; then
+		if [ ! -e "${PROP}" ]; then
+			${BUSYBOX} touch "${PROP}" # make the prop file if toolkit could not find it
+			${BUSYBOX} echo "${1}=${2}" > "${PROP}"
+		else
+			${BUSYBOX} echo "${1}=${2}" >> "${PROP}"
+		fi
+	else
+		if [ ! -e "${PROP}" ]; then
+			touch "${PROP}" # make the prop file if toolkit could not find it
+			echo "${1}=${2}" > "${PROP}"
+		else
+			echo "${1}=${2}" >> "${PROP}"
+		fi
+	fi
+}
+
+file_getprop() { grep "^$2=" "$1" | cut -d= -f2-; }
+
+remove_floating_feature() {
+	${XMLSTARLET} edit -L -S \
+           -d "//SecFloatingFeatureSet/$1" \
+           /vendor/etc/floating_feature.xml
+}
+
+set_floating_feature() {
+	${XMLSTARLET} edit -L -S \
+           -d "//SecFloatingFeatureSet/$1" \
+           /vendor/etc/floating_feature.xml
+
+	${XMLSTARLET} edit -L -S \
+           -s "//SecFloatingFeatureSet" \
+           -t elem \
+           -n "$1" \
+           -v "$2" \
+           /vendor/etc/floating_feature.xml
+}
+
+get_floating_feature() {
+	${XMLSTARLET} select -t \
+	           -m "//SecFloatingFeatureSet" \
+	           -v "$1" \
+	           /vendor/etc/floating_feature.xml
+}
+
+# Variables used throughout the script
+DEVICE=$(file_getprop /tmp/vendor.prop 'ro.fresh.device.product') # device-checking prop
+SYSMOUNT=$(file_getprop "${PROP}" 'block.system.mount') # check if the system is mounted as SaR
+
+# Variables that depend on system-as-root (SaR)
+if [ "${SYSMOUNT}" == "/system_root" ]; then
+	ROM='/system_root/system/fresh.prop' # system prop file used for version checking
+	ADDONS="/system_root/system/etc/fresh/addons" # addon metadata folder used in the ROM
+	FRESH="/system_root/system/etc/fresh" # addon metadata folder used in the ROM
+	DEVICE_PROP='/system_root/system/build.prop' # system prop file used for device checking
+	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | sed -e 's@'/system'@'/system_root/system'@g' | tr '\n' ' ')
+else
+	ROM='/system/fresh.prop' # system prop file used for version checking
+	ADDONS="/system/etc/fresh/addons" # addon metadata folder used in the ROM
+	FRESH="/system/etc/fresh" # addon metadata folder used in the ROM
+	DEVICE_PROP='/system/build.prop' # system prop file used for device checking
+	INSTALLED_ADDONS_FULL=$(cat ${ADDONS}/files-list/*.txt | tr '\n' ' ')
+fi
+
+# Variables used by the addon and OMC backup services
+INSTALLED_OMC='/product/omc/sales_code.dat'
+INSTALLED_OMC_LIST='/product/omc/sales_code_list.dat'
+INSTALLED_OMC_CONFIG='/product/omc/SW_Configuration.xml'
+BACKUP_ADDONS_FOLDER='/data/frsh_install/addons_backup'
+BACKUP_OMC_FOLDER='/data/frsh_install/omc_backup'
+HUB_PACKAGE='de.dlyt.yanndroid.fresh'
+
+# Variables used by addon installer
+ADDON_PROP='/tmp/addon.prop'
+ADDON_LIST='/tmp/files-list.txt'
+ADDON_SYSPROP='/tmp/system.prop'
+ADDON_FLOATING='/tmp/floating-feature.txt'
+
+ADDON_CODE=$(file_getprop "${ADDON_PROP}" 'fresh.addon.code')
+ADDON_NAME=$(file_getprop "${ADDON_PROP}" 'fresh.addon.name')
+ADDON_BUILD=$(file_getprop "${ADDON_PROP}" 'fresh.addon.version')
+ADDON_REQUIRED_VERSION=$(file_getprop "${ADDON_PROP}" 'fresh.addon.require.version')
+ADDON_REQUIRED_VARIANT=$(file_getprop "${ADDON_PROP}" 'fresh.addon.require.variant')
+ADDON_RECOMMENDED_RAM=$(file_getprop "${ADDON_PROP}" 'fresh.addon.recommend.memory')
+
+ADDON_REQUIRED_SPACE_SYSTEM=$(file_getprop "${ADDON_PROP}" 'fresh.addon.require.space.system')
+ADDON_REQUIRED_SPACE_VENDOR=$(file_getprop "${ADDON_PROP}" 'fresh.addon.require.space.vendor')
+ADDON_REQUIRED_SPACE_PRODUCT=$(file_getprop "${ADDON_PROP}" 'fresh.addon.require.space.product')
+
+ADDON_HUB_ZIP="/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/${ADDON_NAME}_${ADDON_BUILD}.zip"
+ADDON_INSTALLED_PROP="${ADDONS}/${ADDON_CODE}.prop"
+ADDON_INSTALLED_FLOATING="${ADDONS}/floating/${ADDON_CODE}.txt"
+ADDON_INSTALLED_META="${ADDONS}/${ADDON_CODE}.metadata"
+ADDON_INSTALLED_KEEP="${ADDONS}/${ADDON_CODE}.keep"
+ADDON_INSTALLED_LIST="${ADDONS}/files-list/${ADDON_CODE}.txt"
+ADDON_INSTALLED_SYSPROP_LIST="${ADDONS}/system.prop"
+ADDON_INSTALLED_SYSPROP="${ADDONS}/props/${ADDON_CODE}.prop"
+
+ADDON_INSTALLED_BUILD=$(file_getprop "${ADDON_INSTALLED_PROP}" 'fresh.addon.version')
+
+# Addon variables that depend on system-as-root (SaR)
+if [ "${SYSMOUNT}" == "/system_root" ]; then
+	ADDON_FILES=$(awk '{print}' "${ADDON_INSTALLED_LIST}" | sed -e 's@'/system'@'/system_root/system'@g' | tr '\n' ' ')
+else
+	ADDON_FILES=$(awk '{print}' "${ADDON_INSTALLED_LIST}" | tr '\n' ' ')
+fi
+
+# Primary functions used throughout the toolkit
+backup_omc_full() {
+	file_setprop "system.exist.omc" "data-exist"
+	mkdir -p ${BACKUP_OMC_FOLDER}
+	${BUSYBOX} cp -rfp --parents "/product/omc" "${BACKUP_OMC_FOLDER}/"
+}
+
+restore_omc_full() {
+	cp -rn --preserve=mode,ownership,timestamps,context "${BACKUP_OMC_FOLDER}/product/omc" "/product/"
+}
+
+restore_omc_withdata() {
+	cp -f /tmp/SW_Configuration.xml ${INSTALLED_OMC_CONFIG}
+	cp -f /tmp/sales_code_list.dat ${INSTALLED_OMC_LIST}
+	cp -f /tmp/sales_code.dat ${INSTALLED_OMC}
+}
+
+backup_omc() {
+	cp -f ${INSTALLED_OMC} "/tmp/sales_code.dat"
+	cp -f ${INSTALLED_OMC_LIST} "/tmp/sales_code_list.dat"
+	cp -f ${INSTALLED_OMC_CONFIG} "/tmp/SW_Configuration.xml"
+
+	INSTALLED_OMC_CODE=$(cat /tmp/sales_code.dat | tr -d '\n')
+
+	if [ ! -z "${INSTALLED_OMC_CODE}" ]; then
+		file_setprop "system.exist.omc.code" "${INSTALLED_OMC_CODE}"
+	else
+		file_setprop "system.exist.omc.code" "MISSING"
+	fi
+}
+
+restore_omc() {
+	cp -f /tmp/sales_code.dat /product/omc/sales_code.dat
+}
+
+restore_omc_check() {
+	INSTALLED_OMC_CODE=$(cat /tmp/sales_code.dat | tr -d '\n')
+	if [ -d "/product/omc/${INSTALLED_OMC_CODE}" ]; then
+		file_setprop "system.exist.omc.support" "true"
+	else
+		if [ -d "/product/omc/single/${INSTALLED_OMC_CODE}" ]; then
+			file_setprop "system.exist.omc.support" "true"
+		else
+			file_setprop "system.exist.omc.support" "false"
+		fi	
+	fi
+}
+
+backup_addons() {
+	mkdir -p ${BACKUP_ADDONS_FOLDER}
+
+	for file in ${ADDONS}/files-list/*.txt; do
+		if [ "${SYSMOUNT}" == "/system_root" ]; then
+			ADDON_FILE_LIST=$(cat ${file} | sed -e 's@'/system'@'/system_root/system'@g' | tr '\n' ' ')
+		else
+			ADDON_FILE_LIST=$(cat ${file} | tr '\n' ' ')
+		fi
+
+		${BUSYBOX} cp -rfp --parents ${ADDON_FILE_LIST} "${BACKUP_ADDONS_FOLDER}/"
+	done
+
+	# Migrate Gplus addon move to /vendor
+	EXIST_VERSION=$(file_getprop "${PROP}" 'system.exist.version')
+	if (( "${EXIST_VERSION}" < "21070101" )); then
+	  if [ -d "${BACKUP_ADDONS_FOLDER}/system_root/system/app/Gmail2" ]; then
+			if [ "${SYSMOUNT}" == "/system_root" ]; then
+				${BUSYBOX} cp -rfp --parents "${BACKUP_ADDONS_FOLDER}/system_root/system/app/Gmail2" "${BACKUP_ADDONS_FOLDER}/vendor/app/"
+				${BUSYBOX} cp -rfp --parents "${BACKUP_ADDONS_FOLDER}/system_root/system/app/Maps" "${BACKUP_ADDONS_FOLDER}/vendor/app/"
+				rm -rf "${BACKUP_ADDONS_FOLDER}/system_root/system/app/Gmail2"
+				rm -rf "${BACKUP_ADDONS_FOLDER}/system_root/system/app/Maps"
+			else
+				${BUSYBOX} cp -rfp --parents "${BACKUP_ADDONS_FOLDER}/system/app/Gmail2" "${BACKUP_ADDONS_FOLDER}/vendor/app/"
+				${BUSYBOX} cp -rfp --parents "${BACKUP_ADDONS_FOLDER}/system/app/Maps" "${BACKUP_ADDONS_FOLDER}/vendor/app/"
+				rm -rf "${BACKUP_ADDONS_FOLDER}/system/app/Gmail2"
+				rm -rf "${BACKUP_ADDONS_FOLDER}/system/app/Maps"
+			fi
+			file_setprop "addon.google.installed" "true"
+		else
+			file_setprop "addon.google.installed" "false"
+	  fi
+	else
+		file_setprop "addon.google.installed" "false"
+	fi
+
+	${BUSYBOX} cp -rfp --parents ${ADDONS} "${BACKUP_ADDONS_FOLDER}/"
+}
+
+restore_addons() {
+	if [ "${SYSMOUNT}" == "/system_root" ]; then
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/system_root" /
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/vendor" /
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/product" /
+	else
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/system" /
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/vendor" /
+		${BUSYBOX} cp -rfp "${BACKUP_ADDONS_FOLDER}/product" /
+	fi
+
+	for file in ${ADDONS}/floating/*.txt; do
+	  while IFS="" read -r p || [ -n "$p" ]; do
+	  	array=($p)
+		  set_floating_feature "${array[0]}" "${array[1]}"
+		done < "${file}"
+	done
+}
+
+backup_addons_space() {
+	# Check if there is enough space to backup addons
+	BACKUP_SIZE=0
+	
+		
+	if [ "${SYSMOUNT}" == "/system_root" ]; then
+		for file in ${ADDONS}/files-list/*.txt; do
+		  while IFS="" read -r p || [ -n "$p" ]; do
+		  	FILE_LIST=$(echo ${p} | sed -e 's@'/system'@'/system_root/system'@g')
+				ADDON_FILE_LIST_SIZE=$(du -cs "${FILE_LIST}" | cut -f1 | tail -1)
+				BACKUP_SIZE=$(($BACKUP_SIZE + $ADDON_FILE_LIST_SIZE))
+			done < "${file}"
+		done
+	else
+		for file in ${ADDONS}/files-list/*.txt; do
+		  while IFS="" read -r p || [ -n "$p" ]; do
+		  	FILE_LIST=$(echo ${p})
+				ADDON_FILE_LIST_SIZE=$(du -cs "${FILE_LIST}" | cut -f1 | tail -1)
+				BACKUP_SIZE=$(($BACKUP_SIZE + $ADDON_FILE_LIST_SIZE))
+			done < "${file}"
+		done
+	fi
+
+	DATA_SIZE=$(df /data | tail -1 | awk '{print $4}')
+
+	# Remove Fresh Core Beta builds. Not backup-able and is replaced at install.
+	${BUSYBOX} find "${ADDONS}" -type f -name "io.tns.shadowx*" -delete
+	file_setprop "install.addons.size" "${BACKUP_SIZE}"
+
+	if (( "${BACKUP_SIZE}" >= "${DATA_SIZE}" )); then
+		file_setprop "install.addons.backup" "nospace"
+	else
+		file_setprop "install.addons.backup" "true"
+	fi
+}
+
+restore_addons_space() {
+	# Check if there is enough space to restore addons
+	if [ "${SYSMOUNT}" == "/system_root" ]; then
+		RESTORE_SIZE_SYSTEM=$(du -cs "${BACKUP_ADDONS_FOLDER}/system_root" | cut -f1 | tail -1)
+		SYSTEM_SIZE=$(df /system_root | tail -1 | awk '{print $4}')
+	else
+		RESTORE_SIZE_SYSTEM=$(du -cs "${BACKUP_ADDONS_FOLDER}/system" | cut -f1 | tail -1)
+		SYSTEM_SIZE=$(df /system | tail -1 | awk '{print $4}')
+	fi
+
+	RESTORE_SIZE_VENDOR=$(du -cs "${BACKUP_ADDONS_FOLDER}/vendor" | cut -f1 | tail -1)
+	VENDOR_SIZE=$(df /vendor | tail -1 | awk '{print $4}')
+	
+	RESTORE_SIZE_PRODUCT=$(du -cs "${BACKUP_ADDONS_FOLDER}/product" | cut -f1 | tail -1)
+	PRODUCT_SIZE=$(df /product | tail -1 | awk '{print $4}')
+
+	if (( "${RESTORE_SIZE_PRODUCT}" >= "${PRODUCT_SIZE}" )); then
+		file_setprop "install.addons.restore" "nospace"
+	else
+		if (( "${RESTORE_SIZE_VENDOR}" >= "${VENDOR_SIZE}" )); then
+			file_setprop "install.addons.restore" "nospace"
+		else
+			if (( "${RESTORE_SIZE_SYSTEM}" >= "${SYSTEM_SIZE}" )); then
+				file_setprop "install.addons.restore" "nospace"
+			else
+				file_setprop "install.addons.restore" "true"
+			fi
+		fi
+	fi
+}
+
+uninstall_addon() {
+	# Uninstall addon when requested
+
+	# Apr2021: Add .keep flag for Fresh Hub
+	NO_UNINSTALL_INSTALL=$(grep 'fresh.addon.no-uninstall=' "${ADDON_INSTALLED_PROP}" | sed 's/^fresh.addon.no-uninstall=//')
+	if [ ! "${NO_UNINSTALL_INSTALL}" == "true" ]; then
+ 		rm -rf ${ADDON_FILES}
+	fi
+	
+	rm -f "${ADDON_INSTALLED_PROP}"
+	rm -f "${ADDON_INSTALLED_LIST}"
+	rm -f "${ADDON_INSTALLED_META}"
+
+	# Feb2021: Add system.prop feature
+	if [ -e "${ADDON_INSTALLED_SYSPROP}" ]; then
+		${BUSYBOX} comm -2 -3 ${ADDON_INSTALLED_SYSPROP_LIST} ${ADDON_INSTALLED_SYSPROP} > /tmp/system.prop
+		mv -f /tmp/system.prop ${ADDON_INSTALLED_SYSPROP_LIST}
+		rm -f "${ADDON_INSTALLED_SYSPROP}"
+		rm -f /tmp/system.prop
+	fi
+
+	if [ -e "${ADDON_SYSPROP}" ]; then
+		${BUSYBOX} comm -2 -3 ${ADDON_INSTALLED_SYSPROP_LIST} ${ADDON_SYSPROP} > /tmp/system.prop
+		mv -f /tmp/system.prop ${ADDON_INSTALLED_SYSPROP_LIST}
+		rm -f /tmp/system.prop
+	fi
+
+  # Jun2021: Add FloatingFeature support
+  if [ -e ${ADDON_INSTALLED_FLOATING} ]; then
+
+	  while IFS="" read -r p || [ -n "$p" ]; do
+	  	array=($p)
+		  remove_floating_feature "${array[0]}"
+		done < "${ADDON_INSTALLED_FLOATING}"
+
+		rm -f "${ADDON_INSTALLED_FLOATING}"
+  fi
+
+  # Apr2021: Remove ZIP from Fresh Hub dir if it's uninstalled outside of Fresh Hub
+  # Detect using recovery command file
+  if [ -f "${ADDON_HUB_ZIP}" ]; then
+	  # Delete existing ZIPs of same addon
+  	  ${BUSYBOX} find "/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/" -type f -name "${ADDON_NAME}*.zip" -delete
+  fi
+}
+
+install_addon() {
+  if [ ! -d "${ADDONS}" ]; then
+		mkdir -p "${ADDONS}"
+  fi
+
+  if [ ! -d "${ADDONS}/files-list" ]; then
+		mkdir -p "${ADDONS}/files-list"
+  fi
+
+  if [ ! -d "${ADDONS}/floating" ]; then
+		mkdir -p "${ADDONS}/floating"
+  fi
+
+  if [[ ${ADDON_CODE} == io.tns.shadowx* ]]; then
+	# Remove Fresh Core builds if installing a Fresh Core build.
+	${BUSYBOX} find "${ADDONS}" -type f -name "io.tns.shadowx*" -delete
+  fi
+
+  cp -f "${ADDON_PROP}" "${ADDON_INSTALLED_PROP}"
+  cp -f "${ADDON_LIST}" "${ADDON_INSTALLED_LIST}"
+  echo "${ADDON_BUILD}" > "${ADDON_INSTALLED_META}"
+
+  # Apr2021: Add .keep flag for Fresh Hub
+  NO_UNINSTALL_INSTALL=$(grep 'fresh.addon.no-uninstall=' "${ADDON_PROP}" | sed 's/^fresh.addon.no-uninstall=//')
+  if [ "${NO_UNINSTALL_INSTALL}" == "true" ]; then
+  		echo "true" > "${ADDON_INSTALLED_KEEP}"
+  fi
+
+  # Feb2021: Add system.prop feature
+  if [ -e "${ADDON_SYSPROP}" ]; then
+	  if [ ! -d "${ADDONS}/props" ]; then
+		mkdir -p "${ADDONS}/props"
+	  fi
+
+	  cp -f "${ADDON_SYSPROP}" "${ADDON_INSTALLED_SYSPROP}"
+	  ${BUSYBOX} echo "$(cat "${ADDON_INSTALLED_SYSPROP}")" >> "${ADDON_INSTALLED_SYSPROP_LIST}"
+  fi
+
+  # Jun2021: Add FloatingFeature support
+  if [ -e ${ADDON_FLOATING} ]; then
+
+	  while IFS="" read -r p || [ -n "$p" ]; do
+	  	array=($p)
+		  set_floating_feature "${array[0]}" "${array[1]}"
+		done < "${ADDON_FLOATING}"
+
+	  mv -f "${ADDON_FLOATING}" "${ADDON_INSTALLED_FLOATING}"
+  fi
+
+  # Apr2021: Make simple uninstaller if installed
+  # outside of Fresh Hub
+  if [ ! -f "${ADDON_HUB_ZIP}" ]; then
+
+  	# Delete existing ZIPs of same addon
+  	${BUSYBOX} find "/sdcard/Android/data/${HUB_PACKAGE}/files/Addons/" -type f -name "${ADDON_NAME}*.zip" -delete
+
+  	mkdir /tmp/addon_uninstaller
+  	cp -rf /tmp/META-INF "${ADDON_PROP}" "${ADDON_LIST}" "${ADDON_SYSPROP}" /tmp/addon_uninstaller/
+  	cd /tmp/addon_uninstaller
+		${SVZIP} a -mx1 -mm=Deflate "${ADDON_HUB_ZIP}"
+  fi
+
+}
+
+upgrade_addon() {
+	uninstall_addon
+	install_addon
+}
+
+addon_check() {
+	# Check if there is a currently-installed version of the addon, then uninstall or update it.
+	if [ -e "${ADDON_INSTALLED_PROP}" ]; then
+		# Make script robust. Check if the list is there, if there isn't, do install.
+		if [ -e "${ADDON_INSTALLED_LIST}" ]; then
+			if (( "${ADDON_BUILD}" <= "${ADDON_INSTALLED_BUILD}" )); then
+				# Determine if the addon is not-uninstallable then notify user for it.
+				NO_UNINSTALL=$(grep 'fresh.addon.no-uninstall=' "${ADDON_INSTALLED_PROP}" | sed 's/^fresh.addon.no-uninstall=//')
+				if [ "${NO_UNINSTALL}" == "true" ]; then
+					file_setprop "addon.installed" "no-uninstall"
+				else
+					file_setprop "addon.installed" "true" # Uninstall addon if ZIP is older or the same
+				fi
+			else
+				file_setprop "addon.installed" "upgrade" # Upgrade addon if it's newer
+			fi
+		else
+			file_setprop "addon.installed" "false"
+		fi
+	else
+		file_setprop "addon.installed" "false"
+	fi
+}
+
+fixprops_check() {
+  # Disable MagiskHideProps so system can dexopt
+  if [ -d "/data/adb/modules/fixprops" ]; then
+	if [ -e "/data/adb/modules/fixprops/disable" ]; then
+	    file_setprop "user.installed.fixprops" "false"
+	else
+	    file_setprop "user.installed.fixprops" "true"
+	    touch /data/adb/modules/fixprops/disable
+	fi
+  else
+  	file_setprop "user.installed.fixprops" "false"
+  fi
+}
+
+mghide_check() {
+  # Disable MagiskHideProps so system can dexopt
+  if [ -d "/data/adb/modules/MagiskHidePropsConf" ]; then
+	if [ -e "/data/adb/modules/MagiskHidePropsConf/disable" ]; then
+	    file_setprop "user.installed.mghide" "false"
+	else
+	    file_setprop "user.installed.mghide" "true"
+	    touch /data/adb/modules/MagiskHidePropsConf/disable
+	fi
+  else
+  	file_setprop "user.installed.mghide" "false"
+  fi
+}
+
+mounts_checker() {
+	# Check for device mounting points.
+	# Based on SuperR@XDA's configure.sh
+	# Extended by TenSeventy7
+
+	# Since mount checker always runs first on script, delete older install props
+	# so we don't skew the script
+	rm -f "${PROP}"
+
+	# Get boot slot if it exists
+	BOOT_SLOT=$(getprop ro.boot.slot_suffix)
+	if [ -z ${BOOT_SLOT} ]; then
+		BOOT_SLOT=_$(getprop ro.boot.slot)
+		if [ "${BOOT_SLOT}" = "_" ]; then
+			BOOT_SLOT=
+		fi
+	fi
+	if [ -z ${BOOT_SLOT} ]; then
+		BOOT_SLOT=$(cat /proc/cmdline 2>/dev/null | tr ' ' '\n' | grep slot | grep -v simslot | cut -d'=' -f2)
+	fi
+	if [ -n ${BOOT_SLOT} ]; then
+		if [ "${BOOT_SLOT}" = "_a" ] || [ "${BOOT_SLOT}" = "_b" ]; then
+			file_setprop "boot.slot" "${BOOT_SLOT}"
+		else
+			BOOT_SLOT=
+		fi
+	fi
+
+	# Get system partition and by-name paths
+	SYSTEMBLOCK=$(find /dev/block | grep -i "system${BOOT_SLOT}" | head -n 1)
+	if [ -z ${SYSTEMBLOCK} ]; then
+		for PARTITION in /etc/*fstab*; do
+			SYSTEMBLOCK=$(grep -v '#' ${PARTITION} | grep -E '/system[^a-zA-Z]' | grep -v system_image | grep -v mmcblk | grep -oE '/dev/[a-zA-Z0-9_./-]*')
+			if [ -n ${SYSTEMBLOCK} ]; then
+				break
+			fi
+		done
+	fi
+
+	if [ -n ${SYSTEMBLOCK} ] && [ $(readlink -f "${SYSTEMBLOCK}") ]; then
+		PART_PATH=$(dirname "${SYSTEMBLOCK}")
+		file_setprop "boot.part.by-name" "${PART_PATH}"
+	else
+		file_setprop "boot.part.by-name" "fail"
+		exit 1
+	fi
+
+	# Check for System-as-Root (SaR) mount point
+	if [ -d /system_root ]; then
+		file_setprop "block.system.mount" "/system_root"
+	else
+		file_setprop "block.system.mount" "/system"
+	fi
+
+	# Add verified partitions to installer prop
+	for PARTITION in system SYSTEM APP; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+			file_setprop "block.system" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+			break
+		fi
+	done
+	for PARTITION in vendor VENDOR VNR; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+			file_setprop "block.vendor" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+			break
+		fi
+	done
+	for PARTITION in userdata USERDATA UDA; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+			file_setprop "block.data" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+			break
+		fi
+	done
+	for PARTITION in boot BOOT LNX; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+			file_setprop "block.boot" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+			break
+		fi
+	done
+	for PARTITION in version product optics prism cust oem odm ODM recovery RECOVERY ramdisk RAMDISK kernel KERNEL Kernel; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+			file_setprop "block.$(echo "${PARTITION}" | tr '[A-Z]' '[a-z]')" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+		fi
+	done
+
+	# Add additional up_param detection
+	for PARTITION in up_param UP_PARAM; do
+		if [ $(readlink "${PART_PATH}/${PARTITION}${BOOT_SLOT}") ]; then
+				file_setprop "block.splash" "${PART_PATH}/${PARTITION}${BOOT_SLOT}"
+		fi
+	done
+}
+
+data_check() {
+	# Check if there is existing data. We need this so we can do smart choices
+	# on whether we can overwrite OMC or not since it causes bootloops on some cases
+
+	if [ -d "/data/resource-cache" -o -d "/data/overlays" -o -d "/data/data" -o -d "/data/user" ]; then
+		file_setprop "system.exist.data" "true"
+	else
+		file_setprop "system.exist.data" "false"
+	fi
+}
+
+data_check_noprop() {
+	# Check if there is existing data. We need this so we can do smart choices
+	# on whether we can overwrite OMC or not since it causes bootloops on some cases
+
+	if [ -d "/data/resource-cache" -o -d "/data/overlays" -o -d "/data/data" -o -d "/data/user" ]; then
+		echo 'true'
+	else
+		echo 'false'
+	fi
+}
+
+flash_kernel_backup() {
+	if [ -f "/cache/boot.img" ]; then
+		BOOT=$(file_getprop ${PROP} block.boot)
+		dd if=/cache/boot.img of=${BOOT}
+	fi
+}
+
+rom_version_check() {
+	# Make Tips number
+	file_setprop "rom.install.tip" "$(awk -v min=1 -v max=6 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')"
+	
+	# Check for an existing ROM installation
+	if [ -e "${ROM}" ]; then
+
+		# Only check if /tmp/fresh.prop is present
+		if [ -f "${FLASH}" ]; then
+			# Check for the version installed in the system
+			EXISTING=$(file_getprop "${ROM}" 'ro.fresh.build.version')
+			FLASHER=$(file_getprop "${FLASH}" 'ro.fresh.build.version')
+			file_setprop "system.exist.version" "${EXISTING}"
+
+			if (( "${EXISTING}" > "${FLASHER}" )); then
+				file_setprop "system.exist.rom" "downgrade"
+			else
+				if [ $(data_check_noprop) == 'true' ]; then
+					file_setprop "system.exist.rom" "true"
+				else
+					file_setprop "system.exist.rom" "false"
+				fi
+			fi
+
+			# Jun2021: Check if there is a Fresh Core backup.
+			if [ -f "${FRESH}/boot.img" -a $(data_check_noprop) == 'true' ]; then
+				ROM_BUILD=$(file_getprop '/tmp/fresh_core.prop' 'fresh.core.build')
+				CURRENT_BUILD=$(file_getprop "${FRESH}/fresh_core.prop" 'fresh.core.build')
+
+				if (( "${CURRENT_BUILD}" > "${ROM_BUILD}" )); then
+					file_setprop "kernel.backup.present" "true"
+					${BUSYBOX} cp -f "${FRESH}/boot.img" "/cache/boot.img"
+				else
+					file_setprop "kernel.backup.present" "false"
+				fi
+			else
+				file_setprop "kernel.backup.present" "false"
+			fi
+
+			# Check if there are addons installed and try backing them up
+			if [ -d "${ADDONS}" ]; then
+				file_setprop "system.exist.addons" "true"
+			else
+				file_setprop "system.exist.addons" "false"
+				file_setprop "install.addons.backup" "false"
+			fi
+		else
+			file_setprop "system.exist.rom" "true"
+
+			if [ ! -z "${ADDON_REQUIRED_VERSION}" ]; then
+				# Check for the version installed in the system
+				EXISTING=$(file_getprop "${ROM}" 'ro.fresh.build.version')
+
+				if (( "${EXISTING}" >= "${ADDON_REQUIRED_VERSION}" )); then
+					file_setprop "addon.compatible.version" "true"
+				else
+					file_setprop "addon.compatible.version" "false"
+				fi
+			else
+					file_setprop "addon.compatible.version" "true"
+			fi
+
+			if [ ! -z "${ADDON_REQUIRED_VARIANT}" ]; then
+				# Check for the variant installed in the system
+				VARIANT=$(file_getprop "${ROM}" 'ro.fresh.build.variant')
+
+				if [ "${ADDON_REQUIRED_VARIANT}" == "${VARIANT}" ]; then
+					file_setprop "addon.compatible.variant" "true"
+				else
+					file_setprop "addon.compatible.variant" "false"
+				fi
+			else
+					file_setprop "addon.compatible.variant" "true"
+			fi
+
+			if [ ! -z "${ADDON_RECOMMENDED_RAM}" ]; then
+				# Check for the variant installed in the system
+				MEMORYSTR=$(cat /proc/meminfo | grep MemTotal)
+				MEMORY=${MEMORYSTR:16:8}
+
+				if (( "${MEMORY}" >= "${ADDON_RECOMMENDED_RAM}" )); then
+					file_setprop "addon.compatible.ram" "true"
+				else
+					file_setprop "addon.compatible.ram" "false"
+				fi
+			else
+					file_setprop "addon.compatible.ram" "true"
+			fi
+
+
+			if [ ! -z "${ADDON_REQUIRED_SPACE_SYSTEM}" ]; then
+				
+				if [ "${SYSMOUNT}" == "/system_root" ]; then
+					SYSTEM_SIZE=$(df /system_root | tail -1 | awk '{print $4}')
+				else
+					SYSTEM_SIZE=$(df /system | tail -1 | awk '{print $4}')
+				fi
+
+				if (( "${SYSTEM_SIZE}" > "${ADDON_REQUIRED_SPACE_SYSTEM}" )); then
+					file_setprop "addon.compatible.space.system" "true"
+				else
+					file_setprop "addon.compatible.space.system" "false"
+				fi
+			else
+					file_setprop "addon.compatible.space.system" "true"
+			fi
+
+
+			if [ ! -z "${ADDON_REQUIRED_SPACE_VENDOR}" ]; then
+				VENDOR_SIZE=$(df /vendor | tail -1 | awk '{print $4}')
+
+				if (( "${VENDOR_SIZE}" > "${ADDON_REQUIRED_SPACE_VENDOR}" )); then
+					file_setprop "addon.compatible.space.vendor" "true"
+				else
+					file_setprop "addon.compatible.space.vendor" "false"
+				fi
+			else
+					file_setprop "addon.compatible.space.vendor" "true"
+			fi
+
+
+			if [ ! -z "${ADDON_REQUIRED_SPACE_PRODUCT}" ]; then
+				PRODUCT_SIZE=$(df /product | tail -1 | awk '{print $4}')
+
+				if (( "${PRODUCT_SIZE}" > "${ADDON_REQUIRED_SPACE_PRODUCT}" )); then
+					file_setprop "addon.compatible.space.product" "true"
+				else
+					file_setprop "addon.compatible.space.product" "false"
+				fi
+			else
+					file_setprop "addon.compatible.space.product" "true"
+			fi
+
+		fi
+	else
+		file_setprop "system.exist.rom" "false"
+	fi
+}
+
+ota_version_check() {
+	# Check for if current ROM version matches needed version
+	if [ -e "${ROM}" ]; then
+
+		# Check for the version installed in the system
+		EXISTING=$(grep 'ro.fresh.build.version=' "${ROM}" | sed 's/^ro.fresh.build.version=//')
+		FLASH_OLD=$(grep 'ro.fresh.build.version=' "${FLASH_OTA}" | sed 's/^ro.fresh.build.version=//')
+		file_setprop "system.exist.version" "${EXISTING}"
+
+		if [ "${EXISTING}" -ge "${FLASH_OLD}" ]; then
+			file_setprop "system.exist.rom" "ota-upgrade"
+			cp -f "${DEVICE_PROP}" "/tmp/vendor.prop"
+		else
+			if [ ! -e "/cache/fresh_dbgs" ]; then
+				file_setprop "system.exist.rom" "ota-abort"
+			else
+				file_setprop "system.exist.rom" "ota-upgrade"
+				cp -f "${DEVICE_PROP}" "/tmp/vendor.prop"
+			fi
+		fi
+
+		# Jun2021: Check if there is a Fresh Core backup.
+		if [ -f '/tmp/fresh_core.prop' ]; then
+			if [ -f "${FRESH}/boot.img" -a $(data_check_noprop) == 'true' -a ]; then
+				ROM_BUILD=$(file_getprop '/tmp/fresh_core.prop' 'fresh.core.build')
+				CURRENT_BUILD=$(file_getprop "${FRESH}/fresh_core.prop" 'fresh.core.build')
+
+				if (( "${CURRENT_BUILD}" > "${ROM_BUILD}" )); then
+					file_setprop "kernel.backup.present" "true"
+					${BUSYBOX} cp -f "${FRESH}/boot.img" "/cache/boot.img"
+				else
+					file_setprop "kernel.backup.present" "false"
+				fi
+			else
+				file_setprop "kernel.backup.present" "false"
+			fi
+		else
+			file_setprop "kernel.backup.present" "false"
+		fi
+	
+
+	else
+		file_setprop "system.exist.rom" "false"
+	fi
+}
+
+install_cleanup() {
+	# Cleanup
+	if [ -d "${BACKUP_ADDONS_FOLDER}" ]; then
+		rm -rf "${BACKUP_ADDONS_FOLDER}"
+	fi
+
+	if [ -d "${BACKUP_OMC_FOLDER}" ]; then
+		rm -rf "${BACKUP_OMC_FOLDER}"
+	fi
+
+	if [ -d '/data/frsh_install' ]; then
+		rm -rf '/data/frsh_install'
+	fi
+
+	if [ -d '/tmp/addon_uninstaller' ]; then
+		rm -rf '/tmp/addon_uninstaller'
+	fi
+
+	if [ -e '/tmp/addon.prop' ]; then
+		rm -f '/tmp/addon.prop'
+		rm -f '/tmp/files-list.txt'
+	fi
+
+	if [ -e "${ADDON_SYSPROP}" ]; then
+		rm -f ${ADDON_SYSPROP}
+	fi
+
+	if [ -e "/cache/boot.img" ]; then
+		rm -f "/cache/boot.img"
+	fi
+	
+	rm -f '/cache/fresh-tk_install'
+	rm -rf '/tmp/scripts'
+}
+
+# Execute the function given by updater-script
+if [ ! -z "${EXEC}" ]; then
+	${EXEC}
+else
+	sleep 1	# Sleep then fail
+	exit 1
+fi

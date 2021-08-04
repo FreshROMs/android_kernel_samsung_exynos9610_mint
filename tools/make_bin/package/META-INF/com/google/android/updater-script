@@ -1,0 +1,66 @@
+
+# Extract tools folder
+ifelse(is_mounted("/cache"), sleep(1), mount("ext4", "EMMC", "/dev/block/platform/13520000.ufs/by-name/cache", "/cache"));
+package_extract_dir("META-INF/io/tensevntysevn", "/cache/tools");
+set_metadata_recursive("/cache/tools", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);
+
+# Additional chmod in the name of sanity
+run_program("chmod", "0755", "/cache/tools/7za");
+run_program("chmod", "0755", "/cache/tools/busybox");
+run_program("chmod", "0755", "/cache/tools/fresh-tk");
+
+ui_print("=========================================");
+ui_print("         _____              _            ");
+ui_print("        |  ___| __ ___  ___| |__         ");
+ui_print("        | |_ | '__/ _ \/ __| '_ \        ");
+ui_print("        |  _|| | |  __/\__ \ | | |       ");
+ui_print("        |_|  |_|  \___||___/_| |_|       ");
+ui_print("                                         ");
+ui_print("=========================================");
+ui_print("           Fresh Core for Galaxy         ");
+ui_print("=========================================");
+
+# Find the partitions we need.
+ui_print("- Checking device compatibility");
+run_program("/cache/tools/fresh-tk", "mounts_checker");
+ifelse(
+	file_getprop("/cache/fresh-tk_install", "boot.part.by-name") == "fail", (
+		ui_print("   - Failed finding partitions!");
+		ui_print("     Contact developer for support!");
+		sleep(5);
+		abort(" ");
+	 )
+);
+ui_print("   - Partitions found!");
+sleep(3);
+ui_print(" ");
+
+# Prepare partitions for pre-install services
+ifelse(is_mounted(file_getprop("/cache/fresh-tk_install", "block.system.mount")), sleep(1), mount("ext4", "EMMC", file_getprop("/cache/fresh-tk_install", "block.system"), file_getprop("/cache/fresh-tk_install", "block.system.mount")));
+ifelse(is_mounted("/product"), sleep(1), mount("ext4", "EMMC", file_getprop("/cache/fresh-tk_install", "block.product"), "/product"));
+ifelse(is_mounted("/vendor"), sleep(1), mount("ext4", "EMMC", file_getprop("/cache/fresh-tk_install", "block.vendor"), "/vendor"));
+ifelse(is_mounted("/data"), sleep(1), run_program("/cache/tools/busybox", "mount", "/data"));
+
+ui_print("- Installing Fresh Core");
+package_extract_file("boot.img", file_getprop("/tmp/frsh_install.prop", "block.boot"));
+
+# Also check if there is an existing Fresh install and install the props for update checking.
+run_program("/cache/tools/fresh-tk", "rom_version_check");
+ifelse(
+	file_getprop("/cache/fresh-tk_install", "system.exist.rom") == "true", (
+		package_extract_file("fresh_core.prop", "/system_root/system/etc/fresh/fresh_core.prop");
+		package_extract_file("fresh_core.prop", "/system/etc/fresh/fresh_core.prop");
+	 )
+);
+
+ui_print("- Fresh Core installed successfully.");
+
+ui_print("   - Unmounting partitions.");
+ifelse(is_mounted(file_getprop("/cache/fresh-tk_install", "block.system.mount")), unmount(file_getprop("/cache/fresh-tk_install", "block.system.mount")));
+ifelse(is_mounted("/product"), unmount("/product"));
+ifelse(is_mounted("/vendor"), unmount("/vendor"));
+
+run_program("/cache/tools/fresh-tk", "install_cleanup");
+
+# Finish installation
+ui_print(" ");
