@@ -98,14 +98,14 @@ update_magisk() {
 }
 
 show_usage() {
-	script_echo "Usage: ./build.sh -d|--device <device> [-n|--no-clean] [-a|--aosp] [-r|--recovery]"
+	script_echo "Usage: ./build.sh -d|--device <device> [main options] [variant options]"
 	script_echo " "
 	script_echo "Main options:"
 	script_echo "-d, --device <device>: Set build device to build the kernel for. Required."
 	script_echo "-n, --no-clean: Do not clean and update Magisk before build."
 	script_echo "-m, --magisk: Pre-root the kernel with latest stable Magisk. Not available for 'recovery' variant."
 	script_echo " "
-	script_echo "Device options (default: One UI/Fresh):"
+	script_echo "Variant options (default: One UI/Fresh):"
 	script_echo "-f, --fresh: Build One UI/Fresh variant of the kernel."
 	script_echo "-a, --aosp: Build AOSP variant of the kernel."
 	script_echo "-r, --recovery: Build kernel variant for recovery device trees."
