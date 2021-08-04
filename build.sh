@@ -287,6 +287,11 @@ while [[ $# -gt 0 ]]; do
       BUILD_KERNEL_MAGISK='true'
       shift
       ;;
+    -f|--fresh)
+      BUILD_KERNEL_CODE='fresh'
+      BUILD_FRESH='true'
+      shift
+      ;;
     -a|--aosp)
       BUILD_KERNEL_CODE='aosp'
       BUILD_AOSP='true'
@@ -355,7 +360,7 @@ else
 	BUILD_KERNEL_OUTPUT="${ORIGIN_DIR}/${FILE_OUTPUT}"
 fi
 
-if [[ ${BUILD_RECOVERY} == 'true' ]] && [[ ${BUILD_AOSP} == 'true' ]]; then
+if [[ "${BUILD_RECOVERY}${BUILD_AOSP}${BUILD_FRESH}" == *"truetrue"* ]]; then
 	script_echo "E: Multiple variants selected!"
 	script_echo "   You can only build one kernel variant at a time."
 	script_echo " "
