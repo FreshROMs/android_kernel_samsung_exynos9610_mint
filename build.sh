@@ -65,7 +65,7 @@ exit_script() {
 }
 
 download_toolchain() {
-	git clone https://github.com/TenSeventy7/exynos9610_toolchains_fresh.git ${TOOLCHAIN_EXT} 2>&1 | sed 's/^/     /'
+	git clone https://github.com/TenSeventy7/exynos9610_toolchains_fresh.git ${TOOLCHAIN_EXT} --depth 1 2>&1 | sed 's/^/     /'
 	verify_toolchain
 }
 
