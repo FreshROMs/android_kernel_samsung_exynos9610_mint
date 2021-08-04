@@ -734,6 +734,10 @@ KBUILD_CFLAGS += -Os
 endif
 
 ifeq ($(cc-name),clang)
+ifeq ($(CONFIG_SOC_EXYNOS9610), y)
+KBUILD_CFLAGS	+= -mcpu=cortex-a53
+endif
+
 ifdef CONFIG_LLVM_POLLY
 KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-run-dce \
@@ -745,6 +749,10 @@ KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-invariant-load-hoisting
 endif
 else ifeq ($(cc-name),gcc)
+ifeq ($(CONFIG_SOC_EXYNOS9610), y)
+KBUILD_CFLAGS	+= $(call cc-option,-mcpu=cortex-a73.cortex-a53,$(call cc-option,-mcpu=cortex-a53))
+endif
+
 ifdef CONFIG_GCC_GRAPHITE
 KBUILD_CFLAGS   += -fgraphite-identity
 endif
