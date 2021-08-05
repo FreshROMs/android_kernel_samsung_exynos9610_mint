@@ -70,13 +70,20 @@ download_toolchain() {
 }
 
 verify_toolchain() {
+	sleep 2
+	script_echo " "
+
 	if [[ -d "${TOOLCHAIN}" ]]; then
-		sleep 2
 		script_echo "I: Toolchain found at default location"
 		export PATH="${TOOLCHAIN}/clang-r383902b/bin:${TOOLCHAIN}/aarch64-linux-android-4.9/bin:${TOOLCHAIN}/arm-linux-androideabi-4.9/bin:$PATH"
 	elif [[ -d "${TOOLCHAIN_EXT}" ]]; then
-		sleep 2
+
 		script_echo "I: Toolchain found at repository root"
+
+		cd ${TOOLCHAIN_EXT}
+		git pull
+		cd ${ORIGIN_DIR}
+
 		export PATH="${TOOLCHAIN_EXT}/clang-r383902b/bin:${TOOLCHAIN_EXT}/aarch64-linux-android-4.9/bin:${TOOLCHAIN_EXT}/arm-linux-androideabi-4.9/bin:$PATH"
 	else
 		script_echo "I: Toolchain not found at default location or repository root"
