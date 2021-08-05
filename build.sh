@@ -40,7 +40,7 @@ fi
 
 # Toolchain options
 BUILD_PREF_COMPILER='clang'
-BUILD_PREF_COMPILER_VERSION='google'
+BUILD_PREF_COMPILER_VERSION='proton'
 
 # Local toolchain directory
 TOOLCHAIN=$HOME/toolchains/exynos9610_toolchains_fresh
@@ -65,7 +65,7 @@ exit_script() {
 }
 
 download_toolchain() {
-	git clone https://github.com/TenSeventy7/exynos9610_toolchains_fresh.git ${TOOLCHAIN_EXT} --depth 1 2>&1 | sed 's/^/     /'
+	git clone https://github.com/TenSeventy7/exynos9610_toolchains_fresh.git ${TOOLCHAIN_EXT} --single-branch -b ${BUILD_PREF_COMPILER_VERSION} --depth 1 2>&1 | sed 's/^/     /'
 	verify_toolchain
 }
 
@@ -75,7 +75,8 @@ verify_toolchain() {
 
 	if [[ -d "${TOOLCHAIN}" ]]; then
 		script_echo "I: Toolchain found at default location"
-		export PATH="${TOOLCHAIN}/clang-r383902b/bin:${TOOLCHAIN}/aarch64-linux-android-4.9/bin:${TOOLCHAIN}/arm-linux-androideabi-4.9/bin:$PATH"
+		export PATH="${TOOLCHAIN}/bin:$PATH"
+		export LD_LIBRARY_PATH="${TOOLCHAIN}/lib:$LD_LIBRARY_PATH"
 	elif [[ -d "${TOOLCHAIN_EXT}" ]]; then
 
 		script_echo "I: Toolchain found at repository root"
@@ -84,17 +85,18 @@ verify_toolchain() {
 		git pull
 		cd ${ORIGIN_DIR}
 
-		export PATH="${TOOLCHAIN_EXT}/clang-r383902b/bin:${TOOLCHAIN_EXT}/aarch64-linux-android-4.9/bin:${TOOLCHAIN_EXT}/arm-linux-androideabi-4.9/bin:$PATH"
+		export PATH="${TOOLCHAIN_EXT}/bin:$PATH"
+		export LD_LIBRARY_PATH="${TOOLCHAIN_EXT}/lib:$LD_LIBRARY_PATH"
 	else
 		script_echo "I: Toolchain not found at default location or repository root"
 		script_echo "   Downloading recommended toolchain at ${TOOLCHAIN_EXT}..."
 		download_toolchain
 	fi
 
-	# Google Clang 11.0.2 - Android 11
-	export CLANG_TRIPLE=aarch64-linux-gnu-
-	export CROSS_COMPILE=aarch64-linux-android-
-	export CROSS_COMPILE_ARM32=arm-linux-androideabi-
+	# Proton Clang 13
+	# export CLANG_TRIPLE=aarch64-linux-gnu-
+	export CROSS_COMPILE=aarch64-linux-gnu-
+	export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 	export CC=${BUILD_PREF_COMPILER}
 }
 
