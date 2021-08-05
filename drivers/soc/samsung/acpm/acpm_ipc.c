@@ -33,7 +33,7 @@ static struct workqueue_struct *update_log_wq;
 static struct acpm_debug_info *acpm_debug;
 static bool is_acpm_stop_log = false;
 static bool acpm_stop_log_req = false;
-struct acpm_framework *acpm_initdata;
+volatile struct acpm_framework *acpm_initdata;
 void __iomem *acpm_srambase;
 struct regulator_ss_info regulator_ss[REGULATOR_SS_MAX];
 char reg_map[0x100] = {0};
