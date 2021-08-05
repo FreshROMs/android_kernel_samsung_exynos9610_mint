@@ -261,8 +261,7 @@ script_echo '         Fresh Core Kernel Build Script        '
 script_echo '       by TenSeventy7 - Licensed in GPLv3      '
 script_echo '                                               '
 script_echo '       Originally built for Project ShadowX    '
-script_echo '    Updated Apr 10 2021 for The Fresh Project  '
-script_echo '            Last Updated Aug 03 2021           '
+script_echo '            Last Updated Aug 05 2021           '
 script_echo '==============================================='
 script_echo ' '
 
@@ -339,7 +338,12 @@ export KCONFIG_BUILTINCONFIG=${BUILD_CONFIG_DIR}/exynos9610-${BUILD_DEVICE_NAME}
 BUILD_DEVICE_OUTPUT=${BUILD_OUTPUT_DIR}/${BUILD_DEVICE_NAME}
 
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
-	FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+	else
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}-noroot_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+	fi
+
 	if [[ ${BUILD_KERNEL_BRANCH} == "staging" ]]; then
 		LOCALVERSION=' - Fresh Core'
 		export LOCALVERSION=' - Fresh Core'
@@ -348,7 +352,12 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		export LOCALVERSION=" - Fresh Core-${BUILD_KERNEL_BRANCH}"
 	fi
 else
-	FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+	else
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}-noroot_user_${BUILD_DATE}.zip
+	fi
+
 	BUILD_KERNEL_BRANCH='user'
 	LOCALVERSION=" - Fresh Core-user"
 	export LOCALVERSION=" - Fresh Core-user"
