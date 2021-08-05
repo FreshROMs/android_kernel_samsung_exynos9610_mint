@@ -136,8 +136,8 @@ __pycache__/
 arch/arm64/configs/tmp_*
 
 # Outputs by build script
-tools/make_bin/package/boot.img
-tools/make_bin/package/fresh_core.prop
+tools/make/package/boot.img
+tools/make/package/fresh_core.prop
 FreshCore-*.zip
 
 # For initramfs

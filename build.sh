@@ -188,7 +188,7 @@ build_image() {
 		script_echo "     Android Version: ${PLATFORM_VERSION}"
 		script_echo "Security patch level: ${PLATFORM_PATCH_LEVEL}"
 
-		${ORIGIN_DIR}/tools/make_bin/bin/mkbootimg \
+		${ORIGIN_DIR}/tools/make/bin/mkbootimg \
 				  --kernel $(pwd)/arch/arm64/boot/Image \
 				  --cmdline " " --board "$DEVICE_KERNEL_BOARD" \
 				  --base $DEVICE_KERNEL_BASE --pagesize $DEVICE_KERNEL_PAGESIZE \
@@ -196,9 +196,9 @@ build_image() {
 				  --second_offset $DEVICE_SECOND_OFFSET --tags_offset $DEVICE_TAGS_OFFSET \
 				  --os_version "$PLATFORM_VERSION" --os_patch_level "$PLATFORM_PATCH_LEVEL" \
 				  --header_version $DEVICE_KERNEL_HEADER --hashtype $DEVICE_DTB_HASHTYPE \
-				  -o ${ORIGIN_DIR}/tools/make_bin/boot.img
+				  -o ${ORIGIN_DIR}/tools/make/boot.img
 
-		if [[ ! -f ${ORIGIN_DIR}/tools/make_bin/boot.img ]]; then
+		if [[ ! -f ${ORIGIN_DIR}/tools/make/boot.img ]]; then
 			script_echo " "
 			script_echo "E: Kernel image not built successfully!"
 			script_echo "   Errors can be fround from above."
@@ -247,12 +247,12 @@ build_package() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
 
-	mv ${ORIGIN_DIR}/tools/make_bin/boot.img $(pwd)/tools/make_bin/package/boot.img -f
-	touch $(pwd)/tools/make_bin/package/fresh_core.prop
-	echo "fresh.core.build=${BUILD_DATE}" > $(pwd)/tools/make_bin/package/fresh_core.prop
-	echo "fresh.core.branch=${BUILD_KERNEL_BRANCH}" >> $(pwd)/tools/make_bin/package/fresh_core.prop
+	mv ${ORIGIN_DIR}/tools/make/boot.img $(pwd)/tools/make/package/boot.img -f
+	touch $(pwd)/tools/make/package/fresh_core.prop
+	echo "fresh.core.build=${BUILD_DATE}" > $(pwd)/tools/make/package/fresh_core.prop
+	echo "fresh.core.branch=${BUILD_KERNEL_BRANCH}" >> $(pwd)/tools/make/package/fresh_core.prop
 
-	cd $(pwd)/tools/make_bin/package
+	cd $(pwd)/tools/make/package
 
 	zip -9 -r ./${FILE_OUTPUT} ./* 2>&1 | sed 's/^/     /'
 	mv ./${FILE_OUTPUT} ${BUILD_KERNEL_OUTPUT}
