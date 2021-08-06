@@ -88,15 +88,15 @@ verify_toolchain() {
 		export PATH="${TOOLCHAIN_EXT}/bin:$PATH"
 		export LD_LIBRARY_PATH="${TOOLCHAIN_EXT}/lib:$LD_LIBRARY_PATH"
 
-		if [[ BUILD_KERNEL_CI == 'true' ]]; then
-			mkdir -p /root/build/install/aarch64-linux-gnu
+		if [[ ${BUILD_KERNEL_CI} == 'true' ]]; then
+			sudo mkdir -p /root/build/install/aarch64-linux-gnu
 			sudo cp "${TOOLCHAIN_EXT}/lib" /root/build/install/aarch64-linux-gnu/
-			
-			sudo setfacl -m u:${CURRENT_BUILD_USER}:rwx /root
-			sudo setfacl -m u:${CURRENT_BUILD_USER}:rwx /root/build
-			sudo setfacl -m u:${CURRENT_BUILD_USER}:rwx /root/build/install
-			sudo setfacl -m u:${CURRENT_BUILD_USER}:rwx /root/build/install/aarch64-linux-gnu
-			sudo setfacl -m u:${CURRENT_BUILD_USER}:rwx /root/build/install/aarch64-linux-gnu/lib
+
+			sudo chown ${CURRENT_BUILD_USER} /root
+			sudo chown ${CURRENT_BUILD_USER} /root/build
+			sudo chown ${CURRENT_BUILD_USER} /root/build/install
+			sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu
+			sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu/lib
 		fi
 	else
 		script_echo "I: Toolchain not found at default location or repository root"
