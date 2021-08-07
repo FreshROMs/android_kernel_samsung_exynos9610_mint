@@ -1430,6 +1430,7 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	nla_for_each_attr(attr, data, len, temp1) {
 		if (!attr) {
+			SLSI_ERR_NODEV("Attribute is null : len = %d\n", len);
 			ret = -EINVAL;
 			break;
 		}
@@ -1445,7 +1446,7 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 				ret = -EINVAL;
 				goto exit;
 			}
-			if (num_bssids == 0 || (num_bssids > (u32)((ULONG_MAX - sizeof(*acl_data)) / (sizeof(struct mac_address))))) {
+			if (num_bssids > (u32)((ULONG_MAX - sizeof(*acl_data)) / (sizeof(struct mac_address)))) {
 				ret = -EINVAL;
 				goto exit;
 			}
@@ -1492,15 +1493,17 @@ static int slsi_set_bssid_blacklist(struct wiphy *wiphy, struct wireless_dev *wd
 			goto exit;
 		}
 	}
-	if (from_supplicant) {
-		kfree(ndev_vif->acl_data_supplicant);
-		ndev_vif->acl_data_supplicant = acl_data;
-	} else {
-		kfree(ndev_vif->acl_data_hal);
-		ndev_vif->acl_data_hal = acl_data;
-	}
 
-	slsi_set_acl(sdev, ndev_vif);
+	if (acl_data) {
+		if (from_supplicant) {
+			kfree(ndev_vif->acl_data_supplicant);
+			ndev_vif->acl_data_supplicant = acl_data;
+		} else {
+			kfree(ndev_vif->acl_data_hal);
+			ndev_vif->acl_data_hal = acl_data;
+		}
+		ret = slsi_set_acl(sdev, net_dev);
+	}
 
 exit:
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
@@ -5619,7 +5622,8 @@ static const struct  nl80211_vendor_cmd_info slsi_vendor_events[] = {
 	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_REQ},
 	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_CFM},
 	{ OUI_GOOGLE,  SLSI_NAN_EVENT_NDP_END},
-	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_RCL_CHANNEL_LIST_EVENT}
+	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_RCL_CHANNEL_LIST_EVENT},
+	{ OUI_SAMSUNG, SLSI_NL80211_VENDOR_POWER_MEASUREMENT_EVENT}
 };
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))

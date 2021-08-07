@@ -19,6 +19,7 @@
 #include "src_sink.h"
 #include "unifiio.h"
 #include "procfs.h"
+#include "sap_mlme.h"
 
 #ifdef SLSI_TEST_DEV
 #include "unittest.h"
@@ -713,6 +714,51 @@ static long slsi_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 			client->ma_unitdata_filter_config = UDI_MA_UNITDATA_FILTER_ALLOW_EAPOL_ID;
 		else
 			client->ma_unitdata_filter_config = 0;
+		break;
+	}
+	case UNIFI_GET_SW_VERSION:
+	{
+		int res = 0;
+		char build_info[200];
+		int len = 0;
+#ifndef SLSI_TEST_DEV
+		memset(build_info, 0, 200);
+		mxman_get_fw_version(build_info, 200);
+		len = strlen(build_info);
+		sprintf(build_info + len, " ");
+		if (len >= 200) {
+			build_info[len - 1] = '.';
+			build_info[len - 2] = '.';
+			build_info[len - 3] = '.';
+		}
+		mxman_get_driver_version(build_info + len + 1, 200 - len - 1);
+#else
+		memset(build_info, 0, 200);
+		strcpy(build_info, "UT Build");
+#endif
+		/* Copy back the number of Bytes in the version result */
+		res = copy_to_user((void *)arg, build_info, 200);
+		if (res) {
+			SLSI_ERR(sdev, "UNIFI_GET_SW_VERSION: error back to user %d\n", res);
+			r = -EINVAL;
+			break;
+		}
+		break;
+	}
+	case UNIFI_GET_FAPI_VERSION:
+	{
+		int res = 0;
+		char fapi_info[100];
+
+		memset(fapi_info, 0, 100);
+		slsi_get_fapi_version_string(fapi_info);
+		/* Copy back the number of Bytes in the version result */
+		res = copy_to_user((void *)arg, fapi_info, 100);
+		if (res) {
+			SLSI_ERR(sdev, "UNIFI_GET_FAPI_VERSION: error back to user %d\n", res);
+			r = -EINVAL;
+			break;
+		}
 		break;
 	}
 	default:

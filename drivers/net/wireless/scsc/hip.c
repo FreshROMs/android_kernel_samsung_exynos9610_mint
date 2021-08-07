@@ -328,9 +328,9 @@ int slsi_hip_stop(struct slsi_dev *sdev)
 	return 0;
 }
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-void slsi_hip_set_napi_cpu(struct slsi_dev *sdev, u8 napi_cpu)
+void slsi_hip_set_napi_cpu(struct slsi_dev *sdev, u8 napi_cpu, bool perf_mode)
 {
-	hip4_set_napi_cpu(&sdev->hip4_inst, napi_cpu);
+	hip4_set_napi_cpu(&sdev->hip4_inst, napi_cpu, perf_mode);
 }
 #else
 void slsi_hip_reprocess_skipped_data_bh(struct slsi_dev *sdev)

@@ -109,6 +109,8 @@ extern "C" {
 #define UNIFI_BA_CFG       _IOWR('u',  0x34, struct unifiio_ba_cfg_t)
 #define UNIFI_SUSPEND_RESUME_CFG       _IOWR('u',  0x35, struct unifiio_suspend_resume_cfg_t)
 #define UNIFI_SRC_SINK_IOCTL        _IOWR('u',  0x41, struct unifiio_src_sink_arg_t)
+#define UNIFI_GET_FAPI_VERSION      _IOWR('u',  0x42, char[200])
+#define UNIFI_GET_SW_VERSION        _IOWR('u',  0x43, char[200])
 
 #define src_sink_action uint16_t
 #define SRC_SINK_ACTION_NONE               ((src_sink_action)0x0000)

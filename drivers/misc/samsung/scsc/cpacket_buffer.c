@@ -77,9 +77,11 @@ static bool cpacketbuffer_write_block(struct cpacketbuffer *buffer, const void *
 	uint32_t start_write_index;
 	uint32_t end_write_index;
 
-	if (num_packets > cpacketbuffer_free_space(buffer))
+	if (num_packets > cpacketbuffer_free_space(buffer)) {
 		/* Not enough free packets to write this block */
+		SCSC_TAG_ERR(CPKTBUFF, "Not enough free packets in buffer, requested %u free_space %u\n", num_packets, cpacketbuffer_free_space(buffer));
 		return false;
+	}
 
 	source_data = (const uint8_t *)buf;
 	start_write_index = cpacketbuffer_write_index(buffer);
@@ -96,7 +98,7 @@ static bool cpacketbuffer_write_block(struct cpacketbuffer *buffer, const void *
 		memcpy(cpacketbuffer_index_to_address(buffer, buffer->write_index), source_data, num_bytes);
 
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 	cpacketbuffer_advance_index(buffer->write_index, num_packets, buffer->num_packets);
 
 	return true;
@@ -169,18 +171,22 @@ bool cpacketbuffer_write(struct cpacketbuffer *buffer, const void *buf, uint32_t
 {
 	uint32_t start_write_index;
 
-	if (buf == NULL || num_bytes == 0)
+	if (buf == NULL || num_bytes == 0) {
+		SCSC_TAG_ERR(CPKTBUFF, "Error buf %p num_bytes %u\n", buf, num_bytes);
 		return false;
+	}
 
 	SCSC_TAG_DBG4(CPKTBUFF, "Before: *buffer->read_index=0x%x *buffer->write_index=0x%x\n",
 		      *buffer->read_index, *buffer->write_index);
 
 	start_write_index = cpacketbuffer_write_index(buffer);
-	if (!cpacketbuffer_write_block(buffer, buf, num_bytes))
+	if (!cpacketbuffer_write_block(buffer, buf, num_bytes)) {
+		SCSC_TAG_ERR(CPKTBUFF, "Error writing cpacketbuffer_write_block %u bytes\n", num_bytes);
 		return false;
+	}
 
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 
 	SCSC_TAG_DBG4(CPKTBUFF, "After: *buffer->read_index=0x%x *buffer->write_index=0x%x\n",
 		      *buffer->read_index, *buffer->write_index);
@@ -193,8 +199,10 @@ bool cpacketbuffer_write_gather(struct cpacketbuffer *buffer, const void **bufs,
 	uint32_t start_write_index;
 	uint32_t i;
 
-	if (bufs == NULL || num_bytes == 0 || num_bufs == 0)
+	if (bufs == NULL || num_bytes == 0 || num_bufs == 0) {
+		SCSC_TAG_ERR(CPKTBUFF, "Error bufs %p num_bufs %u\n", bufs, num_bufs);
 		return false;
+	}
 
 	start_write_index = cpacketbuffer_write_index(buffer);
 	for (i = 0; i < num_bufs; ++i) {
@@ -203,8 +211,12 @@ bool cpacketbuffer_write_gather(struct cpacketbuffer *buffer, const void **bufs,
 		uint32_t whole_packet_len = num_bytes[i] - partial_packet_len;
 
 		if (whole_packet_len > 0 &&
-		    !cpacketbuffer_write_block(buffer, bufs[i], whole_packet_len))
+		    !cpacketbuffer_write_block(buffer, bufs[i], whole_packet_len)) {
+			SCSC_TAG_ERR(CPKTBUFF, "Error writing cpacketbuffer_write_block partial %u whole %u\n", partial_packet_len,  whole_packet_len);
+			SCSC_TAG_ERR(CPKTBUFF, "num_buf %u index %u num_bytes[i] %u buffer->packet_size %u\n",
+						num_bufs, i, num_bytes[i], buffer->packet_size);
 			return false;
+		}
 
 		if (partial_packet_len != 0) {
 			/* Partial packet present - write this and enough from the next data block(s) to fill this packet
@@ -230,13 +242,13 @@ bool cpacketbuffer_write_gather(struct cpacketbuffer *buffer, const void **bufs,
 			}
 
 			/* CPU memory barrier */
-			wmb();
+			smp_wmb();
 			cpacketbuffer_advance_index(buffer->write_index, 1, buffer->num_packets);
 		}
 	}
 
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 
 	return true;
 }
@@ -275,11 +287,11 @@ uint32_t cpacketbuffer_read(struct cpacketbuffer *buffer, void *buf, uint32_t nu
 		memcpy(buf, read_start, num_bytes);
 
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 	/* Update the read index with how many packets we pulled out of the stream */
 	cpacketbuffer_advance_index(buffer->read_index, num_packets, buffer->num_packets);
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 
 	return num_bytes;
 }
@@ -314,7 +326,7 @@ void cpacketbuffer_peek_complete(struct cpacketbuffer *buffer, const void *curre
 	*buffer->read_index = cpacketbuffer_address_to_index(buffer,
 							     (const uint8_t *)current_packet + buffer->packet_size);
 	/* CPU memory barrier */
-	wmb();
+	smp_wmb();
 }
 
 bool cpacketbuffer_is_empty(const struct cpacketbuffer *buffer)

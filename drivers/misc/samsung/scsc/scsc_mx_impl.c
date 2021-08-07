@@ -35,6 +35,11 @@
 #ifdef CONFIG_SCSC_WLBTD
 #include "scsc_wlbtd.h"
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#include <scsc/scsc_wakelock.h>
+#else
+#include <linux/wakelock.h>
+#endif
 
 struct scsc_mx {
 	struct scsc_mif_abs     *mif_abs;
@@ -65,6 +70,12 @@ struct scsc_mx {
 	struct mxlog_transport  mxlog_transport;
 	struct suspendmon	suspendmon;
 	struct mxfwconfig	mxfwconfig;
+	struct mutex            scsc_mx_read_mutex;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+	struct scsc_wake_lock   scsc_mx_wl_request_firmware;
+#else
+	struct wake_lock        scsc_mx_wl_request_firmware;
+#endif
 };
 
 
@@ -89,6 +100,12 @@ struct scsc_mx *scsc_mx_create(struct scsc_mif_abs *mif)
 	scsc_wlbtd_init();
 #endif
 	mx_syserr_init();
+	mutex_init(&mx->scsc_mx_read_mutex);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+	wake_lock_init(&mx->scsc_mx_wl_request_firmware, WAKE_LOCK_SUSPEND, "scsc_mx_request_firmware");
+#else
+	wake_lock_init(NULL, &mx->scsc_mx_wl_request_firmware.ws, "scsc_mx_request_firmware");
+#endif
 	SCSC_TAG_DEBUG(MXMAN, "Hurray Maxwell is here with %p\n", mx);
 	return mx;
 }
@@ -106,6 +123,8 @@ void scsc_mx_destroy(struct scsc_mx *mx)
 	mifproc_remove_proc_dir();
 	srvman_deinit(&mx->srvman);
 	mxman_deinit(&mx->mxman);
+	wake_lock_destroy(&mx->scsc_mx_wl_request_firmware);
+	mutex_destroy(&mx->scsc_mx_read_mutex);
 #ifdef CONFIG_SCSC_WLBTD
 	scsc_wlbtd_deinit();
 #endif
@@ -225,3 +244,19 @@ struct mxfwconfig *scsc_mx_get_mxfwconfig(struct scsc_mx *mx)
 	return &mx->mxfwconfig;
 }
 
+void scsc_mx_request_firmware_mutex_lock(struct scsc_mx *mx)
+{
+	mutex_lock(&mx->scsc_mx_read_mutex);
+}
+void scsc_mx_request_firmware_wake_lock(struct scsc_mx *mx)
+{
+	wake_lock(&mx->scsc_mx_wl_request_firmware);
+}
+void scsc_mx_request_firmware_mutex_unlock(struct scsc_mx *mx)
+{
+	mutex_unlock(&mx->scsc_mx_read_mutex);
+}
+void scsc_mx_request_firmware_wake_unlock(struct scsc_mx *mx)
+{
+	wake_unlock(&mx->scsc_mx_wl_request_firmware);
+}

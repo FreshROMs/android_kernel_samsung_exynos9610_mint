@@ -8,7 +8,7 @@ config SCSC_BT_BLUEZ
         depends on SCSC_CORE
 
 config SCSC_ANT
-	default Y
+	default N
         tristate "SCSC MX ANT support"
         depends on SCSC_CORE
 	---help---

@@ -181,7 +181,8 @@ int mx_gdb_open(struct inode *inode, struct file *filp)
 static ssize_t mx_gdb_write(struct file *filp, const char __user *ubuf, size_t len, loff_t *offset)
 {
 	struct mx_mmap_dev *mx_dev;
-	char *wbuf = NULL, *lbuf = NULL, buf[SCSC_GDB_DEF_BUF_SZ] = {};
+	static char buf[SCSC_GDB_DEF_BUF_SZ] = {};
+	char *wbuf = NULL, *lbuf = NULL;
 
 	mx_dev = filp->private_data;
 	/* When write_req do NOT fit inside the auto array just dyn-alloc */

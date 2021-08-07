@@ -9,7 +9,6 @@
 #ifndef __SCSC_BT_PRIV_H
 #define __SCSC_BT_PRIV_H
 
-#include <linux/pm_qos.h>
 #include <linux/poll.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 #include <scsc/scsc_wakelock.h>
@@ -167,8 +166,8 @@ struct scsc_bt_avdtp_detect_src_snk {
 };
 
 struct scsc_bt_avdtp_detect_snk_seid {
-	uint8_t								seid;
-	struct scsc_bt_avdtp_detect_snk_seid	*next;
+	uint8_t                                 seid;
+	struct scsc_bt_avdtp_detect_snk_seid    *next;
 };
 
 struct scsc_bt_avdtp_detect_hci_connection {
@@ -188,11 +187,20 @@ struct scsc_bt_avdtp_detect {
 };
 
 struct scsc_common_service {
-	struct scsc_mx                *maxwell_core;
+	struct scsc_mx                 *maxwell_core;
 	struct class                   *class;
 };
 
 extern struct scsc_common_service common_service;
+
+struct scsc_qos_service {
+	struct work_struct             work_queue;
+	bool                           enabled;
+	u32                            number_of_outstanding_hci_events;
+	u32                            number_of_outstanding_acl_packets;
+	uint32_t                       hci_events_stats[BSMHCP_TRANSFER_RING_EVT_SIZE];
+	uint32_t                       acl_packet_stats[BSMHCP_TRANSFER_RING_ACL_SIZE];
+};
 
 #ifdef CONFIG_SCSC_LOG_COLLECTION
 struct scsc_bt_hcf_collection {
@@ -463,6 +471,14 @@ bool scsc_bt_shm_h4_avdtp_detect_write(uint32_t flags,
 									   uint16_t l2cap_cid,
 									   uint16_t hci_connection_handle);
 void scsc_avdtp_detect_exit(void);
+
+#ifdef CONFIG_SCSC_QOS
+void scsc_bt_qos_service_init(void);
+void scsc_bt_qos_service_start(void);
+void scsc_bt_qos_service_stop(void);
+void scsc_bt_qos_update(uint32_t number_of_outstanding_hci_events,
+			uint32_t number_of_outstanding_acl_packets);
+#endif
 
 #ifdef CONFIG_SCSC_BT_BLUEZ
 void slsi_bt_notify_probe(struct device *dev,

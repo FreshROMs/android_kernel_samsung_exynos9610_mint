@@ -64,7 +64,7 @@
 #define MM_MXLOGGER_PAYLOAD_SZ          (MXMGR_MESSAGE_PAYLOAD_SIZE - 2)
 
 /* Exynos3830's reserved memory changed */
-#if defined(CONFIG_SOC_EXYNOS3830) || defined(CONFIG_SOC_EXYNOS7885)
+#if defined(CONFIG_SOC_EXYNOS7885) || defined(CONFIG_SOC_EXYNOS3830)
 #define MXL_INTERNAL_RSV		(24 * 1024)
 #define MXL_POOL_SZ			((4 * 1024 * 1024) - MXL_INTERNAL_RSV)
 #define MXLOGGER_RSV_COMMON_SZ		(2 * 1024)

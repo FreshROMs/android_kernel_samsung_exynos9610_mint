@@ -294,9 +294,14 @@ void mxmgmt_transport_send(struct mxmgmt_transport *mxmgmt_transport, enum mxmgr
 			   void *message, uint32_t message_length)
 {
 	struct mxmgr_message transport_msg = { .channel_id = channel_id };
+	bool res;
 
 	const void           *bufs[2] = { &transport_msg.channel_id, message };
 	uint32_t             buf_lengths[2] = { sizeof(transport_msg.channel_id), message_length };
 
-	mif_stream_write_gather(&mxmgmt_transport->mif_ostream, bufs, buf_lengths, 2);
+	res = mif_stream_write_gather(&mxmgmt_transport->mif_ostream, bufs, buf_lengths, 2);
+
+	if (res == false)
+		SCSC_TAG_ERR(MXMGT_TRANS, "mif_stream_write_gather message error. Channel %d message_len %u\n",
+					  channel_id, message_length);
 }

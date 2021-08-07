@@ -840,56 +840,56 @@ static void wlbt_regdump(struct platform_mif *platform)
  * Attached array contains the replacement PMU boot code which should
  * be programmed using the CBUS during the config phase.
  */
-
-uint32_t ka_patch[]={
-// Maxwell142 PMU+PROC combined boot ROM
-// IP Version: 0xA3
-// Major Version: 0xF, Minor Version: 0xF
-// PMU ROM version: 0x4
-// PROC  ROM version: 0x0
-    0x02780002,
-    0xce53fed8,
-    0x3fe843ef,
-    0x45117611,
-    0xe50e8075,
-    0xfbe030b3,
-    0x7415a230,
-    0xb5b1f507,
-    0xb175fdb2,
-    0xf5077400,
-    0x54ade5ac,
-    0xf907b407,
-    0xe501b443,
-    0xfbe020b3,
-    0xd2feb453,
-    0x78d480a3,
-    0x80837982,
-    0xf7f753ce,
-    0x79fece53,
-    0x53fed904,
-    0x0c79fdce,
-    0x9275fed9,
-    0xfbce53b7,
-    0x74fd9153,
-    0x5392f500,
-    0x9275f7ce,
-    0x02f943b7,
-    0x22fef953,
-    0xd8fed9f9,
-    0x9e7522fb,
-    0x01d27501,
-    0x75e7d575,
-    0xc67504c3,
-    0x80c17520,
-    0xc3740478,
-    0x75708012,
-    0x0278c8c1,
-    0x80128274,
-    0x0d807570,
-    0x75029175,
-    0x9e750393,
-    0x01a97502,
-    0x00000022,
+uint32_t ka_patch[] = {
+	// Maxwell142 PMU+PROC combined boot ROM
+	// IP Version: 0xA3
+	// Major Version: 0xF, Minor Version: 0xF
+	// PMU ROM version: 0x5
+	// PROC  ROM version: 0x0
+	// WPLL 10/30 -> 40/40
+	0x02780002,
+	0xce53fed8,
+	0x3fe843ef,
+	0x45117611,
+	0xe50e8075,
+	0xfbe030b3,
+	0x7415a230,
+	0xb5b1f507,
+	0xb175fdb2,
+	0xf5077400,
+	0x54ade5ac,
+	0xf907b407,
+	0xe501b443,
+	0xfbe020b3,
+	0xd2feb453,
+	0x78d480a3,
+	0x80837982,
+	0xf7f753ce,
+	0x79fece53,
+	0x53fed904,
+	0x0c79fdce,
+	0x9275fed9,
+	0xfbce53b7,
+	0x74fd9153,
+	0x5392f500,
+	0x9275f7ce,
+	0x02f943b7,
+	0x22fef953,
+	0xd8fed9f9,
+	0x9e7522fb,
+	0x01d27501,
+	0x75e7d575,
+	0xc67504c3,
+	0x80c17520,
+	0xd0740578,
+	0x75708012,
+	0x0578c8c1,
+	0x8012d074,
+	0x0d807570,
+	0x75029175,
+	0x9e750393,
+	0x01a97502,
+	0x00000022,
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
@@ -1839,6 +1839,10 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 		"updated successfully WLBT_CTRL_NS[WLBT_ACTIVE_EN]: 0x%x\n", val);
 
+	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+		"delay to settle poweron and buses\n");
+	mdelay(10);
+
 	/* Now handle the CFG_REQ IRQ */
 	enable_irq(platform->wlbt_irq[PLATFORM_MIF_CFG_REQ].irq_num);
 
@@ -2608,7 +2612,7 @@ inline void platform_int_debug(struct platform_mif *platform)
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_ACTIVE,  &active);
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_MASKED,  &masked);
 		if (!ret)
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d",
+			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d\n",
 							  irq, irqs_name[i], pending, active, masked);
 	}
 	platform_mif_dump_register(&platform->interface);
