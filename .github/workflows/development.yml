@@ -1,0 +1,74 @@
+name: Development (Main/WIP) Build
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'main'
+      - 'android-*'
+      - 'wip-*'
+
+jobs:
+  a50-fresh:
+    name: Build Galaxy A50 (Fresh/One UI)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --magisk --automated --device a50
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50-fresh.txt
+
+    - name: Upload boot image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'tools/make/package/boot.img'
+        if-no-files-found: error
+
+    - name: Upload build config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'release/kernel_config_a50-fresh.txt'
+        if-no-files-found: error
+
+    - name: Upload ZIP package artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 ZIP Package (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'release/*.zip'
+        if-no-files-found: error
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: a50-fresh_${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'release'
+        if-no-files-found: error
