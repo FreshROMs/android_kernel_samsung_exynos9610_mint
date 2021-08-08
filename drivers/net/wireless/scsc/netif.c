@@ -264,8 +264,6 @@ static int slsi_net_open(struct net_device *dev)
 	struct slsi_dev   *sdev = ndev_vif->sdev;
 	int               err;
 	unsigned char	  dev_addr_zero_check[ETH_ALEN];
-	struct net_device		  *ap_dev = NULL;
-	struct netdev_vif		 *ap_dev_vif;
 #ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 	struct net_device *nan_dev;
 	struct netdev_vif *nan_ndev_vif;
@@ -283,23 +281,6 @@ static int slsi_net_open(struct net_device *dev)
 
 	/* check if request to rf test mode. */
 	slsi_check_rf_test_mode();
-
-	if (!sdev->mac_changed)
-		memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (!sdev->netdev_up_count ) {
-		slsi_purge_blacklist(ndev_vif);
-	} else if (sdev->netdev_up_count == 1) {
-		ap_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
-		if (ap_dev) {
-			ap_dev_vif = netdev_priv(ap_dev);
-			if (ap_dev_vif->is_available)
-				slsi_purge_blacklist(ndev_vif);
-		}
-	}
-
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
 	err = slsi_start(sdev);
 	if (WARN_ON(err)) {
@@ -751,8 +732,8 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 		{
 #ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
 			if ((proto == ETH_P_IP && slsi_is_dns_packet(skb->data)) ||
-			    (proto == ETH_P_IP && slsi_is_mdns_packet(skb->data)) ||
-			    (proto == ETH_P_IP && slsi_is_tcp_sync_packet(dev, skb))) {
+				(proto == ETH_P_IP && slsi_is_mdns_packet(skb->data)) ||
+				(proto == ETH_P_IP && slsi_is_tcp_sync_packet(dev, skb))) {
 				skb->priority = FAPI_PRIORITY_QOS_UP7;
 			} else
 #endif
@@ -1267,31 +1248,31 @@ static void slsi_if_setup(struct net_device *dev)
 
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 #if defined(CONFIG_SOC_EXYNOS9610) || defined(CONFIG_SOC_EXYNOS3830)
-#define SCSC_NETIF_NAPI_CPU_BIG                   7
-#define SCSC_NETIF_RPS_CPUS_MASK                  "fe"
-#define SCSC_NETIF_RPS_CPUS_BIG_MASK              "70"
+#define SCSC_NETIF_NAPI_CPU_BIG					7
+#define SCSC_NETIF_RPS_CPUS_MASK				"fe"
+#define SCSC_NETIF_RPS_CPUS_BIG_MASK			"70"
 #elif defined(CONFIG_SOC_S5E9815)
-#define SCSC_NETIF_NAPI_CPU_BIG                   4
-#define SCSC_NETIF_RPS_CPUS_MASK                  "00"
-#define SCSC_NETIF_RPS_CPUS_BIG_MASK              "60"
+#define SCSC_NETIF_NAPI_CPU_BIG					6
+#define SCSC_NETIF_RPS_CPUS_MASK				"00"
+#define SCSC_NETIF_RPS_CPUS_BIG_MASK			"30"
 #elif defined(CONFIG_SOC_EXYNOS9630)
-#define SCSC_NETIF_NAPI_CPU_BIG	                  7
-#define SCSC_NETIF_RPS_CPUS_MASK                  "fe"
-#define SCSC_NETIF_RPS_CPUS_BIG_MASK              "40"
+#define SCSC_NETIF_NAPI_CPU_BIG					7
+#define SCSC_NETIF_RPS_CPUS_MASK				"fe"
+#define SCSC_NETIF_RPS_CPUS_BIG_MASK			"40"
 #elif defined(CONFIG_SOC_EXYNOS7885)
-#define SCSC_NETIF_NAPI_CPU_BIG	                  0
-#define SCSC_NETIF_RPS_CPUS_MASK                  "40"
-#define SCSC_NETIF_RPS_CPUS_BIG_MASK              "0"
+#define SCSC_NETIF_NAPI_CPU_BIG					0
+#define SCSC_NETIF_RPS_CPUS_MASK				"40"
+#define SCSC_NETIF_RPS_CPUS_BIG_MASK			"0"
 #else
-#define SCSC_NETIF_NAPI_CPU_BIG                   0
-#define SCSC_NETIF_RPS_CPUS_MASK                  "0"
-#define SCSC_NETIF_RPS_CPUS_BIG_MASK              "0"
+#define SCSC_NETIF_NAPI_CPU_BIG					0
+#define SCSC_NETIF_RPS_CPUS_MASK				"0"
+#define SCSC_NETIF_RPS_CPUS_BIG_MASK			"0"
 #endif
 #else
 #if defined(CONFIG_SOC_EXYNOS3830)
-#define SCSC_NETIF_RPS_CPUS_MASK                  "fe"
+#define SCSC_NETIF_RPS_CPUS_MASK 		"fe"
 #else
-#define SCSC_NETIF_RPS_CPUS_MASK                  "0"
+#define SCSC_NETIF_RPS_CPUS_MASK 		"0"
 #endif
 #endif
 
@@ -1634,7 +1615,6 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	}
 
 	INIT_LIST_HEAD(&ndev_vif->sta.network_map);
-	INIT_LIST_HEAD(&ndev_vif->acl_data_fw_list);
 #ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
 	INIT_LIST_HEAD(&ndev_vif->sta.ssid_info);
 	INIT_LIST_HEAD(&ndev_vif->sta.blacklist_head);
@@ -1653,8 +1633,6 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	}
 
 	INIT_DELAYED_WORK(&ndev_vif->scan_timeout_work, slsi_scan_ind_timeout_handle);
-
-	INIT_DELAYED_WORK(&ndev_vif->blacklist_del_work, slsi_blacklist_del_work_handle);
 #ifndef CONFIG_SCSC_WLAN_RX_NAPI
 	ret = slsi_skb_work_init(sdev, dev, &ndev_vif->rx_data, "slsi_wlan_rx_data", slsi_rx_netdev_data_work);
 	if (ret)
@@ -1876,7 +1854,6 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 	if (SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
 		slsi_p2p_deinit(sdev, ndev_vif);
 	} else if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
-		cancel_delayed_work_sync(&ndev_vif->blacklist_del_work);
 		sdev->wlan_unsync_vif_state = WLAN_UNSYNC_NO_VIF;
 		ndev_vif->vif_type = SLSI_VIFTYPE_UNSPECIFIED;
 	}
@@ -1893,6 +1870,7 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_skb_work_deinit(&ndev_vif->rx_data);
 #endif
 	slsi_skb_work_deinit(&ndev_vif->rx_mlme);
+
 	for (i = 0; i < SLSI_SCAN_MAX; i++)
 		slsi_purge_scan_results(ndev_vif, i);
 
@@ -1915,7 +1893,7 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 			list_del(pos);
 			kfree(ssid_info);
 		}
-		list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
+		list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->sta.blacklist_head) {
 			struct slsi_bssid_blacklist_info *blacklist_info = list_entry(blacklist_pos,
 				struct slsi_bssid_blacklist_info, list);
 
@@ -2481,7 +2459,7 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 
 	/* do not suppress delayed Acks that acknowledges for more than 2 TCP segments (MSS) */
 	if ((!tcp_ack_suppression_delay_acks_suppress) &&
-	    ((u32)be32_to_cpu(tcp_hdr(skb)->ack_seq) - tcp_ack->ack_seq > (2 * tcp_ack->mss))) {
+		((u32)be32_to_cpu(tcp_hdr(skb)->ack_seq) - tcp_ack->ack_seq > (2 * tcp_ack->mss))) {
 		ndev_vif->tcp_ack_stats.tack_delay_acks++;
 		forward_now = 1;
 		goto _forward_now;

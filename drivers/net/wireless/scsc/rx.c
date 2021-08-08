@@ -573,10 +573,10 @@ static int slsi_add_to_scan_list(struct slsi_dev *sdev, struct netdev_vif *ndev_
 #ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
 		if (ieee80211_is_beacon(mgmt->frame_control))
 			current_result->akm_type = slsi_bss_connect_type_get(sdev, mgmt->u.beacon.variable,
-									     fapi_get_mgmtlen(skb) - (mgmt->u.beacon.variable - (u8 *)mgmt));
+			fapi_get_mgmtlen(skb) - (mgmt->u.beacon.variable - (u8 *)mgmt));
 		else
 			current_result->akm_type = slsi_bss_connect_type_get(sdev, mgmt->u.probe_resp.variable,
-									     fapi_get_mgmtlen(skb) - (mgmt->u.probe_resp.variable - (u8 *)mgmt));
+			fapi_get_mgmtlen(skb) - (mgmt->u.probe_resp.variable - (u8 *)mgmt));
 #endif
 		if (scan_ssid && scan_ssid[1]) {
 			memcpy(current_result->ssid, &scan_ssid[2], scan_ssid[1]);
@@ -1719,16 +1719,17 @@ void slsi_rx_ma_to_mlme_delba_req(struct slsi_dev *sdev, struct net_device *dev,
 	}
 
 	slsi_mlme_delba_req(sdev,
-			    dev,
-			    delba_req->peer_qsta_address,
-			    delba_req->user_priority,
-			    delba_req->direction,
-			    delba_req->sequence_number,
-			    delba_req->reason);
+						dev,
+						delba_req->peer_qsta_address,
+						delba_req->user_priority,
+						delba_req->direction,
+						delba_req->sequence_number,
+						delba_req->reason);
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	kfree_skb(skb);
 }
+
 
 static bool get_wmm_ie_from_resp_ie(struct slsi_dev *sdev, struct net_device *dev, u8 *resp_ie, size_t resp_ie_len, const u8 **wmm_elem, u16 *wmm_elem_len)
 {
@@ -2352,127 +2353,6 @@ void slsi_rx_synchronised_ind(struct slsi_dev *sdev, struct net_device *dev, str
 }
 #endif
 
-static void slsi_add_blacklist_info(struct slsi_dev *sdev, struct net_device *dev, struct netdev_vif *ndev_vif, u8 *addr, u32 retention_time)
-{
-	struct slsi_bssid_blacklist_info *data;
-	int blacklist_received_time;
-	struct list_head *blacklist_pos, *blacklist_q;
-
-	/*Check if mac is already present ,
-	 * if present then update the rentention time
-	 */
-	list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
-		struct slsi_bssid_blacklist_info *blacklist_info;
-
-		blacklist_info = list_entry(blacklist_pos, struct slsi_bssid_blacklist_info, list);
-		if (blacklist_info && SLSI_ETHER_EQUAL(blacklist_info->bssid, addr)) {
-			blacklist_received_time =  jiffies_to_msecs(jiffies);
-			blacklist_info->end_time = blacklist_received_time + retention_time * 1000;
-			return;
-		}
-	}
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-
-	if (!data) {
-		SLSI_NET_ERR(dev, "Blacklist_add: Unable to add blacklist MAC:" MACSTR "\n", MAC2STR(addr));
-		return;
-	}
-	ether_addr_copy(data->bssid, addr);
-	blacklist_received_time =  jiffies_to_msecs(jiffies);
-	data->end_time = blacklist_received_time + retention_time * 1000;
-	list_add(&data->list, &ndev_vif->acl_data_fw_list);
-
-	/* send set acl down */
-	slsi_set_acl(sdev, ndev_vif);
-}
-
-int slsi_set_acl(struct slsi_dev *sdev, struct netdev_vif *ndev_vif)
-{
-	struct cfg80211_acl_data *acl_data_total = NULL;
-	int fw_acl_entries_count = 0;
-	struct net_device  *net_dev;
-	int ret = 0;
-	int num_bssid_total = 0;
-	struct list_head *blacklist_pos, *blacklist_q;
-
-	net_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_WLAN);
-	if (!net_dev) {
-		SLSI_WARN_NODEV("net_dev is NULL\n");
-		return -EINVAL;
-	}
-
-	list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
-		fw_acl_entries_count++;
-	}
-
-	if (ndev_vif->acl_data_supplicant)
-		num_bssid_total += ndev_vif->acl_data_supplicant->n_acl_entries;
-	if (ndev_vif->acl_data_hal)
-		num_bssid_total += ndev_vif->acl_data_hal->n_acl_entries;
-	num_bssid_total += fw_acl_entries_count;
-
-	acl_data_total = kmalloc(sizeof(*acl_data_total) + (sizeof(struct mac_address) * num_bssid_total), GFP_KERNEL);
-
-	if (!acl_data_total) {
-		SLSI_ERR(sdev, "Blacklist: Failed to allocate memory\n");
-		return -EINVAL;
-	}
-	acl_data_total->n_acl_entries = 0;
-	acl_data_total->acl_policy = FAPI_ACLPOLICY_BLACKLIST;
-	if (ndev_vif->acl_data_supplicant && ndev_vif->acl_data_supplicant->n_acl_entries) {
-		memcpy(acl_data_total->mac_addrs[acl_data_total->n_acl_entries].addr,
-		       ndev_vif->acl_data_supplicant->mac_addrs[0].addr,
-		       ndev_vif->acl_data_supplicant->n_acl_entries * ETH_ALEN);
-		acl_data_total->n_acl_entries += ndev_vif->acl_data_supplicant->n_acl_entries;
-	}
-	if (ndev_vif->acl_data_hal && ndev_vif->acl_data_hal->n_acl_entries) {
-		memcpy(acl_data_total->mac_addrs[acl_data_total->n_acl_entries].addr,
-		       ndev_vif->acl_data_hal->mac_addrs[0].addr,
-		       ndev_vif->acl_data_hal->n_acl_entries * ETH_ALEN);
-		acl_data_total->n_acl_entries += ndev_vif->acl_data_hal->n_acl_entries;
-	}
-
-	list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
-		struct slsi_bssid_blacklist_info *blacklist_info;
-
-		blacklist_info = list_entry(blacklist_pos, struct slsi_bssid_blacklist_info, list);
-		if (blacklist_info) {
-			memcpy(acl_data_total->mac_addrs[acl_data_total->n_acl_entries].addr, blacklist_info->bssid, ETH_ALEN);
-			acl_data_total->n_acl_entries++;
-		}
-	}
-	ret = slsi_mlme_set_acl(sdev, net_dev, 0, acl_data_total->acl_policy, acl_data_total->n_acl_entries, acl_data_total->mac_addrs);
-	if (ret)
-		SLSI_ERR_NODEV("Failed to set bssid blacklist\n");
-	else
-		ret =  -EINVAL;
-	kfree(acl_data_total);
-	return ret;
-}
-
-void slsi_rx_blacklisted_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	u8 *mac_addr;
-	u32 retention_time;
-
-	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_blacklisted_ind(vif:%d, MAC:" MACSTR " )\n",
-		      fapi_get_vif(skb),
-		      MAC2STR(fapi_get_buff(skb, u.mlme_blacklisted_ind.bssid)));
-
-	cancel_delayed_work_sync(&ndev_vif->blacklist_del_work);
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	mac_addr = fapi_get_buff(skb, u.mlme_blacklisted_ind.bssid);
-	retention_time = fapi_get_u32(skb, u.mlme_blacklisted_ind.reassociation_retry_delay);
-	slsi_add_blacklist_info(sdev, dev, ndev_vif, mac_addr, retention_time);
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	queue_delayed_work(sdev->device_wq, &ndev_vif->blacklist_del_work, 0);
-	kfree_skb(skb);
-}
-
 void slsi_rx_connected_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -2743,7 +2623,7 @@ int slsi_retry_connection(struct slsi_dev *sdev, struct net_device *dev)
 		return 0;
 	}
 	if (slsi_mlme_register_action_frame(sdev, dev, ndev_vif->sta.action_frame_bmap,
-					    ndev_vif->sta.action_frame_suspend_bmap) != 0) {
+	    ndev_vif->sta.action_frame_suspend_bmap) != 0) {
 		SLSI_NET_ERR(dev, "Action frame registration failed for bitmap value 0x%x 0x%x\n",
 			     ndev_vif->sta.action_frame_bmap, ndev_vif->sta.action_frame_bmap);
 		return 0;
@@ -3057,6 +2937,7 @@ void slsi_rx_connect_ind(struct slsi_dev *sdev, struct net_device *dev, struct s
 				slsi_mlme_powermgt(sdev, dev, ndev_vif->set_power_mode);
 			slsi_ps_port_control(sdev, dev, peer, SLSI_STA_CONN_STATE_CONNECTED);
 		}
+
 		/* For P2PCLI, set the Connection Timeout (beacon miss) mib to 10 seconds
 		 * This MIB set failure does not cause any fatal isuue. It just varies the
 		 * detection time of GO's absence from 10 sec to FW default. So Do not disconnect
@@ -3652,6 +3533,27 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 #endif
 				if (mgmt->u.action.category == WLAN_CATEGORY_WMM) {
 					cac_rx_wmm_action(sdev, dev, mgmt, mgmt_len);
+			} else if (mgmt->u.action.category == WLAN_CATEGORY_WNM) {
+#ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
+				slsi_parse_bss_transition_mgmt_req(sdev, mgmt, mgmt_len, ndev_vif);
+#endif
+				if (slsi_is_non_mbo_btm_req(sdev, mgmt, mgmt_len, ndev_vif)) {
+			/* BTM Request is handled in Firmware except for MBO,
+			 * So Drop the Frame
+			 */
+#ifdef SLSI_TEST_DEV
+					SLSI_NET_DBG2(dev, SLSI_MLME,
+						      "Non MBO-BTM req dropped\n");
+#endif
+					SLSI_NET_DBG4(dev, SLSI_MLME,
+						      "Non MBO-BTM req dropped\n");
+					goto exit;
+				}
+#ifdef SLSI_TEST_DEV
+				SLSI_NET_DBG2(dev, SLSI_MLME,
+					      "MBO-BTM req received\n");
+#endif
+				slsi_wlan_dump_public_action_subtype(sdev, mgmt, false);
 			} else {
 				slsi_wlan_dump_public_action_subtype(sdev, mgmt, false);
 				if (sdev->wlan_unsync_vif_state == WLAN_UNSYNC_VIF_TX)
@@ -3759,10 +3661,6 @@ void slsi_rx_received_frame_ind(struct slsi_dev *sdev, struct net_device *dev, s
 	} else if (data_unit_descriptor == FAPI_DATAUNITDESCRIPTOR_IEEE802_3_FRAME) {
 		struct slsi_peer *peer = NULL;
 		struct ethhdr *ehdr = (struct ethhdr *)fapi_get_data(skb);
-
-		/* Populate wake reason stats here */
-		if (unlikely(slsi_skb_cb_get(skb)->wakeup))
-			slsi_rx_update_wake_stats(sdev, ehdr, skb->len - fapi_get_siglen(skb));
 
 		peer = slsi_get_peer_from_mac(sdev, dev, ehdr->h_source);
 		if (!peer) {

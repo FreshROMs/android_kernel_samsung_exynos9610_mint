@@ -21,8 +21,6 @@ void slsi_rx_channel_switched_ind(struct slsi_dev *sdev, struct net_device *dev,
 #ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 void slsi_rx_synchronised_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 #endif
-void slsi_rx_blacklisted_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
-
 #ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
 int slsi_retry_connection(struct slsi_dev *sdev, struct net_device *dev);
 #endif

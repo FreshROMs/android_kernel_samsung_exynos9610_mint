@@ -718,7 +718,7 @@ static struct mbulk *hip4_skb_to_mbulk(struct hip4_priv *hip, struct sk_buff *sk
 							    (iph->ihl << 2));
 					th->check = 0;
 					th->check = csum_tcpudp_magic(iph->saddr, iph->daddr, len,
-								      IPPROTO_TCP,
+						IPPROTO_TCP,
 						csum_partial((char *)th, len, 0));
 					SLSI_DBG3_NODEV(SLSI_HIP, "th->check 0x%x\n", ntohs(th->check));
 				} else if (iph->protocol == IPPROTO_UDP) {
@@ -726,7 +726,7 @@ static struct mbulk *hip4_skb_to_mbulk(struct hip4_priv *hip, struct sk_buff *sk
 							    (iph->ihl << 2));
 					uh->check = 0;
 					uh->check = csum_tcpudp_magic(iph->saddr, iph->daddr, len,
-								      IPPROTO_UDP,
+						IPPROTO_UDP,
 						csum_partial((char *)uh, len, 0));
 					SLSI_DBG3_NODEV(SLSI_HIP, "uh->check 0x%x\n", ntohs(uh->check));
 				}
@@ -808,9 +808,9 @@ static struct sk_buff *hip4_mbulk_to_skb(struct scsc_service *service, struct hi
 	}
 
 cont:
-	if (atomic) {
+	if (atomic)
 		skb = alloc_skb(bytes_to_alloc, GFP_ATOMIC);
-	} else {
+	else {
 		spin_unlock_bh(&hip_priv->rx_lock);
 		skb = alloc_skb(bytes_to_alloc, GFP_KERNEL);
 		spin_lock_bh(&hip_priv->rx_lock);
@@ -898,8 +898,8 @@ static void hip4_watchdog(unsigned long data)
 #endif
 {
 #if KERNEL_VERSION(4, 15, 0) <= LINUX_VERSION_CODE
-	struct hip4_priv        *priv = from_timer(priv, t, watchdog);
-	struct slsi_hip4        *hip = priv->hip;
+        struct hip4_priv        *priv = from_timer(priv, t, watchdog);
+        struct slsi_hip4        *hip = priv->hip;
 #else
 	struct slsi_hip4        *hip = (struct slsi_hip4 *)data;
 #endif
@@ -1122,10 +1122,10 @@ static void hip4_tl_fb(unsigned long data)
 		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 			colour = mbulk_get_colour(MBULK_POOL_ID_DATA, m);
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
-			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor,
-						   0,
-						   SLSI_MBULK_COLOUR_GET_VIF(colour),
-						   SLSI_MBULK_COLOUR_GET_PEER_IDX(colour));
+			SCSC_HIP4_SAMPLER_VIF_PEER(	hip->hip_priv->minor,
+										0,
+										SLSI_MBULK_COLOUR_GET_VIF(colour),
+										SLSI_MBULK_COLOUR_GET_PEER_IDX(colour));
 			/* to profile round-trip */
 			{
 				u16 host_tag;
@@ -1141,9 +1141,9 @@ static void hip4_tl_fb(unsigned long data)
 #endif
 			/* Ignore return value */
 			slsi_hip_tx_done(sdev,
-					 SLSI_MBULK_COLOUR_GET_VIF(colour),
-					 SLSI_MBULK_COLOUR_GET_PEER_IDX(colour),
-					 SLSI_MBULK_COLOUR_GET_AC(colour));
+							SLSI_MBULK_COLOUR_GET_VIF(colour),
+							SLSI_MBULK_COLOUR_GET_PEER_IDX(colour),
+							SLSI_MBULK_COLOUR_GET_AC(colour));
 		}
 		mbulk_free_virt_host(m);
 consume_fb_mbulk:
@@ -1282,7 +1282,6 @@ static void hip4_wq_ctrl(struct work_struct *data)
 		if (m->flag & MBULK_F_WAKEUP) {
 			SLSI_INFO(sdev, "WIFI wakeup by MLME frame 0x%x:\n", fapi_get_sigid(skb));
 			SCSC_BIN_TAG_INFO(BINARY, skb->data, skb->len > 128 ? 128 : skb->len);
-			slsi_skb_cb_get(skb)->wakeup = true;
 		}
 
 #if defined(CONFIG_SCSC_WLAN_DEBUG) || defined(CONFIG_SCSC_WLAN_HIP4_PROFILING)
@@ -1408,7 +1407,7 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	hip = hip_priv->hip;
-	if (!hip || !hip->hip_priv) {
+	if(!hip || !hip->hip_priv) {
 		SLSI_ERR_NODEV("either hip or hip->hip_priv is Null\n");
 		spin_unlock_bh(&in_napi_context);
 		return 0;
@@ -1439,8 +1438,9 @@ static int hip4_napi_poll(struct napi_struct *napi, int budget)
 	SCSC_HIP4_SAMPLER_INT_BH(hip->hip_priv->minor, 0);
 	if (ktime_compare(bh_init_data, bh_end_data) <= 0) {
 		bh_init_data = ktime_get();
-		if (!atomic_read(&hip->hip_priv->closing))
+		if (!atomic_read(&hip->hip_priv->closing)) {
 			atomic_set(&hip->hip_priv->watchdog_timer_active, 0);
+		}
 	}
 	clear_bit(HIP4_MIF_Q_TH_DAT, hip->hip_priv->irq_bitmap);
 
@@ -1613,13 +1613,13 @@ static void hip4_irq_handler_dat(int irq, void *data)
 	spin_lock_irqsave(&hip->hip_priv->napi_cpu_lock, flags);
 	if (test_bit(SLSI_HIP_NAPI_STATE_ENABLED, &hip->hip_priv->napi_state)) {
 		if (napi_select_cpu && (napi_select_cpu != smp_processor_id()) && cpu_online(napi_select_cpu))
-			/* queue work on system_wq. Do not use hip4_workq as
-			 * it is single thread wq and WQ_UNBOUND wouldnt be
-			 * set. What it means? its not garunteed to run on
-			 * intended CPU if wq is created as single threaded
-			 * wq.
-			 */
-			schedule_work_on(napi_select_cpu, &hip->hip_priv->intr_wq_napi_cpu_switch);
+				/* queue work on system_wq. Do not use hip4_workq as
+				 * it is single thread wq and WQ_UNBOUND wouldnt be
+				 * set. What it means? its not garunteed to run on
+				 * intended CPU if wq is created as single threaded
+				 * wq.
+				 */
+				schedule_work_on(napi_select_cpu, &hip->hip_priv->intr_wq_napi_cpu_switch);
 		else
 			napi_schedule(&hip->hip_priv->napi);
 
@@ -1761,10 +1761,10 @@ static void hip4_wq(struct work_struct *data)
 		if ((m->pid & 0x1) == MBULK_POOL_ID_DATA) {
 			colour = mbulk_get_colour(MBULK_POOL_ID_DATA, m);
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
-			SCSC_HIP4_SAMPLER_VIF_PEER(hip->hip_priv->minor,
-						   0,
-						   SLSI_MBULK_COLOUR_GET_VIF(colour),
-						   SLSI_MBULK_COLOUR_GET_PEER_IDX(colour));
+			SCSC_HIP4_SAMPLER_VIF_PEER(	hip->hip_priv->minor,
+										0,
+										SLSI_MBULK_COLOUR_GET_VIF(colour),
+										SLSI_MBULK_COLOUR_GET_PEER_IDX(colour));
 			/* to profile round-trip */
 			{
 				u16 host_tag;
@@ -1780,9 +1780,9 @@ static void hip4_wq(struct work_struct *data)
 #endif
 			/* Ignore return value */
 			slsi_hip_tx_done(sdev,
-					 SLSI_MBULK_COLOUR_GET_VIF(colour),
-					 SLSI_MBULK_COLOUR_GET_PEER_IDX(colour),
-					 SLSI_MBULK_COLOUR_GET_AC(colour));
+							SLSI_MBULK_COLOUR_GET_VIF(colour),
+							SLSI_MBULK_COLOUR_GET_PEER_IDX(colour),
+							SLSI_MBULK_COLOUR_GET_AC(colour));
 		}
 		mbulk_free_virt_host(m);
 consume_fb_mbulk:
@@ -1837,7 +1837,6 @@ consume_fb_mbulk:
 		if (m->flag & MBULK_F_WAKEUP) {
 			SLSI_INFO(sdev, "WIFI wakeup by MLME frame 0x%x:\n", fapi_get_sigid(skb));
 			SCSC_BIN_TAG_INFO(BINARY, skb->data, skb->len > 128 ? 128 : skb->len);
-			slsi_skb_cb_get(skb)->wakeup = true;
 		}
 
 #if defined(CONFIG_SCSC_WLAN_HIP4_PROFILING) || defined(CONFIG_SCSC_WLAN_DEBUG)
@@ -2199,7 +2198,7 @@ int hip4_init(struct slsi_hip4 *hip)
 	u32                     total_mib_len;
 	u32                     mib_file_offset;
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-	struct net_device       *dev;
+	struct net_device 	*dev;
 #endif
 
 	if (!sdev || !sdev->service)
@@ -2470,7 +2469,7 @@ int hip4_init(struct slsi_hip4 *hip)
 #endif
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	slsi_wake_lock_init(NULL, &hip->hip_priv->hip4_wake_lock.ws, "hip4_wake_lock");
+	slsi_wake_lock_init(NULL,&hip->hip_priv->hip4_wake_lock.ws, "hip4_wake_lock");
 #else
 	slsi_wake_lock_init(&hip->hip_priv->hip4_wake_lock, WAKE_LOCK_SUSPEND, "hip4_wake_lock");
 #endif

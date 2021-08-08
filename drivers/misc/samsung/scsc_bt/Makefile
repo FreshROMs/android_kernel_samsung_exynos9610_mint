@@ -5,7 +5,7 @@ clean-files := *.o *.ko
 #
 # Maxwell BT
 obj-$(CONFIG_SCSC_BT) += scsc_bt.o
-scsc_bt-y += scsc_bt_module.o scsc_shm.o scsc_avdtp_detect.o
+scsc_bt-y += scsc_bt_module.o scsc_shm.o scsc_avdtp_detect.o scsc_bt_qos.o
 scsc_bt-$(CONFIG_SCSC_BT_BLUEZ) += scsc_bluez.o
 scsc_bt-$(CONFIG_SCSC_ANT) += scsc_ant.o
 

@@ -1042,19 +1042,14 @@ static int slsi_legacy_roam_scan_trigger_read(struct net_device *dev, char *comm
 
 static int slsi_roam_add_scan_channels_legacy(struct net_device *dev, char *command, int buf_len)
 {
-	struct netdev_vif      *ndev_vif = netdev_priv(dev);
-	struct slsi_dev        *sdev = ndev_vif->sdev;
-	int                    result = 0;
-	int                    i, j, new_channel_count = 0;
-	int                    new_channels[SLSI_MAX_CHANNEL_LIST];
-	int                    curr_channel_count = 0;
-	int                    found = 0;
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = ndev_vif->sdev;
+	int               result = 0;
+	int               i, j, new_channel_count = 0;
+	int               new_channels[SLSI_MAX_CHANNEL_LIST];
+	int               curr_channel_count = 0;
+	int               found = 0;
 	struct slsi_ioctl_args *ioctl_args = NULL;
-	const u8               *connected_ssid = NULL;
-	u32                    network_map_channels_count = 0;
-	u8                     network_map_channels[SLSI_ROAMING_CHANNELS_MAX];
-	u8                     merged_channels[SLSI_ROAMING_CHANNELS_MAX * 2];
-	u32                    merge_chan_count = 0;
 
 	ioctl_args = slsi_get_private_command_args(command, buf_len, 21);
 	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
@@ -1139,16 +1134,7 @@ static int slsi_roam_add_scan_channels_legacy(struct net_device *dev, char *comm
 	sdev->device_config.legacy_roam_scan_list.n = curr_channel_count;
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	connected_ssid = cfg80211_find_ie(WLAN_EID_SSID, ndev_vif->sta.sta_bss->ies->data,
-					  ndev_vif->sta.sta_bss->ies->len);
-
-	network_map_channels_count = slsi_roaming_scan_configure_channels(sdev, dev, connected_ssid, network_map_channels);
-	merge_chan_count = slsi_merge_lists(network_map_channels, network_map_channels_count,
-					    sdev->device_config.legacy_roam_scan_list.channels,
-					    sdev->device_config.legacy_roam_scan_list.n,
-					    merged_channels);
-
-	result = slsi_mlme_set_cached_channels(sdev, dev, merge_chan_count, merged_channels);
+	result = slsi_mlme_set_cached_channels(sdev, dev, curr_channel_count, sdev->device_config.legacy_roam_scan_list.channels);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 
@@ -1179,8 +1165,7 @@ static int slsi_roam_scan_channels_read_legacy(struct net_device *dev, char *com
 	if (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
 		SLSI_NET_ERR(dev, "STA is not in connected state\n");
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		channel_count = 0;
-		goto output;
+		return -EINVAL;
 	}
 
 	ind = slsi_mlme_roaming_channel_list_req(sdev, dev);
@@ -1196,7 +1181,6 @@ static int slsi_roam_scan_channels_read_legacy(struct net_device *dev, char *com
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 		return -EINVAL;
 	}
-output:
 	pos = scnprintf(command, buf_len, "%s %d", CMD_GETROAMSCANCHANNELS, channel_count);
 	for (i = 0; i < channel_count; i++)
 		pos += scnprintf(command + pos, buf_len - pos, " %d", channel_list[i]);
@@ -3141,7 +3125,7 @@ static int slsi_send_action_frame(struct net_device *dev, char *command, int buf
 	hdr = (struct ieee80211_hdr *)final_buf;
 	hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT, IEEE80211_STYPE_ACTION);
 	SLSI_ETHER_COPY(hdr->addr1, bssid);
-	SLSI_ETHER_COPY(hdr->addr2, dev->dev_addr);
+	SLSI_ETHER_COPY(hdr->addr2, sdev->hw_addr);
 	SLSI_ETHER_COPY(hdr->addr3, bssid);
 	memcpy(final_buf + IEEE80211_HEADER_SIZE, buf, len);
 
@@ -4566,7 +4550,7 @@ static int slsi_ioctl_set_latency_mode(struct net_device *dev, char *command, in
 		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
 		ret = -EINVAL;
 	} else {
-		if (latency_mode < 0 || latency_mode > 2) {
+		if (latency_mode != 0 && latency_mode != 1) {
 			SLSI_ERR(sdev, "Invalid latency_mode: '%s'\n", ioctl_args->args[0]);
 			ret = -EINVAL;
 		} else {
@@ -4620,9 +4604,8 @@ static int slsi_ioctl_set_num_antennas(struct net_device *dev, char *command, in
 	int num_of_antennas;
 	struct slsi_ioctl_args *ioctl_args = NULL;
 	int ret = 0;
-	int frame_type = 0;
 
-	ioctl_args = slsi_get_private_command_args(command, cmd_len, 2);
+	ioctl_args = slsi_get_private_command_args(command, cmd_len, 1);
 	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
 
 	if (!slsi_str_to_int(ioctl_args->args[0], &num_of_antennas)) {
@@ -4632,19 +4615,10 @@ static int slsi_ioctl_set_num_antennas(struct net_device *dev, char *command, in
 		/* We cannot lock in slsi_set_num_antennas as
 		 * this is also called in slsi_start_ap with netdev_vif lock.
 		 */
-		if (ioctl_args->arg_count == 2) {
-			if (!slsi_str_to_int(ioctl_args->args[1], &frame_type)) {
-				SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[1]);
-				ret = -EINVAL;
-				goto exit;
-			}
-			frame_type += 1;
-		}
 		SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-		ret = slsi_mlme_set_num_antennas(dev, num_of_antennas, frame_type);
+		ret = slsi_set_num_antennas(dev, num_of_antennas);
 		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 	}
-exit:
 	kfree(ioctl_args);
 	return ret;
 }
