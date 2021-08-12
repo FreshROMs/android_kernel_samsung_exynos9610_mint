@@ -776,10 +776,11 @@ config INCREASE_MAXIMUM_SWAPPINESS
 	bool "Allow swappiness to be set up to 200"
 	depends on SWAP
 	default y
-	
+
+# IOPP-dirty_buffer-v2.0.4.14
 config LARGE_DIRTY_BUFFER
 	bool "Use large dirty_threshold value by enabling dirty_ratio"
-	default n
+	default y
 	help
 	  This config enables dirty_ratio/dirty_background_ratio,
 	  and it means large dirty_threshold value in 64bit architectures.
@@ -787,7 +788,7 @@ config LARGE_DIRTY_BUFFER
 
 config MAX_DIRTY_THRESH_PAGES
 	int "The upper bound of VM dirty_thresh value in number of pages"
-	default 0
+	default 25600
 	help
 	  This value is the upper bound of VM dirty-thresh. (0 means no limit.)
 	  It is only effective when dirty_ratio is used.
