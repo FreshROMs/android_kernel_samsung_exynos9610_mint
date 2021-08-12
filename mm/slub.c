@@ -4401,8 +4401,6 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
 		list_for_each_entry(p, &n->full, lru)
 			p->slab_cache = s;
 #endif /*CONFIG_RKP_KDP*/
-		list_for_each_entry(p, &n->full, lru)
-			p->slab_cache = s;
 #endif
 	}
 	slab_init_memcg_params(s);
