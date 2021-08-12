@@ -980,7 +980,7 @@ do_group_exit(int exit_code)
 	if (current->pid == 1) {
 		pr_err("[%s] trap before init(1) group exit, exit_code:%d\n",
 			current->comm, exit_code);
-		panic("init group exit");
+		panic("Attempted to kill init task group! exitcode=0x%08x\n", exit_code);
 	}
 
 	BUG_ON(exit_code & 0x80); /* core dumps don't get here */
