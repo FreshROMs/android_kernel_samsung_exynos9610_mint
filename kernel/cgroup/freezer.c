@@ -513,8 +513,8 @@ struct cgroup_subsys freezer_cgrp_subsys = {
 	.fork		= freezer_fork,
 	.legacy_cftypes	= files,
 #ifdef CONFIG_SAMSUNG_FREECESS
-        .can_attach   = freezer_can_attach,
-        .cancel_attach  = freezer_cancel_attach,
+	.can_attach   = freezer_can_attach,
+	.cancel_attach	= freezer_cancel_attach,
 #endif
 
 };
