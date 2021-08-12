@@ -105,14 +105,14 @@
 
 #include "../../lib/kstrtox.h"
 
-#ifdef CONFIG_PAGE_BOOST
-#include <linux/delayacct.h>
-#endif
-
 #if defined(CONFIG_FAST_TRACK)
 #include <cpu/ftt/ftt.h>
 #define GLOBAL_SYSTEM_UID KUIDT_INIT(1000)
 #define GLOBAL_SYSTEM_GID KGIDT_INIT(1000)
+#endif
+
+#ifdef CONFIG_PAGE_BOOST
+#include <linux/delayacct.h>
 #endif
 
 /* NOTE:
@@ -3505,15 +3505,15 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_LIVEPATCH
 	ONE("patch_state",  S_IRUSR, proc_pid_patch_state),
 #endif
+#ifdef CONFIG_CPU_FREQ_TIMES
+	ONE("time_in_state", 0444, proc_time_in_state_show),
+#endif
 #ifdef CONFIG_FIVE
 	DIR("integrity", S_IRUGO|S_IXUGO, proc_integrity_inode_operations,
 			proc_integrity_operations),
 #endif
 #ifdef CONFIG_PROC_TRIGGER_SQLITE_BUG
 	REG("trigger_sqlite_bug", S_IWUSR, proc_trigger_sqlite_bug_operations),
-#endif
-#ifdef CONFIG_CPU_FREQ_TIMES
-	ONE("time_in_state", 0444, proc_time_in_state_show),
 #endif
 };
 
