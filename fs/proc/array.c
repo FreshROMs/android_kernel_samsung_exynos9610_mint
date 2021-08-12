@@ -653,8 +653,7 @@ int proc_pid_statlmkd(struct seq_file *m, struct pid_namespace *ns,
 		task_statlmkd(mm, &size, &resident, &swapresident);
 		mmput(mm);
 	}
-#endif
-#ifndef CONFIG_MMU
+#else
 	unsigned long size = 0, resident = 0, shared = 0, text = 0, data = 0;
 	if (mm) {
 		size = task_statm(mm, &shared, &text, &data, &resident);
