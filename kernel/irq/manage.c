@@ -112,7 +112,7 @@ void synchronize_irq(unsigned int irq)
 		 * active.
 		 */
 		wait_event(desc->wait_for_threads,
-				!atomic_read(&desc->threads_active));
+			   !atomic_read(&desc->threads_active));
 
 		sec_debug_set_task_in_sync_irq(0, 0, 0, 0);
 	}
