@@ -452,6 +452,14 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	}
 #endif
 
+#if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && CONFIG_MAX_DIRTY_THRESH_PAGES > 0
+	if (!bytes && thresh > CONFIG_MAX_DIRTY_THRESH_PAGES) {
+		thresh = CONFIG_MAX_DIRTY_THRESH_PAGES;
+		/* reduce available memory not to make bg_thresh too high */
+		available_memory = thresh * PAGE_SIZE / ratio;
+	}
+#endif
+
 	if (bg_bytes)
 		bg_thresh = DIV_ROUND_UP(bg_bytes, PAGE_SIZE);
 	else
@@ -509,6 +517,11 @@ static unsigned long node_dirty_limit(struct pglist_data *pgdat)
 			node_memory / global_dirtyable_memory();
 	else
 		dirty = vm_dirty_ratio * node_memory / 100;
+
+#if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && CONFIG_MAX_DIRTY_THRESH_PAGES > 0
+	if (!vm_dirty_bytes && dirty > CONFIG_MAX_DIRTY_THRESH_PAGES)
+		dirty = CONFIG_MAX_DIRTY_THRESH_PAGES;
+#endif
 
 #if defined(CONFIG_MAX_DIRTY_THRESH_PAGES) && CONFIG_MAX_DIRTY_THRESH_PAGES > 0
 	if (!vm_dirty_bytes && dirty > CONFIG_MAX_DIRTY_THRESH_PAGES)
@@ -1636,9 +1649,6 @@ static inline void bdi_fill_sec_debug_bdp(struct backing_dev_info *bdi,
  * If we're over `background_thresh' then the writeback threads are woken to
  * perform some writeout.
  */
-
-SIO_PATCH_VERSION(prevent_infinite_writeback, 1, 0, "");
-
 static void balance_dirty_pages(struct address_space *mapping,
 				struct bdi_writeback *wb,
 				unsigned long pages_dirtied)
@@ -1892,14 +1902,15 @@ pause:
 				(unsigned long) nr_dirty_inodes_in_timelist);
 		}
 
+		/* IOPP-prevent_infinite_writeback-v1.0.4.4 */
+		/* Do not sleep if the backing device is removed */
+		if (unlikely(!bdi->dev))
+			return;
+
 		/* Collecting approximate value. No lock required. */
 		bdi->last_thresh = thresh;
 		bdi->last_nr_dirty = dirty;
 		bdi->paused_total += pause;
-
-		/* Do not sleep if the backing device is removed */
-		if (unlikely(!bdi->dev))
-			return;
 
 		__set_current_state(TASK_KILLABLE);
 		wb->dirty_sleep = now;
