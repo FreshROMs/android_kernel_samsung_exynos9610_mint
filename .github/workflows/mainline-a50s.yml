@@ -1,0 +1,282 @@
+name: Mainline Build (Galaxy A50s)
+
+on:
+  push:
+    branches:
+      - 'android-*'
+
+jobs:
+  fresh:
+    name: Build Fresh/One UI
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --magisk --automated --device a50s
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50s-fresh.txt
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: fresh_mainline-${{ github.run_number }}
+        path: 'release'
+        if-no-files-found: error
+
+  aosp:
+    name: Build Lineage/AOSP
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --magisk --automated --device a50s -a
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50s-aosp.txt
+        if-no-files-found: error
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: aosp_mainline-${{ github.run_number }}
+        path: 'release'
+        if-no-files-found: error
+
+  fresh_nonroot:
+    name: Build Fresh/One UI - Non-root
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --automated --device a50s
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50s-fresh_noroot.txt
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: fresh-noroot_mainline-${{ github.run_number }}
+        path: 'release'
+        if-no-files-found: error
+
+  aosp_nonroot:
+    name: Build Lineage/AOSP - Non-root
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --automated --device a50s -a
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50s-aosp_noroot.txt
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: aosp-noroot_mainline-${{ github.run_number }}
+        path: 'release'
+        if-no-files-found: error
+
+  recovery:
+    name: Build Recovery)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --automated --device a50s -r
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          cp .config ./release/kernel_config_a50s-fresh.txt
+
+    - name: Upload boot image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Galaxy A50 Recovery Kernel (mainline-${{ github.run_number }}
+        path: 'tools/make/package/boot.img'
+        if-no-files-found: error
+
+  release:
+    name: Release files and configs
+    if: always()
+    needs: [fresh, aosp, fresh_nonroot, aosp_nonroot]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+      
+    - name: Merge Fresh/One UI Release
+      uses: actions/download-artifact@v2
+      with:
+        name: fresh_mainline-${{ github.run_number }}
+        path: release
+      
+    - name: Merge Lineage/AOSP release
+      uses: actions/download-artifact@v2
+      with:
+        name: aosp_mainline-${{ github.run_number }}
+        path: release
+      
+    - name: Merge Fresh/One UI (nonroot) release
+      uses: actions/download-artifact@v2
+      with:
+        name: fresh-noroot_mainline-${{ github.run_number }}
+        path: release
+      
+    - name: Merge Lineage/AOSP (nonroot) release
+      uses: actions/download-artifact@v2
+      with:
+        name: aosp-noroot_mainline-${{ github.run_number }}
+        path: release
+
+    - name: Delete older release
+      uses: dev-drprasad/delete-older-releases@v0.2.0
+      with:
+        keep_latest: 0
+        delete_tag_pattern: "Galaxy A50s (mainline"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload release
+      uses: Hs1r1us/Release-AIO@v1.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        # The name of the tag
+        tag_name: mainline-${{ github.run_number }}_a50s
+        release_name: Galaxy A50s (mainline-${{ github.run_number }})
+        body_path: "./tools/make/release/a50s.md"
+        asset_files: './release'
