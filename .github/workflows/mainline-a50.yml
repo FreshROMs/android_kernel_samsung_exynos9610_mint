@@ -50,7 +50,7 @@ jobs:
         if-no-files-found: error
 
   aosp:
-    name: Build Lineage/AOSP)
+    name: Build Lineage/AOSP
     runs-on: ubuntu-latest
 
     strategy:
