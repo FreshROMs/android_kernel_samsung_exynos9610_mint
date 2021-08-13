@@ -362,13 +362,18 @@ export KCONFIG_BUILTINCONFIG=${BUILD_CONFIG_DIR}/exynos9610-${BUILD_DEVICE_NAME}
 BUILD_DEVICE_OUTPUT=${BUILD_OUTPUT_DIR}/${BUILD_DEVICE_NAME}
 
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
+
+	if [[ ${BUILD_KERNEL_BRANCH} == *"android-"* ]]; then
+		BUILD_KERNEL_BRANCH='mainline'
+	fi
+
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
 	else
 		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}-noroot_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
 	fi
 
-	if [[ ${BUILD_KERNEL_BRANCH} == "staging" ]]; then
+	if [[ ${BUILD_KERNEL_BRANCH} == "mainline" ]]; then
 		LOCALVERSION=' - Fresh Core'
 		export LOCALVERSION=' - Fresh Core'
 	else
