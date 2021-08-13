@@ -84,7 +84,6 @@ jobs:
           mkdir -p ./release
           mv -f `find ./ -iname FreshCore-*.zip` ./release/
           cp .config ./release/kernel_config_a50s-aosp.txt
-        if-no-files-found: error
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
