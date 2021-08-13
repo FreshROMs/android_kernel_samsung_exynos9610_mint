@@ -325,6 +325,10 @@ while [[ $# -gt 0 ]]; do
       BUILD_RECOVERY='true'
       shift
       ;;
+    -h|--help)
+      SCRIPT_SHOW_HELP='true'
+      shift
+      ;;
     --default)
       DEFAULT=YES
       shift # past value
@@ -337,6 +341,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -- "${POSITIONAL[@]}" # restore positional parameters
+
+if [[ ${SCRIPT_SHOW_HELP} == 'true' ]]; then
+	show_usage
+fi
 
 # Build variables - DO NOT CHANGE
 VERSION=$(grep -m 1 VERSION "$(pwd)/Makefile" | sed 's/^.*= //g')
