@@ -208,17 +208,11 @@ jobs:
           export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
           ./build.sh --automated --device a50 -r
 
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-fresh.txt
-
-    - name: Upload boot image artifact
+    - name: Upload kernel image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Recovery Kernel (mainline-${{ github.run_number }}
-        path: 'tools/make/package/boot.img'
+        name: Recovery Kernel (mainline-${{ github.run_number }}
+        path: './Image'
         if-no-files-found: error
 
   release:
