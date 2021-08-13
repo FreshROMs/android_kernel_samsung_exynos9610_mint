@@ -179,7 +179,7 @@ jobs:
         if-no-files-found: error
 
   recovery:
-    name: Build Recovery)
+    name: Build Recovery Kernel
     runs-on: ubuntu-latest
 
     strategy:
