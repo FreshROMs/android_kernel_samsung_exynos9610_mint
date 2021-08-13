@@ -30,7 +30,7 @@ This is an optimized kernel source based on Samsung's open-source drop of the SM
  - Built with Link-Time Optimizations (LTO) enabled
  - Added additional I/O schedulers, `anxiety` is set as default.
  - Various kernel and performance improvements.
- - Backported changes from the Galaxy S10/Note10.
+ - Backported changes from the Galaxy A51, and Galaxy S10/Note10.
  - Replaced kernel RNG (HWRandom) with SRandom.
  - State notifier support for various kernel drivers.
  - Uses `FLATMEM` instead of `SPARSEMEM`.
