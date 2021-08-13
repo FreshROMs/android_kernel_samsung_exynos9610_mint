@@ -378,7 +378,7 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
 	else
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}-noroot_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
 	fi
 
 	if [[ ${BUILD_KERNEL_BRANCH} == "mainline" ]]; then
@@ -392,7 +392,7 @@ else
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
 	else
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}-noroot_user_${BUILD_DATE}.zip
+		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
 	fi
 
 	BUILD_KERNEL_BRANCH='user'
