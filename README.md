@@ -34,7 +34,8 @@ This is an optimized kernel source based on Samsung's open-source drop of the SM
  - Replaced kernel RNG (HWRandom) with SRandom.
  - State notifier support for various kernel drivers.
  - Uses `FLATMEM` instead of `SPARSEMEM`.
- - Disabled basic Samsung hardening (Knox, etc) by default.
+ - Disabled basic Samsung hardening (Knox, etc) on One UI releases.
+ - Completely removed Knox on AOSP/Lineage OS releases.
  - DriveDroid support.
  - WireGuard support.
  - Gentle Fair sleepers support.
