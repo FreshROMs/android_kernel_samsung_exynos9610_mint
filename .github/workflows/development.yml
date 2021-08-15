@@ -47,14 +47,14 @@ jobs:
     - name: Upload boot image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: One UI Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'tools/make/package/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: One UI Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'release/kernel_config_a50-fresh.txt'
         if-no-files-found: error
 
@@ -97,13 +97,13 @@ jobs:
     - name: Upload boot image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'tools/make/package/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Galaxy A50 Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'release/kernel_config_a50-aosp.txt'
         if-no-files-found: error
