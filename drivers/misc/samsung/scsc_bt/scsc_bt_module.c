@@ -453,9 +453,6 @@ static int slsi_sm_bt_service_cleanup()
 			"cleanup ongoing avdtp detections\n");
 		scsc_avdtp_detect_exit();
 
-		/* Report quality of service statistics */
-		scsc_bt_qos_service_stop();
-
 		mutex_lock(&bt_audio_mutex);
 #ifndef CONFIG_SOC_EXYNOS7885
 		if (audio_device) {
@@ -1102,10 +1099,6 @@ int slsi_sm_bt_service_start(void)
 		mutex_unlock(&bt_audio_mutex);
 	}
 
-	if (bt_service.bsmhcp_protocol->header.firmware_features &
-	    BSMHCP_FEATURE_M4_INTERRUPTS)
-		SCSC_TAG_DEBUG(BT_COMMON, "features enabled: M4_INTERRUPTS\n");
-
 exit:
 	if (err < 0) {
 		if (slsi_sm_bt_service_cleanup() == 0)
@@ -1745,7 +1738,6 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 
 		mutex_unlock(&bt_start_mutex);
 
-		SCSC_TAG_INFO(BT_COMMON, "wait for recovery_release_complete\n");
 		/* Don't wait for the recovery_release_complete if service is not active */
 		if (service_active) {
 			int ret = wait_for_completion_timeout(&bt_service.recovery_release_complete,
@@ -1775,9 +1767,6 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 
 done:
 	mutex_unlock(&bt_start_mutex);
-
-	SCSC_TAG_INFO(BT_COMMON,
-	      "BT service remove complete (%s %p)\n", module_client->name, mx);
 }
 
 /* BT service driver registration interface */
@@ -1872,9 +1861,6 @@ static void slsi_ant_service_remove(struct scsc_mx_module_client *module_client,
 
 done:
 	mutex_unlock(&ant_start_mutex);
-
-	SCSC_TAG_INFO(BT_COMMON,
-		      "ANT service remove complete (%s %p)\n", module_client->name, mx);
 }
 #endif
 
@@ -2057,6 +2043,22 @@ static void scsc_update_btlog_params(void)
 				SCSC_MIFINTR_TARGET_R4);
 	}
 	mutex_unlock(&bt_start_mutex);
+
+#ifdef CONFIG_SCSC_ANT
+	mutex_lock(&ant_start_mutex);
+	if (ant_service.service) {
+		ant_service.asmhcp_protocol->header.btlog_enables0_low = firmware_btlog_enables0_low;
+		ant_service.asmhcp_protocol->header.btlog_enables0_high = firmware_btlog_enables0_high;
+		ant_service.asmhcp_protocol->header.btlog_enables1_low = firmware_btlog_enables1_low;
+		ant_service.asmhcp_protocol->header.btlog_enables1_high = firmware_btlog_enables1_high;
+
+		/* Trigger the interrupt in the mailbox */
+		scsc_service_mifintrbit_bit_set(ant_service.service,
+				ant_service.asmhcp_protocol->header.ap_to_bg_int_src,
+				SCSC_MIFINTR_TARGET_R4);
+	}
+	mutex_unlock(&ant_start_mutex);
+#endif
 }
 
 static int scsc_mxlog_filter_set_param_cb(const char *buffer,
@@ -2556,7 +2558,6 @@ static int __init scsc_bt_module_init(void)
 	SCSC_TAG_DEBUG(BT_COMMON, "dev=%u class=%p\n",
 			   ant_service.device, common_service.class);
 #endif
-	scsc_bt_qos_init();
 
 	return 0;
 
@@ -2621,8 +2622,6 @@ static void __exit scsc_bt_module_exit(void)
 
 	unregister_chrdev_region(ant_service.device, SCSC_TTY_MINORS);
 #endif
-
-	scsc_bt_qos_deinit();
 
 	SCSC_TAG_INFO(BT_COMMON, "exit, module unloaded\n");
 }

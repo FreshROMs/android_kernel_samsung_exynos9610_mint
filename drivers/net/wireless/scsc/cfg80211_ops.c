@@ -993,6 +993,15 @@ int slsi_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 #endif
 
+	/* check if ap is found in the blacklist.
+	 * if present in the blacklist return failure
+	 */
+	r = slsi_is_bssid_in_blacklist(sdev, dev, (u8 *)bssid);
+	if (r) {
+		SLSI_NET_ERR(dev, "Blacklist bssid not allowed\n");
+		goto exit_with_error;
+	}
+
 	if (ndev_vif->sta.sta_bss)
 		SLSI_ETHER_COPY(peer_address, ndev_vif->sta.sta_bss->bssid);
 
@@ -2056,6 +2065,9 @@ int slsi_remain_on_channel(struct wiphy              *wiphy,
 
 	/* Unsync vif will be required, cancel any pending work of its deletion */
 	cancel_delayed_work(&ndev_vif->unsync.del_vif_work);
+	if (sdev->p2p_state == P2P_ACTION_FRAME_TX_RX)
+		queue_delayed_work(sdev->device_wq, &ndev_vif->unsync.del_vif_work,
+				   msecs_to_jiffies(duration + SLSI_P2P_UNSYNC_VIF_EXTRA_MSEC));
 
 	/* Ideally, there should not be any ROC work pending. However, supplicant can send back to back ROC in a race scenario as below.
 	 * If action frame is received while P2P social scan, the response frame tx is delayed till scan completes. After scan completion,
@@ -2792,15 +2804,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	r = slsi_mlme_start(sdev, dev, dev->dev_addr, settings, wpa_ie_pos, wmm_ie_pos, append_vht_ies);
 
-	if ((indoor_channel == 1)
-#ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
-	    || (wifi_sharing_channel_switched == 1)
-#endif
-#ifdef CONFIG_SCSC_WLAN_ACS_ENABLE
-	    || (sdev->acs_channel_switched == true)
-#endif
-	)
-		cfg80211_ch_switch_notify(dev, &settings->chandef);
+	cfg80211_ch_switch_notify(dev, &settings->chandef);
 
 #ifdef CONFIG_SCSC_WLAN_WIFI_SHARING
 	if (r == 0)
@@ -2819,7 +2823,7 @@ int slsi_start_ap(struct wiphy *wiphy, struct net_device *dev,
 #ifdef CONFIG_SCSC_WLAN_NUM_ANTENNAS
 	if (ndev_vif->iftype == NL80211_IFTYPE_AP) {
 		/* Don't care results. */
-		slsi_set_num_antennas(dev, 1 /*SISO*/);
+		slsi_mlme_set_num_antennas(dev, 1 /*SISO*/, 0);
 	}
 #endif
 	ndev_vif->ap.beacon_interval = settings->beacon_interval;
@@ -3149,7 +3153,6 @@ int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
 	u8                    exp_peer_frame = SLSI_PA_INVALID;
 	int                   subtype = SLSI_PA_INVALID;
-	u8                    action_code;
 
 	if (!ieee80211_is_auth(mgmt->frame_control))
 		slsi_wlan_dump_public_action_subtype(sdev, mgmt, true);
@@ -3160,13 +3163,7 @@ int slsi_wlan_mgmt_tx(struct slsi_dev *sdev, struct net_device *dev,
 		if (subtype != SLSI_PA_INVALID)
 			exp_peer_frame = slsi_get_exp_peer_frame_subtype(subtype);
 	}
-	if (mgmt->u.action.category == WLAN_CATEGORY_WNM) {
-		action_code = ((u8 *)&mgmt->u.action.u)[0];
-		if (action_code == SLSI_WNM_BSS_TRANS_MGMT_RESP) {
-			SLSI_NET_ERR(dev, "Drop Tx frame: BTM resp\n");
-			return r;
-		}
-	}
+
 	if (!ndev_vif->activated) {
 		if (subtype >= SLSI_PA_GAS_INITIAL_REQ_SUBTYPE && subtype <= SLSI_PA_GAS_COMEBACK_RSP_SUBTYPE) {
 			ndev_vif->mgmt_tx_gas_frame = true;

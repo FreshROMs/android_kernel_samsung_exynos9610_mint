@@ -878,6 +878,27 @@ static void mxman_message_handler(const void *message, void *data)
 	}
 }
 
+#if IS_ENABLED(CONFIG_SCSC_MEMLOG)
+static int mxman_is_memlog_valid(void)
+{
+	const char *desc_name = "WB_LOG";
+	const char *obj_name = "drm-mem";
+	struct memlog *desc = memlog_get_desc(desc_name);
+	struct memlog_obj *obj;
+
+	if (!desc)
+		return 1;
+		// treat this as fw is not loaded yet
+	else
+		obj = memlog_get_obj_by_name(desc, obj_name);
+
+	if(!obj)
+		return 0;
+	else
+		return 1;
+}
+#endif
+
 /*
  * This function calulates and checks two or three (depending on crc32_over_binary flag)
  * crc32 values in the firmware header. The function will check crc32 over the firmware binary
@@ -888,6 +909,12 @@ static void mxman_message_handler(const void *message, void *data)
 static int do_fw_crc32_checks(char *fw, u32 fw_image_size, struct fwhdr *fwhdr, bool crc32_over_binary)
 {
 	int r;
+#if IS_ENABLED(CONFIG_SCSC_MEMLOG)
+	if (!mxman_is_memlog_valid()) {
+		SCSC_TAG_ERR(MXMAN, "fw_crc_work_func failed by memlog API fail\n");
+		return -ENOMEM;
+	}
+#endif
 
 	if ((fwhdr->fw_crc32 == 0 || fwhdr->header_crc32 == 0 || fwhdr->const_crc32 == 0) && crc_check_allow_none == 0) {
 		SCSC_TAG_ERR(MXMAN, "error: CRC is missing fw_crc32=%d header_crc32=%d crc_check_allow_none=%d\n",
@@ -948,13 +975,11 @@ static int do_fw_crc32_checks(char *fw, u32 fw_image_size, struct fwhdr *fwhdr, 
 	return 0;
 }
 
-
 static void fw_crc_wq_start(struct mxman *mxman)
 {
 	if (mxman->check_crc && crc_check_period_ms)
 		queue_delayed_work(mxman->fw_crc_wq, &mxman->fw_crc_work, msecs_to_jiffies(crc_check_period_ms));
 }
-
 
 static void fw_crc_work_func(struct work_struct *work)
 {
@@ -969,7 +994,6 @@ static void fw_crc_work_func(struct work_struct *work)
 	}
 	fw_crc_wq_start(mxman);
 }
-
 
 static void fw_crc_wq_init(struct mxman *mxman)
 {
@@ -1434,6 +1458,7 @@ static int mxman_start(struct mxman *mxman)
 	/* After that, we can remove below IF block */
 	if (!obj) {
 		SCSC_TAG_ERR(MXMAN, "memlog erro\n");
+		fw_crc_wq_stop(mxman);
 		mif->unmap(mif, mxman->start_dram);
 		return -ENOMEM;
 	}

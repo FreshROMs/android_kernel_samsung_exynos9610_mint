@@ -63,7 +63,7 @@
 #include <linux/of_reserved_mem.h>
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
 
@@ -196,7 +196,7 @@ struct platform_mif {
 	void (*resume_handler)(struct scsc_mif_abs *abs, void *data);
 	void *suspendresume_data;
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	struct notifier_block itmon_nb;
 #endif
 
@@ -2014,7 +2014,7 @@ static int __init platform_mif_wifibt_if_reserved_mem_setup(struct reserved_mem 
 RESERVEDMEM_OF_DECLARE(wifibt_if, "exynos,wifibt_if", platform_mif_wifibt_if_reserved_mem_setup);
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static int wlbt_itmon_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
@@ -2319,7 +2319,7 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	/* Initialize spinlock */
 	spin_lock_init(&platform->mif_spinlock);
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	platform->itmon_nb.notifier_call = wlbt_itmon_notifier;
 	itmon_notifier_chain_register(&platform->itmon_nb);
 #endif

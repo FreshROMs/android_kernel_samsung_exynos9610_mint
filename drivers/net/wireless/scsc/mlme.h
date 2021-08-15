@@ -312,4 +312,7 @@ void slsi_mlme_set_country_for_recovery(struct slsi_dev *sdev);
 #ifdef CONFIG_SCSC_WLAN_ARP_FLOW_CONTROL
 void slsi_rx_send_frame_cfm_async(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 #endif
+#ifdef CONFIG_SCSC_WLAN_NUM_ANTENNAS
+int slsi_mlme_set_num_antennas(struct net_device *dev, const u16 num_of_antennas, int frame_type);
+#endif
 #endif /*__SLSI_MLME_H__*/

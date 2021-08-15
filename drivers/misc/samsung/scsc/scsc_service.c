@@ -471,16 +471,13 @@ void srvman_freeze_services(struct srvman *srvman, struct mx_syserr_decode *syse
 	mxman->notify = false;
 	mutex_lock(&srvman->service_list_mutex);
 	list_for_each_entry(service, &srvman->service_list, list) {
-#ifndef CONFIG_SCSC_WLAN_FAST_RECOVERY
 	if (service->client->stop_on_failure) {
 		service->client->stop_on_failure(service->client);
 		mxman->notify = true;
 	}
-#else
-	if ((service->client->stop_on_failure_v2) &&
+	else if ((service->client->stop_on_failure_v2) &&
 		(service->client->stop_on_failure_v2(service->client, syserr)))
 		mxman->notify = true;
-#endif
 	}
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)

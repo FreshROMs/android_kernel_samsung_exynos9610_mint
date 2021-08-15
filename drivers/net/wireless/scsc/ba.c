@@ -212,6 +212,9 @@ static int ba_consume_frame_or_get_buffer_index(struct net_device *dev, struct s
 {
 	int i;
 	u16 sn_temp;
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+#endif
 
 	*stop_timer = false;
 
@@ -281,11 +284,23 @@ static int ba_consume_frame_or_get_buffer_index(struct net_device *dev, struct s
 					SLSI_NET_DBG4(dev, SLSI_RX_BA, "old frame, but still in window: sn=%d, highest_received_sn=%d\n", sn, ba_session_rx->highest_received_sn);
 					ba_add_frame_to_ba_complete(dev, frame_desc);
 				} else {
-					SLSI_NET_DBG4(dev, SLSI_RX_BA, "old frame, accept but as countermeasure initiate delete BA: sn=%d, expected_sn=%d\n", sn, ba_session_rx->expected_sn);
-					ba_add_frame_to_ba_complete(dev, frame_desc);
+					if (!ba_out_of_range_delba_enable) {
+						SLSI_NET_WARN(dev, "old frame, drop: sn=%d, expected_sn=%d\n", sn, ba_session_rx->expected_sn);
+#ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
+						if (ndev_vif->enhanced_arp_detect_enabled)
+							slsi_fill_enhanced_arp_out_of_order_drop_counter(ndev_vif, frame_desc->signal);
+#endif
+#ifdef CONFIG_SCSC_SMAPPER
+						hip4_smapper_free_mapped_skb(frame_desc->signal);
+#endif
+						kfree_skb(frame_desc->signal);
+					} else {
+						SLSI_NET_DBG4(dev, SLSI_RX_BA, "old frame, accept but as countermeasure initiate delete BA: sn=%d, expected_sn=%d\n", sn, ba_session_rx->expected_sn);
+						ba_add_frame_to_ba_complete(dev, frame_desc);
 
-					if (ba_out_of_range_delba_enable && !ba_session_rx->closing)
-						ba_delete_ba_on_old_frame(dev, peer, ba_session_rx, sn);
+						if (!ba_session_rx->closing)
+							ba_delete_ba_on_old_frame(dev, peer, ba_session_rx, sn);
+					}
 				}
 			}
 		}

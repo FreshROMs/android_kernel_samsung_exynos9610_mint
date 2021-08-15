@@ -69,7 +69,7 @@
 #include <linux/of_reserved_mem.h>
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/samsung/exynos-itmon.h>
 #endif
 
@@ -222,7 +222,7 @@ struct platform_mif {
 	void (*resume_handler)(struct scsc_mif_abs *abs, void *data);
 	void *suspendresume_data;
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	struct notifier_block itmon_nb;
 #endif
 
@@ -892,7 +892,7 @@ uint32_t ka_patch[]={
     0x00000022,
 };
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static void wlbt_karam_dump(struct platform_mif *platform)
 {
 	unsigned int ka_addr = 0x1000;
@@ -1715,6 +1715,9 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 
 	/* delay 0x3E8 */
 	udelay(1000);
+
+	/* clean CFG_REQ PENDING interrupt */
+	platform_cfg_req_irq_clean_pending(platform);
 
 	/* WLBT_CONFIGURATION[LOCAL_PWR_CFG] = 1 Power On */
 	ret = regmap_update_bits(platform->pmureg, WLBT_CONFIGURATION,
@@ -2632,7 +2635,7 @@ static int __init platform_mif_wifibt_if_reserved_mem_setup(struct reserved_mem 
 RESERVEDMEM_OF_DECLARE(wifibt_if, "exynos,wifibt_if", platform_mif_wifibt_if_reserved_mem_setup);
 #endif
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 static int wlbt_itmon_notifier(struct notifier_block *nb,
 		unsigned long action, void *nb_data)
 {
@@ -2653,7 +2656,7 @@ static int wlbt_itmon_notifier(struct notifier_block *nb,
 			wlbt_karam_dump(platform);
 #if IS_ENABLED(CONFIG_DEBUG_SNAPSHOT)
 #if defined(GO_S2D_ID)
-		dbg_snapshot_soc_do_dpm_policy(GO_S2D_ID);
+		dbg_snapshot_do_dpm_policy(GO_S2D_ID);
 #elif defined(CONFIG_S3C2410_WATCHDOG)
 		s3c2410wdt_set_emergency_reset(0, 0);
 #endif
@@ -2957,7 +2960,7 @@ struct scsc_mif_abs *platform_mif_create(struct platform_device *pdev)
 	/* Initialize spinlock */
 	spin_lock_init(&platform->mif_spinlock);
 
-#ifdef CONFIG_EXYNOS_ITMON
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	platform->itmon_nb.notifier_call = wlbt_itmon_notifier;
 	itmon_notifier_chain_register(&platform->itmon_nb);
 #endif

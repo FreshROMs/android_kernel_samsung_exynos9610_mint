@@ -330,7 +330,7 @@ static int cac_send_addts(struct slsi_dev *sdev, int id, int ebw)
 	hdr = (struct ieee80211_hdr *)buf;
 	hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT, IEEE80211_STYPE_ACTION);
 	SLSI_ETHER_COPY(hdr->addr1, bssid);
-	SLSI_ETHER_COPY(hdr->addr2, sdev->hw_addr);
+	SLSI_ETHER_COPY(hdr->addr2, netdev->dev_addr);
 	SLSI_ETHER_COPY(hdr->addr3, bssid);
 
 	req = (struct action_addts_req *)(buf + IEEE80211_HEADER_SIZE);
@@ -487,7 +487,7 @@ static int cac_send_delts(struct slsi_dev *sdev, int id)
 	hdr = (struct ieee80211_hdr *)buf;
 	hdr->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT, IEEE80211_STYPE_ACTION);
 	SLSI_ETHER_COPY(hdr->addr1, bssid);
-	SLSI_ETHER_COPY(hdr->addr2, sdev->hw_addr);
+	SLSI_ETHER_COPY(hdr->addr2, netdev->dev_addr);
 	SLSI_ETHER_COPY(hdr->addr3, bssid);
 	req = (struct action_delts_req *)(buf + 24);
 	req_len = sizeof(*req);

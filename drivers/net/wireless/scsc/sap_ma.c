@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2019 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2020 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/types.h>
@@ -675,6 +675,9 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 #else
 		skb_pull(skb, fapi_get_siglen(skb));
 #endif
+		/* Populate wake reason stats here */
+		if (unlikely(slsi_skb_cb_get(skb)->wakeup))
+			slsi_rx_update_wake_stats(sdev, (struct ethhdr *)(skb->data), skb->len);
 		skb_reset_mac_header(skb);
 		skb->dev = dev;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -698,6 +701,9 @@ static void slsi_rx_data_ind(struct slsi_dev *sdev, struct net_device *dev, stru
 #else
 		eth_hdr = (struct ethhdr *)fapi_get_data(skb);
 #endif
+	/* Populate wake reason stats here */
+	if (unlikely(slsi_skb_cb_get(skb)->wakeup))
+		slsi_rx_update_wake_stats(sdev, eth_hdr, skb->len);
 	seq_num = fapi_get_u16(skb, u.ma_unitdata_ind.sequence_number);
 	SLSI_NET_DBG4(dev, SLSI_RX, "ma_unitdata_ind(vif:%d, dest:%pM, src:%pM, datatype:%d, priority:%d, s:%d, s-mapper:%d)\n",
 			  fapi_get_vif(skb),

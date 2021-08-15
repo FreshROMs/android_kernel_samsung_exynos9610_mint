@@ -110,14 +110,6 @@ static int scsc_bt_shm_init_interrupt(void)
 	bt_service.bsmhcp_protocol->header.bg_to_ap_int_src = irq_ret;
 	h4_irq_mask |= 1 << irq_num++;
 
-	irq_ret = scsc_service_mifintrbit_register_tohost(
-	    bt_service.service, scsc_bt_shm_irq_handler, NULL);
-	if (irq_ret < 0)
-		return irq_ret;
-
-	bt_service.bsmhcp_protocol->header.fg_to_ap_int_src = irq_ret;
-	h4_irq_mask |= 1 << irq_num++;
-
 	/* From-host f/w IRQ allocations */
 	irq_ret = scsc_service_mifintrbit_alloc_fromhost(
 	    bt_service.service, SCSC_MIFINTR_TARGET_R4);
@@ -135,20 +127,10 @@ static int scsc_bt_shm_init_interrupt(void)
 	bt_service.bsmhcp_protocol->header.ap_to_fg_int_src = irq_ret;
 	h4_irq_mask |= 1 << irq_num++;
 
-	irq_ret = scsc_service_mifintrbit_alloc_fromhost(
-	    bt_service.service, SCSC_MIFINTR_TARGET_M4);
-	if (irq_ret < 0)
-		return irq_ret;
-
-	bt_service.bsmhcp_protocol->header.ap_to_fg_m4_int_src = irq_ret;
-	h4_irq_mask |= 1 << irq_num++;
-
-	SCSC_TAG_DEBUG(BT_COMMON, "Registered to-host IRQ bits %d:%d, from-host IRQ bits %d:%d:%d\n",
+	SCSC_TAG_DEBUG(BT_COMMON, "Registered to-host IRQ bits %d, from-host IRQ bits %d:%d\n",
 		       bt_service.bsmhcp_protocol->header.bg_to_ap_int_src,
-		       bt_service.bsmhcp_protocol->header.fg_to_ap_int_src,
 		       bt_service.bsmhcp_protocol->header.ap_to_bg_int_src,
-		       bt_service.bsmhcp_protocol->header.ap_to_fg_int_src,
-		       bt_service.bsmhcp_protocol->header.ap_to_fg_m4_int_src);
+		       bt_service.bsmhcp_protocol->header.ap_to_fg_int_src);
 
 	return 0;
 }
@@ -439,14 +421,9 @@ static ssize_t scsc_bt_shm_h4_acl_write(const unsigned char *data, size_t count)
 		/* Memory barrier to ensure out-of-order execution is completed */
 		wmb();
 
-		if (bt_service.bsmhcp_protocol->header.firmware_features & BSMHCP_FEATURE_M4_INTERRUPTS)
-			/* Trigger the interrupt in the mailbox */
-			scsc_service_mifintrbit_bit_set(bt_service.service,
-							bt_service.bsmhcp_protocol->header.ap_to_fg_m4_int_src, SCSC_MIFINTR_TARGET_M4);
-		else
-			/* Trigger the interrupt in the mailbox */
-			scsc_service_mifintrbit_bit_set(bt_service.service,
-							bt_service.bsmhcp_protocol->header.ap_to_fg_int_src, SCSC_MIFINTR_TARGET_R4);
+		/* Trigger the interrupt in the mailbox */
+		scsc_service_mifintrbit_bit_set(bt_service.service,
+						bt_service.bsmhcp_protocol->header.ap_to_fg_int_src, SCSC_MIFINTR_TARGET_R4);
 	} else {
 		/* Transfer ring full. Only happens if the user attempt to send more ACL data packets than
 		 * available credits */
@@ -1361,14 +1338,6 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 			BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_free_read_scan, BSMHCP_TRANSFER_RING_ACL_SIZE);
 		}
 
-		/* Update the quality of service module with the number of used entries */
-		scsc_bt_qos_update(BSMHCP_USED_ENTRIES(bt_service.mailbox_hci_evt_write,
-		                                       bt_service.mailbox_hci_evt_read,
-		                                       BSMHCP_TRANSFER_RING_EVT_SIZE),
-		                   BSMHCP_USED_ENTRIES(bt_service.mailbox_acl_rx_write,
-		                                       bt_service.mailbox_acl_rx_read,
-		                                       BSMHCP_TRANSFER_RING_ACL_SIZE));
-
 		/* First: process any pending HCI event that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_hci_evt(&buf[consumed], len - consumed);
 		if (res < 0) {
@@ -1449,16 +1418,10 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 	if (gen_bg_int)
 		scsc_service_mifintrbit_bit_set(bt_service.service, bt_service.bsmhcp_protocol->header.ap_to_bg_int_src, SCSC_MIFINTR_TARGET_R4);
 
-	if (gen_fg_int) {
-		if (bt_service.bsmhcp_protocol->header.firmware_features & BSMHCP_FEATURE_M4_INTERRUPTS)
-			/* Trigger the interrupt in the mailbox */
-			scsc_service_mifintrbit_bit_set(bt_service.service,
-							bt_service.bsmhcp_protocol->header.ap_to_fg_m4_int_src, SCSC_MIFINTR_TARGET_M4);
-		else
-			/* Trigger the interrupt in the mailbox */
-			scsc_service_mifintrbit_bit_set(bt_service.service,
-							bt_service.bsmhcp_protocol->header.ap_to_fg_int_src, SCSC_MIFINTR_TARGET_R4);
-	}
+	if (gen_fg_int)
+		/* Trigger the interrupt in the mailbox */
+		scsc_service_mifintrbit_bit_set(bt_service.service,
+						bt_service.bsmhcp_protocol->header.ap_to_fg_int_src, SCSC_MIFINTR_TARGET_R4);
 
 	if (BT_READ_OP_STOP != bt_service.read_operation)
 		SCSC_TAG_DEBUG(BT_H4, "hci_evt_read=%u, acl_rx_read=%u, acl_free_read=%u, read_operation=%u, consumed=%zd, ret=%zd\n",
@@ -1668,17 +1631,11 @@ void scsc_bt_shm_exit(void)
 			scsc_service_mifintrbit_unregister_tohost(
 			    bt_service.service, bt_service.bsmhcp_protocol->header.bg_to_ap_int_src);
 		if (h4_irq_mask & 1 << irq_num++)
-			scsc_service_mifintrbit_unregister_tohost(
-			    bt_service.service, bt_service.bsmhcp_protocol->header.fg_to_ap_int_src);
-		if (h4_irq_mask & 1 << irq_num++)
 			scsc_service_mifintrbit_free_fromhost(
 			    bt_service.service, bt_service.bsmhcp_protocol->header.ap_to_bg_int_src, SCSC_MIFINTR_TARGET_R4);
 		if (h4_irq_mask & 1 << irq_num++)
 			scsc_service_mifintrbit_free_fromhost(
 			    bt_service.service, bt_service.bsmhcp_protocol->header.ap_to_fg_int_src, SCSC_MIFINTR_TARGET_R4);
-		if (h4_irq_mask & 1 << irq_num++)
-			scsc_service_mifintrbit_free_fromhost(
-			    bt_service.service, bt_service.bsmhcp_protocol->header.ap_to_fg_m4_int_src, SCSC_MIFINTR_TARGET_M4);
 	}
 
 	/* Clear all control structures */

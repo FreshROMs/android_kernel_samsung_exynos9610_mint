@@ -302,6 +302,9 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 		slsi_rx_beacon_reporting_event_ind(sdev, dev, skb);
 		break;
 #endif
+	case MLME_BLACKLISTED_IND:
+		slsi_rx_blacklisted_ind(sdev, dev, skb);
+		break;
 	case MLME_ROAMING_CHANNEL_LIST_IND:
 		slsi_rx_rcl_channel_list_ind(sdev, dev, skb);
 		break;

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2016 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -70,9 +70,7 @@ struct scsc_wifi_cm_if {
 
 	int       recovery_state;
 
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 	atomic_t                 reset_level;
-#endif
 };
 
 /*********************************** API ************************************/

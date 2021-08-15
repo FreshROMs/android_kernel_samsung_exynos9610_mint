@@ -1451,7 +1451,7 @@ int slsi_mlme_add_sched_scan(struct slsi_dev                    *sdev,
 #ifdef CONFIG_SCSC_WLAN_EXPONENTIAL_SCHED_SCAN
 	/* 16th byte (index 15): exponent, 17th byte (index 16): step count */
 	SLSI_U32_TO_BUFF_LE(request->scan_plans[0].interval * 1000 * 1000, &scan_timing_ie[7]);
-	if (request->scan_plans[0].interval < request->scan_plans[1].interval) {
+	if (request->n_scan_plans > 1 && request->scan_plans[0].interval < request->scan_plans[1].interval) {
 		SLSI_U32_TO_BUFF_LE(request->scan_plans[1].interval * 1000 * 1000, &scan_timing_ie[11]);
 		scan_timing_ie[15] = request->scan_plans[1].interval / request->scan_plans[0].interval;
 		scan_timing_ie[16] = request->scan_plans[0].iterations;
@@ -2395,6 +2395,8 @@ void slsi_mlme_connect_resp(struct slsi_dev *sdev, struct net_device *dev)
 
 	cfm = slsi_mlme_req_no_cfm(sdev, dev, req);
 	WARN_ON(cfm);
+
+	slsi_set_acl(sdev, ndev_vif);
 }
 
 void slsi_mlme_connected_resp(struct slsi_dev *sdev, struct net_device *dev, u16 peer_index)
@@ -4909,5 +4911,56 @@ void slsi_mlme_set_country_for_recovery(struct slsi_dev *sdev)
 	if (ret)
 		SLSI_ERR(sdev, "Err setting country error = %d\n", ret);
 	SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
+}
+#endif
+
+#ifdef CONFIG_SCSC_WLAN_NUM_ANTENNAS
+/* Note : netdev_vif lock should be taken care by caller. */
+int slsi_mlme_set_num_antennas(struct net_device *dev, const u16 num_of_antennas, int frame_type)
+{
+	struct netdev_vif *ndev_vif = netdev_priv(dev);
+	struct slsi_dev   *sdev = ndev_vif->sdev;
+	struct sk_buff    *req;
+	struct sk_buff    *cfm;
+	int               ret = 0;
+	const bool        is_sta = (ndev_vif->iftype == NL80211_IFTYPE_STATION);
+	const bool        is_softap = (ndev_vif->iftype == NL80211_IFTYPE_AP);
+
+	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
+
+	if (num_of_antennas > 2 || num_of_antennas == 0) {
+		SLSI_NET_ERR(dev, "Invalid num_of_antennas %hu\n", num_of_antennas);
+		return -EINVAL;
+	}
+	if (frame_type < 0 || frame_type > 2) {
+		SLSI_ERR(sdev, "Invalid frame_type: '%d'\n", frame_type);
+		return -EINVAL;
+	}
+	if (!is_sta && !is_softap) {
+		SLSI_NET_ERR(dev, "Invalid interface type %s\n", dev->name);
+		return -EPERM;
+	}
+	if (is_sta && (ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED)) {
+		SLSI_NET_ERR(dev, "sta is not in connected state\n");
+		return -EPERM;
+	}
+	SLSI_NET_INFO(dev, "SetNumAntennas(vif:%u NumAntenna:%u ftype:%d)\n",
+		      ndev_vif->ifnum, num_of_antennas, frame_type);
+
+	req = fapi_alloc(mlme_set_num_antennas_req, MLME_SET_NUM_ANTENNAS_REQ, ndev_vif->ifnum, 0);
+	fapi_set_u16(req, u.mlme_set_num_antennas_req.vif, ndev_vif->ifnum);
+	fapi_set_u16(req, u.mlme_set_num_antennas_req.number_of_antennas, num_of_antennas);
+	fapi_set_u16(req, u.mlme_set_num_antennas_req.spare_1, frame_type);
+	cfm = slsi_mlme_req_cfm(sdev, dev, req, MLME_SET_NUM_ANTENNAS_CFM);
+	if (!cfm)
+		return -EIO;
+
+	if (fapi_get_u16(cfm, u.mlme_set_num_antennas_cfm.result_code) != FAPI_RESULTCODE_SUCCESS) {
+		SLSI_NET_ERR(dev, "SetNumAntennasCfm(result:0x%04x) ERROR\n",
+			     fapi_get_u16(cfm, u.mlme_set_num_antennas_cfm.result_code));
+		ret = -EINVAL;
+	}
+	kfree_skb(cfm);
+	return ret;
 }
 #endif

@@ -288,6 +288,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	SLSI_MUTEX_INIT(sdev->device_config_mutex);
 	SLSI_MUTEX_INIT(sdev->logger_mutex);
 	slsi_spinlock_create(&sdev->netdev_lock);
+	slsi_spinlock_create(&sdev->wake_stats_lock);
 	sdev->dev = dev;
 	sdev->maxwell_core = core;
 	memcpy(&sdev->mx_wlan_client, mx_wlan_client, sizeof(struct scsc_service_client));
@@ -317,10 +318,10 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	slsi_log_clients_init(sdev);
 	slsi_traffic_mon_clients_init(sdev);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	slsi_wake_lock_init(NULL,&sdev->wlan_wl.ws, "wlan");
-	slsi_wake_lock_init(NULL,&sdev->wlan_wl_mlme.ws, "wlan_mlme");
-	slsi_wake_lock_init(NULL,&sdev->wlan_wl_ma.ws, "wlan_ma");
-	slsi_wake_lock_init(NULL,&sdev->wlan_wl_roam.ws, "wlan_roam");
+	slsi_wake_lock_init(NULL, &sdev->wlan_wl.ws, "wlan");
+	slsi_wake_lock_init(NULL, &sdev->wlan_wl_mlme.ws, "wlan_mlme");
+	slsi_wake_lock_init(NULL, &sdev->wlan_wl_ma.ws, "wlan_ma");
+	slsi_wake_lock_init(NULL, &sdev->wlan_wl_roam.ws, "wlan_roam");
 #else
 	slsi_wake_lock_init(&sdev->wlan_wl, WAKE_LOCK_SUSPEND, "wlan");
 	slsi_wake_lock_init(&sdev->wlan_wl_mlme, WAKE_LOCK_SUSPEND, "wlan_mlme");
