@@ -1760,7 +1760,7 @@ cont:
 		if (!PageLRU(page))
 			continue;
 
-		if (isolate_lru_page(page))
+		if (isolate_lru_page(compound_head(page)))
 			continue;
 
 		/* MADV_FREE clears pte dirty bit and then marks the page
