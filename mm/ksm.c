@@ -2555,6 +2555,11 @@ void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc)
 	if (!stable_node)
 		return;
 
+	if (target_vma) {
+		unsigned long address = vma_address(page, target_vma);
+		rwc->rmap_one(page, target_vma, address, rwc->arg);
+		return;
+	}
 again:
 	hlist_for_each_entry(rmap_item, &stable_node->hlist, hlist) {
 		struct anon_vma *anon_vma = rmap_item->anon_vma;
