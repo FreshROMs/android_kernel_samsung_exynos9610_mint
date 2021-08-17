@@ -28,8 +28,6 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/sysfs.h>
-#include <linux/platform_device.h>
-#include <linux/sched/clock.h>
 #include <linux/i2c.h>
 #include <linux/sec_debug.h>
 
@@ -2788,13 +2786,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(device_move);
 
-#if 0
-static const char *get_dev_name(struct device *dev)
-{
-	return dev->kobj.name ? dev->kobj.name : "null";
-}
-#endif
-
 static void *get_cls_shutdown_func(struct device *dev)
 {
 	if (!dev || !dev->class)
@@ -2881,7 +2872,6 @@ void device_shutdown(void)
 			after = local_clock();
 			sec_debug_set_device_shutdown_timeinfo(before, after, after - before, (u64)get_cls_shutdown_func(dev));
 		}
-
 		if (dev->bus && dev->bus->shutdown) {
 			if (initcall_debug)
 				dev_info(dev, "shutdown\n");
