@@ -871,7 +871,7 @@ int page_referenced(struct page *page,
 		rwc.invalid_vma = invalid_page_referenced_vma;
 	}
 
-	rmap_walk(page, &rwc);
+	rmap_walk(page, &rwc, NULL);
 	*vm_flags = pra.vm_flags;
 
 	if (we_locked)
@@ -978,7 +978,7 @@ int page_mkclean(struct page *page)
 	if (!mapping)
 		return 0;
 
-	rmap_walk(page, &rwc);
+	rmap_walk(page, &rwc, NULL);
 
 	return cleaned;
 }
@@ -1687,9 +1687,9 @@ bool try_to_unmap(struct page *page, enum ttu_flags flags,
 		rwc.invalid_vma = invalid_migration_vma;
 
 	if (flags & TTU_RMAP_LOCKED)
-		rmap_walk_locked(page, &rwc);
+		rmap_walk_locked(page, &rwc, vma);
 	else
-		rmap_walk(page, &rwc);
+		rmap_walk(page, &rwc, vma);
 
 	return !page_mapcount(page) ? true : false;
 }
@@ -1722,7 +1722,7 @@ void try_to_munlock(struct page *page)
 	VM_BUG_ON_PAGE(!PageLocked(page) || PageLRU(page), page);
 	VM_BUG_ON_PAGE(PageCompound(page) && PageDoubleMap(page), page);
 
-	rmap_walk(page, &rwc);
+	rmap_walk(page, &rwc, NULL);
 }
 
 void __put_anon_vma(struct anon_vma *anon_vma)
@@ -1771,7 +1771,7 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
  * LOCKED.
  */
 static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
-		bool locked)
+		bool locked, struct vm_area_struct *target_vma)
 {
 	struct anon_vma *anon_vma;
 	pgoff_t pgoff_start, pgoff_end;
@@ -1821,6 +1821,7 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
  * rmap_walk_file - do something to file page using the object-based rmap method
  * @page: the page to be handled
  * @rwc: control variable according to each walk type
+ * @target_vma: vma for unmapping @page
  *
  * Find all the mappings of a page using the mapping pointer and the vma chains
  * contained in the address_space struct it points to.
@@ -1831,7 +1832,7 @@ static void rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc,
  * LOCKED.
  */
 static void rmap_walk_file(struct page *page, struct rmap_walk_control *rwc,
-		bool locked)
+		bool locked, struct vm_area_struct *target_vma)
 {
 	struct address_space *mapping = page_mapping(page);
 	pgoff_t pgoff_start, pgoff_end;
@@ -1880,25 +1881,27 @@ done:
 		i_mmap_unlock_read(mapping);
 }
 
-void rmap_walk(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk(struct page *page, struct rmap_walk_control *rwc,
+					struct vm_area_struct *vma)
 {
 	if (unlikely(PageKsm(page)))
-		rmap_walk_ksm(page, rwc);
+		rmap_walk_ksm(page, rwc, vma);
 	else if (PageAnon(page))
-		rmap_walk_anon(page, rwc, false);
+		rmap_walk_anon(page, rwc, false, vma);
 	else
-		rmap_walk_file(page, rwc, false);
+		rmap_walk_file(page, rwc, false, vma);
 }
 
 /* Like rmap_walk, but caller holds relevant rmap lock */
-void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc)
+void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc,
+					struct vm_area_struct *vma)
 {
 	/* no ksm support for now */
 	VM_BUG_ON_PAGE(PageKsm(page), page);
 	if (PageAnon(page))
-		rmap_walk_anon(page, rwc, true);
+		rmap_walk_anon(page, rwc, true, vma);
 	else
-		rmap_walk_file(page, rwc, true);
+		rmap_walk_file(page, rwc, true, vma);
 }
 
 #ifdef CONFIG_HUGETLB_PAGE

@@ -62,7 +62,7 @@ static inline void set_page_stable_node(struct page *page,
 struct page *ksm_might_need_to_copy(struct page *page,
 			struct vm_area_struct *vma, unsigned long address);
 
-void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
+void rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc, struct vm_area_struct *vma);
 void ksm_migrate_page(struct page *newpage, struct page *oldpage);
 
 #else  /* !CONFIG_KSM */

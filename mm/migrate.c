@@ -294,9 +294,9 @@ void remove_migration_ptes(struct page *old, struct page *new, bool locked)
 	};
 
 	if (locked)
-		rmap_walk_locked(new, &rwc);
+		rmap_walk_locked(new, &rwc, NULL);
 	else
-		rmap_walk(new, &rwc);
+		rmap_walk(new, &rwc, NULL);
 }
 
 /*
@@ -2599,7 +2599,7 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
 			continue;
 
 		if (page_mapped(page)) {
-			try_to_unmap(page, flags);
+			try_to_unmap(page, flags, NULL);
 			if (page_mapped(page))
 				goto restore;
 		}

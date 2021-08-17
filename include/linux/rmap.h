@@ -279,8 +279,8 @@ struct rmap_walk_control {
 	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
 };
 
-void rmap_walk(struct page *page, struct rmap_walk_control *rwc);
-void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc);
+void rmap_walk(struct page *page, struct rmap_walk_control *rwc, struct vm_area_struct *vma);
+void rmap_walk_locked(struct page *page, struct rmap_walk_control *rwc, struct vm_area_struct *vma);
 
 #else	/* !CONFIG_MMU */
 
