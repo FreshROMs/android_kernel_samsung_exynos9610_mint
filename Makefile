@@ -743,6 +743,12 @@ AR		:= $(CROSS_COMPILE)gcc-ar
 NM		:= $(CROSS_COMPILE)gcc-nm
 endif
 
+# According gcc docs when using computed gotos, disabling
+# gcse could result in better runtime performing
+ifneq ($(cc-name),clang)
+KBUILD_CFLAGS   += -fno-gcse
+endif
+
 # The arch Makefile can set ARCH_{CPP,A,C}FLAGS to override the default
 # values of the respective KBUILD_* variables
 ARCH_CPPFLAGS :=
