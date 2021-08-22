@@ -1,0 +1,16 @@
+config FRESHCORE
+	def_bool y
+	help
+	 This is a Fresh Core build.
+config FRESHCORE_ONEUI
+	depends on FRESHCORE
+	bool "One UI support"
+	default n
+	help
+		Build Fresh Core components for One UI support
+config FRESHCORE_AOSP
+	depends on FRESHCORE
+	bool "AOSP support"
+	default n
+	help
+		Build Fresh Core components for AOSP support

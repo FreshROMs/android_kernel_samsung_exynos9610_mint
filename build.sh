@@ -452,11 +452,15 @@ if [[ ${BUILD_KERNEL_CODE} == 'fresh' ]]; then
 	# One UI needs a couple of Knox stuff so it won't spout errors on logs. Keep them enabled for One UI.
 	merge_config partial-deknox
 	merge_config samsung-mtp
+	merge_config oneui
 elif [[ ${BUILD_KERNEL_CODE} == 'aosp' ]]; then
 	merge_config partial-deknox
+	merge_config aosp
 elif [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
 	merge_config partial-deknox
 	merge_config samsung-mtp
+	merge_config oneui
+	merge_config aosp
 fi
 
 if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
