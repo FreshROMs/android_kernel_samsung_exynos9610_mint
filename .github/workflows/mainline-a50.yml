@@ -258,8 +258,8 @@ jobs:
     - name: Delete older release
       uses: dev-drprasad/delete-older-releases@v0.2.0
       with:
-        keep_latest: 0
-        delete_tag_pattern: "Galaxy A50 (mainline"
+        keep_latest: 2
+        delete_tag_pattern: "a50dx"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
@@ -269,7 +269,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         # The name of the tag
-        tag_name: mainline-${{ github.run_number }}_a50
+        tag_name: mainline-${{ github.run_number }}_a50dx
         release_name: Galaxy A50 (mainline-${{ github.run_number }})
         body_path: "./tools/make/release/a50.md"
         asset_files: './release'
