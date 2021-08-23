@@ -40,7 +40,6 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-fresh.txt
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
@@ -83,7 +82,6 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-aosp.txt
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
@@ -126,7 +124,6 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-fresh_noroot.txt
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
@@ -169,7 +166,6 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-aosp_noroot.txt
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
