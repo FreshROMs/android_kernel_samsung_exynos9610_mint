@@ -1338,16 +1338,6 @@ ssize_t scsc_bt_shm_h4_read(struct file *file, char __user *buf, size_t len, lof
 			BSMHCP_INCREASE_INDEX(bt_service.mailbox_acl_free_read_scan, BSMHCP_TRANSFER_RING_ACL_SIZE);
 		}
 
-#ifdef CONFIG_SCSC_QOS
-		/* Update the quality of service module with the number of used entries */
-		scsc_bt_qos_update(BSMHCP_USED_ENTRIES(bt_service.mailbox_hci_evt_write,
-		                                       bt_service.mailbox_hci_evt_read,
-		                                       BSMHCP_TRANSFER_RING_EVT_SIZE),
-		                   BSMHCP_USED_ENTRIES(bt_service.mailbox_acl_rx_write,
-		                                       bt_service.mailbox_acl_rx_read,
-		                                       BSMHCP_TRANSFER_RING_ACL_SIZE));
-#endif
-
 		/* First: process any pending HCI event that needs to be sent to userspace */
 		res = scsc_bt_shm_h4_read_hci_evt(&buf[consumed], len - consumed);
 		if (res < 0) {

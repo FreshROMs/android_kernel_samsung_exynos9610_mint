@@ -875,12 +875,10 @@ void slsi_rx_netdev_data_work(struct work_struct *work)
 			break;
 		}
 
-		slsi_spinlock_lock(&ndev_vif->ba_lock);
 		if (atomic_read(&ndev_vif->ba_flush)) {
 			atomic_set(&ndev_vif->ba_flush, 0);
 			slsi_ba_process_complete(dev, false);
 		}
-		slsi_spinlock_unlock(&ndev_vif->ba_lock);
 
 		skb = slsi_skb_work_dequeue(w);
 		if (!skb) {

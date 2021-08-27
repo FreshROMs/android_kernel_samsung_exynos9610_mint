@@ -453,11 +453,6 @@ static int slsi_sm_bt_service_cleanup()
 			"cleanup ongoing avdtp detections\n");
 		scsc_avdtp_detect_exit();
 
-#ifdef CONFIG_SCSC_QOS
-		/* Report quality of service statistics */
-		scsc_bt_qos_service_stop();
-#endif
-
 		mutex_lock(&bt_audio_mutex);
 #ifndef CONFIG_SOC_EXYNOS7885
 		if (audio_device) {
@@ -1083,10 +1078,6 @@ int slsi_sm_bt_service_start(void)
 	} else {
 		SCSC_TAG_DEBUG(BT_COMMON, "Bluetooth service running\n");
 		bt_service.service_started = true;
-#ifdef CONFIG_SCSC_QOS
-		scsc_bt_qos_service_start();
-#endif
-
 		slsi_kic_system_event(
 			slsi_kic_system_event_category_initialisation,
 			slsi_kic_system_events_bt_on, 0);
@@ -1747,7 +1738,6 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 
 		mutex_unlock(&bt_start_mutex);
 
-		SCSC_TAG_INFO(BT_COMMON, "wait for recovery_release_complete\n");
 		/* Don't wait for the recovery_release_complete if service is not active */
 		if (service_active) {
 			int ret = wait_for_completion_timeout(&bt_service.recovery_release_complete,
@@ -1777,9 +1767,6 @@ static void slsi_bt_service_remove(struct scsc_mx_module_client *module_client,
 
 done:
 	mutex_unlock(&bt_start_mutex);
-
-	SCSC_TAG_INFO(BT_COMMON,
-	      "BT service remove complete (%s %p)\n", module_client->name, mx);
 }
 
 /* BT service driver registration interface */
@@ -1874,9 +1861,6 @@ static void slsi_ant_service_remove(struct scsc_mx_module_client *module_client,
 
 done:
 	mutex_unlock(&ant_start_mutex);
-
-	SCSC_TAG_INFO(BT_COMMON,
-		      "ANT service remove complete (%s %p)\n", module_client->name, mx);
 }
 #endif
 
@@ -2573,9 +2557,6 @@ static int __init scsc_bt_module_init(void)
 #ifdef CONFIG_SCSC_ANT
 	SCSC_TAG_DEBUG(BT_COMMON, "dev=%u class=%p\n",
 			   ant_service.device, common_service.class);
-#endif
-#ifdef CONFIG_SCSC_QOS
-	scsc_bt_qos_service_init();
 #endif
 
 	return 0;

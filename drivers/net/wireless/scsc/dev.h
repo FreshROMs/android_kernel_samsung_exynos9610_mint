@@ -96,15 +96,6 @@
 #define SLSI_MAX_ARP_SEND_FRAME  8
 #endif
 
-#define HOME_TIME_BIT                BIT(0)
-#define HOME_AWAY_TIME_BIT           BIT(1)
-#define MAX_CHANNEL_TIME_BIT         BIT(2)
-#define MAX_CHANNEL_PASSIVE_TIME_BIT BIT(3)
-#define LATENCY_ALL_SET_MASK (HOME_TIME_BIT| \
-			      HOME_AWAY_TIME_BIT| \
-			      MAX_CHANNEL_TIME_BIT| \
-			      MAX_CHANNEL_PASSIVE_TIME_BIT)
-
 /* indices: 3= BW20->idx_0, BW40->idx_1, BW80->idx_2.
  *             2= noSGI->idx_0, SGI->idx_1
  *             10= mcs index
@@ -703,8 +694,10 @@ struct slsi_vif_sta {
 	u8                      bssid[ETH_ALEN];
 	u8                      ssid[IEEE80211_MAX_SSID_LEN];
 	u8                      ssid_len;
+#ifdef CONFIG_SCSC_WLAN_SAE_CONFIG
 	u8                      *rsn_ie;
 	int                     rsn_ie_len;
+#endif
 
 	/* Storing channel bitmap to use it for setting cached channels */
 	u16                     channels_24_ghz;
@@ -1150,7 +1143,6 @@ struct slsi_dev_config {
 #define SLSI_NET_INDEX_P2P  2
 #define SLSI_NET_INDEX_P2PX_SWLAN 3
 #define SLSI_NET_INDEX_NAN  4
-#define SLSI_NET_INDEX_DETECT (CONFIG_SCSC_WLAN_MAX_INTERFACES + 1)
 
 /* States used during P2P operations */
 enum slsi_p2p_states {
@@ -1314,13 +1306,11 @@ struct slsi_dev {
 	struct scsc_wake_lock			wlan_wl_mlme;
 	struct scsc_wake_lock			wlan_wl_ma;
 	struct scsc_wake_lock			wlan_wl_roam;
-	struct scsc_wake_lock			wlan_wl_init;
 #else
 	struct wake_lock                        wlan_wl;
 	struct wake_lock                        wlan_wl_mlme;
 	struct wake_lock                        wlan_wl_ma;
 	struct wake_lock                        wlan_wl_roam;
-	struct wake_lock                        wlan_wl_init;
 #endif
 #endif
 	struct slsi_sig_send       sig_wait;
@@ -1441,10 +1431,7 @@ struct slsi_dev {
 	int                        max_channel_passive_time;
 	int                        wlan_service_on;
 	struct slsi_wlan_driver_wake_reason_cnt wake_reason_stats;
-	struct slsi_spinlock       wake_stats_lock;
-	u8                         latency_param_mask;
-	bool                       detect_vif_active;
-	bool                       max_dtim_recv;
+	struct slsi_spinlock    wake_stats_lock;
 };
 
 /* Compact representation of channels a ESS has been seen on
@@ -1512,9 +1499,6 @@ int slsi_get_nan_ndp_max_time(void);
 #endif
 void slsi_sched_scan_stopped(struct work_struct *work);
 bool slsi_dev_rtt_supported(void);
-#ifdef CONFIG_SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
-struct slsi_dev *slsi_get_sdev(void);
-#endif
 
 static inline u16 slsi_tx_host_tag(struct slsi_dev *sdev, enum slsi_traffic_q tq)
 {

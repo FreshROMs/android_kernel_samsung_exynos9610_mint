@@ -41,8 +41,6 @@ void slsi_tdls_peer_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk
 void slsi_rx_listen_end_ind(struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_blockack_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_ma_to_mlme_delba_req(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
-void slsi_rx_start_detect_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 void slsi_rx_rcl_channel_list_ind(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
-void slsi_get_fapi_version_string(char *res);
 
 #endif

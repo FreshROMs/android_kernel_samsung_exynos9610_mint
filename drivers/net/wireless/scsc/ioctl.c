@@ -114,7 +114,6 @@
 #define CMD_GETBSSINFO "GETBSSINFO"
 #define CMD_GETSTAINFO "GETSTAINFO"
 #define CMD_GETASSOCREJECTINFO "GETASSOCREJECTINFO"
-#define CMD_SET_DWELL_TIME "SET_DWELL_TIME"
 
 #if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 #define CMD_BEACON_RECV "BEACON_RECV"
@@ -153,8 +152,6 @@
 #define CMD_SET_TX_POWER_SAR "SET_TX_POWER_SAR"
 #define CMD_GET_TX_POWER_SAR "GET_TX_POWER_SAR"
 
-#define CMD_POWER_MEASUREMENT_START "POWER_MEASUREMENT_START"
-
 #ifdef CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
 #define CMD_ENHANCED_PKT_FILTER "ENHANCED_PKT_FILTER"
 #endif
@@ -171,17 +168,8 @@
 #ifdef CONFIG_SCSC_WLAN_DYNAMIC_ITO
 #define CMD_SET_ITO "SET_ITO"
 #endif
-
-#define CMD_ELNA_BYPASS     "ELNA_BYPASS"
-#define CMD_ELNA_BYPASS_INT "ELNA_BYPASS_INT"
-#define CMD_MAX_DTIM_IN_SUSPEND "MAX_DTIM_IN_SUSPEND"
-#define CMD_SET_DTIM_IN_SUSPEND "SET_DTIM_IN_SUSPEND"
-
 #define ROAMOFFLAPLIST_MIN 1
 #define ROAMOFFLAPLIST_MAX 100
-/* Manually added: To be removed after autogen */
-#define SLSI_PSID_UNIFI_LNA_EVALUATION_INTERVAL 0x1778
-#define SLSI_PSID_UNIFI_USE_HOST_LISTEN_INTERVAL 0x09AC
 
 struct slsi_ioctl_args *slsi_get_private_command_args(char *buffer, int buf_len, int max_arg_count)
 {
@@ -2253,16 +2241,23 @@ static ssize_t slsi_set_low_latency_params(struct net_device *dev, int latency_p
 	struct slsi_dev   *sdev = ndev_vif->sdev;
 	int ret = 0;
 
-	if ((sdev->latency_param_mask & LATENCY_ALL_SET_MASK) == LATENCY_ALL_SET_MASK) {
+	if (sdev->home_away_time != 0 && sdev->home_time != 0 && sdev->max_channel_time != 0 &&
+	    sdev->max_channel_passive_time != 0) {
 		SLSI_INFO(sdev, "Home Away Time = %d, Home time = %d, Max Channel Time = %d Passive Time = %d\n",
 			  sdev->home_away_time, sdev->home_time, sdev->max_channel_time,
 			  sdev->max_channel_passive_time);
 		ret = slsi_mlme_set_scan_mode_req(sdev, dev, FAPI_SCANMODE_LOW_LATENCY, sdev->max_channel_time,
-						  sdev->home_away_time, sdev->home_time, sdev->max_channel_passive_time);
-		sdev->latency_param_mask = 0;
+					       sdev->home_away_time, sdev->home_time, sdev->max_channel_passive_time);
+		sdev->home_away_time = 0;
+		sdev->home_time = 0;
+		sdev->max_channel_time = 0;
+		sdev->max_channel_passive_time = 0;
 	} else if (latency_param == 0) {
 		ret = slsi_mlme_set_scan_mode_req(sdev, dev, FAPI_SCANMODE_LEGACY, 0, 0, 0, 0);
-		sdev->latency_param_mask = 0;
+		sdev->home_away_time = 0;
+		sdev->home_time = 0;
+		sdev->max_channel_time = 0;
+		sdev->max_channel_passive_time = 0;
 	}
 
 	return ret;
@@ -2281,8 +2276,6 @@ static int slsi_set_home_away_time_legacy(struct net_device *dev, char *command,
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sdev->home_away_time = home_away_time;
-	if (home_away_time != 0)
-		sdev->latency_param_mask |= HOME_AWAY_TIME_BIT;
 	ret = slsi_set_low_latency_params(dev, home_away_time);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -2302,10 +2295,9 @@ static int slsi_set_home_time_legacy(struct net_device *dev, char *command, int 
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sdev->home_time = home_time;
-	if (home_time != 0)
-		sdev->latency_param_mask |= HOME_TIME_BIT;
 	ret = slsi_set_low_latency_params(dev, home_time);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
+
 	return ret;
 }
 
@@ -2322,8 +2314,6 @@ static int slsi_set_channel_time_legacy(struct net_device *dev, char *command, i
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sdev->max_channel_time = max_channel_time;
-	if (max_channel_time != 0)
-		sdev->latency_param_mask |= MAX_CHANNEL_TIME_BIT;
 	ret = slsi_set_low_latency_params(dev, max_channel_time);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -2343,8 +2333,6 @@ static int slsi_set_passive_time_legacy(struct net_device *dev, char *command, i
 
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	sdev->max_channel_passive_time = max_channel_passive_time;
-	if (max_channel_passive_time != 0)
-		sdev->latency_param_mask |= MAX_CHANNEL_PASSIVE_TIME_BIT;
 	ret = slsi_set_low_latency_params(dev, max_channel_passive_time);
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
@@ -4427,42 +4415,6 @@ int slsi_set_disconnect_ies(struct net_device *dev, char *cmd, int cmd_len)
 	return 0;
 }
 
-static int slsi_start_power_measurement_detection(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif    *ndev_vif = netdev_priv(dev);
-	struct slsi_dev      *sdev = ndev_vif->sdev;
-	u8                   device_address[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-	int                  r = 0;
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-
-	if (sdev->detect_vif_active) {
-		SLSI_DBG1(sdev, SLSI_CFG80211, "Detect vif already active\n");
-		r = -EINVAL;
-		goto exit_with_vif_mutex;
-	}
-
-	if (slsi_mlme_add_detect_vif(sdev, dev, dev->dev_addr, device_address) != 0) {
-		SLSI_NET_ERR(dev, "slsi_mlme_add_vif for detect vif failed\n");
-		r = -EINVAL;
-		goto exit_with_vif_mutex;
-	}
-
-	sdev->detect_vif_active = true;
-	SLSI_DBG1(sdev, SLSI_CFG80211, "Starting Power Measurement Detection\n");
-	r = slsi_mlme_start_detect_request(sdev, dev);
-	if (r) {
-		r = -EINVAL;
-		if (slsi_mlme_del_detect_vif(sdev, dev) != 0)
-			SLSI_NET_ERR(dev, "slsi_mlme_del_vif failed for detect vif\n");
-		sdev->detect_vif_active = false;
-	}
-
-exit_with_vif_mutex:
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-	return r;
-}
-
 #ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 static int slsi_enhanced_arp_start_stop(struct net_device *dev, char *command, int buf_len)
 {
@@ -4599,7 +4551,6 @@ static int slsi_ioctl_test_force_hang(struct net_device *dev, char *command, int
 }
 #endif
 
-#ifdef CONFIG_SCSC_WLAN_LOW_LATENCY_MODE
 static int slsi_ioctl_set_latency_mode(struct net_device *dev, char *command, int cmd_len)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -4620,33 +4571,6 @@ static int slsi_ioctl_set_latency_mode(struct net_device *dev, char *command, in
 			ret = -EINVAL;
 		} else {
 			ret = slsi_set_latency_mode(dev, latency_mode, cmd_len);
-		}
-	}
-	kfree(ioctl_args);
-	return ret;
-}
-#endif
-
-static int slsi_ioctl_set_latency_crt_data(struct net_device *dev, char *command, int cmd_len)
-{
-	struct netdev_vif      *ndev_vif = netdev_priv(dev);
-	struct slsi_dev        *sdev = ndev_vif->sdev;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int                    latency_mode = 0;
-	int                    ret = 0;
-
-	ioctl_args = slsi_get_private_command_args(command, cmd_len, 1);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &latency_mode)) {
-		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
-		ret = -EINVAL;
-	} else {
-		if (latency_mode < 0 || latency_mode > 3) {
-			SLSI_ERR(sdev, "Invalid latency_crt_data: '%s'\n", ioctl_args->args[0]);
-			ret = -EINVAL;
-		} else {
-			ret = slsi_set_latency_crt_data(dev, latency_mode);
 		}
 	}
 	kfree(ioctl_args);
@@ -4725,215 +4649,6 @@ exit:
 	return ret;
 }
 #endif
-
-static int slsi_elna_bypass(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif *ndev_vif        = netdev_priv(dev);
-	struct slsi_dev   *sdev            = ndev_vif->sdev;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int mib_value                      = 0;
-
-	ioctl_args = slsi_get_private_command_args(command, buf_len, 1);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &mib_value)) {
-		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
-		kfree(ioctl_args);
-		return -EINVAL;
-	}
-	kfree(ioctl_args);
-	if (mib_value != 0 && mib_value != 1) {
-		SLSI_ERR(sdev, "Invalid LNA control: '%d'\n", mib_value);
-		return -EINVAL;
-	}
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (ndev_vif->iftype == NL80211_IFTYPE_STATION && ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
-		SLSI_NET_ERR(dev, "sta is not in connected state\n");
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return -EPERM;
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	return slsi_set_uint_mib(sdev, NULL, SLSI_PSID_UNIFI_LNA_CONTROL_ENABLED, mib_value);
-}
-
-static int slsi_elna_bypass_int(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif *ndev_vif        = netdev_priv(dev);
-	struct slsi_dev   *sdev            = ndev_vif->sdev;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int mib_value                      = 0;
-
-	ioctl_args = slsi_get_private_command_args(command, buf_len, 1);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &mib_value)) {
-		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
-		kfree(ioctl_args);
-		return -EINVAL;
-	}
-	kfree(ioctl_args);
-	if (mib_value < 0 || mib_value > 65535) {
-		SLSI_ERR(sdev, "Invalid LNA Eval Intervel: '%d'\n", mib_value);
-		return -EINVAL;
-	}
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (ndev_vif->iftype == NL80211_IFTYPE_STATION && ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
-		SLSI_NET_ERR(dev, "sta is not in connected state\n");
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return -EPERM;
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	return slsi_set_uint_mib(sdev, NULL, SLSI_PSID_UNIFI_LNA_EVALUATION_INTERVAL, mib_value);
-}
-
-static int slsi_set_dwell_time(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-	struct slsi_dev   *sdev = ndev_vif->sdev;
-	int passive_time = 0;
-	int home_time = 0;
-	int scan_channel_time = 0;
-	int home_away_time = 0;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int ret = 0;
-	int reset = 1;
-
-	ioctl_args = slsi_get_private_command_args(command, buf_len, 4);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &passive_time)) {
-		SLSI_ERR(sdev, "Invalid string passive_time: '%s'\n", ioctl_args->args[0]);
-		ret = -EINVAL;
-	} else if (passive_time < 0 || passive_time > 0xFFFF) {
-		SLSI_ERR(sdev, "Invalid passive_time value: '%d'\n", passive_time);
-		ret = -EINVAL;
-	}
-
-	if (!slsi_str_to_int(ioctl_args->args[1], &home_time)) {
-		SLSI_ERR(sdev, "Invalid string home_time: '%s'\n", ioctl_args->args[1]);
-		ret = -EINVAL;
-	} else if (home_time < 0 || home_time > 0xFFFF) {
-		SLSI_ERR(sdev, "Invalid home_time value: '%d'\n", home_time);
-		ret = -EINVAL;
-	}
-
-	if (!slsi_str_to_int(ioctl_args->args[2], &scan_channel_time)) {
-		SLSI_ERR(sdev, "Invalid string scan_channel_time: '%s'\n", ioctl_args->args[2]);
-		ret = -EINVAL;
-	} else if (scan_channel_time < 0 || scan_channel_time > 0xFFFF) {
-		SLSI_ERR(sdev, "Invalid scan_channel_time value: '%d'\n", scan_channel_time);
-		ret = -EINVAL;
-	}
-
-	if (!slsi_str_to_int(ioctl_args->args[3], &home_away_time)) {
-		SLSI_ERR(sdev, "Invalid string scan_channel_time: '%s'\n", ioctl_args->args[3]);
-		ret = -EINVAL;
-	} else if (home_away_time < 0 || home_away_time > 0xFFFF) {
-		SLSI_ERR(sdev, "Invalid scan_channel_time value: '%d'\n", home_away_time);
-		ret = -EINVAL;
-	}
-
-	if (ret != 0)
-		goto exit;
-
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	sdev->home_away_time = home_away_time;
-	sdev->home_time = home_time;
-	sdev->max_channel_time = scan_channel_time;
-	sdev->max_channel_passive_time = passive_time;
-	/* Set all 4 bits*/
-	if (home_away_time != 0 && home_time != 0  && scan_channel_time != 0 && passive_time != 0)
-		sdev->latency_param_mask = LATENCY_ALL_SET_MASK;
-	else
-		reset = 0;
-	ret = slsi_set_low_latency_params(dev, reset);
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-exit:
-	kfree(ioctl_args);
-	return ret;
-}
-
-static int slsi_max_dtim_suspend(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif *ndev_vif        = netdev_priv(dev);
-	struct slsi_dev   *sdev            = ndev_vif->sdev;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int mib_value                      = 0;
-	int ret                            = 0;
-
-	ioctl_args = slsi_get_private_command_args(command, buf_len, 1);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &mib_value)) {
-		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
-		kfree(ioctl_args);
-		return -EINVAL;
-	}
-	kfree(ioctl_args);
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (ndev_vif->iftype == NL80211_IFTYPE_STATION && ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
-		SLSI_NET_ERR(dev, "sta is not in connected state\n");
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return -EPERM;
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	if (mib_value < 0 || mib_value > 1) {
-		SLSI_ERR(sdev, "Invalid Max DTIM Suspend: '%d'\n", mib_value);
-		return -EINVAL;
-	}
-	if (mib_value == 0) {
-		sdev->max_dtim_recv = true;
-	} else if (mib_value == 1) {
-		sdev->max_dtim_recv = false;
-		ret = slsi_set_uint_mib(sdev, NULL, SLSI_PSID_UNIFI_USE_HOST_LISTEN_INTERVAL, 0);
-	}
-
-	return ret;
-}
-
-static int slsi_set_dtim_suspend(struct net_device *dev, char *command, int buf_len)
-{
-	struct netdev_vif *ndev_vif        = netdev_priv(dev);
-	struct slsi_dev   *sdev            = ndev_vif->sdev;
-	struct slsi_ioctl_args *ioctl_args = NULL;
-	int mib_value                      = 0;
-	int ret                            = 0;
-
-	ioctl_args = slsi_get_private_command_args(command, buf_len, 1);
-	SLSI_VERIFY_IOCTL_ARGS(sdev, ioctl_args);
-
-	if (!slsi_str_to_int(ioctl_args->args[0], &mib_value)) {
-		SLSI_ERR(sdev, "Invalid string: '%s'\n", ioctl_args->args[0]);
-		kfree(ioctl_args);
-		return -EINVAL;
-	}
-	kfree(ioctl_args);
-	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
-	if (ndev_vif->iftype == NL80211_IFTYPE_STATION && ndev_vif->sta.vif_status != SLSI_VIF_STATUS_CONNECTED) {
-		SLSI_NET_ERR(dev, "sta is not in connected state\n");
-		SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-		return -EPERM;
-	}
-	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-
-	if (!sdev->max_dtim_recv) {
-		SLSI_ERR(sdev, "Max DTIM Suspend = 0 not received\n");
-		return -EPERM;
-	}
-
-	sdev->max_dtim_recv = false;
-
-	if (mib_value < 0) {
-		SLSI_ERR(sdev, "Invalid Set DTIM Suspend val: '%d'\n", mib_value);
-		return -EINVAL;
-	}
-
-	ret = slsi_set_uint_mib(sdev, NULL, SLSI_PSID_UNIFI_USE_HOST_LISTEN_INTERVAL, mib_value);
-	return ret;
-}
 
 static int slsi_ioctl_cmd_success(struct net_device *dev, char *command, int cmd_len)
 {
@@ -5037,7 +4752,6 @@ static const struct slsi_ioctl_fn slsi_ioctl_fn_table[] = {
 	{ CMD_SET_TX_POWER_CALLING,         slsi_set_tx_power_calling },
 	{ CMD_SET_TX_POWER_SAR,             slsi_set_tx_power_sar },
 	{ CMD_GET_TX_POWER_SAR,             slsi_get_tx_power_sar },
-	{ CMD_POWER_MEASUREMENT_START,      slsi_start_power_measurement_detection },
 	{ CMD_GETREGULATORY,                slsi_get_regulatory },
 #ifdef CONFIG_SCSC_WLAN_HANG_TEST
 	{ CMD_TESTFORCEHANG,                slsi_ioctl_test_force_hang },
@@ -5052,7 +4766,7 @@ static const struct slsi_ioctl_fn slsi_ioctl_fn_table[] = {
 	{ CMD_SET_LATENCY_MODE,             slsi_ioctl_set_latency_mode },
 	{ CMD_SET_POWER_MGMT,               slsi_set_power_mode },
 #endif
-	{ CMD_SET_LATENCY_CRT_DATA,         slsi_ioctl_set_latency_crt_data },
+	{ CMD_SET_LATENCY_CRT_DATA,         slsi_ioctl_set_latency_mode },
 	{ CMD_SET_DISCONNECT_IES,           slsi_set_disconnect_ies },
 #ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 	{ CMD_SET_ENHANCED_ARP_TARGET,      slsi_enhanced_arp_start_stop },
@@ -5082,12 +4796,7 @@ static const struct slsi_ioctl_fn slsi_ioctl_fn_table[] = {
 #ifdef CONFIG_SCSC_WLAN_DYNAMIC_ITO
 	{ CMD_SET_ITO,                      slsi_set_ito },
 #endif
-	{ CMD_GET_CU,                       slsi_get_cu },
-	{ CMD_ELNA_BYPASS_INT,              slsi_elna_bypass_int },
-	{ CMD_ELNA_BYPASS,                  slsi_elna_bypass },
-	{ CMD_SET_DWELL_TIME,               slsi_set_dwell_time },
-	{ CMD_SET_DTIM_IN_SUSPEND,          slsi_set_dtim_suspend },
-	{ CMD_MAX_DTIM_IN_SUSPEND,          slsi_max_dtim_suspend }
+	{ CMD_GET_CU,                       slsi_get_cu }
 };
 
 static int slsi_ioctl_fn_lookup(char *command)
@@ -5159,10 +4868,7 @@ int slsi_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 	command[priv_cmd.total_len] = '\0';
 
-	if (strncasecmp(command, CMD_SET_PMK, strlen(CMD_SET_PMK)) == 0)
-		SLSI_INFO_NODEV("command: SET_PMK\n");
-	else
-		SLSI_INFO_NODEV("command: %.*s\n", priv_cmd.total_len, command);
+	SLSI_INFO_NODEV("command: %.*s\n", priv_cmd.total_len, command);
 
 	ret = slsi_do_ioctl(dev, command, priv_cmd.total_len);
 

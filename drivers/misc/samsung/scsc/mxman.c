@@ -2061,7 +2061,7 @@ static void mxman_failure_work(struct work_struct *work)
 
 	if (mxman->last_syserr.level >= trigger_moredump_level) {
 		slsi_kic_system_event(slsi_kic_system_event_category_error,
-				slsi_kic_system_events_subsystem_crashed, GFP_KERNEL);
+			      slsi_kic_system_events_subsystem_crashed, GFP_KERNEL);
 
 		/* Mark as level 8 as services neeed to know this has happened */
 		if (mxman->last_syserr.level < MX_SYSERR_LEVEL_8) {
