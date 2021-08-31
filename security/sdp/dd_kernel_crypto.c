@@ -343,8 +343,9 @@ static int get_dd_file_key(struct dd_crypt_context *crypt_context,
 
 	dd_dump("ddar file key", raw_key, DD_AES_256_XTS_KEY_SIZE);
 out:
-    if (rc)
-        dd_error("file key derivation failed\n");
+	if (rc) {
+		dd_error("file key derivation failed\n");
+	}
 
 	crypto_free_aead(key_aead);
 	if (cipher_file_encryption_key) kfree(cipher_file_encryption_key);
