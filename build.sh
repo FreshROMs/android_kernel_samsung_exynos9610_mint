@@ -89,14 +89,16 @@ verify_toolchain() {
 		export LD_LIBRARY_PATH="${TOOLCHAIN_EXT}/lib:$LD_LIBRARY_PATH"
 
 		if [[ ${BUILD_KERNEL_CI} == 'true' ]]; then
-			sudo mkdir -p /root/build/install/aarch64-linux-gnu
-			sudo cp "${TOOLCHAIN_EXT}/lib" /root/build/install/aarch64-linux-gnu/
+			if [[ ${BUILD_PREF_COMPILER_VERSION} == 'proton' ]]; then
+				sudo mkdir -p /root/build/install/aarch64-linux-gnu
+				sudo cp "${TOOLCHAIN_EXT}/lib" /root/build/install/aarch64-linux-gnu/
 
-			sudo chown ${CURRENT_BUILD_USER} /root
-			sudo chown ${CURRENT_BUILD_USER} /root/build
-			sudo chown ${CURRENT_BUILD_USER} /root/build/install
-			sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu
-			sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu/lib
+				sudo chown ${CURRENT_BUILD_USER} /root
+				sudo chown ${CURRENT_BUILD_USER} /root/build
+				sudo chown ${CURRENT_BUILD_USER} /root/build/install
+				sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu
+				sudo chown ${CURRENT_BUILD_USER} /root/build/install/aarch64-linux-gnu/lib
+			fi
 		fi
 	else
 		script_echo "I: Toolchain not found at default location or repository root"
@@ -185,9 +187,12 @@ build_kernel() {
 		# google_snowcone (aka Clang 12 for Android) uses an additional 'LLVM=1' flag
 		make -C $(pwd) CC=${BUILD_PREF_COMPILER} LLVM=1 AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip ${BUILD_DEVICE_TMP_CONFIG} LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
 		make -C $(pwd) CC=${BUILD_PREF_COMPILER} LLVM=1 AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip -j$(nproc --all) LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
-	else
+	elif [[ ${BUILD_PREF_COMPILER} == 'clang' ]]; then
 		make -C $(pwd) CC=${BUILD_PREF_COMPILER} LLVM=1 ${BUILD_DEVICE_TMP_CONFIG} LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
 		make -C $(pwd) CC=${BUILD_PREF_COMPILER} LLVM=1 -j$(nproc --all) LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
+	else
+		make -C $(pwd) ${BUILD_DEVICE_TMP_CONFIG} LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
+		make -C $(pwd) -j$(nproc --all) LOCALVERSION="${LOCALVERSION}" 2>&1 | sed 's/^/     /'
 	fi
 }
 
