@@ -86,7 +86,7 @@ jobs:
           set -eo pipefail
           echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
           export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
-          ./build.sh --magisk --automated --device a50 --variant aosp
+          ./build.sh --magisk --automated --device a50 --variant aosp --permissive
 
     - name: Prepare release package
       run: |
