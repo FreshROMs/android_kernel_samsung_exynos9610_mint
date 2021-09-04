@@ -64,55 +64,9 @@ static const char *handler[] = {
 
 int show_unhandled_signals = 0;
 
-/*
- * Dump out the contents of some kernel memory nicely...
- */
-static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
-		     unsigned long top)
-{
-	unsigned long first;
-	mm_segment_t fs;
-	int i;
-
-	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.
-	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	printk("%s%s(0x%016lx to 0x%016lx)\n", lvl, str, bottom, top);
-
-	for (first = bottom & ~31; first < top; first += 32) {
-		unsigned long p;
-		char str[sizeof(" 12345678") * 8 + 1];
-
-		memset(str, ' ', sizeof(str));
-		str[sizeof(str) - 1] = '\0';
-
-		for (p = first, i = 0; i < (32 / 8)
-					&& p < top; i++, p += 8) {
-			if (p >= bottom && p < top) {
-				unsigned long val;
-
-				if (__get_user(val, (unsigned long *)p) == 0)
-					sprintf(str + i * 17, " %016lx", val);
-				else
-					sprintf(str + i * 17, " ????????????????");
-			}
-		}
-		printk("%s%04lx:%s\n", lvl, first & 0xffff, str);
-	}
-
-	set_fs(fs);
-}
-
 static void dump_backtrace_entry(unsigned long where)
 {
-	/*
-	 * Note that 'where' can have a physical address, but it's not handled.
-	 */
-	print_ip_sym(where);
+	printk(" %pS\n", (void *)where);
 }
 
 #ifdef CONFIG_SEC_DEBUG_AUTO_COMMENT
@@ -193,20 +147,20 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 #endif
 
 	printk("Call trace:\n");
-	while (1) {
-		unsigned long stack;
-		int ret;
-
+	do {
 #ifdef CONFIG_SEC_DEBUG_LIMIT_BACKTRACE
 		if (MAX_UNWINDING_LOOP < cnt) {
 			pr_info("%s: Forcely break dump_backtrace to avoid infinity backtrace\n", __func__);
 			break;
 		}
 #endif
-
 		/* skip until specified stack frame */
 		if (!skip) {
+#ifdef CONFIG_SEC_DEBUG_AUTO_COMMENT
+			dump_backtrace_entry_auto_summary(frame.pc);
+#else
 			dump_backtrace_entry(frame.pc);
+#endif
 			dbg_snapshot_save_log(raw_smp_processor_id(), frame.pc);
 		} else if (frame.fp == regs->regs[29]) {
 			skip = 0;
@@ -217,21 +171,14 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 			 * at which an exception has taken place, use regs->pc
 			 * instead.
 			 */
+#ifdef CONFIG_SEC_DEBUG_AUTO_COMMENT
+			dump_backtrace_entry_auto_summary(regs->pc);
+#else
 			dump_backtrace_entry(regs->pc);
+#endif
 			dbg_snapshot_save_log(raw_smp_processor_id(), regs->pc);
 		}
-		ret = unwind_frame(tsk, &frame);
-		if (ret < 0)
-			break;
-		if (in_entry_text(frame.pc)) {
-			stack = frame.fp - offsetof(struct pt_regs, stackframe);
-
-			if (on_accessible_stack(tsk, stack))
-				dump_mem("", "Exception stack", stack,
-					 stack + sizeof(struct pt_regs));
-		}
-		cnt++;
-	}
+	} while (!unwind_frame(tsk, &frame));
 
 	put_task_stack(tsk);
 }
@@ -268,10 +215,7 @@ static void dump_backtrace_auto_summary(struct pt_regs *regs, struct task_struct
 	skip = !!regs;
 	pr_auto_once(2);
 	pr_auto(ASL2, "Call trace:\n");
-	while (1) {
-		unsigned long stack;
-		int ret;
-
+	do {
 #ifdef CONFIG_SEC_DEBUG_LIMIT_BACKTRACE
 		if (MAX_UNWINDING_LOOP < cnt) {
 			pr_info("%s: Forcely break dump_backtrace to avoid infinity backtrace\n", __func__);
@@ -281,7 +225,8 @@ static void dump_backtrace_auto_summary(struct pt_regs *regs, struct task_struct
 
 		/* skip until specified stack frame */
 		if (!skip) {
-			dump_backtrace_entry_auto_summary(frame.pc);
+			dump_backtrace_entry(frame.pc);
+			dbg_snapshot_save_log(raw_smp_processor_id(), frame.pc);
 		} else if (frame.fp == regs->regs[29]) {
 			skip = 0;
 			/*
@@ -291,20 +236,10 @@ static void dump_backtrace_auto_summary(struct pt_regs *regs, struct task_struct
 			 * at which an exception has taken place, use regs->pc
 			 * instead.
 			 */
-			dump_backtrace_entry_auto_summary(regs->pc);
+			dump_backtrace_entry(regs->pc);
+			dbg_snapshot_save_log(raw_smp_processor_id(), regs->pc);
 		}
-		ret = unwind_frame(tsk, &frame);
-		if (ret < 0)
-			break;
-		if (in_entry_text(frame.pc)) {
-			stack = frame.fp - offsetof(struct pt_regs, stackframe);
-
-			if (on_accessible_stack(tsk, stack))
-				dump_mem("", "Exception stack", stack,
-					 stack + sizeof(struct pt_regs));
-		}
-		cnt++;
-	}
+	} while (!unwind_frame(tsk, &frame));
 
 	put_task_stack(tsk);
 }
