@@ -165,11 +165,11 @@ config DEVFREQ_BOOST
 
 if DEVFREQ_BOOST
 
-config DEVFREQ_INPUT_BOOST_DURATION_MS
-	int "Input boost duration"
+config DEVFREQ_BOOST_DURATION_MS
+	int "Devfreq boost duration"
 	default "100"
 	help
-	  Input boost duration in milliseconds for all boostable devices.
+	  Devfreq boost duration in milliseconds for all boostable devices.
 
 config DEVFREQ_WAKE_BOOST_DURATION_MS
 	int "Wake boost duration"
@@ -183,11 +183,11 @@ config DEVFREQ_EXYNOS_MIF_BOOST_FREQ
 	help
 	  Boost frequency for the Exynos MIF (DDR) bus.
 
-config DEVFREQ_EXYNOS_MIF_LIGHT_INPUT_BOOST_FREQ
-	int "Input Boost freq for Exynos MIF device"
+config DEVFREQ_EXYNOS_MIF_LIGHT_BOOST_FREQ
+	int "Base boost freq for Exynos MIF device"
 	default "0"
 	help
-	  Input boost frequency for the Exynos MIF (DDR) bus.
+	  Base Devfreq boost frequency for the Exynos MIF (DDR) bus.
 
 endif
 
