@@ -73,7 +73,7 @@ static struct kpp kpp_ta;
 static struct kpp kpp_fg;
 static int disable_boost = 0;
 
-void disable_devfreq_video_boost(int disable)
+void devfreq_boost_disable(int disable)
 {
 	disable_boost = disable;
 }
