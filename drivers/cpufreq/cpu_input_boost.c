@@ -9,7 +9,7 @@
 #include <linux/cpufreq.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
-#include <linux/msm_drm_notify.h>
+#include <linux/fb.h>
 #include <linux/slab.h>
 #include <linux/version.h>
 
@@ -26,7 +26,7 @@ enum {
 struct boost_drv {
 	struct delayed_work max_unboost;
 	struct notifier_block cpu_notif;
-	struct notifier_block msm_drm_notif;
+	struct notifier_block fb_notif;
 	wait_queue_head_t boost_waitq;
 	atomic_long_t max_boost_expires;
 	unsigned long state;
@@ -46,10 +46,8 @@ static unsigned int get_max_boost_freq(struct cpufreq_policy *policy)
 
 	if (cpumask_test_cpu(policy->cpu, cpu_lp_mask))
 		freq = CONFIG_MAX_BOOST_FREQ_LP;
-	else if (cpumask_test_cpu(policy->cpu, cpu_perf_mask))
-		freq = CONFIG_MAX_BOOST_FREQ_PERF;
 	else
-		freq = CONFIG_MAX_BOOST_FREQ_PERFP;
+		freq = CONFIG_MAX_BOOST_FREQ_PERF;
 
 	return min(freq, policy->max);
 }
@@ -60,10 +58,8 @@ static unsigned int get_min_freq(struct cpufreq_policy *policy)
 
 	if (cpumask_test_cpu(policy->cpu, cpu_lp_mask))
 		freq = CONFIG_CPU_FREQ_DEFAULT_LITTLE_MIN;
-	else if (cpumask_test_cpu(policy->cpu, cpu_perf_mask))
-		freq = CONFIG_CPU_FREQ_DEFAULT_BIG_MIN;
 	else
-		freq = CONFIG_CPU_FREQ_DEFAULT_PRIME_MIN;
+		freq = CONFIG_CPU_FREQ_DEFAULT_BIG_MIN;
 
 	return max(freq, policy->cpuinfo.min_freq);
 }
@@ -77,8 +73,6 @@ static void update_online_cpu_policy(void)
 	cpu = cpumask_first_and(cpu_lp_mask, cpu_online_mask);
 	cpufreq_update_policy(cpu);
 	cpu = cpumask_first_and(cpu_perf_mask, cpu_online_mask);
-	cpufreq_update_policy(cpu);
-	cpu = cpumask_first_and(cpu_perfp_mask, cpu_online_mask);
 	cpufreq_update_policy(cpu);
 	put_online_cpus();
 }
@@ -177,19 +171,18 @@ min:
 	return NOTIFY_OK;
 }
 
-static int msm_drm_notifier_cb(struct notifier_block *nb, unsigned long action,
+static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 			  void *data)
 {
-	struct boost_drv *b = container_of(nb, typeof(*b), msm_drm_notif);
-	struct msm_drm_notifier *evdata = data;
-	int *blank = evdata->data;
+	struct boost_drv *b = container_of(nb, typeof(*b), fb_notif);
+	int *blank = ((struct fb_event *)data)->data;
 
 	/* Parse framebuffer blank events as soon as they occur */
-	if (action != MSM_DRM_EARLY_EVENT_BLANK)
+	if (action != FB_EARLY_EVENT_BLANK)
 		return NOTIFY_OK;
 
 	/* Boost when the screen turns on and unboost when it turns off */
-	if (*blank == MSM_DRM_BLANK_UNBLANK) {
+	if (*blank == FB_BLANK_UNBLANK) {
 		clear_bit(SCREEN_OFF, &b->state);
 		__cpu_input_boost_kick_max(b, CONFIG_WAKE_BOOST_DURATION_MS);
 	} else {
@@ -213,11 +206,11 @@ static int __init cpu_input_boost_init(void)
 		return ret;
 	}
 
-	b->msm_drm_notif.notifier_call = msm_drm_notifier_cb;
-	b->msm_drm_notif.priority = INT_MAX;
-	ret = msm_drm_register_client(&b->msm_drm_notif);
+	b->fb_notif.notifier_call = fb_notifier_cb;
+	b->fb_notif.priority = INT_MAX;
+	ret = fb_register_client(&b->fb_notif);
 	if (ret) {
-		pr_err("Failed to register msm_drm notifier, err: %d\n", ret);
+		pr_err("Failed to register fb notifier, err: %d\n", ret);
 		goto unregister_cpu_notif;
 	}
 
@@ -231,7 +224,7 @@ static int __init cpu_input_boost_init(void)
 	return 0;
 
 unregister_fb_notif:
-	msm_drm_unregister_client(&b->msm_drm_notif);
+	fb_unregister_client(&b->fb_notif);
 unregister_cpu_notif:
 	cpufreq_unregister_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
 	return ret;
