@@ -63,7 +63,7 @@ static struct df_boost_drv df_boost_drv_g __read_mostly = {
 };
 static int disable_boost = 0;
 
-void disable_devfreq_video_boost(int disable)
+void devfreq_boost_disable(int disable)
 {
 	disable_boost = disable;
 }

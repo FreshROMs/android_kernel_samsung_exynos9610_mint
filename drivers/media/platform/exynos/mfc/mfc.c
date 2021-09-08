@@ -485,7 +485,7 @@ static int mfc_open(struct file *file)
 	if (node == MFCNODE_DECODER) {
 		dev->num_dec++;
 		if (dev->num_dec == 1)
-			disable_devfreq_video_boost(true);
+			devfreq_boost_disable(true);
 	}
 
 
@@ -643,9 +643,9 @@ err_vdev:
 err_ctx_alloc:
 	dev->num_inst--;
 	if (node == MFCNODE_DECODER) {
-	     dev->num_dec--;
-	     if (dev->num_dec == 0)
-	        disable_devfreq_video_boost(false);
+		dev->num_dec--;
+		if (dev->num_dec == 0)
+			devfreq_boost_disable(false);
 	}
 
 err_node_type:
@@ -758,7 +758,7 @@ static int mfc_release(struct file *file)
 	if (ctx->type == MFCINST_DECODER && !ctx->is_drm) {
 		dev->num_dec--;
 		if (dev->num_dec == 0)
-			disable_devfreq_video_boost(false);
+			devfreq_boost_disable(false);
 	}
 
 	if (dev->num_inst == 0) {
