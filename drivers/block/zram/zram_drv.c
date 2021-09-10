@@ -710,8 +710,8 @@ static int read_from_bdev_async(struct zram *zram, struct bio_vec *bvec,
 }
 
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
-static int zram_balance_threshold = 5;	/* min swap-used threshold */
-static int zram_balance_ratio = 25;	/* nand writeback ratio */
+static int zram_balance_threshold = CONFIG_ZRAM_LRU_BALANCE_THRESHOLD;	/* min swap-used threshold */
+static int zram_balance_ratio = CONFIG_ZRAM_LRU_BALANCE_RATIO;	/* nand writeback ratio */
 module_param(zram_balance_threshold, int, 0644);
 module_param(zram_balance_ratio, int, 0644);
 

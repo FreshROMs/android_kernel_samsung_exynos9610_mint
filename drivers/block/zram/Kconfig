@@ -51,3 +51,13 @@ config ZRAM_LRU_WRITEBACK_LIMIT
 	int "Limit zram lru writeback"
 	default 1024
 	depends on ZRAM_LRU_WRITEBACK
+
+config ZRAM_LRU_BALANCE_THRESHOLD
+	int "Minimum swap usage before writeback"
+	default 5
+	depends on ZRAM_LRU_WRITEBACK
+
+config ZRAM_LRU_BALANCE_RATIO
+	int "NAND writeback ratio"
+	default 25
+	depends on ZRAM_LRU_WRITEBACK
