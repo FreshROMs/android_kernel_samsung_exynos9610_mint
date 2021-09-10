@@ -2274,6 +2274,7 @@ enum mem_boost {
 static int mem_boost_mode = NO_BOOST;
 static unsigned long last_mode_change;
 static bool memory_boosting_disabled = false;
+static bool am_app_launch = false;
 
 #define MEM_BOOST_MAX_TIME (5 * HZ) /* 5 sec */
 
@@ -2328,15 +2329,78 @@ static ssize_t disable_mem_boost_store(struct kobject *kobj,
 	return count;
 }
 
+ATOMIC_NOTIFIER_HEAD(am_app_launch_notifier);
+
+int am_app_launch_notifier_register(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&am_app_launch_notifier, nb);
+}
+
+int am_app_launch_notifier_unregister(struct notifier_block *nb)
+{
+	return  atomic_notifier_chain_unregister(&am_app_launch_notifier, nb);
+}
+
+static ssize_t am_app_launch_show(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = am_app_launch ? 1 : 0;
+	return sprintf(buf, "%d\n", ret);
+}
+
+static int notify_app_launch_started(void)
+{
+	trace_printk("%s\n", "am_app_launch started");
+	atomic_notifier_call_chain(&am_app_launch_notifier, 1, NULL);
+	return 0;
+}
+
+static int notify_app_launch_finished(void)
+{
+	trace_printk("%s\n", "am_app_launch finished");
+	atomic_notifier_call_chain(&am_app_launch_notifier, 0, NULL);
+	return 0;
+}
+
+static ssize_t am_app_launch_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int mode;
+	int err;
+	bool am_app_launch_new;
+
+	err = kstrtoint(buf, 10, &mode);
+	if (err || (mode != 0 && mode != 1))
+		return -EINVAL;
+
+	am_app_launch_new = mode ? true : false;
+	trace_printk("am_app_launch %d -> %d\n", am_app_launch,
+		     am_app_launch_new);
+	if (am_app_launch != am_app_launch_new) {
+		if (am_app_launch_new)
+			notify_app_launch_started();
+		else
+			notify_app_launch_finished();
+	}
+	am_app_launch = am_app_launch_new;
+
+	return count;
+}
+
 #define MEM_BOOST_ATTR(_name) \
 	static struct kobj_attribute _name##_attr = \
 		__ATTR(_name, 0644, _name##_show, _name##_store)
 MEM_BOOST_ATTR(mem_boost_mode);
 MEM_BOOST_ATTR(disable_mem_boost);
+MEM_BOOST_ATTR(am_app_launch);
 
 static struct attribute *mem_boost_attrs[] = {
 	&mem_boost_mode_attr.attr,
 	&disable_mem_boost_attr.attr,
+	&am_app_launch_attr.attr,
 	NULL,
 };
 
