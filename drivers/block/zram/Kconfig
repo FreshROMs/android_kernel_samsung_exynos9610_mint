@@ -39,3 +39,15 @@ config ZRAM_MEMORY_TRACKING
 	  /sys/kernel/debug/zram/zramX/block_state.
 
 	  See Documentation/blockdev/zram.txt for more information.
+
+config ZRAM_LRU_WRITEBACK
+	bool
+	depends on ZRAM_WRITEBACK
+	default y
+	help
+	  This feature supports zram lru-based writeback (SQZR).
+
+config ZRAM_LRU_WRITEBACK_LIMIT
+	int "Limit zram lru writeback"
+	default 1024
+	depends on ZRAM_LRU_WRITEBACK
