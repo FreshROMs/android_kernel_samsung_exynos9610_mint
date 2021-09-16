@@ -1,4 +1,4 @@
-![Mint icon](https://i.ibb.co/F7fxJrY/core-readme-icon.png)
+![Mint icon](https://i.ibb.co/QmqbngH/core-readme-icon.png)
 
 # Mint
 
