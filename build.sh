@@ -8,7 +8,7 @@
 #                              
 # =========================================
 #  
-#  Build - Kernel Build Script
+#  Minty - The kernel build script for Mint
 #  The Fresh Project
 #  Copyright (C) 2019-2021 TenSeventy7
 #  
@@ -286,7 +286,8 @@ script_echo '           |  _|| | |  __/\__ \ | | |          '
 script_echo '           |_|  |_|  \___||___/_| |_|          '
 script_echo '                                               '
 script_echo '==============================================='
-script_echo '         Fresh Core Kernel Build Script        '
+script_echo '            Mint Kernel Build Script           '
+script_echo '        Part of The Fresh Project family       '
 script_echo '       by TenSeventy7 - Licensed in GPLv3      '
 script_echo '                                               '
 script_echo '       Originally built for Project ShadowX    '
@@ -374,30 +375,46 @@ BUILD_DEVICE_TMP_CONFIG=tmp_exynos9610-${BUILD_DEVICE_NAME}_${BUILD_KERNEL_CODE}
 export KCONFIG_BUILTINCONFIG=${BUILD_CONFIG_DIR}/exynos9610-${BUILD_DEVICE_NAME}_default_defconfig
 BUILD_DEVICE_OUTPUT=${BUILD_OUTPUT_DIR}/${BUILD_DEVICE_NAME}
 
+if [[ ! -e "${DEVICE_DB_DIR}/kernel_info.sh" ]]; then
+	script_echo "E: Kernel info not found from DB!"
+	script_echo "   ${DEVICE_DB_DIR}/kernel_info.sh"
+	script_echo "   Make sure it is in the proper directory."
+	script_echo " "
+	exit_script
+else
+	source "${DEVICE_DB_DIR}/kernel_info.sh"
+fi
+
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 
 	if [[ ${BUILD_KERNEL_BRANCH} == *"android-"* ]]; then
 		BUILD_KERNEL_BRANCH='mainline'
 	fi
 
-	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+	if [[ ${BUILD_KERNEL_CODE} == "aosp" ]]; then
+		FILE_KERNEL_CODE='AOSP'
 	else
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_${BUILD_KERNEL_BRANCH}_${BUILD_DATE}.zip
+		FILE_KERNEL_CODE='Fresh'
+	fi
+
+	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
+	else
+		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}-NoRoot_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
 	fi
 
 	if [[ ${BUILD_KERNEL_BRANCH} == "mainline" ]]; then
-		LOCALVERSION=' - Fresh Core'
-		export LOCALVERSION=' - Fresh Core'
+		LOCALVERSION=' - Mint'
+		export LOCALVERSION=' - Mint'
 	else
-		LOCALVERSION=" - Fresh Core-${BUILD_KERNEL_BRANCH}"
-		export LOCALVERSION=" - Fresh Core-${BUILD_KERNEL_BRANCH}"
+		LOCALVERSION=" - Mint-${BUILD_KERNEL_BRANCH}"
+		export LOCALVERSION=" - Mint-${BUILD_KERNEL_BRANCH}"
 	fi
 else
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+		FILE_OUTPUT=Mint-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
 	else
-		FILE_OUTPUT=FreshCore-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+		FILE_OUTPUT=Mint-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
 	fi
 
 	BUILD_KERNEL_BRANCH='user'
