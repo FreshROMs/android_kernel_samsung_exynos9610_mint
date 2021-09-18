@@ -32,9 +32,20 @@ struct energy_table {
 	unsigned int coefficient;;
 
 	struct energy_state *states;
+
+	bool is_min_mips;
+	bool is_max_mips;
+
 	unsigned int nr_states;
 };
 DEFINE_PER_CPU(struct energy_table, energy_table);
+
+bool is_slowest_cpu(int cpu)
+{
+	struct energy_table *table = &per_cpu(energy_table, cpu);
+
+	return table->is_min_mips;
+}
 
 inline unsigned int get_cpu_mips(unsigned int cpu)
 {
@@ -400,6 +411,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	struct energy_table *table;
 	int cpu, i, mips, valid_table_size = 0;
 	int max_mips = 0;
+	int min_mips = INT_MAX;
 	unsigned long max_mips_freq = 0;
 	int last_state;
 
@@ -445,7 +457,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	}
 
 	/*
-	 * Find fastest cpu among the cpu to which the energy table is allocated.
+	 * Find fastest/slowest cpu among the cpu to which the energy table is allocated.
 	 * The mips and max frequency of fastest cpu are needed to calculate
 	 * capacity.
 	 */
@@ -460,6 +472,21 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 			last_state = table->nr_states - 1;
 			max_mips_freq = table->states[last_state].frequency;
 		}
+
+		if (table->mips < min_mips)
+			min_mips = table->mips;
+	}
+
+	/*
+	 * Mark fastest/slowest CPU in each per-cpu energy table
+	 */
+	for_each_possible_cpu(cpu) {
+		table = &per_cpu(energy_table, cpu);
+		if (!table->states)
+			continue;
+
+		table->is_min_mips = table->mips == min_mips;
+		table->is_max_mips = table->mips == max_mips;
 	}
 
 	/*
