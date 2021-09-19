@@ -248,6 +248,9 @@ static void scan_and_kill(void)
 		/* Only allow the victim to run on small CPUs */
 		set_cpus_allowed_ptr(vtsk, cpu_lp_mask);
 
+		/* Signals can't wake frozen tasks; only a thaw operation can */
+		__thaw_task(vtsk);
+
 		/* Finally release the victim's task lock acquired earlier */
 		task_unlock(vtsk);
 	}
