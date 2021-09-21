@@ -141,14 +141,14 @@ show_usage() {
 merge_config() {
 	SUB_CONFIGS_DIR=${ORIGIN_DIR}/kernel/configs
 
-	if [[ ! -e "${SUB_CONFIGS_DIR}/fresh_${1}.config" ]]; then
+	if [[ ! -e "${SUB_CONFIGS_DIR}/mint_${1}.config" ]]; then
 		script_echo "E: Subconfig not found on config DB!"
-		script_echo "   ${SUB_CONFIGS_DIR}/fresh_${1}.config"
+		script_echo "   ${SUB_CONFIGS_DIR}/mint_${1}.config"
 		script_echo "   Make sure it is in the proper directory."
 		script_echo " "
 		exit_script
 	else
-		echo "$(cat "${SUB_CONFIGS_DIR}/fresh_${1}.config")" >> "${BUILD_CONFIG_DIR}/${BUILD_DEVICE_TMP_CONFIG}"
+		echo "$(cat "${SUB_CONFIGS_DIR}/mint_${1}.config")" >> "${BUILD_CONFIG_DIR}/${BUILD_DEVICE_TMP_CONFIG}"
 	fi
 }
 
@@ -279,19 +279,18 @@ build_package() {
 
 script_echo ' '
 script_echo '==============================================='
-script_echo '            _____              _               '
-script_echo '           |  ___| __ ___  ___| |__            '
-script_echo '           | |_ | .__/ _ \/ __| ._ \           '
-script_echo '           |  _|| | |  __/\__ \ | | |          '
-script_echo '           |_|  |_|  \___||___/_| |_|          '
-script_echo '                                               '
+script_echo "                       _       _               "
+script_echo "                 /\/\ (_)_ __ | |_             "
+script_echo "                /    \| | '_ \| __|            "
+script_echo "               / /\/\ \ | | | | |_             "
+script_echo "               \/    \/_|_| |_|\__|            "
+script_echo "                                               "
 script_echo '==============================================='
-script_echo '            Mint Kernel Build Script           '
-script_echo '        Part of The Fresh Project family       '
+script_echo '           Minty - Kernel Build Script         '
+script_echo '            Part of The Fresh Project          '
 script_echo '       by TenSeventy7 - Licensed in GPLv3      '
 script_echo '                                               '
 script_echo '       Originally built for Project ShadowX    '
-script_echo '            Last Updated Aug 05 2021           '
 script_echo '==============================================='
 script_echo ' '
 
@@ -418,8 +417,8 @@ else
 	fi
 
 	BUILD_KERNEL_BRANCH='user'
-	LOCALVERSION=" - Fresh Core-user"
-	export LOCALVERSION=" - Fresh Core-user"
+	LOCALVERSION=" - Mint-user"
+	export LOCALVERSION=" - Mint-user"
 fi
 
 if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
