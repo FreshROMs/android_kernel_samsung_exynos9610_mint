@@ -41,8 +41,8 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname FreshCore-*.zip` ./release/
-          cp .config ./release/kernel_config_a50-fresh.txt
+          mv -f `find ./ -iname Mint-*.zip` ./release/
+          cp .config ./release/kernel_config_a50-mint.txt
 
     - name: Upload boot image artifact
       uses: actions/upload-artifact@v2
@@ -55,7 +55,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: One UI Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
-        path: 'release/kernel_config_a50-fresh.txt'
+        path: 'release/kernel_config_a50-mint.txt'
         if-no-files-found: error
 
   a50-aosp:
@@ -91,7 +91,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname FreshCore-*.zip` ./release/
+          mv -f `find ./ -iname Mint-*.zip` ./release/
           cp .config ./release/kernel_config_a50-aosp.txt
 
     - name: Upload boot image artifact
