@@ -92,7 +92,7 @@ static DEFINE_RWLOCK(binfmt_lock);
 #define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
 #define SEC_WLBTD_BIN_PREFIX "/vendor/bin/wlbtd"
 #define SEC_WLAN_HAL_BIN_PREFIX "/vendor/bin/hw/vendor.samsung.hardware.wifi"
-#ifdef CONFIG_FRESHCORE_ONEUI
+#ifdef CONFIG_MINT_SESL
 #define SEM_HYPER_BIN_PREFIX "/vendor/bin/hw/vendor.samsung.hardware.hyper"
 #endif
 
@@ -2076,7 +2076,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
 			current->flags |= PF_PERF_CRITICAL;
 			set_cpus_allowed_ptr(current, cpu_perf_mask);
-#ifdef CONFIG_FRESHCORE_ONEUI
+#ifdef CONFIG_MINT_SESL
 		} else if (unlikely(!strncmp(filename->name,
 					   SEM_HYPER_BIN_PREFIX,
 					   strlen(SEM_HYPER_BIN_PREFIX)))) {
