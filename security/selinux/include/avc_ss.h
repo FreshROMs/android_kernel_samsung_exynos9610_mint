@@ -9,7 +9,8 @@
 
 #include "flask.h"
 
-int avc_ss_reset(u32 seqno);
+struct selinux_avc;
+int avc_ss_reset(struct selinux_avc *avc, u32 seqno);
 
 /* Class/perm mapping support */
 struct security_class_mapping {
@@ -19,11 +20,7 @@ struct security_class_mapping {
 
 extern struct security_class_mapping secclass_map[];
 
-/*
- * The security server must be initialized before
- * any labeling or access decisions can be provided.
- */
-extern int ss_initialized;
+extern int ss_initialized; // SEC_SELINUX_PORTING_COMMON
 
 #endif /* _SELINUX_AVC_SS_H_ */
 
