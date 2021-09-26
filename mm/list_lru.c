@@ -160,6 +160,7 @@ EXPORT_SYMBOL_GPL(list_lru_isolate_move);
 static unsigned long __list_lru_count_one(struct list_lru *lru,
 					  int nid, int memcg_idx)
 {
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
 	struct list_lru_node *nlru = &lru->node[nid];
 	struct list_lru_one *l;
 	unsigned long count;
@@ -170,6 +171,9 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
 	spin_unlock(&nlru->lock);
 
 	return count;
+#else
+	return READ_ONCE(lru->node[nid].lru.nr_items);
+#endif
 }
 
 unsigned long list_lru_count_one(struct list_lru *lru,
