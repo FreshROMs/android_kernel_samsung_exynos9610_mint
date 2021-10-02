@@ -1472,7 +1472,7 @@ static int mms_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
 	ret = request_threaded_irq(client->irq, NULL, mms_interrupt,
-			IRQF_TRIGGER_LOW | IRQF_ONESHOT, MMS_DEVICE_NAME, info);
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT | IRQF_PERF_AFFINE, MMS_DEVICE_NAME, info);
 	if (ret) {
 		input_err(true, &client->dev, "%s [ERROR] request_threaded_irq\n", __func__);
 		goto err_request_irq;
