@@ -38,7 +38,7 @@ static char *sm5713_fg_supplied_to[] = {
 #define FG_ABNORMAL_RESET -1
 #define IGNORE_N_I_OFFSET 1
 
-#define SM5713_FG_FULL_DEBUG 1
+#define SM5713_FG_FULL_DEBUG 0
 #define I2C_ERROR_COUNT_MAX 5
 
 #ifdef ENABLE_SM5713_MQ_FUNCTION
@@ -2339,10 +2339,6 @@ static int sm5713_fg_get_property(struct power_supply *psy,
 {
 	struct sm5713_fuelgauge_data *fuelgauge = power_supply_get_drvdata(psy);
 	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property) psp;
-/*											  
-	static int abnormal_current_cnt = 0;
-	union power_supply_propval value;
-*/
 
 	pr_info("%s: psp = 0x%x\n", __func__, psp);
 	switch (psp) {
