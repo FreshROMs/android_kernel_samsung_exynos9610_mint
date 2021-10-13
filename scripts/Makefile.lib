@@ -319,6 +319,14 @@ $(obj)/%.dtbo: $(src)/%.dts FORCE
 
 dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 
+# mkdtimg
+#----------------------------------------------------------------------------
+dts_dir = arch/arm64/boot/dts/samsung
+quiet_cmd_mkdtimg = DTBOIMG $@
+cmd_mkdtimg = $(PYTHON) $(srctree)/scripts/mkdtboimg.py cfg_create $@ \
+		$(srctree)/$(dts_dir)/dtbo_exynos.cfg \
+		--dtb-dir $(objtree)/$(dts_dir)
+
 # cat
 # ---------------------------------------------------------------------------
 # Concatentate multiple files together
