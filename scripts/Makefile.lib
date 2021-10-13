@@ -327,6 +327,14 @@ cmd_mkdtimg = $(PYTHON) $(srctree)/scripts/mkdtboimg.py cfg_create $@ \
 		$(srctree)/$(dts_dir)/dtbo_exynos.cfg \
 		--dtb-dir $(objtree)/$(dts_dir)
 
+# mkdtbimg
+#----------------------------------------------------------------------------
+dtb_dir = arch/arm64/boot/dts/exynos
+quiet_cmd_mkdtbimg = DTBIMG $@
+cmd_mkdtbimg = $(PYTHON) $(srctree)/scripts/mkdtboimg.py cfg_create $@ \
+		$(srctree)/$(dtb_dir)/dtb_exynos.cfg \
+		--dtb-dir $(objtree)/$(dtb_dir)
+
 # cat
 # ---------------------------------------------------------------------------
 # Concatentate multiple files together
