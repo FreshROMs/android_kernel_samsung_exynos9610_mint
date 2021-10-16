@@ -120,27 +120,31 @@ update_magisk() {
 }
 
 show_usage() {
-	script_echo "Usage: ./build.sh -d|--device <device> [main options] [variant options]"
+	script_echo "Usage: ./build.sh -d|--device <device> -v|--variant <variant> [main options]"
 	script_echo " "
 	script_echo "Main options:"
-	script_echo "-d, --device <device>: Set build device to build the kernel for. Required."
-	script_echo "-n, --no-clean: Do not clean and update Magisk before build."
-	script_echo "-m, --magisk: Pre-root the kernel with latest stable Magisk. Not available for 'recovery' variant."
+	script_echo "-d, --device <device>     Set build device to build the kernel for. Required."
+	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
-	script_echo "Variant options (default: One UI/Fresh):"
-	script_echo "-f, --fresh: Build One UI/Fresh variant of the kernel."
-	script_echo "-a, --aosp: Build AOSP variant of the kernel."
-	script_echo "-r, --recovery: Build kernel variant for recovery device trees."
+	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
+	script_echo "-m, --magisk              Pre-root the kernel with latest stable Magisk."
+	script_echo "                          Not available for 'recovery' variant."
+	script_echo " "
+	script_echo "-h, --help                Show this message."
+	script_echo " "
+	script_echo "Variant options:"
+	script_echo "    oneui: Build Mint for use with stock One UI and stock-based ROMs."
+	script_echo "    fresh: Build Mint for use with Fresh. Separate because of a required module."
+	script_echo "     aosp: Build Mint for use with AOSP and AOSP-based Generic System Images (GSIs)."
+	script_echo " recovery: Build Mint for use with recovery device trees. Doesn't build a ZIP."
 	script_echo " "
 	script_echo "Supported devices:"
-	script_echo "- a50 (Samsung Galaxy A50)"
-	script_echo "- a50s (Samsung Galaxy A50s)"
+	script_echo "  a50 (Samsung Galaxy A50)"
+	script_echo " a50s (Samsung Galaxy A50s)"
 	exit_script
 }
 
 merge_config() {
-	SUB_CONFIGS_DIR=${ORIGIN_DIR}/kernel/configs
-
 	if [[ ! -e "${SUB_CONFIGS_DIR}/mint_${1}.config" ]]; then
 		script_echo "E: Subconfig not found on config DB!"
 		script_echo "   ${SUB_CONFIGS_DIR}/mint_${1}.config"
@@ -265,12 +269,29 @@ build_package() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
 
-	mv ${ORIGIN_DIR}/tools/make/boot.img $(pwd)/tools/make/package/boot.img -f
-	touch $(pwd)/tools/make/package/fresh_core.prop
-	echo "fresh.core.build=${BUILD_DATE}" > $(pwd)/tools/make/package/fresh_core.prop
-	echo "fresh.core.branch=${BUILD_KERNEL_BRANCH}" >> $(pwd)/tools/make/package/fresh_core.prop
+	if [[ ${BUILD_KERNEL_CODE} == "fresh" ]]; then
+		BUILD_PACKAGE_DIR='fresh'
+	else
+		BUILD_PACKAGE_DIR='custom'
+	fi
 
-	cd $(pwd)/tools/make/package
+	# Copy kernel image to package directory
+	mv ${ORIGIN_DIR}/tools/make/boot.img $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/boot.img -f
+
+	# Make the manifest
+	touch $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+
+	echo "ro.mint.build.date=${BUILD_DATE}" > $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.build.version=${KERNEL_BUILD_VERSION}" > $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.build.branch=${BUILD_KERNEL_BRANCH}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.build.user=${KBUILD_BUILD_USER}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.build.host=${KBUILD_BUILD_HOST}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.droid.device=${BUILD_DEVICE_NAME^}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.droid.variant=${FILE_KERNEL_CODE^}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.droid.spl=${PLATFORM_PATCH_LEVEL//-/}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+	echo "ro.mint.droid.platform=${PLATFORM_VERSION}" >> $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}/mint.prop
+
+	cd $(pwd)/tools/make/package/${BUILD_PACKAGE_DIR}
 
 	zip -9 -r ./${FILE_OUTPUT} ./* 2>&1 | sed 's/^/     /'
 	mv ./${FILE_OUTPUT} ${BUILD_KERNEL_OUTPUT}
@@ -303,6 +324,10 @@ while [[ $# -gt 0 ]]; do
       BUILD_DEVICE_NAME=`echo ${2} | tr 'A-Z' 'a-z'`
       shift; shift # past value
       ;;
+    -v|--variant)
+      BUILD_KERNEL_CODE=`echo ${2} | tr 'A-Z' 'a-z'`
+      shift; shift # past value
+      ;;
     -c|--automated)
       BUILD_KERNEL_CI='true'
       shift
@@ -313,21 +338,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m|--magisk)
       BUILD_KERNEL_MAGISK='true'
-      shift
-      ;;
-    -f|--fresh)
-      BUILD_KERNEL_CODE='fresh'
-      BUILD_FRESH='true'
-      shift
-      ;;
-    -a|--aosp)
-      BUILD_KERNEL_CODE='aosp'
-      BUILD_AOSP='true'
-      shift
-      ;;
-    -r|--recovery)
-      BUILD_KERNEL_CODE='recovery'
-      BUILD_RECOVERY='true'
       shift
       ;;
     -h|--help)
@@ -359,10 +369,19 @@ SUBLEVEL=$(grep -m 1 SUBLEVEL "$(pwd)/Makefile" | sed 's/^.*= //g')
 BUILD_KERNEL_BRANCH=${GITHUB_REF##*/}
 BUILD_DATE=$(date +%s)
 BUILD_CONFIG_DIR=$(pwd)/arch/arm64/configs
+SUB_CONFIGS_DIR=${ORIGIN_DIR}/kernel/configs
 BUILD_OUTPUT_DIR=$(pwd)/output
 
 if [[ -z ${BUILD_KERNEL_CODE} ]]; then
-	BUILD_KERNEL_CODE='fresh'
+	script_echo "E: No variant selected!"
+	script_echo " "
+	show_usage
+else
+	if [[ ! -e "${SUB_CONFIGS_DIR}/mint_variant_${BUILD_KERNEL_CODE}.config" ]]; then
+		script_echo "E: Variant is not valid!"
+		script_echo " "
+		show_usage
+	fi
 fi
 
 if [[ -z ${BUILD_KERNEL_MAGISK} ]]; then
@@ -384,20 +403,24 @@ else
 	source "${DEVICE_DB_DIR}/kernel_info.sh"
 fi
 
+if [[ ${BUILD_KERNEL_CODE} == "aosp" ]]; then
+	FILE_KERNEL_CODE='AOSP'
+elif [[ ${BUILD_KERNEL_CODE} == "fresh" ]]; then
+	FILE_KERNEL_CODE='Fresh'
+elif [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
+	FILE_KERNEL_CODE='OneUI'
+else
+	FILE_KERNEL_CODE='Recovery'
+fi
+
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 
 	if [[ ${BUILD_KERNEL_BRANCH} == *"android-"* ]]; then
 		BUILD_KERNEL_BRANCH='mainline'
 	fi
 
-	if [[ ${BUILD_KERNEL_CODE} == "aosp" ]]; then
-		FILE_KERNEL_CODE='AOSP'
-	else
-		FILE_KERNEL_CODE='Fresh'
-	fi
-
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
+		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}-${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
 	else
 		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}-NoRoot_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
 	fi
@@ -411,9 +434,9 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 	fi
 else
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=Mint-${BUILD_KERNEL_CODE}_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+		FILE_OUTPUT=Mint-${BUILD_DATE}_${FILE_KERNEL_CODE}-${BUILD_DEVICE_NAME^}_UB.zip
 	else
-		FILE_OUTPUT=Mint-${BUILD_KERNEL_CODE}-noroot_${BUILD_DEVICE_NAME}_user_${BUILD_DATE}.zip
+		FILE_OUTPUT=Mint-${BUILD_DATE}_${FILE_KERNEL_CODE}-NoRoot_${BUILD_DEVICE_NAME^}_UB.zip
 	fi
 
 	BUILD_KERNEL_BRANCH='user'
@@ -439,11 +462,11 @@ if [[ -z ${BUILD_DEVICE_NAME} ]]; then
 	script_echo " "
 	show_usage
 else
-	script_echo "I: Selected device: ${BUILD_DEVICE_NAME}"
-	script_echo "   Selected variant: ${BUILD_KERNEL_CODE}"
-	script_echo "   Kernel version: ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
-	script_echo "   Magisk: ${BUILD_KERNEL_MAGISK}"
-	script_echo "   Output file: ${BUILD_KERNEL_OUTPUT}"
+	script_echo "I: Selected device:    ${BUILD_DEVICE_NAME}"
+	script_echo "   Selected variant:   ${FILE_KERNEL_CODE}"
+	script_echo "   Kernel version:     ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
+	script_echo "   Magisk-enabled:     ${BUILD_KERNEL_MAGISK}"
+	script_echo "   Output ZIP file:    ${BUILD_KERNEL_OUTPUT}"
 fi
 
 verify_toolchain
@@ -469,20 +492,9 @@ fi
 check_defconfig
 get_devicedb_info
 
-if [[ ${BUILD_KERNEL_CODE} == 'fresh' ]]; then
-	# One UI needs a couple of Knox stuff so it won't spout errors on logs. Keep them enabled for One UI.
-	merge_config partial-deknox
-	merge_config samsung-mtp
-	merge_config oneui
-elif [[ ${BUILD_KERNEL_CODE} == 'aosp' ]]; then
-	merge_config partial-deknox
-	merge_config aosp
-elif [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
-	merge_config partial-deknox
-	merge_config samsung-mtp
-	merge_config oneui
-	merge_config aosp
-fi
+# All variants get semi-Knox while we're fixing compile issues
+merge_config partial-deknox
+merge_config variant_${BUILD_KERNEL_CODE}
 
 if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 	if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then

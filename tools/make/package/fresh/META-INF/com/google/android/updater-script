@@ -1,0 +1,73 @@
+
+# Extract tools folder
+ifelse(is_mounted("/cache"), sleep(1), mount("ext4", "EMMC", "/dev/block/platform/13520000.ufs/by-name/cache", "/cache"));
+package_extract_dir("META-INF/io/tensevntysevn", "/cache/tools");
+set_metadata_recursive("/cache/tools", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0755);
+package_extract_file("mint.prop", "/tmp/mint.prop");
+
+# Additional chmod in the name of sanity
+run_program("chmod", "0755", "/cache/tools/7za");
+run_program("chmod", "0755", "/cache/tools/busybox");
+run_program("chmod", "0755", "/cache/tools/fresh-tk");
+
+ui_print("=========================================");
+ui_print("                    _       _            ");
+ui_print("              /\/\ (_)_ __ | |_          ");
+ui_print("             /    \| | '_ \| __|         ");
+ui_print("            / /\/\ \ | | | | |_          ");
+ui_print("            \/    \/_|_| |_|\__|         ");
+ui_print("                                         ");
+ui_print("=========================================");
+ui_print("                 Mint Kernel             ");
+ui_print("           Freshen up your Galaxy        ");
+ui_print("=========================================");
+
+# Find the partitions we need.
+ui_print("- Checking device compatibility");
+run_program("/cache/tools/fresh-tk", "mounts_checker");
+ifelse(
+	file_getprop("/cache/fresh-tk_install", "boot.part.by-name") == "fail", (
+		ui_print("   - Failed finding partitions!");
+		ui_print("     Contact developer for support!");
+		sleep(5);
+		abort(" ");
+	 )
+);
+ui_print("   - Partitions found!");
+sleep(3);
+ui_print(" ");
+
+# Prepare partitions for pre-install services
+ifelse(is_mounted(file_getprop("/cache/fresh-tk_install", "block.system.mount")), sleep(1), mount("ext4", "EMMC", file_getprop("/cache/fresh-tk_install", "block.system"), file_getprop("/cache/fresh-tk_install", "block.system.mount")));
+
+# Install the kernel
+ui_print("- Installing Mint Kernel " + file_getprop("/tmp/mint.prop", "ro.mint.build.version") + " for Galaxy " + file_getprop("/tmp/mint.prop", "ro.mint.droid.device"));
+ui_print("  Build version: " + file_getprop("/tmp/mint.prop", "ro.mint.build.date"));
+ui_print("  Mint Variant: " + file_getprop("/tmp/mint.prop", "ro.mint.droid.variant"));
+ui_print("  Security Patch Level: " + file_getprop("/tmp/mint.prop", "ro.mint.droid.spl"));
+package_extract_file("boot.img", file_getprop("/cache/fresh-tk_install", "block.boot"));
+sleep(5);
+
+# Also check if there is an existing Fresh install and install the props for update checking.
+run_program("/cache/tools/fresh-tk", "rom_version_check");
+ifelse(
+	file_getprop("/cache/fresh-tk_install", "system.exist.rom") == "true", (
+		package_extract_file("mint.prop", "/system_root/system/system_ext/fresh/mint.prop");
+		package_extract_file("mint.prop", "/system_ext/fresh/mint.prop");
+	 )
+);
+
+ui_print("- Mint installed successfully!");
+ui_print("   - Unmounting partitions.");
+ifelse(is_mounted(file_getprop("/cache/fresh-tk_install", "block.system.mount")), unmount(file_getprop("/cache/fresh-tk_install", "block.system.mount")));
+ifelse(is_mounted("/product"), unmount("/product"));
+ifelse(is_mounted("/vendor"), unmount("/vendor"));
+
+run_program("/cache/tools/fresh-tk", "install_cleanup");
+delete("/tmp/mint.prop");
+ui_print(" ");
+ui_print("- Installation complete!");
+
+# Finish installation
+sleep(3);
+ui_print(" ");
