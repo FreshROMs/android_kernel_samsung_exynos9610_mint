@@ -590,5 +590,7 @@ source "drivers/char/xillybus/Kconfig"
 
 source "drivers/char/srandom/Kconfig"
 
+source "drivers/char/lrng/Kconfig"
+
 endmenu
 
