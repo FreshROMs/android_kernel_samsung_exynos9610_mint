@@ -48,7 +48,7 @@ unsigned long task_util(struct task_struct *p)
 		return p->se.avg.util_avg;
 }
 
-int cpu_util_wake(int cpu, struct task_struct *p)
+unsigned long cpu_util_wake(int cpu, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
