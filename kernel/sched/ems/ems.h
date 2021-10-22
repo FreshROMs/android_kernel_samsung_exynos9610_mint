@@ -38,7 +38,7 @@ static inline int prefer_idle_cpu(struct task_struct *p) { return -1; }
 
 extern unsigned long cpu_util(int cpu);
 extern unsigned long task_util(struct task_struct *p);
-extern int cpu_util_wake(int cpu, struct task_struct *p);
+extern unsigned long cpu_util_wake(int cpu, struct task_struct *p);
 extern unsigned long task_util_est(struct task_struct *p);
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned int get_cpu_max_capacity(unsigned int cpu);
