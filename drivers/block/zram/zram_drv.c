@@ -3315,19 +3315,22 @@ out_free_dev:
 static int zram_remove(struct zram *zram)
 {
 	struct block_device *bdev;
+	bool claimed;
 
 	bdev = bdget_disk(zram->disk, 0);
 	if (!bdev)
 		return -ENOMEM;
 
 	mutex_lock(&bdev->bd_mutex);
-	if (bdev->bd_openers || zram->claim) {
+	if (bdev->bd_openers) {
 		mutex_unlock(&bdev->bd_mutex);
 		bdput(bdev);
 		return -EBUSY;
 	}
 
-	zram->claim = true;
+	claimed = zram->claim;
+	if (!claimed)
+	  zram->claim = true;
 	mutex_unlock(&bdev->bd_mutex);
 
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
@@ -3335,14 +3338,24 @@ static int zram_remove(struct zram *zram)
 #endif
 	zram_debugfs_unregister(zram);
 
-	/* Make sure all the pending I/O are finished */
-	sync_blockdev(bdev);
-	zram_reset_device(zram);
+	if (claimed) {
+		/*
+		 * If we were claimed by reset_store(), del_gendisk() will
+		 * wait until reset_store() is done, so nothing need to do.
+		 */
+		;
+	} else {
+		/* Make sure all the pending I/O are finished */
+		sync_blockdev(bdev);
+		zram_reset_device(zram);
+	}
 	bdput(bdev);
 
 	pr_info("Removed device: %s\n", zram->disk->disk_name);
 
 	del_gendisk(zram->disk);
+	/* del_gendisk drains pending reset_store */
+	WARN_ON_ONCE(claimed && zram->claim);
 	blk_cleanup_disk(zram->disk);
 	kfree(zram);
 	return 0;
@@ -3419,7 +3432,7 @@ static struct class zram_control_class = {
 
 static int zram_remove_cb(int id, void *ptr, void *data)
 {
-	zram_remove(ptr);
+        WARN_ON_ONCE(zram_remove(ptr));
 	return 0;
 }
 
