@@ -761,7 +761,8 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, attribute-alias)
 ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
 KBUILD_CFLAGS += -O2
 else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
-KBUILD_CFLAGS += -O3
+KBUILD_CFLAGS += -O3 -march=armv8.2-a+crypto+crc -mtune=cortex-a73 \
+			-mcpu=cortex-a73+crypto+crc
 else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS += -Os
 endif
@@ -785,7 +786,7 @@ endif
 
 ifdef CONFIG_INLINE_OPTIMIZATION
 ifeq ($(cc-name),clang)
-KBUILD_CFLAGS	+= -mllvm -inline-threshold=600
+KBUILD_CFLAGS	+= -mllvm -inline-threshold=1000
 KBUILD_CFLAGS	+= -mllvm -inlinehint-threshold=750
 else ifeq ($(cc-name),gcc)
 KBUILD_CFLAGS	+= --param max-inline-insns-single=600
