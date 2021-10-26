@@ -359,10 +359,7 @@ static void check_connection(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_PANEL_CONN))
-		goto EXIT;
-
-	input_info(true, &info->client->dev, "%s: connection check(%d)\n", __func__, info->image_buf[0]);
+	input_dbg(true, &info->client->dev, "%s: connection check(%d)\n", __func__, info->image_buf[0]);
 
 	if (!info->image_buf[0])
 		goto EXIT;
@@ -714,16 +711,9 @@ static void cmd_run_test_cm(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto EXIT;
-	}
-
 	snprintf(buf, sizeof(buf), "%d,%d", info->test_min, info->test_max);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CM");
@@ -736,15 +726,8 @@ static void cmd_run_test_cm_all(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM)) {
-		input_err(true, &info->client->dev, "%s: failed to cm read\n", __func__);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -756,16 +739,9 @@ static void cmd_run_test_cm_h_gap(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM_DIFF_HOR)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto EXIT;
-	}
-
 	snprintf(buf, sizeof(buf), "%d,%d", info->test_min, info->test_max);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CM_H_GAP");
@@ -775,20 +751,10 @@ static void cmd_run_test_cm_h_gap_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
-
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CM_DIFF_HOR);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -800,16 +766,9 @@ static void cmd_run_test_cm_v_gap(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM_DIFF_VER)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto EXIT;
-	}
-
 	snprintf(buf, sizeof(buf), "%d,%d", info->test_min, info->test_max);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CM_V_GAP");
@@ -818,20 +777,11 @@ static void cmd_run_test_cm_v_gap_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CM_DIFF_VER);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -843,16 +793,9 @@ static void cmd_run_test_cm_jitter(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM_JITTER)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto EXIT;
-	}
-
 	snprintf(buf, sizeof(buf), "%d,%d", info->test_min, info->test_max);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CM_JITTER");
@@ -861,20 +804,11 @@ static void cmd_run_test_cm_jitter_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CM_JITTER);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -886,14 +820,6 @@ static void cmd_run_test_cp(void *device_data)
 	int i;
 	int tx_min, rx_min;
 	int tx_max, rx_max;
-
-	sec_cmd_set_default_result(sec);
-
-	if (mms_run_test(info, MIP_TEST_TYPE_CP)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto ERROR;
-	}
 
 	for (i = 0; i < info->node_y; i++) {
 		if (i == 0)
@@ -921,34 +847,16 @@ static void cmd_run_test_cp(void *device_data)
 		snprintf(buf, sizeof(buf), "%d,%d", rx_min, rx_max);
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_RX");
 	}
-
-	return;
-
-ERROR:
-	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
-	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING) {
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_TX");
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_RX");
-	}
 }
 static void cmd_run_test_cp_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CP);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -963,12 +871,6 @@ static void cmd_run_test_cp_short(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CP_SHORT)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto ERROR;
-	}
-
 	for (i = 0; i < info->node_y; i++) {
 		if (i == 0)
 			rx_min = rx_max = info->image_buf[i];
@@ -995,34 +897,16 @@ static void cmd_run_test_cp_short(void *device_data)
 		snprintf(buf, sizeof(buf), "%d,%d", rx_min, rx_max);
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_SHORT_RX");
 	}
-
-	return;
-
-ERROR:
-	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
-	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING) {
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_SHORT_TX");
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_SHORT_RX");
-	}
 }
 static void cmd_run_test_cp_short_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CP_SHORT);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -1037,12 +921,6 @@ static void cmd_run_test_cp_lpm(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CP_LPM)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto ERROR;
-	}
-
 	for (i = 0; i < info->node_y; i++) {
 		if (i == 0)
 			rx_min = rx_max = info->image_buf[i];
@@ -1069,35 +947,17 @@ static void cmd_run_test_cp_lpm(void *device_data)
 		snprintf(buf, sizeof(buf), "%d,%d", rx_min, rx_max);
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_LPM_RX");
 	}
-
-	return;
-
-ERROR:
-	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
-	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING) {
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_LPM_TX");
-		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "CP_LPM_RX");
-	}
 }
 
 static void cmd_run_test_cp_lpm_all(void *device_data)
 {
 	struct sec_cmd_data *sec = (struct sec_cmd_data *)device_data;
 	struct mms_ts_info *info = container_of(sec, struct mms_ts_info, sec);
-	int ret;
 
 	sec_cmd_set_default_result(sec);
 
-	ret = mms_run_test(info, MIP_TEST_TYPE_CP_LPM);
-	if (ret < 0) {
-		input_err(true, &info->client->dev, "%s: failed to read, %d\n", __func__, ret);
-		sprintf(info->print_buf, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto out;
-	}
-
 	sec->cmd_state = SEC_CMD_STATUS_OK;
-out:
+
 	sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
 }
 
@@ -1160,18 +1020,7 @@ static void cmd_check_gpio(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_GPIO_LOW)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto error;
-	}
 	value_low = info->image_buf[0];
-
-	if (mms_run_test(info, MIP_TEST_TYPE_GPIO_HIGH)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto error;
-	}
 
 	value_high = info->image_buf[0];
 
@@ -1183,7 +1032,6 @@ static void cmd_check_gpio(void *device_data)
 		sec->cmd_state = SEC_CMD_STATUS_FAIL;
 	}
 
-error:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "GPIO_CHECK");
@@ -1210,7 +1058,7 @@ static void cmd_check_wet_mode(void *device_data)
 	snprintf(buf, sizeof(buf), "%d", rbuf[0]);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:	
+EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "WET_MODE");
@@ -1251,16 +1099,9 @@ static void cmd_run_test_vsync(void *device_data)
 
 	sec_cmd_set_default_result(sec);
 
-	if (mms_run_test(info, MIP_TEST_TYPE_VSYNC)) {
-		snprintf(buf, sizeof(buf), "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		goto EXIT;
-	}
-
 	snprintf(buf, sizeof(buf), "%d", info->image_buf[0]);
 	sec->cmd_state = SEC_CMD_STATUS_OK;
 
-EXIT:
 	sec_cmd_set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	if (sec->cmd_all_factory_state == SEC_CMD_STATUS_RUNNING)
 		sec_cmd_set_cmd_result_all(sec, buf, strnlen(buf, sizeof(buf)), "VSYNC");
@@ -1470,16 +1311,6 @@ static void run_trx_short_test(void *device_data)
 		} else {
 			input_info(true, &info->client->dev, "%s success to write async cmd\n", __func__);
 		}
-	}
-
-	if (mms_run_test(info, MIP_TEST_TYPE_OPEN_SHORT)) {
-		input_err(true, &info->client->dev, "%s: failed to read open short\n", __func__);
-		snprintf(info->print_buf, PAGE_SIZE, "%s", "NG");
-		sec->cmd_state = SEC_CMD_STATUS_FAIL;
-		snprintf(result, sizeof(result), "RESULT=FAIL");
-		sec_cmd_send_event_to_user(sec, test, result);
-		sec_cmd_set_cmd_result(sec, info->print_buf, strlen(info->print_buf));
-		return;
 	}
 
 	sec->cmd_state = SEC_CMD_STATUS_OK;

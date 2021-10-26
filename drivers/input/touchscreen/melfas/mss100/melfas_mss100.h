@@ -100,10 +100,8 @@ static struct delayed_work *p_ghost_check;
 #define MMS_USE_NAP_MODE		0
 
 #ifndef CONFIG_SAMSUNG_PRODUCT_SHIP
-#define MMS_USE_TEST_MODE		1
 #define MMS_USE_DEV_MODE		1
 #else
-#define MMS_USE_TEST_MODE		0
 #define MMS_USE_DEV_MODE		0
 #endif
 
@@ -535,6 +533,210 @@ int sponge_read(struct mms_ts_info *info, u16 addr, u8 *buf, u8 len);
 int sponge_write(struct mms_ts_info *info, u16 addr, u8 *buf, u8 len);
 int mms_set_custom_library(struct mms_ts_info *info, u16 addr, u8 *buf, u8 len);
 
+/**
+ * Read image data
+ */
+static inline int mms_get_image(struct mms_ts_info *info, u8 image_type)
+{
+	int busy_cnt = 500;
+	int wait_cnt = 200;
+	u8 wbuf[8];
+	u8 rbuf[512];
+	u8 row_num;
+	u8 col_num;
+	u8 buffer_col_num;
+	u8 rotate;
+	u8 key_num;
+	u8 data_type;
+	u8 data_type_size;
+	u8 data_type_sign;
+	u8 vector_num = 0;
+	u16 vector_id[16];
+	u16 vector_elem_num[16];
+	u8 buf_addr_h;
+	u8 buf_addr_l;
+	u16 buf_addr = 0;
+	int i;
+	int table_size;
+	int ret = 0;
+
+	input_dbg(true, &info->client->dev, "%s [START]\n", __func__);
+	input_dbg(true, &info->client->dev, "%s - image_type[%d]\n", __func__, image_type);
+
+	while (busy_cnt--) {
+		if (info->test_busy == false)
+			break;
+
+		msleep(10);
+	}
+
+	memset(info->print_buf, 0, PAGE_SIZE);
+
+	/* disable touch event */
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_R1_CTRL_EVENT_TRIGGER_TYPE;
+	wbuf[2] = MIP_CTRL_TRIGGER_NONE;
+	if (mms_i2c_write(info, wbuf, 3)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Disable event\n", __func__);
+		return 1;
+	}
+
+	mutex_lock(&info->lock);
+	info->test_busy = true;
+	disable_irq(info->irq);
+	mutex_unlock(&info->lock);
+
+	//check image type
+	switch (image_type) {
+	case MIP_IMG_TYPE_INTENSITY:
+		input_dbg(true, &info->client->dev, "=== Intensity Image ===\n");
+		break;
+	case MIP_IMG_TYPE_RAWDATA:
+		input_dbg(true, &info->client->dev, "=== Rawdata Image ===\n");
+		break;
+	case MIP_IMG_TYPE_HSELF_RAWDATA:
+		input_dbg(true, &info->client->dev, "=== self Rawdata Image ===\n");
+		break;
+	case MIP_IMG_TYPE_HSELF_INTENSITY:
+		input_dbg(true, &info->client->dev, "=== self intensity Image ===\n");
+		break;
+	case MIP_IMG_TYPE_PROX_INTENSITY:
+		input_dbg(true, &info->client->dev, "=== PROX intensity Image ===\n");
+		break;
+	case MIP_IMG_TYPE_5POINT_INTENSITY:
+		input_dbg(true, &info->client->dev, "=== sensitivity Image ===\n");
+		break;		
+	default:
+		input_err(true, &info->client->dev, "%s [ERROR] Unknown image type\n", __func__);
+		goto ERROR;
+	}
+
+	//set image type
+	wbuf[0] = MIP_R0_IMAGE;
+	wbuf[1] = MIP_R1_IMAGE_TYPE;
+	wbuf[2] = image_type;
+	if (mms_i2c_write(info, wbuf, 3)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Write image type\n", __func__);
+		goto ERROR;
+	}
+
+	input_dbg(true, &info->client->dev, "%s - set image type\n", __func__);
+
+	//wait ready status
+	wait_cnt = 200;
+	while (wait_cnt--) {
+		if (mms_get_ready_status(info) == MIP_CTRL_STATUS_READY)
+			break;
+
+		msleep(10);
+
+		input_dbg(true, &info->client->dev, "%s - wait [%d]\n", __func__, wait_cnt);
+	}
+
+	if (wait_cnt <= 0) {
+		input_err(true, &info->client->dev, "%s [ERROR] Wait timeout\n", __func__);
+		goto ERROR;
+	}
+
+	input_dbg(true, &info->client->dev, "%s - ready\n", __func__);
+
+	//data format
+	wbuf[0] = MIP_R0_IMAGE;
+	wbuf[1] = MIP_R1_IMAGE_DATA_FORMAT;
+	if (mms_i2c_read(info, wbuf, 2, rbuf, 7)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Read data format\n", __func__);
+		goto ERROR;
+	}
+
+	row_num = rbuf[0];
+	col_num = rbuf[1];
+	buffer_col_num = rbuf[2];
+	rotate = rbuf[3];
+	key_num = rbuf[4];
+	data_type = rbuf[5];
+	data_type_sign = (data_type & 0x80) >> 7;
+	data_type_size = data_type & 0x7F;
+	vector_num = rbuf[6];
+
+	input_dbg(true, &info->client->dev,
+		"%s - row_num[%d] col_num[%d] buffer_col_num[%d] rotate[%d] key_num[%d]\n",
+		__func__, row_num, col_num, buffer_col_num, rotate, key_num);
+	input_dbg(true, &info->client->dev,
+		"%s - data_type[0x%02X] data_sign[%d] data_size[%d]\n",
+		__func__, data_type, data_type_sign, data_type_size);
+
+	if (vector_num > 0) {
+		wbuf[0] = MIP_R0_IMAGE;
+		wbuf[1] = MIP_R1_IMAGE_VECTOR_INFO;
+		if (mms_i2c_read(info, wbuf, 2, rbuf, (vector_num * 4))) {
+			input_err(true, &info->client->dev, "%s [ERROR] Read vector info\n", __func__);
+			goto ERROR;
+		}
+		for (i = 0; i < vector_num; i++) {
+			vector_id[i] = rbuf[i * 4 + 0] | (rbuf[i * 4 + 1] << 8);
+			vector_elem_num[i] = rbuf[i * 4 + 2] | (rbuf[i * 4 + 3] << 8);
+			input_dbg(true, &info->client->dev, "%s - vector[%d] : id[%d] elem_num[%d]\n", __func__, i, vector_id[i], vector_elem_num[i]);
+		}
+	}
+
+	//get buf addr
+	wbuf[0] = MIP_R0_IMAGE;
+	wbuf[1] = MIP_R1_IMAGE_BUF_ADDR;
+	if (mms_i2c_read(info, wbuf, 2, rbuf, 2)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Read buf addr\n", __func__);
+		goto ERROR;
+	}
+
+	buf_addr_l = rbuf[0];
+	buf_addr_h = rbuf[1];
+	input_dbg(true, &info->client->dev, "%s - buf_addr[0x%02X 0x%02X]\n",
+		__func__, buf_addr_h, buf_addr_l);
+
+	if ((key_num > 0) || (vector_num > 0)) {
+		if (table_size > 0)
+			buf_addr += (row_num * buffer_col_num * data_type_size);
+
+		buf_addr_l = buf_addr & 0xFF;
+		buf_addr_h = (buf_addr >> 8) & 0xFF;
+		input_dbg(true, &info->client->dev, "%s - vector buf_addr[0x%02X 0x%02X][0x%04X]\n", __func__, buf_addr_h, buf_addr_l, buf_addr);
+
+	}
+	goto EXIT;
+
+ERROR:
+	ret = 1;
+EXIT:
+	/* clear image type */
+	wbuf[0] = MIP_R0_IMAGE;
+	wbuf[1] = MIP_R1_IMAGE_TYPE;
+	wbuf[2] = MIP_IMG_TYPE_NONE;
+	if (mms_i2c_write(info, wbuf, 3)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Clear image type\n", __func__);
+		ret = 1;
+	}
+
+	/* enable touch event */
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_R1_CTRL_EVENT_TRIGGER_TYPE;
+	wbuf[2] = MIP_CTRL_TRIGGER_INTR;
+	if (mms_i2c_write(info, wbuf, 3)) {
+		input_err(true, &info->client->dev, "%s [ERROR] Enable event\n", __func__);
+		ret = 1;
+	}
+
+	if (ret)
+		mms_reboot(info);
+
+	//exit
+	mutex_lock(&info->lock);
+	info->test_busy = false;
+	enable_irq(info->irq);
+	mutex_unlock(&info->lock);
+
+	input_dbg(true, &info->client->dev, "%s [DONE]\n", __func__);
+	return ret;
+}
+
 #ifdef CONFIG_VBUS_NOTIFIER
 int mms_charger_attached(struct mms_ts_info *info, bool status);
 #endif
@@ -555,13 +757,7 @@ int mip4_ts_bin_fw_version(struct mms_ts_info *info, const u8 *fw_data, size_t f
 int mms_dev_create(struct mms_ts_info *info);
 int mms_get_log(struct mms_ts_info *info);
 #endif
-int mms_run_test(struct mms_ts_info *info, u8 test_type);
-int mms_get_image(struct mms_ts_info *info, u8 image_type);
-#if MMS_USE_TEST_MODE
-int mms_sysfs_create(struct mms_ts_info *info);
-void mms_sysfs_remove(struct mms_ts_info *info);
-static const struct attribute_group mms_test_attr_group;
-#endif
+
 
 //cmd
 #if MMS_USE_CMD_MODE

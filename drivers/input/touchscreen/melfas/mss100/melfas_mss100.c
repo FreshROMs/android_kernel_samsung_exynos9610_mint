@@ -1195,39 +1195,6 @@ static void mms_run_rawdata(struct mms_ts_info *info, bool on_probe)
 		}
 	}
 
-	if (mms_run_test(info, MIP_TEST_TYPE_CM)) {
-		input_err(true, &info->client->dev, "%s cm error\n", __func__);
-		goto out;
-	}
-	minority_report_sync_latest_value(info);
-
-	if (mms_run_test(info, MIP_TEST_TYPE_CP)) {
-		input_err(true, &info->client->dev, "%s cp error\n", __func__);
-		goto out;
-	}
-
-	if (mms_run_test(info, MIP_TEST_TYPE_CP_SHORT)) {
-		input_err(true, &info->client->dev, "%s cp short error\n", __func__);
-		goto out;
-	}
-
-	if (mms_run_test(info, MIP_TEST_TYPE_CP_LPM)) {
-		input_err(true, &info->client->dev, "%s cp lpm error\n", __func__);
-		goto out;
-	}
-
-	if (on_probe) {
-		if (mms_run_test(info, MIP_TEST_TYPE_CM_ABS)) {
-			input_err(true, &info->client->dev, "%s cm abs error\n", __func__);
-			goto out;
-		}
-
-		if (mms_run_test(info, MIP_TEST_TYPE_CM_JITTER)) {
-			input_err(true, &info->client->dev, "%s cm_jitter error\n", __func__);
-			goto out;
-		}
-	}
-
 out:
 	mms_reboot(info);
 	input_raw_info(true, &info->client->dev, "%s: done ##\n", __func__);
@@ -1505,14 +1472,6 @@ static int mms_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	device_create(info->class, NULL, info->mms_dev, NULL, MMS_DEVICE_NAME);
 #endif
 
-#if MMS_USE_TEST_MODE
-	if (mms_sysfs_create(info)) {
-		input_err(true, &client->dev, "%s [ERROR] mms_sysfs_create\n", __func__);
-		ret = -EAGAIN;
-		goto err_test_sysfs_create;
-	}
-#endif
-
 #if MMS_USE_CMD_MODE
 	if (mms_sysfs_cmd_create(info)) {
 		input_err(true, &client->dev, "%s [ERROR] mms_sysfs_cmd_create\n", __func__);
@@ -1568,10 +1527,6 @@ err_create_attr_group:
 #if MMS_USE_CMD_MODE
 	mms_sysfs_cmd_remove(info);
 err_fac_cmd_create:
-#endif
-#if MMS_USE_TEST_MODE
-	mms_sysfs_remove(info);
-err_test_sysfs_create:
 #endif
 #if MMS_USE_DEV_MODE
 	device_destroy(info->class, info->mms_dev);
@@ -1631,10 +1586,6 @@ static int mms_remove(struct i2c_client *client)
 
 #if MMS_USE_CMD_MODE
 	mms_sysfs_cmd_remove(info);
-#endif
-
-#if MMS_USE_TEST_MODE
-	mms_sysfs_remove(info);
 #endif
 
 #if MMS_USE_DEV_MODE
