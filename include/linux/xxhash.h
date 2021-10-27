@@ -223,7 +223,7 @@ uint64_t xxh64_digest(const struct xxh64_state *state);
  * @src: The source xxh32 state.
  * @dst: The destination xxh32 state.
  */
-void xxh32_copy_state(struct xxh32_state *dst, const struct xxh32_state *src);
+#define xxh32_copy_state(dst, src) memcpy(dst, src, sizeof(*dst))
 
 /**
  * xxh64_copy_state() - copy the source state into the destination state
@@ -231,6 +231,6 @@ void xxh32_copy_state(struct xxh32_state *dst, const struct xxh32_state *src);
  * @src: The source xxh64 state.
  * @dst: The destination xxh64 state.
  */
-void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state *src);
+#define xxh64_copy_state(dst, src) memcpy(dst, src, sizeof(*dst))
 
 #endif /* XXHASH_H */
