@@ -70,6 +70,13 @@ obj-$(CONFIG_VIDEO_EXYNOS_FIMC_IS2) += interface/
 obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += hardware/
 obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += interface/
 
+ifdef CONFIG_LTO_CLANG
+ifdef CONFIG_LD_LLD
+ccflags-y += $(DISABLE_LTO)
+subdir-ccflags-y += $(DISABLE_LTO)
+endif
+endif
+
 subdir-ccflags-y := -Idrivers/media/platform/exynos/fimc-is2
 subdir-ccflags-y += -Idrivers/media/platform/exynos/fimc-is2/include
 subdir-ccflags-y += -Idrivers/media/platform/exynos/fimc-is2/interface
