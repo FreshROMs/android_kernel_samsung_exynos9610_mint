@@ -101,6 +101,17 @@ else
 KBUILD_CFLAGS	+= -mgeneral-regs-only
 endif
 KBUILD_CFLAGS	+= $(lseinstr) $(brokengasinst) $(vdso32)
+
+#ifdef CONFIG_SOC_EXYNOS9610
+ifeq ($(cc-name),gcc)
+KBUILD_CFLAGS   += -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53
+endif
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS   += -march=armv8-a+crypto+crc+sha2+aes -mtune=cortex-a53 \
+                  -mcpu=cortex-a53+crypto+crc+sha2+aes
+endif
+#endif
+
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
