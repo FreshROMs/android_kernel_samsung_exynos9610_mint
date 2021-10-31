@@ -107,7 +107,7 @@ int decon_register_irq(struct decon_device *decon)
 	/* 1: FRAME START */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	ret = devm_request_irq(dev, res->start, decon_irq_handler,
-			0, pdev->name, decon);
+			IRQF_PERF_AFFINE, pdev->name, decon);
 	if (ret) {
 		decon_err("failed to install FRAME START irq\n");
 		return ret;
@@ -116,7 +116,7 @@ int decon_register_irq(struct decon_device *decon)
 	/* 2: FRAME DONE */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
 	ret = devm_request_irq(dev, res->start, decon_irq_handler,
-			0, pdev->name, decon);
+			IRQF_PERF_AFFINE, pdev->name, decon);
 	if (ret) {
 		decon_err("failed to install FRAME DONE irq\n");
 		return ret;
@@ -125,7 +125,7 @@ int decon_register_irq(struct decon_device *decon)
 	/* 3: EXTRA: resource conflict, timeout and error irq */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 2);
 	ret = devm_request_irq(dev, res->start, decon_irq_handler,
-			0, pdev->name, decon);
+			IRQF_PERF_AFFINE, pdev->name, decon);
 	if (ret) {
 		decon_err("failed to install EXTRA irq\n");
 		return ret;
@@ -294,7 +294,7 @@ int decon_register_ext_irq(struct decon_device *decon)
 
 	decon_info("%s: gpio(%d)\n", __func__, decon->res.irq);
 	ret = devm_request_irq(dev, decon->res.irq, decon_ext_irq_handler,
-			IRQF_TRIGGER_RISING, pdev->name, decon);
+			IRQF_TRIGGER_RISING | IRQF_PERF_AFFINE, pdev->name, decon);
 
 	decon->eint_status = 1;
 
@@ -357,7 +357,8 @@ int decon_create_vsync_thread(struct decon_device *decon)
 	}
 
 	sprintf(name, "decon%d-vsync", decon->id);
-	decon->vsync.thread = kthread_run(decon_vsync_thread, decon, name);
+	decon->vsync.thread = kthread_run_perf_critical(cpu_perf_mask,
+					decon_vsync_thread, decon, name);
 	if (IS_ERR_OR_NULL(decon->vsync.thread)) {
 		decon_err("failed to run vsync thread\n");
 		decon->vsync.thread = NULL;
@@ -536,7 +537,8 @@ int decon_create_esd_thread(struct decon_device *decon)
 	}
 
 	sprintf(name, "decon%d-esd", decon->id);
-	decon->esd.thread = kthread_run(decon_esd_thread, decon, name);
+	decon->esd.thread = kthread_run_perf_critical(cpu_perf_mask,
+					decon_esd_thread, decon, name);
 	if (IS_ERR_OR_NULL(decon->esd.thread)) {
 		decon_err("failed to run esd thread\n");
 		decon->esd.thread = NULL;
@@ -1123,7 +1125,8 @@ int decon_register_hiber_work(struct decon_device *decon)
 	atomic_set(&decon->hiber.block_cnt, 0);
 
 	kthread_init_worker(&decon->hiber.worker);
-	decon->hiber.thread = kthread_run(kthread_worker_fn,
+	decon->hiber.thread = kthread_run_perf_critical(cpu_perf_mask,
+			kthread_worker_fn,
 			&decon->hiber.worker, "decon_hiber");
 	if (IS_ERR(decon->hiber.thread)) {
 		decon->hiber.thread = NULL;

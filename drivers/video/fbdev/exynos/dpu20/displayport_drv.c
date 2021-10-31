@@ -2339,7 +2339,8 @@ static int displayport_init_resources(struct displayport_device *displayport, st
 
 	displayport->res.irq = res->start;
 	ret = devm_request_irq(displayport->dev, res->start,
-			displayport_irq_handler, 0, pdev->name, displayport);
+			displayport_irq_handler, IRQF_PERF_AFFINE,
+			pdev->name, displayport);
 	if (ret) {
 		displayport_err("failed to install DisplayPort irq\n");
 		return -EINVAL;
