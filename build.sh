@@ -91,7 +91,7 @@ verify_toolchain() {
 		if [[ ${BUILD_KERNEL_CI} == 'true' ]]; then
 			if [[ ${BUILD_PREF_COMPILER_VERSION} == 'proton' ]]; then
 				sudo mkdir -p /root/build/install/aarch64-linux-gnu
-				sudo cp "${TOOLCHAIN_EXT}/lib" /root/build/install/aarch64-linux-gnu/
+				sudo cp -r "${TOOLCHAIN_EXT}/lib" /root/build/install/aarch64-linux-gnu/
 
 				sudo chown ${CURRENT_BUILD_USER} /root
 				sudo chown ${CURRENT_BUILD_USER} /root/build
