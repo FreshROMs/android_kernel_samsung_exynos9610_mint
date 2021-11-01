@@ -632,7 +632,7 @@ config LD_GOLD
 
 config LD_LLD
 	bool "lld"
-	select TOOLS_SUPPORT_RELR
+	select TOOLS_SUPPORT_RELR if !LTO_GCC
 	help
 	  Use the alternative lld linker from LLVM.
 
