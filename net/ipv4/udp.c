@@ -3023,8 +3023,8 @@ void __init udp_init(void)
 	sysctl_udp_mem[1] = limit;
 	sysctl_udp_mem[2] = sysctl_udp_mem[0] * 2;
 
-	sysctl_udp_rmem_min = SK_MEM_QUANTUM;
-	sysctl_udp_wmem_min = SK_MEM_QUANTUM;
+	sysctl_udp_rmem_min = 2*SK_MEM_QUANTUM;
+	sysctl_udp_wmem_min = 2*SK_MEM_QUANTUM;
 
 	/* 16 spinlocks per cpu */
 	udp_busylocks_log = ilog2(nr_cpu_ids) + 4;
