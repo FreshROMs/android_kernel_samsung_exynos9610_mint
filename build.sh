@@ -129,6 +129,7 @@ show_usage() {
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
 	script_echo "-m, --magisk              Pre-root the kernel with latest stable Magisk."
 	script_echo "                          Not available for 'recovery' variant."
+	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
 	script_echo "-h, --help                Show this message."
 	script_echo " "
@@ -340,6 +341,10 @@ while [[ $# -gt 0 ]]; do
       BUILD_KERNEL_MAGISK='true'
       shift
       ;;
+    -p|--permissive)
+      BUILD_KERNEL_PERMISSIVE='true'
+      shift
+      ;;
     -h|--help)
       SCRIPT_SHOW_HELP='true'
       shift
@@ -495,6 +500,13 @@ get_devicedb_info
 # All variants get semi-Knox while we're fixing compile issues
 merge_config partial-deknox
 merge_config variant_${BUILD_KERNEL_CODE}
+
+if [[ ${BUILD_KERNEL_PERMISSIVE} == 'true' ]]; then
+	script_echo "WARNING! You're building this kernel in permissive mode!"
+	script_echo "         This is insecure and may make your device vulnerable"
+	script_echo "         This kernel has NO RESPONSIBILITY on whatever happens next."
+	merge_config selinux-permissive
+fi
 
 if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 	if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
