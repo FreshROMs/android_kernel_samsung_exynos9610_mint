@@ -349,7 +349,7 @@ int pr_buffer(const char *tag, const char *data, size_t data_len,
 	dump2hex(str, (len ? len * 3 : 1), data, len);
 
 	/* don't change this printk to mif_debug for print this as level7 */
-	return pr_info("%s: %s(%ld): %s%s\n", MIF_TAG, tag, (long)data_len,
+	return pr_debug("%s: %s(%ld): %s%s\n", MIF_TAG, tag, (long)data_len,
 			str, (len == data_len) ? "" : " ...");
 }
 
@@ -780,7 +780,7 @@ void mif_print_dump(const u8 *data, int len, int width)
 	else
 		mif_dump2format4(data, len, buff, LOG_TAG);
 
-	pr_info("%s", buff);
+	pr_debug("%s", buff);
 
 	kfree(buff);
 }
