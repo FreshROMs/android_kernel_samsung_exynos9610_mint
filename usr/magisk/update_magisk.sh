@@ -9,7 +9,7 @@ ver="$(cat "$DIR/magisk_version" 2>/dev/null || echo -n 'none')"
 if [ "x$1" = "xcanary" ]
 then
 	nver="canary"
-	magisk_link="https://github.com/topjohnwu/magisk_files/raw/${nver}/app-debug.apk"
+	magisk_link="https://github.com/topjohnwu/magisk-files/raw/${nver}/app-debug.apk"
 else
 	if [ "x$1" = "x" ]; then
 		nver="$(curl -s https://github.com/topjohnwu/Magisk/releases | grep -m 1 -Poe 'Magisk v[\d\.]+' | cut -d ' ' -f 2)"
