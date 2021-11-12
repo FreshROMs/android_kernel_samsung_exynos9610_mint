@@ -116,7 +116,14 @@ verify_toolchain() {
 update_magisk() {
 	script_echo " "
 	script_echo "I: Updating Magisk..."
-	${ORIGIN_DIR}/usr/magisk/update_magisk.sh 2>&1 | sed 's/^/     /'
+
+	if [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xcanary" ]]; then
+		MAGISK_BRANCH="canary"
+	else
+		MAGISK_BRANCH=""
+	fi
+
+	${ORIGIN_DIR}/usr/magisk/update_magisk.sh ${MAGISK_BRANCH} 2>&1 | sed 's/^/     /'
 }
 
 show_usage() {
@@ -127,7 +134,7 @@ show_usage() {
 	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
-	script_echo "-m, --magisk              Pre-root the kernel with latest stable Magisk."
+	script_echo "-m, --magisk [canary]     Pre-root the kernel with Magisk. Optional flag to use canary builds."
 	script_echo "                          Not available for 'recovery' variant."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
@@ -339,7 +346,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m|--magisk)
       BUILD_KERNEL_MAGISK='true'
-      shift
+      BUILD_KERNEL_MAGISK_BRANCH=`echo ${2} | tr 'A-Z' 'a-z'`
+
+      if [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xcanary" ]]; then
+      	# Shift twice if asking for canary builds. Otherwise, shift only once.
+      	shift
+      fi
+      
+      shift # past value
       ;;
     -p|--permissive)
       BUILD_KERNEL_PERMISSIVE='true'
