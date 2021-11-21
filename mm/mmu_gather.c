@@ -91,6 +91,19 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 
 #endif /* MMU_GATHER_NO_GATHER */
 
+void tlb_flush_pmd_range(struct mmu_gather *tlb, unsigned long address,
+			 unsigned long size)
+{
+#ifdef CONFIG_MMU_GATHER_PAGE_SIZE
+	if (tlb->page_size != 0 && tlb->page_size != PMD_SIZE)
+		tlb_flush_mmu(tlb);
+
+	tlb->page_size = PMD_SIZE;
+#endif
+	tlb->start = min(tlb->start, address);
+	tlb->end = max(tlb->end, address + size);
+}
+
 #ifdef CONFIG_MMU_GATHER_TABLE_FREE
 
 static void __tlb_remove_table_free(struct mmu_table_batch *batch)
