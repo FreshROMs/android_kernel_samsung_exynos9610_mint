@@ -70,11 +70,6 @@ struct acpm_framework {
 	struct build_info info;
 	u32 regulator_id;
 	u32 mifdn_count;
-	u32 inform_head;
-	u32 inform0[6];
-	u32 inform1[6];
-	u32 inform2[6];
-	u32 inform3[6];
 };
 
 /**

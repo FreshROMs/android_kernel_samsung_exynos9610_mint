@@ -55,35 +55,6 @@ u32 acpm_get_mifdn_count(void)
 	return acpm_initdata->mifdn_count;
 }
 
-void acpm_get_inform(void)
-{
-	int i;
-	u32 user;
-	u32 time, start, end;
-	u32 hour, min, sec;
-
-	for (i = 0; i < 6; i++) {
-		user = acpm_initdata->inform0[i];
-		time = acpm_initdata->inform1[i];
-		start = acpm_initdata->inform2[i];
-		end = acpm_initdata->inform3[i];
-		hour = ((time & (0xff << 24)) >> 24) & 0x3f;
-		min = ((time & (0xff << 16)) >> 16) & 0x7f;
-		sec = ((time & (0xff << 8)) >> 8) & 0x7f;
-		if (user)
-			pr_info("\t%s: mifuser: 0x%x, time: %d:%d:%d, latency: %d[usec]\n",
-					"EXYNOS-PM", user, hour, min, sec, (start - end) * 41 / 1000);
-	}
-
-	for (i = 0; i < 6; i++) {
-		acpm_initdata->inform_head = 0;
-		acpm_initdata->inform0[i] = 0;
-		acpm_initdata->inform1[i] = 0;
-		acpm_initdata->inform2[i] = 0;
-		acpm_initdata->inform3[i] = 0;
-	}
-}
-
 void acpm_ramdump(void)
 {
 #ifdef CONFIG_DEBUG_SNAPSHOT_ACPM
