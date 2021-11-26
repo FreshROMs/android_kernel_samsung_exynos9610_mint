@@ -20,8 +20,9 @@ static inline void mxlog_phase4_message_handler(const void *message,
 						void *data)
 {
 	unsigned char *buf = (unsigned char *)message;
-
+#ifdef CONFIG_SCSC_LOGRING
 	SCSC_TAG_LVL(MX_FW, level, SCSC_PREFIX"%d: %s\n", (int)length, buf);
+#endif
 }
 
 /**
@@ -166,7 +167,7 @@ static inline void mxlog_phase5_message_handler(const void *message,
 			 elogmsg->timestamp, fmt,
 			 (fmt[fmt_sz] != '\n') ? '\n' : '\0');
 		fmt = spare;
-
+#ifdef CONFIG_SCSC_LOGRING
 		switch (num_args) {
 		case 0:
 			SCSC_TAG_LVL(MX_FW, level, fmt);
@@ -273,6 +274,7 @@ static inline void mxlog_phase5_message_handler(const void *message,
 						MXLS_DATA(mxlog), MXLS_SZ(mxlog)));
 			break;
 		}
+#endif
 	}
 }
 
