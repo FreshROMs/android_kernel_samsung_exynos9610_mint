@@ -110,13 +110,7 @@ struct rand_data {
  * Helper functions
  ***************************************************************************/
 
-void jent_get_nstime(__u64 *out);
-__u64 jent_rol64(__u64 word, unsigned int shift);
-void *jent_zalloc(unsigned int len);
-void jent_zfree(void *ptr);
-int jent_fips_enabled(void);
-void jent_panic(char *s);
-void jent_memcpy(void *dest, const void *src, unsigned int n);
+#include "jitterentropy.h"
 
 /**
  * Update of the loop count used for the next round of
@@ -418,6 +412,7 @@ static __u64 jent_unbiased_bit(struct rand_data *entropy_collector)
  * Input:
  * @entropy_collector Reference to entropy collector
  */
+__u64 jent_rol64(__u64 word, unsigned int shift);
 static void jent_stir_pool(struct rand_data *entropy_collector)
 {
 	/*
