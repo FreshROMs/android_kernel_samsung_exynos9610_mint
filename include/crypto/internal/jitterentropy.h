@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-typedef unsigned long long      __u64;
-
 extern void *jent_zalloc(unsigned int len);
 extern void jent_zfree(void *ptr);
 extern int jent_fips_enabled(void);

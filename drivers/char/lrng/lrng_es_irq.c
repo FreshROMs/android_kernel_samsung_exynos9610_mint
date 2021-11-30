@@ -7,12 +7,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/preempt.h>
 #include <asm/irq_regs.h>
 #include <asm/ptrace.h>
 #include <crypto/hash.h>
 #include <linux/gcd.h>
 #include <linux/lrng.h>
 #include <linux/random.h>
+#include <linux/ratelimit.h>
 
 #include "lrng_internal.h"
 #include "lrng_es_irq.h"

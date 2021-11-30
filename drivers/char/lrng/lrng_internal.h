@@ -6,8 +6,7 @@
 #ifndef _LRNG_INTERNAL_H
 #define _LRNG_INTERNAL_H
 
-#include <crypto/sha1.h>
-#include <crypto/sha2.h>
+#include <crypto/sha.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -115,7 +114,7 @@
 
 /************************ Default DRNG implementation *************************/
 
-extern struct chacha20_state chacha20;
+extern struct chacha20_state lrng_chacha20;
 extern const struct lrng_crypto_cb lrng_cc20_crypto_cb;
 void lrng_cc20_init_state(struct chacha20_state *state);
 

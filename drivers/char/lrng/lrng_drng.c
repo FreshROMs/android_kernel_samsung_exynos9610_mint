@@ -26,7 +26,7 @@ DEFINE_MUTEX(lrng_crypto_cb_update);
 
 /* DRNG for /dev/urandom, getrandom(2), get_random_bytes */
 static struct lrng_drng lrng_drng_init = {
-	.drng		= &chacha20,
+	.drng		= &lrng_chacha20,
 	.crypto_cb	= &lrng_cc20_crypto_cb,
 	.lock		= __MUTEX_INITIALIZER(lrng_drng_init.lock),
 	.spin_lock	= __SPIN_LOCK_UNLOCKED(lrng_drng_init.spin_lock),
@@ -43,7 +43,7 @@ static struct lrng_drng lrng_drng_init = {
  * the ChaCha20 DRNG may sleep.
  */
 static struct lrng_drng lrng_drng_atomic = {
-	.drng		= &chacha20,
+	.drng		= &lrng_chacha20,
 	.crypto_cb	= &lrng_cc20_crypto_cb,
 	.spin_lock	= __SPIN_LOCK_UNLOCKED(lrng_drng_atomic.spin_lock),
 	.hash_lock	= __RW_LOCK_UNLOCKED(lrng_drng_atomic.hash_lock)
@@ -106,7 +106,7 @@ void lrng_drngs_init_cc20(bool force_seed)
 	}
 
 	lrng_drng_reset(&lrng_drng_init);
-	lrng_cc20_init_state(&chacha20);
+	lrng_cc20_init_state(&lrng_chacha20);
 	lrng_drng_unlock(&lrng_drng_init, &flags);
 
 	lrng_drng_lock(&lrng_drng_atomic, &flags);

@@ -226,7 +226,7 @@ static unsigned int lrng_chacha20_drng_selftest(void)
 		0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 		0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 	};
-	struct chacha20_block chacha20;
+	struct chacha20_block lrng_chacha20;
 	int ret;
 	u8 outbuf[CHACHA_KEY_SIZE * 2] __aligned(sizeof(u32));
 
@@ -288,12 +288,12 @@ static unsigned int lrng_chacha20_drng_selftest(void)
 
 	BUILD_BUG_ON(sizeof(seed) % sizeof(u32));
 
-	memset(&chacha20, 0, sizeof(chacha20));
-	lrng_cc20_init_rfc7539(&chacha20);
+	memset(&lrng_chacha20, 0, sizeof(lrng_chacha20));
+	lrng_cc20_init_rfc7539(&lrng_chacha20);
 	lrng_selftest_bswap32((u32 *)seed, sizeof(seed) / sizeof(u32));
 
 	/* Generate with zero state */
-	ret = crypto_cb->lrng_drng_generate_helper(&chacha20, outbuf,
+	ret = crypto_cb->lrng_drng_generate_helper(&lrng_chacha20, outbuf,
 						   sizeof(expected_halfblock));
 	if (ret != sizeof(expected_halfblock))
 		goto err;
@@ -301,14 +301,14 @@ static unsigned int lrng_chacha20_drng_selftest(void)
 		goto err;
 
 	/* Clear state of DRNG */
-	memset(&chacha20.key.u[0], 0, 48);
+	memset(&lrng_chacha20.key.u[0], 0, 48);
 
 	/* Reseed with 2 key blocks */
-	ret = crypto_cb->lrng_drng_seed_helper(&chacha20, seed,
+	ret = crypto_cb->lrng_drng_seed_helper(&lrng_chacha20, seed,
 					       sizeof(expected_oneblock));
 	if (ret < 0)
 		goto err;
-	ret = crypto_cb->lrng_drng_generate_helper(&chacha20, outbuf,
+	ret = crypto_cb->lrng_drng_generate_helper(&lrng_chacha20, outbuf,
 						   sizeof(expected_oneblock));
 	if (ret != sizeof(expected_oneblock))
 		goto err;
@@ -316,14 +316,14 @@ static unsigned int lrng_chacha20_drng_selftest(void)
 		goto err;
 
 	/* Clear state of DRNG */
-	memset(&chacha20.key.u[0], 0, 48);
+	memset(&lrng_chacha20.key.u[0], 0, 48);
 
 	/* Reseed with 1 key block and one byte */
-	ret = crypto_cb->lrng_drng_seed_helper(&chacha20, seed,
+	ret = crypto_cb->lrng_drng_seed_helper(&lrng_chacha20, seed,
 					sizeof(expected_block_nonalinged));
 	if (ret < 0)
 		goto err;
-	ret = crypto_cb->lrng_drng_generate_helper(&chacha20, outbuf,
+	ret = crypto_cb->lrng_drng_generate_helper(&lrng_chacha20, outbuf,
 					sizeof(expected_block_nonalinged));
 	if (ret != sizeof(expected_block_nonalinged))
 		goto err;

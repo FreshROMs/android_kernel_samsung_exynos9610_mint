@@ -140,7 +140,7 @@ static void lrng_drbg_drng_dealloc(void *drng)
 	if (drbg && drbg->d_ops)
 		drbg->d_ops->crypto_fini(drbg);
 	drbg_dealloc_state(drbg);
-	kfree_sensitive(drbg);
+	kzfree(drbg);
 	pr_info("DRBG deallocated\n");
 }
 
