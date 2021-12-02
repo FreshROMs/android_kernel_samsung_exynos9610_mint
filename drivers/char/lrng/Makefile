@@ -3,6 +3,8 @@
 # Makefile for the Linux Random Number Generator.
 #
 
+ccflags-y += -DCONFIG_CRYPTO_LIB_SHA256=true
+
 obj-y				+= lrng_es_mgr.o lrng_aux.o \
 				   lrng_drng.o lrng_chacha20.o \
 				   lrng_interfaces.o lrng_es_aux.o

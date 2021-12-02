@@ -5,7 +5,6 @@
 
 menuconfig LRNG
 	bool "Linux Random Number Generator"
-	select CRYPTO_LIB_SHA256 if CRYPTO
 	help
 	  The Linux Random Number Generator (LRNG) is the replacement
 	  of the existing /dev/random provided with drivers/char/random.c.
