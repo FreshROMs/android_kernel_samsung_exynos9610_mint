@@ -311,7 +311,9 @@ static void mxman_get_drv_version_cb(struct scsc_log_collector_mx_cb *mx_cb, cha
 
 static void call_wlbtd_sable_cb(struct scsc_log_collector_mx_cb *mx_cb, u8 trigger_code, u16 reason_code)
 {
+#ifdef CONFIG_SCSC_WLBTD
 	call_wlbtd_sable(trigger_code, reason_code);
+#endif
 }
 
 /* Register callbacks from scsc_collect to mx */
