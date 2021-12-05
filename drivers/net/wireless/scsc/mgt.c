@@ -367,29 +367,17 @@ mac_default:
 
 static void write_wifi_version_info_file(struct slsi_dev *sdev)
 {
+#ifdef CONFIG_SCSC_WLBTD
 #if defined(SCSC_SEP_VERSION) && (SCSC_SEP_VERSION >= 9)
 	char *filepath = "/data/vendor/conn/.wifiver.info";
 #else
 	char *filepath = "/data/misc/conn/.wifiver.info";
 #endif
+#endif
 	char buf[256];
 	char build_id_fw[128];
 	char build_id_drv[64];
 
-	/* For 5.4 kernel CONFIG_SCSC_WLBTD will be defined so filp_open will not be used */
-#ifndef CONFIG_SCSC_WLBTD
-	struct file *fp = NULL;
-
-	fp = filp_open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-	if (IS_ERR(fp)) {
-		SLSI_WARN(sdev, "version file wasn't found\n");
-		return;
-	} else if (!fp) {
-		SLSI_WARN(sdev, "%s doesn't exist.\n", filepath);
-		return;
-	}
-#endif
 #ifndef SLSI_TEST_DEV
 	mxman_get_fw_version(build_id_fw, 128);
 	mxman_get_driver_version(build_id_drv, 64);
@@ -431,10 +419,6 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 #ifdef SCSC_SEP_VERSION
 #ifdef CONFIG_SCSC_WLBTD
 	wlbtd_write_file(filepath, buf);
-#else
-	kernel_write(fp, buf, strlen(buf), 0);
-	if (fp)
-		filp_close(fp, NULL);
 #endif
 
 	SLSI_INFO(sdev, "Succeed to write firmware/host information to .wifiver.info\n");
@@ -768,9 +752,6 @@ int slsi_start(struct slsi_dev *sdev)
 /* If WLBTD is being used which we will be doing for 5.4 kernel project we will use daemon for writing file */
 #ifdef CONFIG_SCSC_WLBTD
 		wlbtd_write_file(filepath, buf);
-#else
-		/* Will only be used for old projects before WLBTD was introduced (Android O)*/
-		kernel_write(fp, buf, strlen(buf), 0);
 #endif
 		if (fp)
 			filp_close(fp, NULL);
