@@ -3811,6 +3811,118 @@ inline unsigned long task_util_est(struct task_struct *p)
 	return max(READ_ONCE(p->se.avg.util_avg), _task_util_est(p));
 }
 
+#ifdef CONFIG_UCLAMP_TASK
+/*
+ * Check if we can ignore uclamp_max requirement of a task. The goal is to
+ * prevent small transient tasks that share the rq with other tasks that are
+ * capped to lift the capping easily/unnecessarily, hence increase power
+ * consumption.
+ *
+ * Returns true if a task can finish its work within a sched_slice() / divider.
+ * Where divider = 1 << sysctl_sched_uclamp_max_filter_divider.
+ *
+ * We look at the immediate history of how long the task ran previously.
+ * Converting task util_avg into runtime or sched_slice() into capacity is not
+ * trivial and is an expensive operations. In practice this simple approach
+ * proved effective to address the common source of noise. If a task suddenly
+ * becomes a busy task, we should detect that and lift the capping at tick, see
+ * task_tick_uclamp().
+ */
+static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
+						struct task_struct *p)
+{
+	unsigned long uclamp_min, uclamp_max, util;
+	unsigned long runtime, slice;
+	struct sched_entity *se;
+	struct cfs_rq *cfs_rq;
+
+	if (!uclamp_is_used())
+		return false;
+
+	/*
+	 * If the task is boosted, we generally assume it is important and
+	 * ignoring its uclamp_max to retain the rq at a low performance level
+	 * is unlikely to be the desired behavior.
+	 */
+	uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
+	if (uclamp_min)
+		return false;
+
+	/*
+	 * If util has crossed uclamp_max threshold, then we have to ensure
+	 * this is always enforced.
+	 */
+	util = task_util_est(p);
+	uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+	if (util >= uclamp_max)
+		return false;
+
+	/*
+	 * Based on previous runtime, we check the allowed sched_slice() of the
+	 * task is large enough for this task to run without preemption.
+	 *
+	 *
+	 *	runtime < sched_slice() / divider
+	 *
+	 * ==>
+	 *
+	 *	runtime * divider < sched_slice()
+	 *
+	 * where
+	 *
+	 *	divider = 1 << sysctl_sched_uclamp_max_filter_divider
+	 *
+	 * There are 2 caveats:
+	 *
+	 * 1- When a task migrates on big.LITTLE system, the runtime will not
+	 *    be representative then (not capacity invariant). But this would
+	 *    be one time off error.
+	 *
+	 * 2. runtime is not frequency invariant either. If the
+	 *    divider >= fmax/fmin we should be okay in general because that's
+	 *    the worst case scenario of how much the runtime will be stretched
+	 *    due to it being capped to minimum frequency but the rq should run
+	 *    at max. The rule here is that the task should finish its work
+	 *    within its sched_slice(). Without this runtime scaling there's a
+	 *    small opportunity for the task to ping-pong between capped and
+	 *    uncapped state.
+	 *
+	 */
+	se = &p->se;
+
+	runtime = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+	if (!runtime)
+		return false;
+
+	cfs_rq = cfs_rq_of(se);
+	slice = sched_slice(cfs_rq, se);
+	runtime <<= sysctl_sched_uclamp_max_filter_divider;
+
+	if (runtime >= slice)
+		return false;
+
+	return true;
+}
+
+static inline void uclamp_set_ignore_uclamp_max(struct task_struct *p)
+{
+	p->uclamp_req[UCLAMP_MAX].ignore_uclamp_max = 1;
+}
+
+static inline void uclamp_reset_ignore_uclamp_max(struct task_struct *p)
+{
+	p->uclamp_req[UCLAMP_MAX].ignore_uclamp_max = 0;
+}
+#else
+static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
+						struct task_struct *p)
+{
+	return false;
+}
+static inline void uclamp_set_ignore_uclamp_max(struct task_struct *p) {}
+static inline void uclamp_reset_ignore_uclamp_max(struct task_struct *p) {}
+#endif
+
 static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
 				    struct task_struct *p)
 {
@@ -5354,6 +5466,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 				(schedtune_prefer_idle(p) > 0) : 0;
 #endif
 
+	if (uclamp_can_ignore_uclamp_max(rq, p)) {
+		uclamp_set_ignore_uclamp_max(p);
+		uclamp_rq_dec_id(rq, p, UCLAMP_MAX);
+	}
+
 	/*
 	 * The code below (indirectly) updates schedutil which looks at
 	 * the cfs_rq utilization to select a frequency.
@@ -5387,6 +5504,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	if (p->in_iowait && prefer_idle)
 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
+
+	if (uclamp_is_ignore_uclamp_max(p))
+		uclamp_reset_ignore_uclamp_max(p);
 
 	for_each_sched_entity(se) {
 		if (se->on_rq)
@@ -11577,6 +11697,33 @@ static void rq_offline_fair(struct rq *rq)
 
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_UCLAMP_TASK
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr)
+{
+	bool can_ignore = uclamp_can_ignore_uclamp_max(rq, curr);
+	bool is_ignored = uclamp_is_ignore_uclamp_max(curr);
+
+	/*
+	 * Condition might have changed since we enqueued the task.
+	 *
+	 * If uclamp_max was ignored, we might need to reverse this condition.
+	 *
+	 * Or, we might have not ignored (becuase uclamp_min != 0 for example)
+	 * but this condition has changed now, so re-evaluate and if necessary
+	 * ignore it.
+	 */
+	if (is_ignored && !can_ignore) {
+		uclamp_reset_ignore_uclamp_max(curr);
+		uclamp_rq_inc_id(rq, curr, UCLAMP_MAX);
+	} else if (!is_ignored && can_ignore) {
+		uclamp_set_ignore_uclamp_max(curr);
+		uclamp_rq_dec_id(rq, curr, UCLAMP_MAX);
+	}
+}
+#else
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr) {}
+#endif
+
 /*
  * scheduler tick hitting a task of our scheduling class:
  */
@@ -11597,6 +11744,8 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 	update_misfit_status(curr, rq);
 
 	update_overutilized_status(rq);
+
+	task_tick_uclamp(rq, curr);
 
 #ifdef CONFIG_EXYNOS_PSTATE_MODE_CHANGER
 	exynos_emc_update(rq->cpu);
