@@ -78,7 +78,7 @@ static u32 lrng_get_arch_data(u8 *outbuf, u32 requested_bits)
 	return requested_bits;
 }
 
-static u32 inline lrng_get_arch_data_compress(u8 *outbuf, u32 requested_bits,
+static inline u32 lrng_get_arch_data_compress(u8 *outbuf, u32 requested_bits,
 					      u32 data_multiplier)
 {
 	SHASH_DESC_ON_STACK(shash, NULL);
@@ -158,28 +158,32 @@ err:
 static u32 lrng_arch_multiplier(void)
 {
 	static u32 data_multiplier = 0;
+	unsigned long v;
 
-	if (data_multiplier > 0) {
+	if (data_multiplier > 0)
 		return data_multiplier;
-	} else {
-		unsigned long v;
 
-		if (IS_ENABLED(CONFIG_X86) && !arch_get_random_seed_long(&v)) {
-			/*
-			 * Intel SPEC: pulling 512 blocks from RDRAND ensures
-			 * one reseed making it logically equivalent to RDSEED.
-			 */
-			data_multiplier = 512;
-		} else if (IS_ENABLED(CONFIG_PPC)) {
-			/*
-			 * PowerISA defines DARN to deliver at least 0.5 bits of
-			 * entropy per data bit.
-			 */
-			data_multiplier = 2;
-		} else {
-			/* CPU provides full entropy */
-			data_multiplier = CONFIG_LRNG_CPU_FULL_ENT_MULTIPLIER;
-		}
+	if (IS_ENABLED(CONFIG_X86) && !arch_get_random_seed_long(&v)) {
+		/*
+		 * Intel SPEC: pulling 512 blocks from RDRAND ensures
+		 * one reseed making it logically equivalent to RDSEED.
+		 */
+		data_multiplier = 512;
+	} else if (IS_ENABLED(CONFIG_PPC)) {
+		/*
+		 * PowerISA defines DARN to deliver at least 0.5 bits of
+		 * entropy per data bit.
+		 */
+		data_multiplier = 2;
+	} else if (IS_ENABLED(CONFIG_RISCV)) {
+		/*
+		 * riscv-crypto-spec-scalar-1.0.0-rc6.pdf section 4.2 defines
+		 * this requirement.
+		 */
+		data_multiplier = 2;
+	} else {
+		/* CPU provides full entropy */
+		data_multiplier = CONFIG_LRNG_CPU_FULL_ENT_MULTIPLIER;
 	}
 	return data_multiplier;
 }

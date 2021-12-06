@@ -174,8 +174,8 @@ bool lrng_sp80090b_startup_complete(void)
 {
 	struct lrng_health *health = &lrng_health;
 
-	return (lrng_sp80090b_health_enabled()) ? health->sp80090b_startup_done:
-						  true;
+	return (lrng_sp80090b_health_enabled()) ?
+	       health->sp80090b_startup_done : true;
 }
 
 bool lrng_sp80090b_compliant(void)

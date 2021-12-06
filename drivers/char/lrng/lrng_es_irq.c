@@ -113,6 +113,7 @@ static inline bool lrng_gcd_tested(void)
 static inline void _lrng_gcd_set(u32 running_gcd)
 {
 	lrng_gcd_timer = running_gcd;
+	/* Ensure that update to global variable lrng_gcd_timer is visible */
 	mb();
 }
 
@@ -247,6 +248,7 @@ static int __init lrng_init_time_source(void)
 			LRNG_IRQ_OVERSAMPLING_FACTOR);
 		lrng_pcpu_check_compression_state();
 	}
+	/* Ensure that changes to global variables are visible */
 	mb();
 
 	return 0;

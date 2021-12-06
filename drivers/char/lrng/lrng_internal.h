@@ -405,7 +405,8 @@ struct lrng_drng {
 	const struct lrng_crypto_cb *crypto_cb;	/* Crypto callbacks */
 	atomic_t requests;			/* Number of DRNG requests */
 	atomic_t requests_since_fully_seeded;	/* Number DRNG requests since
-						   last fully seeded */
+						 * last fully seeded
+						 */
 	unsigned long last_seeded;		/* Last time it was seeded */
 	bool fully_seeded;			/* Is DRNG fully seeded? */
 	bool force_reseed;			/* Force a reseed */
@@ -476,6 +477,7 @@ static inline u32 lrng_compress_osr(void)
 static inline u32 lrng_reduce_by_osr(u32 entropy_bits)
 {
 	u32 osr_bits = lrng_compress_osr();
+
 	return (entropy_bits >= osr_bits) ? (entropy_bits - osr_bits) : 0;
 }
 

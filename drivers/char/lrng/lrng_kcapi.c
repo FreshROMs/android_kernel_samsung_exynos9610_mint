@@ -48,13 +48,11 @@ static int lrng_kcapi_drng_seed_helper(void *drng, const u8 *inbuf,
 	struct crypto_rng *kcapi_rng = lrng_drng_info->kcapi_rng;
 	void *hash = lrng_drng_info->lrng_hash;
 	u32 digestsize = lrng_kcapi_hash_digestsize(hash);
-	u8 digest[64] __aligned(8);
+	u8 digest[HASH_MAX_DIGESTSIZE] __aligned(8);
 	int ret;
 
 	if (!hash)
 		return crypto_rng_reset(kcapi_rng, inbuf, inbuflen);
-
-	BUG_ON(digestsize > sizeof(digest));
 
 	ret = lrng_kcapi_hash_init(shash, hash) ?:
 	      lrng_kcapi_hash_update(shash, inbuf, inbuflen) ?:

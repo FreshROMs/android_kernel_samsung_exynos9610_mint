@@ -29,7 +29,7 @@ struct chacha20_state {
  * kmalloc too early in the boot cycle. For subsequent allocation requests,
  * such as per-NUMA-node DRNG instances, kmalloc will be used.
  */
-struct chacha20_state lrng_chacha20 __latent_entropy;
+struct chacha20_state lrng_chacha20;
 
 /*
  * Update of the ChaCha20 state by either using an unused buffer part or by
