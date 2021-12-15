@@ -105,7 +105,7 @@ void fuse_setup_shortcircuit(struct fuse_conn *fc, struct fuse_req *req)
 
 	flags = open_out->open_flags;
 	if ((flags & FOPEN_DIRECT_IO) || !(flags & FOPEN_KEEP_CACHE)) {
-		pr_info("fuse bypass sct #flags:%d\n", flags);
+		pr_debug("fuse bypass sct #flags:%d\n", flags);
 		return;
 	}
 
@@ -125,7 +125,7 @@ void fuse_setup_shortcircuit(struct fuse_conn *fc, struct fuse_req *req)
 		return;
 
 	if (fd <= 1 || fd >= current->signal->rlim[RLIMIT_NOFILE].rlim_max) {
-		pr_info("fuse bypass sct:%d, %d\n", fd, flags);
+		pr_debug("fuse bypass sct:%d, %d\n", fd, flags);
 		return;
 	}
 
