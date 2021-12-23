@@ -162,6 +162,12 @@ config EXYNOS_PD
 		depends on PM
 		select PM_GENERIC_DOMAINS
 
+config EXYNOS_CPUHP
+	tristate "CPU Hotplug driver support"
+	default n
+	help
+	  Support CPU Hotplug for Exynos SoC.
+
 config EXYNOS_SECURE_LOG
 	bool "Exynos Secure Log"
 	default y

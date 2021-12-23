@@ -14,9 +14,18 @@
 
 #define FAST_HP		0xFA57
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPUHP)
 extern int exynos_cpuhp_unregister(char *name, struct cpumask mask, int type);
 extern int exynos_cpuhp_register(char *name, struct cpumask mask, int type);
 extern int exynos_cpuhp_request(char *name, struct cpumask mask, int type);
+#else
+static inline int exynos_cpuhp_unregister(char *name, struct cpumask mask, int type)
+{ return -1; }
+static inline int exynos_cpuhp_register(char *name, struct cpumask mask, int type)
+{ return -1; }
+static inline int exynos_cpuhp_request(char *name, struct cpumask mask, int type)
+{ return -1; }
+#endif
 
 extern int cpus_down(struct cpumask cpus);
 extern int cpus_up(struct cpumask cpus);
