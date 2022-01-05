@@ -1774,6 +1774,7 @@ static struct i2c_driver mms_driver = {
 #ifdef CONFIG_PM
 		.pm = &mms_dev_pm_ops,
 #endif
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
