@@ -96,7 +96,8 @@ static inline int page_referenced_ksm(struct page *page,
 }
 
 static inline void rmap_walk_ksm(struct page *page,
-			struct rmap_walk_control *rwc)
+			struct rmap_walk_control *rwc,
+			struct vm_area_struct *vma)
 {
 }
 
