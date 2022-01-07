@@ -65,8 +65,7 @@ static ssize_t sec_dhist_read(struct file *file, char __user *buf,
 
 		ret = -EFAULT;
 	} else {
-		//pr_crit("%s: buf: %p base: %p\n", __func__, dhist_buf, base);
-		pr_crit("%s: base: %p\n", __func__, base);
+		pr_crit_once("%s: base: %p\n", __func__, base);
 
 		*offset += count;
 		ret = count;
