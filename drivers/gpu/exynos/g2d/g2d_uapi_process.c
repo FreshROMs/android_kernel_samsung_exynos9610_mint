@@ -547,6 +547,7 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 	layer->flags = data->flags;
 	layer->buffer_type = data->buffer_type;
+	layer->fence = NULL;
 
 	if (!G2D_BUFTYPE_VALID(layer->buffer_type)) {
 		perrfndev(g2d_dev, "invalid buffer type %u specified",
