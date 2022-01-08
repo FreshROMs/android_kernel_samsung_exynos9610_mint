@@ -15,13 +15,7 @@ enum debug_level {
 	DBG_DEBUG,
 };
 
-extern unsigned int g2d_debug;
-
-#define g2d_print(level, fmt, args...)					\
-do {									\
-	if (g2d_debug & (1 << level))					\
-		pr_info(fmt, ##args);					\
-} while (0)
+#define g2d_print(level, fmt, args...)	do { } while(0)
 
 #define g2d_info(fmt, args...)	g2d_print(DBG_INFO, fmt, ##args)
 #define g2d_perf(fmt, args...)	g2d_print(DBG_PERF, fmt, ##args)

@@ -366,9 +366,6 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN,
-			       atomic_read(&task->starter.refcount.refs));
-
 		g2d_start_task(task);
 
 		if (!(task->flags & G2D_FLAG_NONBLOCK))

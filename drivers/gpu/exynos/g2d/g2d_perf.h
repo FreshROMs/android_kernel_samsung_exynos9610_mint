@@ -40,14 +40,6 @@ static inline unsigned long g2d_get_current_freq(unsigned int type)
 #if defined(CONFIG_EXYNOS_BTS)
 static inline void g2d_update_bw(struct bts_bw bw)
 {
-	int id = bts_get_bwindex("g2d");
-
-	if (id >= 0)
-		bts_update_bw(id, bw);
-}
-#elif defined(CONFIG_EXYNOS9820_BTS)
-static inline void g2d_update_bw(struct bts_bw bw)
-{
 	bts_update_bw(BTS_BW_G2D, bw);
 }
 #else
