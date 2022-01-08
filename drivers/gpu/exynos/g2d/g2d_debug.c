@@ -403,9 +403,6 @@ void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val)
 	if (stampid == G2D_STAMP_STATE_DONE) {
 		struct g2d_device *g2d_dev = task->g2d_dev;
 
-		if (g2d_debug & (1 << DBG_DEBUG))
-			g2d_dump_info(g2d_dev, task);
-
 		g2d_info("Task %2d consumed %10lu us (int %lu mif %lu)\n",
 			 stamp->job_id, (unsigned long)val,
 			 g2d_get_current_freq(g2d_dev->dvfs_int),
