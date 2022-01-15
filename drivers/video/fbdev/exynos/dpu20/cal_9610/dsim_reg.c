@@ -2137,6 +2137,7 @@ void dsim_reg_set_cmd_transfer_mode(u32 id, u32 lp)
 
 void __dsim_dump(u32 id, struct dsim_regs *regs)
 {
+#if 0
 	if (!regs->regs)
 		return;
 
@@ -2147,4 +2148,5 @@ void __dsim_dump(u32 id, struct dsim_regs *regs)
 			regs->regs, 0xFC, false);
 
 	dsim_reg_enable_shadow_read(id, 1);
+#endif
 }
