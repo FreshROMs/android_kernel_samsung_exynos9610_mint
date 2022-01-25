@@ -230,6 +230,38 @@ config CPU_FREQ_GOV_ENERGY_ADAPTIVE
 
 	  If in doubt, say N.
 
+if CPU_FREQ_GOV_ENERGY_ADAPTIVE
+
+config ENERGY_ADAPTIVE_UP_RATE_LIMIT_FAST
+	int "Default up rate-limit for energy_adaptive on fast cluster"
+	default 4000
+	help
+	  This sets energy_adaptive's default frequency up rate-limit for fast cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_FAST
+	int "Default down rate-limit for energy_adaptive on fast cluster"
+	default 8000
+	help
+	  This sets energy_adaptive's default frequency down rate-limit for fast cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_UP_RATE_LIMIT_SLOW
+	int "Default up rate-limit for energy_adaptive on slow cluster"
+	default 4000
+	help
+	  This sets energy_adaptive's default frequency up rate-limit for slow cluster in
+	  microseconds.
+
+config ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_SLOW
+	int "Default down rate-limit for energy_adaptive on slow cluster"
+	default 8000
+	help
+	  This sets energy_adaptive's default frequency down rate-limit for slow cluster in
+	  microseconds.
+
+endif
+
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT

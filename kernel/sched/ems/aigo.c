@@ -993,8 +993,18 @@ tunables_init:
 		goto stop_kthread;
 	}
 
-	tunables->up_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
-	tunables->down_rate_limit_us = cpufreq_policy_transition_delay_us(policy);
+	if (cpumask_test_cpu(policy->cpu, cpu_perf_mask)) {
+		tunables->up_rate_limit_us =
+					CONFIG_ENERGY_ADAPTIVE_UP_RATE_LIMIT_FAST;
+		tunables->down_rate_limit_us =
+					CONFIG_ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_FAST;
+	} else if (cpumask_test_cpu(policy->cpu, cpu_lp_mask)) {
+		tunables->up_rate_limit_us =
+					CONFIG_ENERGY_ADAPTIVE_UP_RATE_LIMIT_SLOW;
+		tunables->down_rate_limit_us =
+					CONFIG_ENERGY_ADAPTIVE_DOWN_RATE_LIMIT_SLOW;
+	}
+
 	ag_policy->be_stochastic = false;
 	tunables->iowait_boost_enable = policy->iowait_boost_enable;
 
