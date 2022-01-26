@@ -44,13 +44,20 @@ static ssize_t mms_dev_fs_write(struct file *fp, const char *wbuf, size_t cnt, l
 
 	cmd = buf[cnt - 1];
 
-	if (cmd == 1) {
-		if (mms_i2c_read(info, buf, (cnt - 2), info->dev_fs_buf, buf[cnt - 2]))
-			input_err(true, &info->client->dev, "%s [ERROR] mms_i2c_read\n", __func__);
-	} else if (cmd == 2) {
+	switch (cmd) {
+	case 1:
+		if (mms_i2c_read(info, buf,
+			(cnt - 2), info->dev_fs_buf,
+			buf[cnt - 2]))
+			input_err(true, &info->client->dev,
+				  "%s [ERROR] mms_i2c_read\n",
+				  __func__);
+		break;
+	case 2:
 		if (mms_i2c_write(info, buf, (cnt - 1)))
-			input_err(true, &info->client->dev, "%s [ERROR] mms_i2c_write\n", __func__);
-		}
+			input_err(true, &info->client->dev,
+				  "%s [ERROR] mms_i2c_write\n", __func__);
+	}
 
 EXIT:
 	kfree(buf);
@@ -179,15 +186,19 @@ static int mms_proc_table_data(struct mms_ts_info *info, u8 data_type_size,
 	input_info(true, &info->client->dev, "%s [START]\n", __func__);
 
 	/* set axis */
-	if (rotate == 0) {
+	switch (rotate) {
+	case 0:
 		max_x = col_num;
 		max_y = row_num;
-	} else if (rotate == 1) {
+		break;
+	case 1:
 		max_x = row_num;
 		max_y = col_num;
-	} else {
+		break;
+	default:
 		input_err(true,&info->client->dev, "%s [ERROR] rotate[%d]\n", __func__, rotate);
 		goto error;
+		break;
 	}
 
 	/* get table data */

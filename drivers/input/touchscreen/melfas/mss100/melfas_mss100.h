@@ -918,10 +918,14 @@ static inline void mms_input_event_handler(struct mms_ts_info *info, u8 sz, u8 *
 				goto error;
 			}
 
-			if (id == 1)
+			switch (id) {
+			case 1:
 				key_code = KEY_MENU;
-			else if (id == 2)
+				break;
+			case 2:
 				key_code = KEY_BACK;
+				break;
+			}
 
 			if (id == 1 || id ==2) {
 				input_report_key(info->input_dev, key_code, state);
