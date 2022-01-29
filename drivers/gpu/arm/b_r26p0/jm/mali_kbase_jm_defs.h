@@ -98,6 +98,14 @@
 #define KBASE_KATOM_FLAG_JSCTX_IN_TREE (1<<12)
 /* Atom is waiting for L2 caches to power up in order to enter protected mode */
 #define KBASE_KATOM_FLAG_HOLDING_L2_REF_PROT (1<<13)
+/* Atom is part of a simple graphics frame. Only applies to fragment atoms.
+ * See &jd_mark_simple_gfx_frame_atoms for more info.
+ */
+#define KBASE_KATOM_FLAG_SIMPLE_FRAME_FRAGMENT (1 << 14)
+/* Atom can be deferred until the GPU is powered on by another event. Only
+ * applies to vertex atoms. See &jd_mark_simple_gfx_frame_atoms for more info.
+ */
+#define KBASE_KATOM_FLAG_DEFER_WHILE_POWEROFF (1 << 15)
 
 /* SW related flags about types of JS_COMMAND action
  * NOTE: These must be masked off by JS_COMMAND_MASK
