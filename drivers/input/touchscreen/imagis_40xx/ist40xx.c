@@ -2192,7 +2192,7 @@ static int ist40xx_probe(struct i2c_client *client,
 	/* init irq thread */
 	input_info(true, &client->dev, "client->irq : %d\n", client->irq);
 	ret = request_threaded_irq(client->irq, NULL, ist40xx_irq_thread,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "ist40xx_ts",
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_PERF_AFFINE, "ist40xx_ts",
 				   data);
 	if (ret)
 		goto err_init_drv;
