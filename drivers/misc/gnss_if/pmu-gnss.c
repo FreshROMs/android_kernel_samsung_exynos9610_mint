@@ -274,6 +274,8 @@ static int gnss_pmu_release_reset(void)
 static int gnss_pmu_hold_reset(void)
 {
 	int ret = 0;
+	u32 __maybe_unused gnss_stat_before = 0;
+	u32 __maybe_unused gnss_stat_after = 0;
 
 #if defined(CONFIG_SOC_EXYNOS7872)
 	pr_err("%s: call exynos_acpm_set_flag(MASTER_ID_GNSS, FLAG_LOCK) before reset GNSS\n", __func__);
@@ -281,7 +283,15 @@ static int gnss_pmu_hold_reset(void)
 #endif
 
 #ifdef CONFIG_GNSS_PMUCAL
-	cal_gnss_reset_assert();
+	gnss_pmu_read(EXYNOS_PMU_GNSS_STAT, &gnss_stat_before);
+	if (gnss_stat_before & (0x1 << 8)) /* PWRDOWN_IND[8] == 1 */
+		cal_gnss_reset_assert();
+	else {
+		mdelay(3);
+		gnss_pmu_read(EXYNOS_PMU_GNSS_STAT, &gnss_stat_after);
+		cal_gnss_reset_assert();
+	}
+	gif_info("GNSS_STAT_BEFORE: 0x%lX AFTER: 0x%lX\n", gnss_stat_before, gnss_stat_after);
 	mdelay(50);
 #else
 	/* set sys_pwr_cfg registers */
