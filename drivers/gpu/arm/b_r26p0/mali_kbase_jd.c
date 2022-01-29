@@ -702,6 +702,90 @@ static void jd_update_jit_usage(struct kbase_jd_atom *katom)
 #endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
 /*
+ * jd_mark_simple_gfx_frame_atoms() - Identify and mark "simple" graphics frame
+ *
+ * This function implements an heuristic to identify atoms that make up a "simple" graphics frame.
+ * These frames  have a fragment atom that depends on:
+ *
+ *   (a) a sync fence signal indicating when it is safe to begin writing to the framebuffer, and
+ *   (b) a vertex/tiling atom that nothing else depends on.
+ *
+ * If these conditions are matched, then the vertex job is marked as deferrable until the GPU is
+ * powered on for some other reason. The fragment job is marked as belonging to a simple frame.
+ *
+ * When the sync fence signals and unblocks the fragment job in the simple frame, the deferrable
+ * flag will be cleared from the vertex job it depends on.
+ *
+ * @katom: The dependency atom to evaluate.
+ */
+static void jd_mark_simple_gfx_frame_atoms(struct kbase_jd_atom *katom)
+{
+	struct kbase_device *kbdev = katom->kctx->kbdev;
+	struct kbase_jd_atom *dep_fence = NULL;
+	struct kbase_jd_atom *dep_vtx = NULL;
+	int i;
+
+	if (BASE_JD_REQ_SOFT_JOB_OR_DEP(katom->core_req) || !(katom->core_req & BASE_JD_REQ_FS))
+		return;
+
+	if (!katom->dep[0].atom || !katom->dep[1].atom)
+		return;
+
+	for (i = 0; i < 2; i++) {
+		/*
+		 * This loop handles the dependencies in either order, but since the typical
+		 * pattern has the CS|T dependency first and the FENCE_WAIT dependency second
+		 * we check for that on the first iteration.
+		 */
+		struct kbase_jd_atom *dep_a = katom->dep[1 - i].atom;
+		struct kbase_jd_atom *dep_b = katom->dep[i].atom;
+
+		dev_dbg(kbdev->dev,
+			"Atom %pK:%x -> [%pK:%x, %pK:%x -> [%pK:%x, %pK:%x]]\n",
+			katom, katom->core_req,
+			dep_a, dep_a->core_req,
+			dep_b, dep_b->core_req,
+			dep_b->dep[0].atom, dep_b->dep[0].atom ? dep_b->dep[0].atom->core_req : 0,
+			dep_b->dep[1].atom, dep_b->dep[1].atom ? dep_b->dep[1].atom->core_req : 0);
+
+		/*
+		 * Dependency A:
+		 */
+		/* Must be on a fence-wait soft job */
+		if ((dep_a->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) != BASE_JD_REQ_SOFT_FENCE_WAIT)
+			continue;
+
+		/*
+		 * Dependency B:
+		 */
+		/*
+		 * Must be a vertex/tiling job. Note the REQ_CS and REQ_T bits have a different
+		 * meaning for soft jobs, so checking those bits alone is insufficient.
+		 */
+		if (BASE_JD_REQ_SOFT_JOB_OR_DEP(dep_b->core_req) ||
+			(dep_b->core_req & (BASE_JD_REQ_CS | BASE_JD_REQ_T)) !=
+			(BASE_JD_REQ_CS | BASE_JD_REQ_T))
+			continue;
+
+		/* And doesn't have any other dependencies */
+		if (dep_b->dep[0].atom || dep_b->dep[1].atom)
+			continue;
+
+		/* At this point, we have found a simple frame */
+		dep_fence = dep_a;
+	dep_vtx = dep_b;
+		break;
+	}
+
+	if (dep_fence && dep_vtx) {
+		dev_dbg(kbdev->dev, "Simple gfx frame: {vtx=%pK, wait=%pK}->frag=%pK\n",
+			dep_vtx, dep_fence, katom);
+		katom->atom_flags |= KBASE_KATOM_FLAG_SIMPLE_FRAME_FRAGMENT;
+		dep_vtx->atom_flags |= KBASE_KATOM_FLAG_DEFER_WHILE_POWEROFF;
+	}
+}
+
+/*
  * Perform the necessary handling of an atom that has finished running
  * on the GPU.
  *
@@ -760,6 +844,29 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 					struct kbase_jd_atom, jd_item);
 			list_del(runnable_jobs.next);
 			node->in_jd_list = false;
+
+			if (node->atom_flags &
+			    KBASE_KATOM_FLAG_SIMPLE_FRAME_FRAGMENT) {
+				dev_dbg(kctx->kbdev->dev,
+					"Simple-frame fragment atom %pK unblocked\n",
+					node);
+				node->atom_flags &=
+					~KBASE_KATOM_FLAG_SIMPLE_FRAME_FRAGMENT;
+				for (i = 0; i < 2; i++) {
+					if (node->dep[i].atom &&
+					    node->dep[i].atom->atom_flags &
+						    KBASE_KATOM_FLAG_DEFER_WHILE_POWEROFF) {
+						node->dep[i].atom->atom_flags &=
+							~KBASE_KATOM_FLAG_DEFER_WHILE_POWEROFF;
+						dev_dbg(kctx->kbdev->dev,
+							"  Undeferred atom %pK\n",
+							node->dep[i].atom);
+						need_to_try_schedule_context =
+							true;
+						break;
+					}
+				}
+			}
 
 			dev_dbg(kctx->kbdev->dev, "List node %p has status %d\n",
 				node, node->status);
@@ -1182,6 +1289,8 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 			return jd_done_nolock(katom, NULL);
 		}
 	}
+
+	jd_mark_simple_gfx_frame_atoms(katom);
 
 #ifdef CONFIG_GPU_TRACEPOINTS
 	katom->work_id = atomic_inc_return(&jctx->work_id);
