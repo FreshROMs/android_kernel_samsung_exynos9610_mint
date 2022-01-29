@@ -183,12 +183,6 @@ config DEVFREQ_EXYNOS_MIF_BOOST_FREQ
 	help
 	  Boost frequency for the Exynos MIF (DDR) bus.
 
-config DEVFREQ_EXYNOS_MIF_LIGHT_BOOST_FREQ
-	int "Base boost freq for Exynos MIF device"
-	default "0"
-	help
-	  Base Devfreq boost frequency for the Exynos MIF (DDR) bus.
-
 endif
 
 endif # PM_DEVFREQ
