@@ -813,7 +813,7 @@ static long misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (copy_from_user(buff, user_buff, CP_CRASH_INFO_SIZE))
 				return -EFAULT;
 		}
-		panic(iod->msd->cp_crash_info);
+		panic("%s", iod->msd->cp_crash_info);
 		return 0;
 	}
 
@@ -1294,7 +1294,7 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 					tx_bytes, count);
 			goto drop;
 		}
-		goto retry;
+			goto retry;
 	}
 
 	if (ret != tx_bytes) {
