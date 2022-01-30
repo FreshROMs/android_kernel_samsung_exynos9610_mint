@@ -32,6 +32,7 @@ BACKEND += \
 	backend/gpu/mali_kbase_pm_ca.c \
 	backend/gpu/mali_kbase_pm_always_on.c \
 	backend/gpu/mali_kbase_pm_coarse_demand.c \
+    backend/gpu/mali_kbase_pm_adaptive.c \
 	backend/gpu/mali_kbase_pm_policy.c \
 	backend/gpu/mali_kbase_time.c \
 	backend/gpu/mali_kbase_l2_mmu_config.c \
