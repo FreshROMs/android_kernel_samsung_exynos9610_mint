@@ -2729,7 +2729,7 @@ static void js_return_of_end_rp(struct kbase_jd_atom *const end_katom)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
-static void js_return_worker(struct work_struct *data)
+static void js_return_worker(struct kthread_work *data)
 {
 	struct kbase_jd_atom *katom = container_of(data, struct kbase_jd_atom,
 									work);
@@ -2881,15 +2881,15 @@ void kbase_js_unpull(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 
 	jsctx_rb_unpull(kctx, katom);
 
-	WARN_ON(work_pending(&katom->work));
+	/* At this point no work should be pending on katom->work */
 
 	/* Block re-submission until workqueue has run */
 	atomic_inc(&katom->blocked);
 
 	kbase_job_check_leave_disjoint(kctx->kbdev, katom);
 
-	INIT_WORK(&katom->work, js_return_worker);
-	queue_work(kctx->jctx.job_done_wq, &katom->work);
+	kthread_init_work(&katom->work, js_return_worker);
+	kthread_queue_work(&kctx->kbdev->job_done_worker, &katom->work);
 }
 
 /**

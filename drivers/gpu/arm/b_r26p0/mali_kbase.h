@@ -46,6 +46,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 
 #include "mali_base_kernel.h"
 #include <mali_kbase_linux.h>
@@ -229,7 +230,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
 
 /**
  * kbase_jd_done_worker - Handle a job completion
- * @data: a &struct work_struct
+ * @data: a &struct kthread_work
  *
  * This function requeues the job from the runpool (if it was soft-stopped or
  * removed from NEXT registers).
@@ -244,7 +245,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
  * Handles retrying submission outside of IRQ context if it failed from within
  * IRQ context.
  */
-void kbase_jd_done_worker(struct work_struct *data);
+void kbase_jd_done_worker(struct kthread_work *data);
 
 void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr, ktime_t *end_timestamp,
 		kbasep_js_atom_done_code done_code);
