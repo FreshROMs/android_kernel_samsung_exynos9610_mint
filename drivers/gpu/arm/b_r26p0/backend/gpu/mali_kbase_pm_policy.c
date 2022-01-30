@@ -32,11 +32,13 @@
 static const struct kbase_pm_policy *const all_policy_list[] = {
 #ifdef CONFIG_MALI_NO_MALI
 	&kbase_pm_always_on_policy_ops,
+	&kbase_pm_adaptive_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
 #if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_always_on_demand_policy_ops,
 #endif
 #else				/* CONFIG_MALI_NO_MALI */
+	&kbase_pm_adaptive_policy_ops,
 	&kbase_pm_coarse_demand_policy_ops,
 #if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_always_on_demand_policy_ops,
