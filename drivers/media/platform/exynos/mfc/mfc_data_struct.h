@@ -876,7 +876,6 @@ struct mfc_dev {
 	struct timeval last_int_time;
 
 	struct mfc_perf perf;
-	int num_dec;
 
 	struct mfc_mmcache mmcache;
 

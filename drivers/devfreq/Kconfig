@@ -152,43 +152,4 @@ config ARM_EXYNOS9610_BUS_DEVFREQ
 	help
 	  This adds the DEVFREQ driver for Exynos9610 memory and int.
 
-config DEVFREQ_BOOST
-	bool "Devfreq Boost"
-	help
-	  Boosts enumerated devfreq devices upon input, and allows for boosting
-	  specific devfreq devices on other custom events. The boost frequencies
-	  for this driver should be set so that frame drops are near-zero at the
-	  boosted frequencies and power consumption is minimized at said
-	  frequencies. The goal of this driver is to provide an interface to
-	  achieve optimal device performance by requesting boosts on key events,
-	  such as when a frame is ready to rendered to the display.
-
-if DEVFREQ_BOOST
-
-config DEVFREQ_BOOST_DURATION_MS
-	int "Devfreq boost duration"
-	default "100"
-	help
-	  Devfreq boost duration in milliseconds for all boostable devices.
-
-config DEVFREQ_WAKE_BOOST_DURATION_MS
-	int "Wake boost duration"
-	default "1000"
-	help
-	  Wake boost duration in milliseconds for all boostable devices.
-
-config DEVFREQ_EXYNOS_MIF_BOOST_FREQ
-	int "Boost freq for Exynos MIF device"
-	default "0"
-	help
-	  Boost frequency for the Exynos MIF (DDR) bus.
-
-config DEVFREQ_EXYNOS_MIF_LIGHT_BOOST_FREQ
-	int "Base boost freq for Exynos MIF device"
-	default "0"
-	help
-	  Base Devfreq boost frequency for the Exynos MIF (DDR) bus.
-
-endif
-
 endif # PM_DEVFREQ
