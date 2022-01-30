@@ -244,6 +244,45 @@ static int exynos_devfreq_reboot(struct exynos_devfreq_data *data)
 
 }
 
+static unsigned long _exynos_devfreq_get_freq(unsigned int devfreq_type)
+{
+	struct exynos_devfreq_data *data = NULL;
+	unsigned long freq;
+
+	if (devfreq_data)
+		data = devfreq_data[devfreq_type];
+
+	if (!data) {
+		printk("Fail to get exynos_devfreq_data\n");
+		return 0;
+	}
+
+	if (data->clk) {
+		if (preemptible() && !in_interrupt())
+			freq = (clk_get_rate(data->clk) / 1000) / 2;
+		else
+			freq = data->old_freq;
+	}
+	else
+		freq = cal_dfs_get_rate(data->dfs_id);
+
+	if ((u32)freq == 0) {
+		if (data->clk)
+			dev_err(data->dev, "failed get frequency from clock framework\n");
+		else
+			dev_err(data->dev, "failed get frequency from CAL\n");
+
+		return 0;
+	}
+
+	return freq;
+}
+
+unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
+{
+	return _exynos_devfreq_get_freq(devfreq_type);
+}
+
 static int exynos_devfreq_get_freq(struct device *dev, u32 *cur_freq,
 		struct clk *clk, struct exynos_devfreq_data *data)
 {
@@ -255,9 +294,10 @@ static int exynos_devfreq_get_freq(struct device *dev, u32 *cur_freq,
 		}
 	}
 
-	*cur_freq = (u32)cal_dfs_get_rate(data->dfs_id);
+	*cur_freq = (u32)_exynos_devfreq_get_freq(data->devfreq_type);
+
 	if (*cur_freq == 0) {
-		dev_err(dev, "failed get frequency from CAL\n");
+		dev_err(dev, "failed get frequency\n");
 		return -EINVAL;
 	}
 

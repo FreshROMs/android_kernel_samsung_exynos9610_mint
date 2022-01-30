@@ -109,4 +109,13 @@ u32 exynos_devfreq_get_devfreq_type(int dm_type);
 struct devfreq *find_exynos_devfreq_device(void *devdata);
 int find_exynos_devfreq_dm_type(struct device *dev, int *dm_type);
 #endif
+
+#if defined(CONFIG_ARM_EXYNOS_DEVFREQ)
+extern unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type);
+#else
+static inline unsigned long exynos_devfreq_get_domain_freq(unsigned int devfreq_type)
+{
+	return 0;
+}
+#endif
 #endif	/* __EXYNOS_DEVFREQ_H_ */
