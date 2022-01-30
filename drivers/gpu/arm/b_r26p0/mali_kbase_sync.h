@@ -210,7 +210,7 @@ const char *kbase_sync_status_string(int status);
 /*
  * Internal worker used to continue processing of atom.
  */
-void kbase_sync_fence_wait_worker(struct work_struct *data);
+void kbase_sync_fence_wait_worker(struct kthread_work *data);
 
 #ifdef CONFIG_MALI_FENCE_DEBUG
 /**

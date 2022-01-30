@@ -30,7 +30,7 @@
 #include "mali_kbase.h"
 #include "mali_kbase_sync.h"
 
-void kbase_sync_fence_wait_worker(struct work_struct *data)
+void kbase_sync_fence_wait_worker(struct kthread_work *data)
 {
 	struct kbase_jd_atom *katom;
 
