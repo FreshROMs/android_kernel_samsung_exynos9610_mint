@@ -225,6 +225,8 @@ void kbase_pm_set_policy(struct kbase_device *kbdev,
 	if (old_policy->term)
 		old_policy->term(kbdev);
 
+	memset(&kbdev->pm.backend.pm_policy_data, 0, sizeof(union kbase_pm_policy_data));
+
 	KBASE_KTRACE_ADD(kbdev, PM_CURRENT_POLICY_INIT, NULL, new_policy->id);
 	if (new_policy->init)
 		new_policy->init(kbdev);

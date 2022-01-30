@@ -61,6 +61,7 @@ const struct kbase_pm_policy kbase_pm_always_on_policy_ops = {
 	always_on_term,			/* term */
 	always_on_shaders_needed,	/* shaders_needed */
 	always_on_get_core_active,	/* get_core_active */
+    NULL,               /* handle_event */
 	KBASE_PM_POLICY_ID_ALWAYS_ON,	/* id */
 };
 
