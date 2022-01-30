@@ -9,6 +9,7 @@
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
+#include <linux/moduleparam.h>
 
 /* The sched_param struct is located elsewhere in newer kernels */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
@@ -20,6 +21,14 @@ enum {
 	INPUT_BOOST,
 	MAX_BOOST
 };
+
+static unsigned long devfreq_boost_freq =
+	CONFIG_DEVFREQ_EXYNOS_MIF_BOOST_FREQ;
+static unsigned short devfreq_boost_dur =
+	CONFIG_DEVFREQ_INPUT_BOOST_DURATION_MS;
+
+module_param(devfreq_boost_freq, long, 0644);
+module_param(devfreq_boost_dur, short, 0644);
 
 struct boost_dev {
 	struct devfreq *df;
@@ -63,7 +72,7 @@ static void __devfreq_boost_kick(struct boost_dev *b)
 
 	set_bit(INPUT_BOOST, &b->state);
 	if (!mod_delayed_work(system_unbound_wq, &b->input_unboost,
-		msecs_to_jiffies(CONFIG_DEVFREQ_INPUT_BOOST_DURATION_MS)))
+		msecs_to_jiffies(devfreq_boost_dur)))
 		wake_up(&b->boost_waitq);
 }
 
@@ -145,7 +154,7 @@ static void devfreq_update_boosts(struct boost_dev *b, unsigned long state)
 		df->max_boost = false;
 	} else {
 		df->min_freq = test_bit(INPUT_BOOST, &state) ?
-			       min(b->boost_freq, df->max_freq) :
+			       min(devfreq_boost_freq, df->max_freq) :
 			       df->profile->freq_table[first_freq_idx];
 		df->max_boost = test_bit(MAX_BOOST, &state);
 	}
