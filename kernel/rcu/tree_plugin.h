@@ -529,6 +529,12 @@ void rcu_read_unlock_special(struct task_struct *t)
 		}
 
 		/*
+		 * If this was the last task on the expedited lists,
+		 * then we need to report up the rcu_node hierarchy.
+		 */
+		if (!empty_exp && empty_exp_now)
+			rcu_report_exp_rnp(rcu_state_p, rnp, true);
+		/*
 		 * Unboost if we were boosted.
 		 * Disable preemption to make sure completion is signalled
 		 * without having the task de-scheduled with its priority
@@ -541,13 +547,6 @@ void rcu_read_unlock_special(struct task_struct *t)
 			complete(&rnp->boost_completion);
 			preempt_enable();
 		}
-
-		/*
-		 * If this was the last task on the expedited lists,
-		 * then we need to report up the rcu_node hierarchy.
-		 */
-		if (!empty_exp && empty_exp_now)
-			rcu_report_exp_rnp(rcu_state_p, rnp, true);
 	} else {
 		local_irq_restore(flags);
 	}
