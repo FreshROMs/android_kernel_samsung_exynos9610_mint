@@ -142,8 +142,7 @@ show_usage() {
 	script_echo "-h, --help                Show this message."
 	script_echo " "
 	script_echo "Variant options:"
-	script_echo "    oneui: Build Mint for use with stock One UI and stock-based ROMs."
-	script_echo "    fresh: Build Mint for use with Fresh. Separate because of a required module."
+	script_echo "    oneui: Build Mint for use with stock and One UI-based ROMs."
 	script_echo "     aosp: Build Mint for use with AOSP and AOSP-based Generic System Images (GSIs)."
 	script_echo " recovery: Build Mint for use with recovery device trees. Doesn't build a ZIP."
 	script_echo " "
@@ -282,7 +281,7 @@ build_package() {
 	script_echo " "
 	script_echo "I: Building kernel ZIP..."
 
-	if [[ ${BUILD_KERNEL_CODE} == "fresh" ]]; then
+	if [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
 		BUILD_PACKAGE_DIR='fresh'
 	else
 		BUILD_PACKAGE_DIR='custom'
@@ -407,6 +406,11 @@ BUILD_CONFIG_DIR=$(pwd)/arch/arm64/configs
 SUB_CONFIGS_DIR=${ORIGIN_DIR}/kernel/configs
 BUILD_OUTPUT_DIR=$(pwd)/output
 
+# Retrofit: 'fresh' variant now points to 'oneui' 
+if [[ ${BUILD_KERNEL_CODE} == "fresh" ]]; then
+	BUILD_KERNEL_CODE='oneui'
+fi
+
 if [[ -z ${BUILD_KERNEL_CODE} ]]; then
 	script_echo "E: No variant selected!"
 	script_echo " "
@@ -440,8 +444,6 @@ fi
 
 if [[ ${BUILD_KERNEL_CODE} == "aosp" ]]; then
 	FILE_KERNEL_CODE='AOSP'
-elif [[ ${BUILD_KERNEL_CODE} == "fresh" ]]; then
-	FILE_KERNEL_CODE='Fresh'
 elif [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
 	FILE_KERNEL_CODE='OneUI'
 else
