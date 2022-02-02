@@ -131,6 +131,7 @@ show_usage() {
 	script_echo " "
 	script_echo "Main options:"
 	script_echo "-d, --device <device>     Set build device to build the kernel for. Required."
+	script_echo "-a, --android <version>   Set Android version to build the kernel for. (Default: 11)"
 	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
@@ -162,6 +163,10 @@ merge_config() {
 	else
 		echo "$(cat "${SUB_CONFIGS_DIR}/mint_${1}.config")" >> "${BUILD_CONFIG_DIR}/${BUILD_DEVICE_TMP_CONFIG}"
 	fi
+}
+
+set_android_version() {
+	echo "CONFIG_MINT_PLATFORM_VERSION=${BUILD_ANDROID_PLATFORM}" >> "${BUILD_CONFIG_DIR}/${BUILD_DEVICE_TMP_CONFIG}"
 }
 
 get_devicedb_info() {
@@ -332,6 +337,17 @@ while [[ $# -gt 0 ]]; do
       BUILD_DEVICE_NAME=`echo ${2} | tr 'A-Z' 'a-z'`
       shift; shift # past value
       ;;
+    -a|--android)
+      BUILD_ANDROID_PLATFORM=`echo ${2} | tr 'A-Z' 'a-z'`
+
+		  if [[ ! ${BUILD_ANDROID_PLATFORM} =~ ^[0-9]+$ ]]; then
+				script_echo "E: Wrong Android version syntax!"
+				script_echo " "
+				show_usage
+		  fi
+      
+      shift; shift # past value
+      ;;
     -v|--variant)
       BUILD_KERNEL_CODE=`echo ${2} | tr 'A-Z' 'a-z'`
       shift; shift # past value
@@ -476,6 +492,10 @@ if [[ "${BUILD_RECOVERY}${BUILD_AOSP}${BUILD_FRESH}" == *"truetrue"* ]]; then
 	show_usage
 fi
 
+if [[ -z ${BUILD_ANDROID_PLATFORM} ]]; then
+	BUILD_ANDROID_PLATFORM=11
+fi
+
 if [[ -z ${BUILD_DEVICE_NAME} ]]; then
 	script_echo "E: No device selected to build kernel!"
 	script_echo " "
@@ -484,6 +504,7 @@ else
 	script_echo "I: Selected device:    ${BUILD_DEVICE_NAME}"
 	script_echo "   Selected variant:   ${FILE_KERNEL_CODE}"
 	script_echo "   Kernel version:     ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
+	script_echo "   Android version:    ${BUILD_ANDROID_PLATFORM}"
 	script_echo "   Magisk-enabled:     ${BUILD_KERNEL_MAGISK}"
 	script_echo "   Output ZIP file:    ${BUILD_KERNEL_OUTPUT}"
 fi
@@ -541,6 +562,7 @@ else
 	merge_config non-root
 fi
 
+set_android_version
 build_kernel
 
 if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
