@@ -825,18 +825,22 @@ struct slsi_lls_interface_link_layer_info {
 	u8 country_str[3];                 /* country string for this association*/
 };
 
+#if defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
 struct slsi_lls_bssload_info {
 	u16 sta_count;    // station count
 	u16 chan_util;    // channel utilization
 	u8 PAD[4];
 };
+#endif
 
 /* per peer statistics */
 struct slsi_lls_peer_info {
 	enum slsi_lls_peer_type type;         /* peer type (AP, TDLS, GO etc.)*/
 	u8 peer_mac_address[6];           /* mac address*/
 	u32 capabilities;                 /* peer WIFI_CAPABILITY_XXX*/
+#if defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
 	struct slsi_lls_bssload_info bssload; /* STA count and CU (Not used) */
+#endif
 	u32 num_rate;                     /* number of rates*/
 	struct slsi_lls_rate_stat rate_stats[]; /* per rate statistics, number of entries  = num_rate*/
 };
