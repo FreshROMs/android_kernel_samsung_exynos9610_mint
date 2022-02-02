@@ -378,6 +378,23 @@ static void write_wifi_version_info_file(struct slsi_dev *sdev)
 	char build_id_fw[128];
 	char build_id_drv[64];
 
+
+#ifdef CONFIG_MINT_SESL
+/* For 5.4 kernel CONFIG_SCSC_WLBTD will be defined so filp_open will not be used */
+#ifndef CONFIG_SCSC_WLBTD
+	struct file *fp = NULL;
+
+	fp = filp_open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+	if (IS_ERR(fp)) {
+		SLSI_WARN(sdev, "version file wasn't found\n");
+		return;
+	} else if (!fp) {
+		SLSI_WARN(sdev, "%s doesn't exist.\n", filepath);
+		return;
+	}
+#endif
+#endif
 #ifndef SLSI_TEST_DEV
 	mxman_get_fw_version(build_id_fw, 128);
 	mxman_get_driver_version(build_id_drv, 64);
