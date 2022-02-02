@@ -17,3 +17,10 @@ config MINT_AOSP
 	default n
 	help
 		Build Mint Kernel components for AOSP support
+
+config MINT_PLATFORM_VERSION
+	depends on MINT
+	int "Android platform version"
+	range 9 12
+	help
+		Android platform version of Mint build
