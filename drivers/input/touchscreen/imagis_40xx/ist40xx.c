@@ -240,7 +240,7 @@ int ist40xx_set_input_device(struct ist40xx_data *data)
 	set_bit(EV_ABS, data->input_dev->evbit);
 	set_bit(EV_KEY, data->input_dev->evbit);
 	set_bit(INPUT_PROP_DIRECT, data->input_dev->propbit);
-	set_bit(KEY_HOMEPAGE, data->input_dev->keybit);
+	set_bit(KEY_WAKEUP, data->input_dev->keybit);
 	set_bit(KEY_INT_CANCEL, data->input_dev->keybit);
 
 	input_set_abs_params(data->input_dev, ABS_MT_PALM, 0, 1, 0, 0);
@@ -387,11 +387,11 @@ void ist40xx_special_cmd(struct ist40xx_data *data, int cmd)
 							"AOT Double Tap Trigger\n");
 
 					input_report_key(data->input_dev,
-							 KEY_HOMEPAGE,
+							 KEY_WAKEUP,
 							 true);
 					input_sync(data->input_dev);
 					input_report_key(data->input_dev,
-							 KEY_HOMEPAGE,
+							 KEY_WAKEUP,
 							 false);
 					input_sync(data->input_dev);
 					/* request from sensor team */
@@ -2036,7 +2036,7 @@ static void ist_set_input_prop_pad(struct ist40xx_data *data, struct input_dev *
 	set_bit(KEY_INT_CANCEL, dev->keybit);
 
 	set_bit(INPUT_PROP_POINTER, dev->propbit);
-	set_bit(KEY_HOMEPAGE, dev->keybit);
+	set_bit(KEY_WAKEUP, dev->keybit);
 
 	input_set_abs_params(dev, ABS_MT_POSITION_X, 0, data->tsp_info.width - 1, 0, 0);
 	input_set_abs_params(dev, ABS_MT_POSITION_Y, 0, data->tsp_info.height - 1, 0, 0);
