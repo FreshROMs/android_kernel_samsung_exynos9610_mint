@@ -9,7 +9,7 @@ on:
 
 jobs:
   a50-fresh:
-    name: Build Galaxy A50 (Fresh)
+    name: Build Galaxy A50 (One UI)
     runs-on: ubuntu-latest
 
     strategy:
@@ -59,7 +59,7 @@ jobs:
         if-no-files-found: error
 
   a50-aosp:
-    name: Build Galaxy A50 (Lineage/AOSP)
+    name: Build Galaxy A50 (Lineage/AOSP 11) - Permissive
     runs-on: ubuntu-latest
 
     strategy:
@@ -97,19 +97,19 @@ jobs:
     - name: Upload boot image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: AOSP Permissive Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP 11 Permissive Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'tools/make/package/custom/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: AOSP Permissive Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP 11 Permissive Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'release/kernel_config_a50-aosp-pm.txt'
         if-no-files-found: error
 
   a50-aosp-en:
-    name: Build Galaxy A50 (Lineage/AOSP)
+    name: Build Galaxy A50 (Lineage/AOSP 11) - Enforcing
     runs-on: ubuntu-latest
 
     strategy:
@@ -147,13 +147,113 @@ jobs:
     - name: Upload boot image artifact
       uses: actions/upload-artifact@v2
       with:
-        name: AOSP Enforcing Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP 11 Enforcing Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'tools/make/package/custom/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
       uses: actions/upload-artifact@v2
       with:
-        name: AOSP Enforcing Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        name: AOSP 11 Enforcing Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'release/kernel_config_a50-aosp-en.txt'
+        if-no-files-found: error
+
+  a50-t-aosp:
+    name: Build Galaxy A50 (Lineage/AOSP 12) - Permissive
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --magisk --automated --device a50 --variant aosp --android 12 --permissive
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname Mint-*.zip` ./release/
+          cp .config ./release/kernel_config_a50-aosp-pm.txt
+
+    - name: Upload boot image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: AOSP 12 Permissive Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'tools/make/package/custom/boot.img'
+        if-no-files-found: error
+
+    - name: Upload build config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: AOSP 12 Permissive Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'release/kernel_config_a50-aosp-pm.txt'
+        if-no-files-found: error
+
+  a50-aosp-t-en:
+    name: Build Galaxy A50 (Lineage/AOSP 12) - Enforcing
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Fresh Core build
+      run: |
+          set -eo pipefail
+          echo "  I: Building Fresh Core ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --magisk --automated --device a50 --variant aosp --android 12
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname Mint-*.zip` ./release/
+          cp .config ./release/kernel_config_a50-aosp-en.txt
+
+    - name: Upload boot image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: AOSP 12 Enforcing Kernel Image (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
+        path: 'tools/make/package/custom/boot.img'
+        if-no-files-found: error
+
+    - name: Upload build config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: AOSP 12 Enforcing Kernel Config (${{ steps.branch_name.outputs.branch }}-${{ github.run_number }})
         path: 'release/kernel_config_a50-aosp-en.txt'
         if-no-files-found: error
