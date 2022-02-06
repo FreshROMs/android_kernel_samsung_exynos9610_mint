@@ -1,8 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_regs.h
+ *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *
  * Register Definitions for Samsung Graphics 2D Hardware
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #ifndef __G2D_REGS_H__
@@ -92,6 +97,7 @@
 bool g2d_hw_stuck_state(struct g2d_device *g2d_dev);
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 int g2d_hw_get_current_task(struct g2d_device *g2d_dev);
+void g2d_hw_kill_task(struct g2d_device *g2d_dev, unsigned int job_id);
 
 static inline u32 g2d_hw_finished_job_ids(struct g2d_device *g2d_dev)
 {

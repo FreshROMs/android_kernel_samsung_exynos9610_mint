@@ -1,8 +1,18 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_drv.c
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
  *
  * Contact: Hyesoo Yu <hyesoo.yu@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -64,39 +74,69 @@ void g2d_hw_timeout_handler(unsigned long arg)
 	struct g2d_task *task = (struct g2d_task *)arg;
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
-	u32 state;
-	bool ret;
+	u32 job_state;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
-	state = g2d_hw_get_job_state(g2d_dev, g2d_task_id(task));
+	job_state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_HW, job_state);
 
 	perrfndev(g2d_dev, "Time is up: %d msec for job %u %lu %u",
-		  G2D_HW_TIMEOUT_MSEC, g2d_task_id(task), task->state, state);
+		  G2D_HW_TIMEOUT_MSEC, task->sec.job_id, task->state, job_state);
 
-	/*
-	 * The task timed out is not currently running in H/W.
-	 * It might be just finished by interrupt.
-	 * Or, it will be processed in the interrupt handler.
-	 */
-	if (!is_task_state_active(task) || (state == G2D_JOB_STATE_DONE)) {
+	if (!is_task_state_active(task))
+		/*
+		 * The task timed out is not currently running in H/W.
+		 * It might be just finished by interrupt.
+		 */
+		goto out;
+
+	if (job_state == G2D_JOB_STATE_DONE)
+		/*
+		 * The task timed out is not currently running in H/W.
+		 * It will be processed in the interrupt handler.
+		 */
+		goto out;
+
+	if (is_task_state_killed(task) || g2d_hw_stuck_state(g2d_dev)) {
+		bool ret;
+
+		g2d_flush_all_tasks(g2d_dev);
+
+		ret = g2d_hw_global_reset(g2d_dev);
+		if (!ret)
+			g2d_dump_info(g2d_dev, NULL);
+
+		perrdev(g2d_dev,
+			"GLOBAL RESET: Fetal error, %s (ret %d)",
+			is_task_state_killed(task) ?
+			"killed task not dead" :
+			"no running task on queued tasks", ret);
+
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+
+		wake_up(&g2d_dev->freeze_wait);
 
 		return;
 	}
 
-	ret = g2d_hw_global_reset(g2d_dev);
+	mod_timer(&task->hw_timer,
+	  jiffies + msecs_to_jiffies(G2D_HW_TIMEOUT_MSEC));
 
-	perrdev(g2d_dev, "GLOBAL RESET %s : H/W timeout",
-		ret ? "SUCCESS" : "FAIL");
+	if (job_state != G2D_JOB_STATE_RUNNING)
+		/* G2D_JOB_STATE_QUEUEING or G2D_JOB_STATE_SUSPENDING */
+		/* Time out is not caused by this task */
+		goto out;
 
-	g2d_finish_tasks(g2d_dev, 0, false);
+	g2d_dump_info(g2d_dev, task);
 
+	mark_task_state_killed(task);
+
+	g2d_hw_kill_task(g2d_dev, task->sec.job_id);
+
+out:
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
-
-	wake_up(&g2d_dev->freeze_wait);
-
-	return;
 }
 
 int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
@@ -106,10 +146,13 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 	task->ktime_end = ktime_get();
 
 	/* record the time between user request and H/W push */
+	g2d_stamp_task(task, G2D_STAMP_STATE_PUSH,
+		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
+
 	task->ktime_begin = ktime_get();
 
 	if (IS_HWFC(task->flags))
-		hwfc_set_valid_buffer(g2d_task_id(task), g2d_task_id(task));
+		hwfc_set_valid_buffer(task->sec.job_id, task->sec.job_id);
 
 	return 0;
 }
@@ -117,19 +160,31 @@ int g2d_device_run(struct g2d_device *g2d_dev, struct g2d_task *task)
 static irqreturn_t g2d_irq_handler(int irq, void *priv)
 {
 	struct g2d_device *g2d_dev = priv;
+	unsigned int id;
 	u32 intflags, errstatus;
 
 	spin_lock(&g2d_dev->lock_task);
 
 	intflags = g2d_hw_finished_job_ids(g2d_dev);
-	g2d_hw_clear_job_ids(g2d_dev, intflags);
+
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_INT, intflags);
+
+	if (intflags != 0) {
+		for (id = 0; id < G2D_MAX_JOBS; id++) {
+			if ((intflags & (1 << id)) == 0)
+				continue;
+
+			g2d_finish_task_with_id(g2d_dev, id, true);
+		}
+
+		g2d_hw_clear_job_ids(g2d_dev, intflags);
+	}
 
 	errstatus = g2d_hw_errint_status(g2d_dev);
 	if (errstatus != 0) {
 		int job_id = g2d_hw_get_current_task(g2d_dev);
 		struct g2d_task *task =
 				g2d_get_active_task_from_id(g2d_dev, job_id);
-		bool ret;
 
 		if (job_id < 0)
 			perrdev(g2d_dev, "No task is running in HW");
@@ -141,13 +196,18 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 				  "Error occurred during running job %d",
 				  job_id);
 
-		ret = g2d_hw_global_reset(g2d_dev);
+		g2d_hw_clear_int(g2d_dev, errstatus);
 
-		perrdev(g2d_dev, "GLOBAL RESET %s : error interrupt",
-			ret ? "SUCCESS" : "FAIL");
+		g2d_stamp_task(task, G2D_STAMP_STATE_ERR_INT, errstatus);
+
+		g2d_dump_info(g2d_dev, task);
+
+		g2d_flush_all_tasks(g2d_dev);
+
+		perrdev(g2d_dev,
+			"GLOBAL RESET: error interrupt (ret %d)",
+			g2d_hw_global_reset(g2d_dev));
 	}
-
-	g2d_finish_tasks(g2d_dev, intflags, !errstatus);
 
 	spin_unlock(&g2d_dev->lock_task);
 
@@ -170,6 +230,10 @@ static int g2d_iommu_fault_handler(struct iommu_domain *domain,
 	task = g2d_get_active_task_from_id(g2d_dev, job_id);
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
+	g2d_dump_info(g2d_dev, task);
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_MMUFAULT, 0);
+
 	return 0;
 }
 #endif
@@ -184,7 +248,7 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 		return ret;
 	}
 
-	ret = clk_enable(g2d_dev->clock);
+	ret = clk_prepare_enable(g2d_dev->clock);
 	if (ret < 0) {
 		perrdev(g2d_dev, "Failed to enable clock (%d)", ret);
 	} else {
@@ -199,17 +263,10 @@ static __u32 get_hw_version(struct g2d_device *g2d_dev, __u32 *version)
 
 static void g2d_timeout_perf_work(struct work_struct *work)
 {
-	struct g2d_device *g2d_dev = container_of(work, struct g2d_device,
-						  dwork.work);
-	struct g2d_context *ctx, *tmp;
+	struct g2d_context *ctx = container_of(work, struct g2d_context,
+					      dwork.work);
 
-	mutex_lock(&g2d_dev->lock_qos);
-
-	list_for_each_entry_safe(ctx, tmp, &g2d_dev->qos_contexts, qos_node)
-		list_del_init(&ctx->qos_node);
-	g2d_update_performance(g2d_dev);
-
-	mutex_unlock(&g2d_dev->lock_qos);
+	g2d_put_performance(ctx, false);
 }
 
 static int g2d_open(struct inode *inode, struct file *filp)
@@ -244,6 +301,7 @@ static int g2d_open(struct inode *inode, struct file *filp)
 	spin_unlock(&g2d_dev->lock_ctx_list);
 
 	INIT_LIST_HEAD(&g2d_ctx->qos_node);
+	INIT_DELAYED_WORK(&(g2d_ctx->dwork), g2d_timeout_perf_work);
 
 	return 0;
 }
@@ -263,12 +321,7 @@ static int g2d_release(struct inode *inode, struct file *filp)
 		kfree(g2d_ctx->hwfc_info);
 	}
 
-	mutex_lock(&g2d_dev->lock_qos);
-
-	list_del_init(&g2d_ctx->qos_node);
-	g2d_update_performance(g2d_dev);
-
-	mutex_unlock(&g2d_dev->lock_qos);
+	g2d_put_performance(g2d_ctx, true);
 
 	spin_lock(&g2d_dev->lock_ctx_list);
 	list_del(&g2d_ctx->node);
@@ -366,6 +419,8 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		g2d_stamp_task(task, G2D_STAMP_STATE_BEGIN, task->sec.priority);
+
 		g2d_start_task(task);
 
 		if (!(task->flags & G2D_FLAG_NONBLOCK))
@@ -402,8 +457,6 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case G2D_IOC_PERFORMANCE:
 	{
 		struct g2d_performance_data data;
-		int i;
-		struct g2d_qos qos = {0, };
 
 		if (!(ctx->authority & G2D_AUTHORITY_HIGHUSER)) {
 			ret = -EPERM;
@@ -415,30 +468,7 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-
-		if (data.num_frame > G2D_PERF_MAX_FRAMES)
-			return -EINVAL;
-
-		for (i = 0; i < data.num_frame; i++) {
-			if (data.frame[i].num_layers > g2d_dev->max_layers)
-				return -EINVAL;
-		}
-
-		for (i = 0; i < data.num_frame; i++) {
-			qos.rbw += data.frame[i].bandwidth_read;
-			qos.wbw += data.frame[i].bandwidth_write;
-		}
-		qos.devfreq = g2d_calc_device_frequency(g2d_dev, &data);
-
-		ctx->ctxqos = qos;
-
-		mutex_lock(&g2d_dev->lock_qos);
-		if (!qos.rbw && !qos.wbw && !qos.devfreq)
-			list_del_init(&ctx->qos_node);
-		else if (list_empty(&ctx->qos_node))
-			list_add(&ctx->qos_node, &g2d_dev->qos_contexts);
-		g2d_update_performance(g2d_dev);
-		mutex_unlock(&g2d_dev->lock_qos);
+		g2d_set_performance(ctx, &data, false);
 
 		break;
 	}
@@ -740,12 +770,6 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 				(unsigned int *)g2d_dev->dvfs_table, len);
 	}
 
-	if (of_property_read_u32(dev->of_node, "dvfs_int", &g2d_dev->dvfs_int))
-		g2d_dev->dvfs_int = 0;
-
-	if (of_property_read_u32(dev->of_node, "dvfs_mif", &g2d_dev->dvfs_mif))
-		g2d_dev->dvfs_mif = 0;
-
 	return 0;
 }
 
@@ -820,6 +844,7 @@ int g2d_itmon_notifier(struct notifier_block *nb,
 
 		spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
+		g2d_dump_info(g2d_dev, task);
 		exynos_sysmmu_show_status(g2d_dev->dev);
 	}
 
@@ -895,10 +920,7 @@ static int g2d_probe(struct platform_device *pdev)
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
 
 	g2d_dev->clock = devm_clk_get(&pdev->dev, "gate");
-	if (PTR_ERR(g2d_dev->clock) == -ENOENT) {
-		perrdev(g2d_dev, "'gate' not found. Ignoring clock gating..\n");
-		g2d_dev->clock = NULL;
-	} else if (IS_ERR(g2d_dev->clock)) {
+	if (IS_ERR(g2d_dev->clock)) {
 		ret = PTR_ERR(g2d_dev->clock);
 		perrdev(g2d_dev, "Failed to get clock (%d)", ret);
 		return ret;
@@ -987,7 +1009,7 @@ static int g2d_probe(struct platform_device *pdev)
 #endif
 	dev_info(&pdev->dev, "Probed FIMG2D version %#010x", version);
 
-	INIT_DELAYED_WORK(&g2d_dev->dwork, g2d_timeout_perf_work);
+	g2d_init_debug(g2d_dev);
 
 	return 0;
 err_pm:
@@ -1008,17 +1030,23 @@ err:
 static void g2d_shutdown(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 0);
 	g2d_prepare_suspend(g2d_dev);
 
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
 
 	if (test_and_set_bit(G2D_DEVICE_STATE_IOVMM_DISABLED, &g2d_dev->state))
 		iovmm_deactivate(g2d_dev->dev);
+
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 1);
 }
 
 static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
+
+	g2d_destroy_debug(g2d_dev);
 
 	g2d_shutdown(pdev);
 
@@ -1035,9 +1063,7 @@ static int g2d_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int g2d_runtime_resume(struct device *dev)
 {
-	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
-
-	clk_prepare(g2d_dev->clock);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RUNTIME_PM, 0);
 
 	return 0;
 }
@@ -1047,6 +1073,7 @@ static int g2d_runtime_suspend(struct device *dev)
 	struct g2d_device *g2d_dev = dev_get_drvdata(dev);
 
 	clk_unprepare(g2d_dev->clock);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RUNTIME_PM, 1);
 
 	return 0;
 }
@@ -1069,8 +1096,3 @@ static struct platform_driver g2d_driver = {
 };
 
 module_platform_driver(g2d_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Cho KyongHo <pullip.cho@samsung.com>");
-MODULE_AUTHOR("Hyesoo Yu <hyesoo.yu@samsung.com>");
-MODULE_DESCRIPTION("Exynos FIMG2D device driver");

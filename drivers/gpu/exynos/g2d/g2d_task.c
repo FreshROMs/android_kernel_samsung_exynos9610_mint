@@ -1,17 +1,23 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_task.c
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
-
-#include <uapi/linux/sched/types.h>
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/exynos_iovmm.h>
 #include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/ion_exynos.h>
 
 #include "g2d.h"
 #include "g2d_task.h"
@@ -23,31 +29,30 @@
 
 static void g2d_secure_enable(void)
 {
-	g2d_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 1);
 }
 
 static void g2d_secure_disable(void)
 {
-	g2d_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
+	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
+		exynos_smc(SMC_PROTECTION_SET, 0, G2D_ALWAYS_S, 0);
 }
 
 static int g2d_map_cmd_data(struct g2d_task *task)
 {
 	bool self_prot = task->g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
 	struct scatterlist sgl;
-	int prot = IOMMU_READ;
 
 	if (!self_prot && IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION))
 		return 0;
-
-	if (device_get_dma_attr(task->g2d_dev->dev) == DEV_DMA_COHERENT)
-		prot |= IOMMU_CACHE;
 
 	/* mapping the command data */
 	sg_init_table(&sgl, 1);
 	sg_set_page(&sgl, task->cmd_page, G2D_CMD_LIST_SIZE, 0);
 	task->cmd_addr = iovmm_map(task->g2d_dev->dev, &sgl, 0,
-				   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE, prot);
+				   G2D_CMD_LIST_SIZE, DMA_TO_DEVICE,
+				   IOMMU_READ | IOMMU_CACHE);
 
 	if (IS_ERR_VALUE(task->cmd_addr)) {
 		perrfndev(task->g2d_dev, "Unable to alloc IOVA for cmd data");
@@ -63,7 +68,7 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	struct g2d_task *task;
 
 	list_for_each_entry(task, &g2d_dev->tasks_active, node) {
-		if (g2d_task_id(task) == id)
+		if (task->sec.job_id == id)
 			return task;
 	}
 
@@ -72,10 +77,10 @@ struct g2d_task *g2d_get_active_task_from_id(struct g2d_device *g2d_dev,
 	return NULL;
 }
 
-static void g2d_task_completion_work(struct kthread_work *work)
+/* TODO: consider separate workqueue to eliminate delay by scheduling work */
+static void g2d_task_completion_work(struct work_struct *work)
 {
-	struct g2d_task *task = container_of(work, struct g2d_task,
-					     completion_work);
+	struct g2d_task *task = container_of(work, struct g2d_task, work);
 
 	g2d_put_images(task->g2d_dev, task);
 
@@ -84,37 +89,20 @@ static void g2d_task_completion_work(struct kthread_work *work)
 
 static void __g2d_finish_task(struct g2d_task *task, bool success)
 {
-	unsigned int i;
-	bool need_invalidate = false;
-
 	change_task_state_finished(task);
 	if (!success)
 		mark_task_state_error(task);
 
 	complete_all(&task->completion);
 
-	if (!(task->flags & G2D_FLAG_NONBLOCK))
-		return;
+	if (!!(task->flags & G2D_FLAG_NONBLOCK)) {
+		bool failed;
 
-	for (i = 0; i < task->target.num_buffers; i++) {
-		if (ion_cached_dmabuf(task->target.buffer[i].dmabuf.dmabuf)) {
-			need_invalidate = true;
-			break;
-		}
+		INIT_WORK(&task->work, g2d_task_completion_work);
+		failed = !queue_work(task->g2d_dev->schedule_workq,
+					&task->work);
+		BUG_ON(failed);
 	}
-
-	if (task->release_fence && (!need_invalidate ||
-	    (device_get_dma_attr(task->g2d_dev->dev) == DEV_DMA_COHERENT))) {
-		if (!success)
-			dma_fence_set_error(task->release_fence->fence, -EIO);
-
-		dma_fence_signal(task->release_fence->fence);
-		fput(task->release_fence->file);
-
-		task->release_fence = NULL;
-	}
-
-	kthread_queue_work(task->g2d_dev->completion_workq, &task->completion_work);
 }
 
 static void g2d_finish_task(struct g2d_device *g2d_dev,
@@ -126,6 +114,9 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 
 	del_timer(&task->hw_timer);
 
+	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
+		(int)ktime_us_delta(task->ktime_end, task->ktime_begin));
+
 	g2d_secure_disable();
 
 	clk_disable(g2d_dev->clock);
@@ -135,22 +126,39 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 	__g2d_finish_task(task, success);
 }
 
-void g2d_finish_tasks(struct g2d_device *g2d_dev,
-		      unsigned int intflags, bool success)
+void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
+			     unsigned int job_id, bool success)
 {
-	struct g2d_task *task, *n;
+	struct g2d_task *task = NULL;
 
-	list_for_each_entry_safe(task, n, &g2d_dev->tasks_active, node) {
-		if (!success || ((intflags & BIT(g2d_task_id(task))) != 0)) {
-			g2d_finish_task(g2d_dev, task, success);
-			intflags &= ~BIT(g2d_task_id(task));
-		}
+	task = g2d_get_active_task_from_id(g2d_dev, job_id);
+	if (!task)
+		return;
+
+	if (is_task_state_killed(task)) {
+		perrfndev(g2d_dev, "Killed task ID %d is completed", job_id);
+		success = false;
 	}
 
-	if (intflags)
-		perrfndev(g2d_dev,
-			  "Found finished jobs (%#x) of inactive tasks",
-			  intflags);
+	g2d_finish_task(g2d_dev, task, success);
+}
+
+void g2d_flush_all_tasks(struct g2d_device *g2d_dev)
+{
+	struct g2d_task *task;
+
+	perrfndev(g2d_dev, "Flushing all active tasks");
+
+	while (!list_empty(&g2d_dev->tasks_active)) {
+		task = list_first_entry(&g2d_dev->tasks_active,
+					struct g2d_task, node);
+
+		perrfndev(g2d_dev, "Flushed task of ID %d", task->sec.job_id);
+
+		mark_task_state_killed(task);
+
+		g2d_finish_task(g2d_dev, task, false);
+	}
 }
 
 static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
@@ -169,7 +177,8 @@ static void g2d_execute_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 	 * reentrant g2d_device_run() should be protected with
 	 * g2d_dev->lock_task from race.
 	 */
-	g2d_device_run(g2d_dev, task);
+	if (g2d_device_run(g2d_dev, task) < 0)
+		g2d_finish_task(g2d_dev, task, false);
 }
 
 void g2d_prepare_suspend(struct g2d_device *g2d_dev)
@@ -178,7 +187,9 @@ void g2d_prepare_suspend(struct g2d_device *g2d_dev)
 	set_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 	spin_unlock_irq(&g2d_dev->lock_task);
 
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND, 0);
 	wait_event(g2d_dev->freeze_wait, list_empty(&g2d_dev->tasks_active));
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_SUSPEND, 1);
 }
 
 void g2d_suspend_finish(struct g2d_device *g2d_dev)
@@ -187,6 +198,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 
 	spin_lock_irq(&g2d_dev->lock_task);
 
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME, 0);
 	clear_bit(G2D_DEVICE_STATE_SUSPEND, &g2d_dev->state);
 
 	while (!list_empty(&g2d_dev->tasks_prepared)) {
@@ -197,6 +209,7 @@ void g2d_suspend_finish(struct g2d_device *g2d_dev)
 	}
 
 	spin_unlock_irq(&g2d_dev->lock_task);
+	g2d_stamp_task(NULL, G2D_STAMP_STATE_RESUME, 1);
 }
 
 static void g2d_schedule_task(struct g2d_task *task)
@@ -226,7 +239,7 @@ static void g2d_schedule_task(struct g2d_task *task)
 		goto err_pm;
 	}
 
-	ret = clk_enable(g2d_dev->clock);
+	ret = clk_prepare_enable(g2d_dev->clock);
 	if (ret < 0) {
 		perrfndev(g2d_dev, "Failed to enable clock (%d)", ret);
 		goto err_clk;
@@ -249,17 +262,21 @@ err_fence:
 	__g2d_finish_task(task, false);
 }
 
-static void g2d_task_schedule_work(struct kthread_work *work)
+/* TODO: consider separate workqueue to eliminate delay by completion work */
+static void g2d_task_schedule_work(struct work_struct *work)
 {
-	g2d_schedule_task(container_of(work, struct g2d_task, sched_work));
+	g2d_schedule_task(container_of(work, struct g2d_task, work));
 }
 
 void g2d_queuework_task(struct kref *kref)
 {
 	struct g2d_task *task = container_of(kref, struct g2d_task, starter);
 	struct g2d_device *g2d_dev = task->g2d_dev;
+	bool failed;
 
-	kthread_queue_work(g2d_dev->schedule_workq, &task->sched_work);
+	failed = !queue_work(g2d_dev->schedule_workq, &task->work);
+
+	BUG_ON(failed);
 }
 
 static void g2d_task_direct_schedule(struct kref *kref)
@@ -353,6 +370,7 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 
 		ktime_pending = ktime_get();
 
+		g2d_stamp_task(NULL, G2D_STAMP_STATE_PENDING, num_queued);
 		wait_event(g2d_dev->queued_wait,
 			   !list_empty(taskfree) &&
 			   (g2d_queued_task_count(g2d_dev) < max_queued));
@@ -366,23 +384,16 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 
 	task = list_first_entry(taskfree, struct g2d_task, node);
 	list_del_init(&task->node);
+	INIT_WORK(&task->work, g2d_task_schedule_work);
 
 	init_task_state(task);
 	task->sec.priority = g2d_ctx->priority;
 
 	g2d_init_commands(task);
 
-	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
+	g2d_stamp_task(task, G2D_STAMP_STATE_TASK_RESOURCE, 0);
 
-	/*
-	 * Inherit qos of device to guarantee while task runs
-	 *
-	 * However, task doesn't get the qos of device atomically
-	 * with mutex because it is only hint to ensure the performance
-	 * of task. Also, The request of performance update and task execution
-	 * doesn't occur at the same time in normal situation.
-	 */
-	task->taskqos = g2d_dev->qos;
+	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
 	return task;
 }
@@ -390,9 +401,6 @@ struct g2d_task *g2d_get_free_task(struct g2d_device *g2d_dev,
 void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	unsigned long flags;
-
-	task->taskqos.rbw = task->taskqos.wbw = 0;
-	task->taskqos.devfreq = 0;
 
 	spin_lock_irqsave(&g2d_dev->lock_task, flags);
 
@@ -402,11 +410,13 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 	if (IS_HWFC(task->flags)) {
 		/* hwfc job id will be set from repeater driver info */
-		g2d_task_set_id(task, G2D_MAX_JOBS);
+		task->sec.job_id = G2D_MAX_JOBS;
 		list_add(&task->node, &g2d_dev->tasks_free_hwfc);
 	} else {
 		list_add(&task->node, &g2d_dev->tasks_free);
 	}
+
+	g2d_stamp_task(task, G2D_STAMP_STATE_TASK_RESOURCE, 1);
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
@@ -438,8 +448,7 @@ void g2d_destroy_tasks(struct g2d_device *g2d_dev)
 
 	spin_unlock_irqrestore(&g2d_dev->lock_task, flags);
 
-	kthread_destroy_worker(g2d_dev->completion_workq);
-	kthread_destroy_worker(g2d_dev->schedule_workq);
+	destroy_workqueue(g2d_dev->schedule_workq);
 }
 
 static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
@@ -453,10 +462,8 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 
 	task->source = kcalloc(g2d_dev->max_layers, sizeof(*task->source),
 			       GFP_KERNEL);
-	if (!task->source) { /* g2d_dev->max_layes is not zero */
-		ret = -ENOMEM;
+	if (!task->source)
 		goto err_alloc;
-	}
 
 	INIT_LIST_HEAD(&task->node);
 
@@ -466,7 +473,7 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 		goto err_page;
 	}
 
-	g2d_task_set_id(task, id);
+	task->sec.job_id = id;
 	task->bufidx = -1;
 	task->g2d_dev = g2d_dev;
 
@@ -488,9 +495,6 @@ static struct g2d_task *g2d_create_task(struct g2d_device *g2d_dev, int id)
 	setup_timer(&task->fence_timer,
 		    g2d_fence_timeout_handler, (unsigned long)task);
 
-	kthread_init_work(&task->completion_work, g2d_task_completion_work);
-	kthread_init_work(&task->sched_work, g2d_task_schedule_work);
-
 	return task;
 
 err_map:
@@ -505,24 +509,12 @@ err_alloc:
 
 int g2d_create_tasks(struct g2d_device *g2d_dev)
 {
-	struct sched_param param[] = {
-		{.sched_priority =  MAX_RT_PRIO / 4 - 1 },
-		{.sched_priority =  MAX_RT_PRIO / 2 }
-	};
 	struct g2d_task *task;
 	unsigned int i;
 
-	g2d_dev->completion_workq = kthread_create_worker(0, "g2d_completion");
-	if (IS_ERR(g2d_dev->completion_workq))
-		return PTR_ERR(g2d_dev->completion_workq);
-
-	sched_setscheduler_nocheck(g2d_dev->completion_workq->task, SCHED_FIFO, &param[0]);
-
-	g2d_dev->schedule_workq = kthread_create_worker(0, "g2d_scheduler");
-	if (IS_ERR(g2d_dev->schedule_workq))
-		return PTR_ERR(g2d_dev->schedule_workq);
-
-	sched_setscheduler_nocheck(g2d_dev->schedule_workq->task, SCHED_FIFO, &param[1]);
+	g2d_dev->schedule_workq = create_singlethread_workqueue("g2dscheduler");
+	if (!g2d_dev->schedule_workq)
+		return -ENOMEM;
 
 	for (i = 0; i < G2D_MAX_JOBS; i++) {
 		task = g2d_create_task(g2d_dev, i);

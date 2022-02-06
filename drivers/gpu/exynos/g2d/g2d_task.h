@@ -1,8 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_task.h
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
  *
  * Contact: Hyesoo Yu <hyesoo.yu@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #ifndef __EXYNOS_G2D_TASK_H__
@@ -10,19 +20,16 @@
 
 #include <linux/ktime.h>
 #include <linux/dma-buf.h>
-#include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/sync_file.h>
 
 #include "g2d_format.h"
-#include "g2d_uapi.h"
 
 #define G2D_MAX_IMAGES		16
 #define G2D_MAX_IMAGES_HALF	8
-#define G2D_MAX_IMAGES_QUARTER	4
 #define G2D_MAX_JOBS		16
-#define G2D_MAX_COMMAND		2048
-#define G2D_CMD_LIST_SIZE	(G2D_MAX_COMMAND * sizeof(struct g2d_reg))
+#define G2D_CMD_LIST_SIZE	8192
 
 struct g2d_buffer_prot_info {
 	unsigned int chunk_count;
@@ -52,7 +59,7 @@ struct g2d_buffer {
 
 struct g2d_layer {
 	struct g2d_task		*task;
-	unsigned int		flags;
+	int			flags;
 	int			buffer_type;
 	int			num_buffers;
 	struct g2d_buffer	buffer[G2D_MAX_PLANES];
@@ -67,6 +74,7 @@ struct g2d_layer {
 #define G2D_TASKSTATE_ACTIVE		(1 << 4)
 #define G2D_TASKSTATE_PROCESSED		(1 << 5)
 #define G2D_TASKSTATE_ERROR		(1 << 6)
+#define G2D_TASKSTATE_KILLED		(1 << 7)
 #define G2D_TASKSTATE_TIMEOUT		(1 << 8)
 
 struct g2d_context;
@@ -107,8 +115,7 @@ struct g2d_task {
 	ktime_t			ktime_begin;
 	ktime_t			ktime_end;
 
-	struct kthread_work	sched_work;
-	struct kthread_work	completion_work;
+	struct work_struct	work;
 	struct completion	completion;
 
 	unsigned int		total_cached_len;
@@ -117,8 +124,6 @@ struct g2d_task {
 #ifdef CONFIG_EXYNOS_CONTENT_PATH_PROTECTION
 	struct g2d_buffer_prot_info prot_info;
 #endif
-	/* inherit device qos when task allocates */
-	struct g2d_qos		taskqos;
 };
 
 /* The below macros should be called with g2d_device.lock_tasks held */
@@ -134,6 +139,7 @@ struct g2d_task {
 
 #define change_task_state_finished(task) do {		\
 	(task)->state &= ~(G2D_TASKSTATE_ACTIVE |	\
+			   G2D_TASKSTATE_KILLED |	\
 			   G2D_TASKSTATE_TIMEOUT);	\
 	(task)->state |= G2D_TASKSTATE_PROCESSED;	\
 } while (0)
@@ -141,6 +147,11 @@ struct g2d_task {
 static inline void mark_task_state_error(struct g2d_task *task)
 {
 	task->state |= G2D_TASKSTATE_ERROR;
+}
+
+static inline void mark_task_state_killed(struct g2d_task *task)
+{
+	task->state |= G2D_TASKSTATE_KILLED;
 }
 
 static inline void init_task_state(struct g2d_task *task)
@@ -155,22 +166,13 @@ static inline void clear_task_state(struct g2d_task *task)
 
 #define is_task_state_idle(task)   ((task)->state == 0)
 #define is_task_state_active(task) (((task)->state & G2D_TASKSTATE_ACTIVE) != 0)
+#define is_task_state_killed(task) (((task)->state & G2D_TASKSTATE_KILLED) != 0)
 #define is_task_state_error(task)  (((task)->state & G2D_TASKSTATE_ERROR) != 0)
 
 static inline bool g2d_task_wait_completion(struct g2d_task *task)
 {
 	wait_for_completion(&task->completion);
 	return !is_task_state_error(task);
-}
-
-static inline unsigned int g2d_task_id(struct g2d_task *task)
-{
-	return task->sec.job_id;
-}
-
-static inline void g2d_task_set_id(struct g2d_task *task, unsigned int id)
-{
-	task->sec.job_id = id;
 }
 
 #define G2D_HW_TIMEOUT_MSEC	500
@@ -187,8 +189,9 @@ void g2d_put_free_task(struct g2d_device *g2d_dev, struct g2d_task *task);
 
 void g2d_start_task(struct g2d_task *task);
 void g2d_cancel_task(struct g2d_task *task);
-void g2d_finish_tasks(struct g2d_device *g2d_dev,
-		      unsigned int intflags, bool success);
+void g2d_finish_task_with_id(struct g2d_device *g2d_dev,
+			     unsigned int job_id, bool success);
+void g2d_flush_all_tasks(struct g2d_device *g2d_dev);
 
 void g2d_prepare_suspend(struct g2d_device *g2d_dev);
 void g2d_suspend_finish(struct g2d_device *g2d_dev);

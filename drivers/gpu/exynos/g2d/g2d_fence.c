@@ -1,6 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_fence.c
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -64,7 +74,8 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	 */
 	if (atomic_read(&task->starter.refcount.refs) == 0) {
 		spin_unlock_irqrestore(&task->fence_timeout_lock, flags);
-		perr("All fences are signaled. (state %#lx)", task->state);
+		perr("All fences are signaled. (work_busy? %d, state %#lx)",
+		     work_busy(&task->work), task->state);
 		/*
 		 * If this happens, there is racing between
 		 * g2d_fence_timeout_handler() and g2d_queuework_task(). Once
@@ -110,6 +121,8 @@ void g2d_fence_timeout_handler(unsigned long arg)
 	if (IS_AFBC(task->target.commands[G2DSFR_IMG_COLORMODE].value))
 		afbc |= 1 << G2D_MAX_IMAGES;
 
+	g2d_stamp_task(task, G2D_STAMP_STATE_TIMEOUT_FENCE, afbc);
+
 	g2d_cancel_task(task);
 };
 
@@ -149,7 +162,7 @@ struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
 {
 	struct dma_fence *fence;
 	struct sync_file *file;
-	s32 release_fences[G2D_MAX_IMAGES + 1];
+	s32 release_fences[g2d_dev->max_layers + 1];
 	int i;
 	int ret = 0;
 

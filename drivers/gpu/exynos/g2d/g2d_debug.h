@@ -1,24 +1,22 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_debug.h
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
  *
  * Contact: Hyesoo Yu <hyesoo.yu@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #ifndef __EXYNOS_G2D_DEBUG_H_
 #define __EXYNOS_G2D_DEBUG_H_
-
-enum debug_level {
-	DBG_NO,
-	DBG_INFO,
-	DBG_PERF,
-	DBG_DEBUG,
-};
-
-#define g2d_print(level, fmt, args...)	do { } while(0)
-
-#define g2d_info(fmt, args...)	g2d_print(DBG_INFO, fmt, ##args)
-#define g2d_perf(fmt, args...)	g2d_print(DBG_PERF, fmt, ##args)
 
 struct regs_info {
 	int start;
@@ -42,12 +40,11 @@ enum g2d_stamp_id {
 	G2D_STAMP_STATE_RESUME,
 	G2D_STAMP_STATE_HWFCBUF,
 	G2D_STAMP_STATE_PENDING,
-	G2D_STAMP_STATE_FENCE,
 	G2D_STAMP_STATE_NUM,
 };
 
 void g2d_init_debug(struct g2d_device *dev);
 void g2d_destroy_debug(struct g2d_device *dev);
-void g2d_stamp_task(struct g2d_task *task, u32 stampid, u64 val);
+void g2d_stamp_task(struct g2d_task *task, u32 stampid, s32 val);
 void g2d_dump_info(struct g2d_device *g2d_dev, struct g2d_task *task);
 #endif /* __EXYNOS_G2D_HELPER_H_ */

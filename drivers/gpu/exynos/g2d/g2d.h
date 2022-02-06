@@ -1,8 +1,13 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d.h
+ *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *
  * Samsung Graphics 2D driver
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
 #ifndef __EXYNOS_G2D_H__
@@ -12,8 +17,6 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
-#include <linux/kthread.h>
-#include <linux/workqueue.h>
 #include <media/exynos_repeater.h>
 #include <linux/pm_qos.h>
 #include <soc/samsung/exynos-itmon.h>
@@ -70,12 +73,6 @@ struct g2d_dvfs_table {
 	u32 freq;
 };
 
-struct g2d_qos {
-	u64	rbw;
-	u64	wbw;
-	u32	devfreq;
-};
-
 /* Proved that G2D does not leak protected conents that it is processing. */
 #define G2D_DEVICE_CAPS_SELF_PROTECTION		1
 /* Separate bitfield to select YCbCr Bitdepth at REG_COLORMODE[29:28] */
@@ -104,8 +101,7 @@ struct g2d_device {
 	struct list_head	tasks_free_hwfc;
 	struct list_head	tasks_prepared;
 	struct list_head	tasks_active;
-	struct kthread_worker	*completion_workq;
-	struct kthread_worker	*schedule_workq;
+	struct workqueue_struct	*schedule_workq;
 
 	struct notifier_block	pm_notifier;
 	wait_queue_head_t	freeze_wait;
@@ -121,10 +117,6 @@ struct g2d_device {
 
 	struct mutex			lock_qos;
 	struct list_head		qos_contexts;
-
-	struct g2d_qos		qos;
-	struct pm_qos_request	req;
-
 	u32 hw_ppc[PPC_END];
 	u32				max_layers;
 
@@ -132,11 +124,6 @@ struct g2d_device {
 	u32 dvfs_table_cnt;
 
 	struct notifier_block	itmon_nb;
-
-	u32 dvfs_int;
-	u32 dvfs_mif;
-
-	struct delayed_work dwork;
 };
 
 #define G2D_AUTHORITY_HIGHUSER 1
@@ -149,9 +136,12 @@ struct g2d_context {
 	int authority;
 	struct task_struct	*owner;
 
-	struct list_head qos_node;
+	struct delayed_work dwork;
 
-	struct g2d_qos	ctxqos;
+	struct pm_qos_request req;
+	struct list_head qos_node;
+	u64	r_bw;
+	u64	w_bw;
 };
 
 #define IPPREFIX "[Exynos][G2D] "

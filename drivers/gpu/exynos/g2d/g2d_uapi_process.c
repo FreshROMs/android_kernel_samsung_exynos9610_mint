@@ -1,6 +1,16 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_uapi_process.c
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -22,6 +32,17 @@
 #include "g2d_fence.h"
 #include "g2d_regs.h"
 #include "g2d_debug.h"
+
+unsigned int get_layer_payload(struct g2d_layer *layer)
+{
+	unsigned int payload = 0;
+	unsigned int i;
+
+	for (i = 0; i < layer->num_buffers; i++)
+		payload += layer->buffer[i].payload;
+
+	return payload;
+}
 
 static void g2d_clean_caches_layer(struct device *dev, struct g2d_layer *layer,
 				   enum dma_data_direction dir)
@@ -103,10 +124,10 @@ static void g2d_invalidate_caches_task(struct g2d_task *task)
 	}
 }
 
-#define buferr_show(dev, i, payload, w, h, b, _mode, name, len)				   \
-perrfndev(dev,										   \
-	  "Too small buffer[%d]: expected %u for %ux%u(btm %u)/%s(mode %#x) but %u given", \
-	  i, payload, w, h, b, name, _mode, len)
+#define buferr_show(dev, i, payload, w, h, b, name, len)		       \
+perrfndev(dev,								       \
+	  "Too small buffer[%d]: expected %u for %ux%u(bt%u)/%s but %u given", \
+	  i, payload,w, h, b, name, len)
 
 static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 			      struct g2d_layer *layer,
@@ -149,7 +170,6 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 					    cmd[G2DSFR_IMG_WIDTH].value,
 					    cmd[G2DSFR_IMG_HEIGHT].value,
 					    cmd[G2DSFR_IMG_BOTTOM].value,
-					    cmd[G2DSFR_IMG_COLORMODE].value,
 					    fmt->name, data->buffer[i].length);
 				return -EINVAL;
 			}
@@ -164,7 +184,6 @@ static int g2d_prepare_buffer(struct g2d_device *g2d_dev,
 				    cmd[G2DSFR_IMG_WIDTH].value,
 				    cmd[G2DSFR_IMG_HEIGHT].value,
 				    cmd[G2DSFR_IMG_BOTTOM].value,
-				    cmd[G2DSFR_IMG_COLORMODE].value,
 				    fmt->name, data->buffer[0].length);
 			return -EINVAL;
 		}
@@ -199,7 +218,7 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 			return PTR_ERR(dmabuf);
 		}
 	} else {
-		dmabuf = ctx->hwfc_info->bufs[g2d_task_id(task)];
+		dmabuf = ctx->hwfc_info->bufs[task->sec.job_id];
 		get_dma_buf(dmabuf);
 	}
 
@@ -214,6 +233,9 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 			  dmabuf->size, data->dmabuf.offset, buffer->payload);
 		goto err;
 	}
+
+	if (dir != DMA_TO_DEVICE)
+		prot |= IOMMU_WRITE;
 
 	if (ion_cached_dmabuf(dmabuf)) {
 		task->total_cached_len += buffer->payload;
@@ -235,12 +257,6 @@ static int g2d_get_dmabuf(struct g2d_task *task,
 		perrfndev(g2d_dev, "failed to map dmabuf (%d)", ret);
 		goto err_map;
 	}
-
-	if (dir != DMA_TO_DEVICE)
-		prot |= IOMMU_WRITE;
-
-	if (device_get_dma_attr(g2d_dev->dev) == DEV_DMA_COHERENT)
-		prot |= IOMMU_CACHE;
 
 	dma_addr = ion_iovmm_map(attachment, 0, buffer->payload, dir, prot);
 	if (IS_ERR_VALUE(dma_addr)) {
@@ -359,9 +375,6 @@ static int g2d_get_userptr(struct g2d_task *task,
 		if (vma->vm_ops && vma->vm_ops->open)
 			vma->vm_ops->open(vma);
 	}
-
-	if (device_get_dma_attr(g2d_dev->dev) == DEV_DMA_COHERENT)
-		prot |= IOMMU_CACHE;
 
 	buffer->dma_addr = exynos_iovmm_map_userptr(g2d_dev->dev, data->userptr,
 						    data->length, prot);
@@ -528,7 +541,6 @@ static int g2d_get_source(struct g2d_device *g2d_dev, struct g2d_task *task,
 
 	layer->flags = data->flags;
 	layer->buffer_type = data->buffer_type;
-	layer->fence = NULL;
 
 	if (!G2D_BUFTYPE_VALID(layer->buffer_type)) {
 		perrfndev(g2d_dev, "invalid buffer type %u specified",
@@ -662,7 +674,7 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 				ptask = ptask->next;
 				continue;
 			}
-			if ((g2d_task_id(task) == task->bufidx) &&
+			if ((ptask->sec.job_id == task->bufidx) &&
 					!is_task_state_idle(ptask)) {
 				perrfndev(g2d_dev, "The %d task is not idle",
 					  task->bufidx);
@@ -675,7 +687,9 @@ static int g2d_get_target(struct g2d_device *g2d_dev, struct g2d_context *ctx,
 			ptask = ptask->next;
 		}
 
-		g2d_task_set_id(task, task->bufidx);
+		g2d_stamp_task(task, G2D_STAMP_STATE_HWFCBUF, task->bufidx);
+
+		task->sec.job_id = task->bufidx;
 
 		spin_unlock_irqrestore(&task->g2d_dev->lock_task, flags);
 

@@ -1,11 +1,20 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * linux/drivers/gpu/exynos/g2d/g2d_regs.c
+ *
  * Copyright (C) 2017 Samsung Electronics Co., Ltd.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/property.h>
 
 #include <asm/cacheflush.h>
 
@@ -33,11 +42,12 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 
 	__flush_dcache_area(&task->sec, sizeof(task->sec));
 	__flush_dcache_area(page_address(task->cmd_page), G2D_CMD_LIST_SIZE);
-	if (g2d_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
+	if (exynos_smc(SMC_DRM_G2D_CMD_DATA, virt_to_phys(&task->sec), 0, 0)) {
 		perrfndev(g2d_dev, "Failed to push %d %d %d %d",
 			  task->sec.cmd_count, task->sec.priority,
-			  g2d_task_id(task), task->sec.secure_layer_mask);
+			  task->sec.job_id, task->sec.secure_layer_mask);
 
+		g2d_dump_info(g2d_dev, task);
 		BUG();
 	}
 }
@@ -45,11 +55,11 @@ static void g2d_hw_push_task_by_smc(struct g2d_device *g2d_dev,
 void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 {
 	bool self_prot = g2d_dev->caps & G2D_DEVICE_CAPS_SELF_PROTECTION;
-	u32 state = g2d_hw_get_job_state(g2d_dev, g2d_task_id(task));
+	u32 state = g2d_hw_get_job_state(g2d_dev, task->sec.job_id);
 
 	if (state != G2D_JOB_STATE_DONE)
 		perrfndev(g2d_dev, "Unexpected state %#x of JOB %d",
-			  state, g2d_task_id(task));
+			  state, task->sec.job_id);
 
 	if (IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)) {
 		unsigned int i;
@@ -70,22 +80,18 @@ void g2d_hw_push_task(struct g2d_device *g2d_dev, struct g2d_task *task)
 
 		writel_relaxed(state,
 			       g2d_dev->reg +
-			       G2D_JOBn_LAYER_SECURE_REG(g2d_task_id(task)));
+			       G2D_JOBn_LAYER_SECURE_REG(task->sec.job_id));
 	}
 
-	if (device_get_dma_attr(g2d_dev->dev) != DEV_DMA_COHERENT)
-		__flush_dcache_area(page_address(task->cmd_page),
-				    G2D_CMD_LIST_SIZE);
-
 	writel_relaxed(G2D_JOB_HEADER_DATA(task->sec.priority,
-					   g2d_task_id(task)),
+					   task->sec.job_id),
 			g2d_dev->reg + G2D_JOB_HEADER_REG);
 
 	writel_relaxed(G2D_ERR_INT_ENABLE, g2d_dev->reg + G2D_INTEN_REG);
 
 	writel_relaxed(task->cmd_addr, g2d_dev->reg + G2D_JOB_BASEADDR_REG);
 	writel_relaxed(task->sec.cmd_count, g2d_dev->reg + G2D_JOB_SFRNUM_REG);
-	writel_relaxed(1 << g2d_task_id(task),
+	writel_relaxed(1 << task->sec.job_id,
 		       g2d_dev->reg + G2D_JOB_INT_ID_REG);
 	writel(G2D_JOBPUSH_INT_ENABLE, g2d_dev->reg + G2D_JOB_PUSH_REG);
 }
@@ -174,4 +180,20 @@ int g2d_hw_get_current_task(struct g2d_device *g2d_dev)
 	}
 
 	return -1;
+}
+
+void g2d_hw_kill_task(struct g2d_device *g2d_dev, unsigned int job_id)
+{
+	int retry_count = 120;
+
+	writel((0 << 4) | job_id, g2d_dev->reg + G2D_JOB_KILL_REG);
+
+	while (retry_count-- > 0) {
+		if (!(readl(g2d_dev->reg + G2D_JOB_PUSHKILL_STATE_REG) & 0x2)) {
+			perrdev(g2d_dev, "Killed JOB %d", job_id);
+			return;
+		}
+	}
+
+	perrdev(g2d_dev, "Failed to kill job %d", job_id);
 }
