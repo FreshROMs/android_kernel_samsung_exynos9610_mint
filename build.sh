@@ -442,6 +442,10 @@ else
 	source "${DEVICE_DB_DIR}/kernel_info.sh"
 fi
 
+if [[ -z ${BUILD_ANDROID_PLATFORM} ]]; then
+	BUILD_ANDROID_PLATFORM=11
+fi
+
 if [[ ${BUILD_KERNEL_CODE} == "aosp" ]]; then
 	FILE_KERNEL_CODE='AOSP'
 elif [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
@@ -457,9 +461,9 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 	fi
 
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}-${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
+		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}_${BUILD_ANDROID_PLATFORM}-${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
 	else
-		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}-NoRoot_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
+		FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}_${FILE_KERNEL_CODE}_${BUILD_ANDROID_PLATFORM}-NoRoot_${BUILD_DEVICE_NAME^}_${BUILD_DATE}_CI.zip
 	fi
 
 	if [[ ${BUILD_KERNEL_BRANCH} == "mainline" ]]; then
@@ -492,10 +496,6 @@ if [[ "${BUILD_RECOVERY}${BUILD_AOSP}${BUILD_FRESH}" == *"truetrue"* ]]; then
 	script_echo "   You can only build one kernel variant at a time."
 	script_echo " "
 	show_usage
-fi
-
-if [[ -z ${BUILD_ANDROID_PLATFORM} ]]; then
-	BUILD_ANDROID_PLATFORM=11
 fi
 
 if [[ -z ${BUILD_DEVICE_NAME} ]]; then
