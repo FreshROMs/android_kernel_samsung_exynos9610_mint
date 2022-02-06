@@ -15,17 +15,19 @@ Looking for the Linux kernel readme? [Click here.](https://github.com/TenSeventy
 
 ## Source References and Contributors
 
-Shadow will **never** be possible without the unwavering work of these awesome people. I have tried my best to keep their authorships on the commit history. Thank you very much!
+Mint Kernel will **never** be possible without the unwavering work of these awesome people. I have tried my best to keep their authorships on the commit history. Thank you very much!
 
  - [Cruel Kernel for the Galaxy S10/Note10](https://github.com/CruelKernel/samsung-exynos9820/) (@evdenis)
- - [Motorola One Action/Vision Kernel Sources](https://github.com/MotorolaMobilityLLC/kernel-slsi)
  - [ThunderStorms Kernel for the Galaxy S10/Note10](https://github.com/ThunderStorms21th/Galaxy-S10) (@ThunderStorms21th)
+ - [Cosmic Fresh](https://github.com/Dark-Matter7232/Cosmic-fresh) (@Dark-Matter7232) and [Optimized M21 Kernel](https://github.com/repinger/exynos9611_m21_kernel) (@repinger) for the Galaxy M21.
  - [Destrictize Project](https://github.com/DestrictizeProject/Destrictize_9611) (@DestrictizeProject)
+ - [Motorola One Action/Vision Kernel Sources](https://github.com/MotorolaMobilityLLC/kernel-slsi)
  - [Quantum Kernel](https://github.com/prashantpaddune/android_kernel_samsung_a50dd) (@prashantpaddune)
  - [Zeus Kernel for the Galaxy Note9](https://github.com/THEBOSS619/Note9-Zeus-Q10.0) (@THEBOSS619)
  - [Custom Galaxy A51 Kernel](https://github.com/ianmacd/a51xx) (@ianmacd)
- - [StormBreaker Kernel for the POCO X3](https://github.com/stormbreaker-project/kernel_xiaomi_surya) (@stormbreaker-project)
+ - [StormBreaker Kernel](https://github.com/stormbreaker-project/kernel_xiaomi_surya) (@stormbreaker-project) and [Stratosphere Kernel](https://github.com/Stratosphere-Kernel/android_kernel_xiaomi_surya) (@Stratosphere-Kernel) for the POCO X3
  - [Artemis Kernel for the Pixel 4 XL](https://github.com/celtare21/kernel_google_coral) (@celtare21)
+ - [GS101/Tensor SoC Kernel Source](https://github.com/AndreiLux/GS101) (@Google/@AndreiLux)
 
 ## About
 
@@ -35,8 +37,9 @@ Mint is an optimized kernel source based on Samsung's open-source kernel drops o
  - Built with Link-Time Optimizations (LTO) enabled
  - Added additional I/O schedulers, `maple` is set as default.
  - Various kernel and performance improvements from upstream, and even Qualcomm devices.
- - Backported changes from the Galaxy A51, and Galaxy S10/Note10.
- - Replaced kernel RNG (HWRandom) with SRandom.
+ - Backported changes from multiple devices, including newer Galaxy devices.
+ - Replaced hardware RNG (HWRandom) with faster SRandom.
+ - Support for the Linux Random Number Generator (LRNG).
  - State notifier support for various kernel drivers.
  - Disabled basic Samsung hardening (Knox, etc).
  - DriveDroid support.
