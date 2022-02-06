@@ -400,11 +400,7 @@ void ist40xx_special_cmd(struct ist40xx_data *data, int cmd)
 					input_sync(data->input_dev);
 					input_report_key(data->input_dev,
 #ifndef CONFIG_MINT_SESL
-#if defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
 							 KEY_WAKEUP,
-#else
-							 KEY_HOMEPAGE,
-#endif
 #else
 							 KEY_HOMEPAGE,
 #endif
@@ -2053,11 +2049,7 @@ static void ist_set_input_prop_pad(struct ist40xx_data *data, struct input_dev *
 
 	set_bit(INPUT_PROP_POINTER, dev->propbit);
 #ifndef CONFIG_MINT_SESL
-#if defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
 	set_bit(KEY_WAKEUP, dev->keybit);
-#else
-	set_bit(KEY_HOMEPAGE, dev->keybit);
-#endif
 #else
 	set_bit(KEY_HOMEPAGE, dev->keybit);
 #endif
