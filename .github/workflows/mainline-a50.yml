@@ -6,48 +6,6 @@ on:
       - 'android-*'
 
 jobs:
-  fresh:
-    name: Build One UI
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
-          ./build.sh --magisk --automated --device a50 --variant fresh
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: fresh_mainline-${{ github.run_number }}
-        path: 'release'
-        if-no-files-found: error
-
   oneui:
     name: Build One UI
     runs-on: ubuntu-latest
@@ -91,7 +49,7 @@ jobs:
         if-no-files-found: error
 
   aosp:
-    name: Build Lineage/AOSP
+    name: Build Lineage/AOSP 11
     runs-on: ubuntu-latest
 
     strategy:
@@ -132,8 +90,8 @@ jobs:
         path: 'release'
         if-no-files-found: error
 
-  fresh_nonroot:
-    name: Build Fresh - Non-root
+  snowcone:
+    name: Build Lineage/AOSP 12
     runs-on: ubuntu-latest
 
     strategy:
@@ -160,7 +118,7 @@ jobs:
           set -eo pipefail
           echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
           export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
-          ./build.sh --automated --device a50 --variant fresh
+          ./build.sh --magisk --automated --device a50 --variant aosp --android 12
 
     - name: Prepare release package
       run: |
@@ -170,7 +128,7 @@ jobs:
     - name: Upload release package
       uses: actions/upload-artifact@v2
       with:
-        name: fresh-noroot_mainline-${{ github.run_number }}
+        name: snowcone_mainline-${{ github.run_number }}
         path: 'release'
         if-no-files-found: error
 
@@ -217,7 +175,7 @@ jobs:
         if-no-files-found: error
 
   aosp_nonroot:
-    name: Build Lineage/AOSP - Non-root
+    name: Build Lineage/AOSP 11 - Non-root
     runs-on: ubuntu-latest
 
     strategy:
@@ -255,6 +213,48 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: aosp-noroot_mainline-${{ github.run_number }}
+        path: 'release'
+        if-no-files-found: error
+
+  snowcone_nonroot:
+    name: Build Lineage/AOSP 12 - Non-root
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+
+    - name: Build Mint kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          export KBUILD_BUILD_VERSION=${GITHUB_RUN_NUMBER}
+          ./build.sh --automated --device a50 --variant aosp --android 12
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname Mint-*.zip` ./release/
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: snowcone-noroot_mainline-${{ github.run_number }}
         path: 'release'
         if-no-files-found: error
 
@@ -298,7 +298,7 @@ jobs:
   release:
     name: Release files and configs
     if: always()
-    needs: [fresh, oneui, aosp, fresh_nonroot, oneui_nonroot, aosp_nonroot]
+    needs: [oneui, aosp, oneui_nonroot, aosp_nonroot, snowcone, snowcone_nonroot]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -310,12 +310,6 @@ jobs:
         timezoneLinux: "Asia/Manila"
         timezoneMacos: "Asia/Manila"
         timezoneWindows: "Philippine Standard Time"
-      
-    - name: Merge Fresh Release
-      uses: actions/download-artifact@v2
-      with:
-        name: fresh_mainline-${{ github.run_number }}
-        path: release
 
     - name: Merge One UI Release
       uses: actions/download-artifact@v2
@@ -323,16 +317,16 @@ jobs:
         name: oneui_mainline-${{ github.run_number }}
         path: release
       
-    - name: Merge Lineage/AOSP release
+    - name: Merge Lineage/AOSP 11 release
       uses: actions/download-artifact@v2
       with:
         name: aosp_mainline-${{ github.run_number }}
         path: release
-      
-    - name: Merge Fresh (nonroot) release
+
+    - name: Merge Lineage/AOSP 12 release
       uses: actions/download-artifact@v2
       with:
-        name: fresh-noroot_mainline-${{ github.run_number }}
+        name: snowcone_mainline-${{ github.run_number }}
         path: release
       
     - name: Merge One UI (nonroot) release
@@ -345,6 +339,12 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: aosp-noroot_mainline-${{ github.run_number }}
+        path: release
+      
+    - name: Merge Lineage/AOSP 12 (nonroot) release
+      uses: actions/download-artifact@v2
+      with:
+        name: snowcone-noroot_mainline-${{ github.run_number }}
         path: release
 
     - name: Delete older release
