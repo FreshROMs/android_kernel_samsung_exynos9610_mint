@@ -34,7 +34,6 @@
 #include <linux/posix-timers.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
-#include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
 #include <linux/irq_work.h>
@@ -935,7 +934,6 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 			raw_spin_unlock_irqrestore(&base->lock, *flags);
 		}
 		cpu_relax();
-		ndelay(TIMER_LOCK_TIGHT_LOOP_DELAY_NS);
 	}
 }
 
@@ -1258,7 +1256,6 @@ int del_timer_sync(struct timer_list *timer)
 		if (ret >= 0)
 			return ret;
 		cpu_relax();
-		ndelay(TIMER_LOCK_TIGHT_LOOP_DELAY_NS);
 	}
 }
 EXPORT_SYMBOL(del_timer_sync);
