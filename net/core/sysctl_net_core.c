@@ -305,7 +305,7 @@ static struct ctl_table net_core_table[] = {
 		.procname	= "wmem_max",
 		.data		= &sysctl_wmem_max,
 		.maxlen		= sizeof(int),
-		.mode		= 0644,
+		.mode		= 0444,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_sndbuf,
 	},
