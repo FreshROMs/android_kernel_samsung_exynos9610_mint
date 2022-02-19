@@ -2451,6 +2451,7 @@ static struct i2c_driver ist40xx_i2c_driver = {
 		   .pm = &ist40xx_pm_ops,
 #endif
 #endif
+		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
 };
 
