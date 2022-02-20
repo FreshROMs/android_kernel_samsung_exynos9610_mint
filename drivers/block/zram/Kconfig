@@ -24,6 +24,10 @@ config ZRAM_DEF_COMP_LZO
 	bool "lzo"
 	depends on CRYPTO_LZO
 
+config ZRAM_DEF_COMP_LZO_RLE
+	bool "lzo-rle"
+	depends on CRYPTO_LZO
+
 config ZRAM_DEF_COMP_ZSTD
 	bool "zstd"
 	depends on CRYPTO_ZSTD
@@ -37,6 +41,7 @@ endchoice
 config ZRAM_DEF_COMP
 	string
 	default "lzo" if ZRAM_DEF_COMP_LZO
+	default "lzo-rle" if ZRAM_DEF_COMP_LZO_RLE
 	default "zstd" if ZRAM_DEF_COMP_ZSTD
 	default "lz4" if ZRAM_DEF_COMP_LZ4
 
