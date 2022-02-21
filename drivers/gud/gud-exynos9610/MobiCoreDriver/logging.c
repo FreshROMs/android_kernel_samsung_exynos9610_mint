@@ -191,7 +191,7 @@ int logging_init(phys_addr_t *buffer, u32 *size)
 	wake_up_process(log_ctx.thread);
 
 	/* Debugfs switch */
-	log_ctx.enabled = true;
+	log_ctx.enabled = false;
 	debugfs_create_bool("swd_debug", 0600, g_ctx.debug_dir,
 			    &log_ctx.enabled);
 	return 0;
