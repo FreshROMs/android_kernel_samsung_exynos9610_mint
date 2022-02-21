@@ -315,17 +315,9 @@ exit:
 }
 
 /* print cpu control informatoin for deubgging */
-static void cpuhp_print_debug_info(struct cpumask online_cpus, int fast_hp)
+static inline void cpuhp_print_debug_info(struct cpumask online_cpus, int fast_hp)
 {
-	char new_buf[10], pre_buf[10];
-
-	scnprintf(pre_buf, sizeof(pre_buf), "%*pbl", cpumask_pr_args(&cpuhp.online_cpus));
-	scnprintf(new_buf, sizeof(new_buf), "%*pbl", cpumask_pr_args(&online_cpus));
-	dbg_snapshot_printk("%s: %s -> %s fast_hp=%d\n", __func__, pre_buf, new_buf, fast_hp);
-
-	/* print cpu control information */
-	if (cpuhp.debug)
-		pr_info("%s: %s -> %s fast_hp=%d\n", __func__, pre_buf, new_buf, fast_hp);
+	return;
 }
 
 /*
