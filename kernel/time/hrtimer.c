@@ -2111,7 +2111,6 @@ static void __migrate_hrtimers(unsigned int scpu, bool remove_pinned)
 	 * holding the cpu_base lock
 	 */
 	local_bh_disable();
-	save_pcpu_tick(scpu);
 	local_irq_save(flags);
 	old_base = &per_cpu(hrtimer_bases, scpu);
 	new_base = this_cpu_ptr(&hrtimer_bases);
@@ -2145,6 +2144,7 @@ static void __migrate_hrtimers(unsigned int scpu, bool remove_pinned)
 int hrtimers_dead_cpu(unsigned int scpu)
 {
 	BUG_ON(cpu_online(scpu));
+	save_pcpu_tick(scpu);
 	tick_cancel_sched_timer(scpu);
 
 	__migrate_hrtimers(scpu, true);
