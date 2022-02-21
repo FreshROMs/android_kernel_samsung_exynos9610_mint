@@ -30,7 +30,7 @@
 	} while (0)
 
 #define ssp_info(fmt, ...) do { \
-	pr_info("[SSP] " fmt "\n", ##__VA_ARGS__); \
+	pr_debug("[SSP] " fmt "\n", ##__VA_ARGS__); \
 	} while (0)
 
 #define ssp_err(fmt, ...) do { \
@@ -42,7 +42,7 @@
 	} while (0)
 
 #define ssp_infof(fmt, ...) do { \
-	pr_info("[SSP] %20s(%4d): " fmt "\n", __func__, __LINE__, ##__VA_ARGS__); \
+	pr_debug("[SSP] %20s(%4d): " fmt "\n", __func__, __LINE__, ##__VA_ARGS__); \
 	} while (0)
 
 #define ssp_errf(fmt, ...) do { \
