@@ -109,7 +109,7 @@ config SCSC_DEBUG_COMPATIBILITY
 
 config SCSC_LOGRING
 	tristate "Samsung SCSC Kernel Logging"
-	default y
+	default n
        ---help---
          SCSC Drivers logging mechanism
 
