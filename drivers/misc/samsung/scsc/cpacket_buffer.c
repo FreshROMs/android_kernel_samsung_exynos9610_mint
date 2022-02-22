@@ -375,8 +375,8 @@ void cpacketbuffer_config_serialise(const struct cpacketbuffer *buffer, struct m
 
 void cpacketbuffer_log(const struct cpacketbuffer *buffer, enum scsc_log_level log_level)
 {
-	const uint8_t *read_start = cpacketbuffer_index_to_address((struct cpacketbuffer *)buffer, buffer->read_index);
 #ifdef CONFIG_SCSC_LOGRING
+	const uint8_t *read_start = cpacketbuffer_index_to_address((struct cpacketbuffer *)buffer, buffer->read_index);
 	SCSC_TAG_LVL((CPKTBUFF), log_level,
 		"read_index=0x%x write_index=0x%x, read_start[0]=0x%08x\n",
 		*buffer->read_index, *buffer->write_index,
