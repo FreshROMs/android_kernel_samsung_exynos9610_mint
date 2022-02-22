@@ -23,6 +23,108 @@ struct mms_ts_info *tui_tsp_info;
 struct mms_ts_info *tsp_info;
 #endif
 
+int mms_set_power_state(struct mms_ts_info *info, u8 mode)
+{
+	u8 wbuf[3];
+	u8 rbuf[1];
+
+	input_dbg(false, &info->client->dev, "%s [START]\n", __func__);
+	input_dbg(false, &info->client->dev, "%s - mode[%u]\n", __func__, mode);
+
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_R1_CTRL_POWER_STATE;
+	wbuf[2] = mode;
+
+	if (mms_i2c_write(info, wbuf, 3)) {
+		input_err(true, &info->client->dev, "%s [ERROR] mip4_ts_i2c_write\n", __func__);
+		return -EIO;
+	}
+
+	msleep(20);
+
+	if (mms_i2c_read(info, wbuf, 2, rbuf, 1)) {
+		input_err(true, &info->client->dev, "%s [ERROR] read %x %x, rbuf %x\n",
+				__func__, wbuf[0], wbuf[1], rbuf[0]);
+		return -EIO;
+	}
+
+	if (rbuf[0] != mode) {
+		input_err(true, &info->client->dev, "%s [ERROR] not changed to %s mode, rbuf %x\n",
+				__func__, mode ? "LPM" : "normal", rbuf[0]);
+		return -EIO;
+	}
+
+	input_dbg(false, &info->client->dev, "%s [DONE]\n", __func__);
+	return 0;
+}
+
+void mip4_ts_sponge_write_time(struct mms_ts_info *info, u32 val)
+{
+	int ret = 0;
+	u8 data[4];
+
+	input_info(true, &info->client->dev, "%s - time[%u]\n", __func__, val);
+
+	data[0] = (val >> 0) & 0xFF; /* Data */
+	data[1] = (val >> 8) & 0xFF; /* Data */
+	data[2] = (val >> 16) & 0xFF; /* Data */
+	data[3] = (val >> 24) & 0xFF; /* Data */
+
+	ret = mms_set_custom_library(info, SPONGE_UTC_OFFSET, data, 4);
+	if (ret < 0) {
+		input_err(true, &info->client->dev, "%s [ERROR] sponge_write\n", __func__);
+		return;
+	}
+}
+
+void mms_set_utc_sponge(struct mms_ts_info *info)
+{
+	struct timeval current_time;
+	u32 time_val = 0;
+
+	do_gettimeofday(&current_time);
+	time_val = (u32)current_time.tv_sec;
+	mip4_ts_sponge_write_time(info, time_val);
+}
+
+int mms_lowpower_mode(struct mms_ts_info *info, u8 on)
+{
+	int ret;
+	u8 wbuf[3];
+
+	if (!info->dtdata->support_lpm) {
+		input_err(true, &info->client->dev, "%s not supported\n", __func__);
+		return -EINVAL;
+	}
+
+	if (on == TO_LOWPOWER_MODE)
+		info->ic_status = LP_ENTER;
+
+	wbuf[0] = MIP_R0_CTRL;
+	wbuf[1] = MIP_R1_CTRL_PROX_OFF;
+	wbuf[2] = info->prox_power_off;
+
+	if (mms_i2c_write(info, wbuf, 3))
+		input_err(true, &info->client->dev, "%s [ERROR] mip4_ts_i2c_write\n", __func__);
+
+	ret = mms_set_power_state(info, on);
+	if (ret < 0)
+		input_err(true, &info->client->dev, "%s [ERROR] write power mode %s\n",
+				__func__, on ? "LP" : "NP");
+
+	if (on == TO_LOWPOWER_MODE) {
+		mms_set_custom_library(info, SPONGE_AOD_ENABLE_OFFSET, &(info->lowpower_flag), 1);
+		mms_set_utc_sponge(info);
+		info->ic_status = LP_MODE;
+	} else {
+		info->ic_status = PWR_ON;
+	}
+
+	input_info(true, &info->client->dev, "%s: %s mode flag %x  prox power %d\n", __func__,
+									on ? "LPM" : "normal", info->lowpower_flag, info->prox_power_off);
+	return 0;
+}
+
 /**
  * Reboot chip
  *
