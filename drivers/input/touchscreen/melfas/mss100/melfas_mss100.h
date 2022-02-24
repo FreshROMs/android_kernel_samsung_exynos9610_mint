@@ -1026,7 +1026,13 @@ static inline int mms_custom_event_handler(struct mms_ts_info *info, u8 *rbuf, u
 			info->scrub_x = (gesture_data[0] << 4)|(gesture_data[2] >> 4);
 			info->scrub_y = (gesture_data[1] << 4)|(gesture_data[2] & 0x0F);
 			input_info(true, &info->client->dev, "%s: SINGLE TAP: %d\n", __func__, info->scrub_id);
-			input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
+#ifndef CONFIG_MINT_SESL
+				input_report_key(info->input_dev, KEY_SIDE_GESTURE, 1);
+				input_sync(info->input_dev);
+				input_report_key(info->input_dev, KEY_SIDE_GESTURE, 0);
+#else
+				input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
+#endif
 			input_sync(info->input_dev);
 		} else if (gesture_type == MMS_GESTURE_CODE_PRESS) {
 			if (gesture_id == MMS_GESTURE_ID_FOD_LONG || gesture_id == MMS_GESTURE_ID_FOD_NORMAL) {
@@ -1492,6 +1498,9 @@ static inline void mms_config_input(struct mms_ts_info *info)
 	set_bit(KEY_HOMEPAGE, input_dev->keybit);
 #endif
 	set_bit(KEY_BLACK_UI_GESTURE, input_dev->keybit);
+#ifndef CONFIG_MINT_SESL
+	set_bit(KEY_SIDE_GESTURE, input_dev->keybit);
+#endif
 	input_dbg(true, &info->client->dev, "%s [DONE]\n", __func__);
 }
 

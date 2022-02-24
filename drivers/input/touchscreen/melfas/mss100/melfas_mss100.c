@@ -1347,6 +1347,9 @@ static void mms_set_input_prop_pad(struct mms_ts_info *info, struct input_dev *d
 	set_bit(BTN_TOUCH, dev->keybit);
 	set_bit(BTN_TOOL_FINGER, dev->keybit);
 	set_bit(KEY_BLACK_UI_GESTURE, dev->keybit);
+#ifndef CONFIG_MINT_SESL
+	set_bit(KEY_SIDE_GESTURE, dev->keybit);
+#endif
 	set_bit(KEY_INT_CANCEL, dev->keybit);
 
 	set_bit(INPUT_PROP_POINTER, dev->propbit);
