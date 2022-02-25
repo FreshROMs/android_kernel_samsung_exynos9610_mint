@@ -1043,8 +1043,10 @@ static inline int mms_custom_event_handler(struct mms_ts_info *info, u8 *rbuf, u
 			} else if (gesture_id == MMS_GESTURE_ID_FOD_RELEASE) {
 				info->scrub_id = SPONGE_EVENT_TYPE_FOD_RELEASE;
 				input_info(true, &info->client->dev, "%s: FOD release\n", __func__);
+#ifdef CONFIG_MINT_SESL
 				input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
 				input_sync(info->input_dev);
+#endif
 			} else if (gesture_id == MMS_GESTURE_ID_FOD_OUT) {
 				info->scrub_id = SPONGE_EVENT_TYPE_FOD_OUT;
 				input_info(true, &info->client->dev, "%s: FOD OUT\n", __func__);
