@@ -1027,9 +1027,10 @@ static inline int mms_custom_event_handler(struct mms_ts_info *info, u8 *rbuf, u
 			info->scrub_y = (gesture_data[1] << 4)|(gesture_data[2] & 0x0F);
 			input_info(true, &info->client->dev, "%s: SINGLE TAP: %d\n", __func__, info->scrub_id);
 #ifndef CONFIG_MINT_SESL
-				input_report_key(info->input_dev, KEY_SIDE_GESTURE, 1);
-				input_sync(info->input_dev);
-				input_report_key(info->input_dev, KEY_SIDE_GESTURE, 0);
+				input_report_key(info->input_dev_pad, KEY_SIDE_GESTURE, 1);
+				input_sync(info->input_dev_pad);
+				input_report_key(info->input_dev_pad, KEY_SIDE_GESTURE, 0);
+				input_sync(info->input_dev_pad);
 #else
 				input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
 #endif
@@ -1038,7 +1039,14 @@ static inline int mms_custom_event_handler(struct mms_ts_info *info, u8 *rbuf, u
 			if (gesture_id == MMS_GESTURE_ID_FOD_LONG || gesture_id == MMS_GESTURE_ID_FOD_NORMAL) {
 				info->scrub_id = SPONGE_EVENT_TYPE_FOD;
 				input_info(true, &info->client->dev, "%s: FOD: %s\n", __func__, gesture_id ? "normal" : "long");
+#ifndef CONFIG_MINT_SESL
+				input_report_key(info->input_dev_pad, KEY_BLACK_UI_GESTURE, 1);
+				input_sync(info->input_dev_pad);
+				input_report_key(info->input_dev_pad, KEY_BLACK_UI_GESTURE, 0);
+				input_sync(info->input_dev_pad);
+#else
 				input_report_key(info->input_dev, KEY_BLACK_UI_GESTURE, 1);
+#endif
 				input_sync(info->input_dev);
 			} else if (gesture_id == MMS_GESTURE_ID_FOD_RELEASE) {
 				info->scrub_id = SPONGE_EVENT_TYPE_FOD_RELEASE;
