@@ -281,6 +281,11 @@ struct mem_cgroup {
 	struct list_head event_list;
 	spinlock_t event_list_lock;
 
+#ifdef CONFIG_LRU_GEN
+	/* per-memcg mm_struct list */
+	struct lru_gen_mm_list mm_list;
+#endif
+
 	struct mem_cgroup_per_node *nodeinfo[0];
 	/* WARNING: nodeinfo must be the last member here */
 };
@@ -360,6 +365,14 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
 
 bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+
+struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
+
+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+{
+	if (memcg)
+		css_put(&memcg->css);
+}
 
 static inline
 struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css){
@@ -851,6 +864,15 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
 				      const struct mem_cgroup *memcg)
 {
 	return true;
+}
+
+static inline struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+{
+        return NULL;
+}
+
+static inline void mem_cgroup_put(struct mem_cgroup *memcg)
+{
 }
 
 static inline struct mem_cgroup *
