@@ -6,7 +6,6 @@
  * If not use debug mode 
  * Please Command the Define(SEC_HEX_DEBUG) below
  */
-#define SEC_HEX_DEBUG
 
 #ifdef SEC_HEX_DEBUG
 #define MAX_FC_BLKS_LIST 128 
