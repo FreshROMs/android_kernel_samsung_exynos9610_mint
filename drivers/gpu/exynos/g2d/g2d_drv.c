@@ -281,7 +281,7 @@ static int g2d_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long __g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct g2d_context *ctx = filp->private_data;
 	struct g2d_device *g2d_dev = ctx->g2d_dev;
@@ -443,6 +443,21 @@ static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	}
+
+	return ret;
+}
+
+static long g2d_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct pm_qos_request req = {
+		.type = PM_QOS_REQ_AFFINE_CORES,
+		.cpus_affine = ATOMIC_INIT(BIT(raw_smp_processor_id()))
+	};
+	long ret;
+
+	pm_qos_add_request(&req, PM_QOS_CPU_DMA_LATENCY, 100);
+	ret = __g2d_ioctl(filp, cmd, arg);
+	pm_qos_remove_request(&req);
 
 	return ret;
 }
