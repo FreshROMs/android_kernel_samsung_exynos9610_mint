@@ -24,6 +24,10 @@
  * prevents a full system suspend.
  */
 
+#ifdef CONFIG_WAKELOCKS_DEFAULT_TIMEOUT
+#define WAKE_LOCK_TIMEOUT	500
+#endif
+
 enum {
 	WAKE_LOCK_SUSPEND, /* Prevent suspend */
 	WAKE_LOCK_TYPE_COUNT
@@ -46,12 +50,20 @@ static inline void wake_lock_destroy(struct wake_lock *lock)
 
 static inline void wake_lock(struct wake_lock *lock)
 {
+#ifdef CONFIG_WAKELOCKS_DEFAULT_TIMEOUT
+	__pm_wakeup_event(&lock->ws, WAKE_LOCK_TIMEOUT);
+#else
 	__pm_stay_awake(&lock->ws);
+#endif
 }
 
 static inline void wake_lock_timeout(struct wake_lock *lock, long timeout)
 {
+#ifdef CONFIG_WAKELOCKS_DEFAULT_TIMEOUT
+	__pm_wakeup_event(&lock->ws, jiffies_to_msecs(WAKE_LOCK_TIMEOUT));
+#else
 	__pm_wakeup_event(&lock->ws, jiffies_to_msecs(timeout));
+#endif
 }
 
 static inline void wake_unlock(struct wake_lock *lock)

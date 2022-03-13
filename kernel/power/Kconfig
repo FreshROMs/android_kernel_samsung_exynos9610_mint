@@ -130,6 +130,13 @@ config PM_WAKELOCKS
 	Allow user space to create, activate and deactivate wakeup source
 	objects with the help of a sysfs-based interface.
 
+config WAKELOCKS_DEFAULT_TIMEOUT
+	bool "Always set timeout to wakelocks"
+	depends on PM_WAKELOCKS
+	default n
+	help
+	  Add wakelock timeout to Samsung's drivers.
+
 config PM_WAKELOCKS_LIMIT
 	int "Maximum number of user space wakeup sources (0 = no limit)"
 	range 0 100000
