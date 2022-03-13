@@ -434,7 +434,7 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
-static inline int schedtune_adj_ta(struct task_struct *p)
+static inline int schedtune_adj_ta(struct task_struct *p, int orig_boost)
 {
 	struct schedtune *st;
 	char name_buf[NAME_MAX + 1];
@@ -442,11 +442,11 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 
 	/* We only care about adj == 0 */
 	if (adj != 0)
-		return 0;
+		return orig_boost;
 
 	/* Don't touch kthreads */
 	if (p->flags & PF_KTHREAD)
-		return 0;
+		return orig_boost;
 
 	st = task_schedtune(p);
 	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
@@ -455,7 +455,7 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 		return 1;
 	}
 
-	return 0;
+	return orig_boost;
 }
 
 int schedtune_task_boost(struct task_struct *p)
@@ -469,7 +469,7 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = schedtune_adj_ta(p);
+	task_boost = schedtune_adj_ta(p, st->boost);
 	rcu_read_unlock();
 
 	return task_boost;
