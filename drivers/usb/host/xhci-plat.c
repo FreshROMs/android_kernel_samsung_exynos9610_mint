@@ -274,7 +274,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	wakelock = kzalloc(sizeof(struct wake_lock), GFP_KERNEL);
 	wake_lock_init(wakelock, WAKE_LOCK_SUSPEND, dev_name(&pdev->dev));
-	wake_lock(wakelock);
+	wake_lock_usb(wakelock);
 
 	if (usb_disabled())
 		return -ENODEV;

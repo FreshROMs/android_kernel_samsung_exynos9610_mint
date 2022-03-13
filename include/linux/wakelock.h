@@ -48,6 +48,11 @@ static inline void wake_lock_destroy(struct wake_lock *lock)
 	wakeup_source_trash(&lock->ws);
 }
 
+static inline void wake_lock_usb(struct wake_lock *lock)
+{
+	__pm_stay_awake(&lock->ws);
+}
+
 static inline void wake_lock(struct wake_lock *lock)
 {
 #ifdef CONFIG_WAKELOCKS_DEFAULT_TIMEOUT

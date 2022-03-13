@@ -342,7 +342,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			on ? "on" : "off", otg->gadget->name);
 
 	if (on) {
-		wake_lock(&dotg->wakelock);
+		wake_lock_usb(&dotg->wakelock);
 		dwc3_otg_ldo_control(fsm, 1);
 		if (dotg->pm_qos_int_val)
 			pm_qos_update_request(&dotg->pm_qos_int_req,

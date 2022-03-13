@@ -1147,7 +1147,7 @@ static void otg_notify_state(struct otg_notify *n,
 		if (enable) {
 			u_notify->ndev.mode = NOTIFY_PERIPHERAL_MODE;
 			if (n->is_wakelock)
-				wake_lock(&u_notify->wlock);
+				wake_lock_usb(&u_notify->wlock);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
 					(n->redriver_en_gpio, 1);
@@ -1184,7 +1184,7 @@ static void otg_notify_state(struct otg_notify *n,
 			u_notify->oc_noti = 0;
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_host_wakelock)
-				wake_lock(&u_notify->wlock);
+				wake_lock_usb(&u_notify->wlock);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_ADD);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
@@ -1219,7 +1219,7 @@ static void otg_notify_state(struct otg_notify *n,
 			}
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_host_wakelock)
-				wake_lock(&u_notify->wlock);
+				wake_lock_usb(&u_notify->wlock);
 			host_state_notify(&u_notify->ndev, NOTIFY_HOST_ADD);
 			if (gpio_is_valid(n->redriver_en_gpio))
 				gpio_direction_output
@@ -1299,7 +1299,7 @@ static void otg_notify_state(struct otg_notify *n,
 		if (enable) {
 			u_notify->ndev.mode = NOTIFY_HOST_MODE;
 			if (n->is_host_wakelock)
-				wake_lock(&u_notify->wlock);
+				wake_lock_usb(&u_notify->wlock);
 			if (n->set_host)
 				n->set_host(true);
 		} else {
