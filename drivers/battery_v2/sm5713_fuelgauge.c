@@ -2696,7 +2696,7 @@ static irqreturn_t sm5713_fg_irq_thread(int irq, void *irq_data)
 	if (fuelgauge->is_fuel_alerted) {
 		return IRQ_HANDLED;
 	} else {
-		wake_lock(&fuelgauge->fuel_alert_wake_lock);
+		wake_lock_stock(&fuelgauge->fuel_alert_wake_lock);
 		fuelgauge->is_fuel_alerted = true;
 		queue_delayed_work(system_power_efficient_wq,
 				   &fuelgauge->isr_work, 0);

@@ -83,7 +83,7 @@ long stui_process_cmd(struct file *f, unsigned int cmd, unsigned long arg)
 		/* Prepare display for TUI / Deactivate linux UI drivers */
 		if (!stui_prepare_tui()) {
 			stui_set_mask(STUI_MODE_DISPLAY_SEC);
-			wake_lock(&tui_wakelock);
+			wake_lock_stock(&tui_wakelock);
 			break;
 		}
 clean_touch_lock:

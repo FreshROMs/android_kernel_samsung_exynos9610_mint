@@ -288,8 +288,8 @@ static int request_touch(void)
 		retval = -EFAULT;
 		goto exit_err;
 	}
-	wake_lock(&wakelock);
-	wake_lock(&fts_info->wakelock);
+	wake_lock_stock(&wakelock);
+	wake_lock_stock(&fts_info->wakelock);
 
 	/*mutex_lock(&fts_info->device_mutex);*/
 	if (fts_info->touch_stopped) {

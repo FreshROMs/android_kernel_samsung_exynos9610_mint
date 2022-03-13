@@ -875,7 +875,7 @@ static irqreturn_t chg_aicl_isr(int irq, void *data)
 
 	dev_info(charger->dev, "%s: irq=%d\n", __func__, irq);
 
-	wake_lock(&charger->aicl_wake_lock);
+	wake_lock_stock(&charger->aicl_wake_lock);
 	queue_delayed_work(charger->wqueue, &charger->aicl_work, msecs_to_jiffies(50));
 
 	return IRQ_HANDLED;

@@ -1485,7 +1485,7 @@ ssize_t sec_bat_store_attrs(
 					"%s: SLATE MODE unknown command\n", __func__);
 				return -EINVAL;
 			}
-			wake_lock(&battery->cable_wake_lock);
+			wake_lock_stock(&battery->cable_wake_lock);
 			queue_delayed_work(battery->monitor_wqueue,
 					   &battery->cable_work, 0);
 			ret = count;
@@ -1515,7 +1515,7 @@ ssize_t sec_bat_store_attrs(
 			if (battery->cable_type == SEC_BATTERY_CABLE_PDIC)
 				sec_bat_set_current_event(battery, 0, SEC_BAT_CURRENT_EVENT_SKIP_HEATING_CONTROL);
 #endif
-			wake_lock(&battery->siop_level_wake_lock);
+			wake_lock_stock(&battery->siop_level_wake_lock);
 			queue_delayed_work(battery->monitor_wqueue, &battery->siop_level_work, 0);
 
 			ret = count;
@@ -1528,13 +1528,13 @@ ssize_t sec_bat_store_attrs(
 					battery->siop_event |= SIOP_EVENT_WPC_CALL;
 					pr_info("%s : SIOP EVENT CALL START. 0x%x\n",
 						__func__, battery->siop_event);
-					wake_lock(&battery->siop_event_wake_lock);
+					wake_lock_stock(&battery->siop_event_wake_lock);
 					queue_delayed_work(battery->monitor_wqueue, &battery->siop_event_work, 0);
 				} else if (~x & SIOP_EVENT_WPC_CALL) {
 					battery->siop_event &= ~SIOP_EVENT_WPC_CALL;
 					pr_info("%s : SIOP EVENT CALL END. 0x%x\n",
 						__func__, battery->siop_event);
-					wake_lock(&battery->siop_event_wake_lock);
+					wake_lock_stock(&battery->siop_event_wake_lock);
 					queue_delayed_work(battery->monitor_wqueue, &battery->siop_event_work,
 							msecs_to_jiffies(0));
 				} else {
@@ -1587,7 +1587,7 @@ ssize_t sec_bat_store_attrs(
 					__func__);
 				return -EINVAL;
 			}
-			wake_lock(&battery->cable_wake_lock);
+			wake_lock_stock(&battery->cable_wake_lock);
 			queue_delayed_work(battery->monitor_wqueue,
 					&battery->cable_work, 0);
 			ret = count;
@@ -1654,11 +1654,11 @@ ssize_t sec_bat_store_attrs(
 				"%s: HV_CHARGER_SET(%d)\n", __func__, x);
 			if (x == 1) {
 				battery->wire_status = SEC_BATTERY_CABLE_9V_TA;
-				wake_lock(&battery->cable_wake_lock);
+				wake_lock_stock(&battery->cable_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 			} else {
 				battery->wire_status = SEC_BATTERY_CABLE_NONE;
-				wake_lock(&battery->cable_wake_lock);
+				wake_lock_stock(&battery->cable_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 			}
 			ret = count;
@@ -1675,7 +1675,7 @@ ssize_t sec_bat_store_attrs(
 #if !defined(CONFIG_SEC_FACTORY)
 			if (x) {
 				battery->store_mode = true;
-				wake_lock(&battery->parse_mode_dt_wake_lock);
+				wake_lock_stock(&battery->parse_mode_dt_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue,
 					&battery->parse_mode_dt_work, 0);
 			}
@@ -1693,7 +1693,7 @@ ssize_t sec_bat_store_attrs(
 	case TEST_MODE:
 		if (sscanf(buf, "%10d\n", &x) == 1) {
 			battery->test_mode = x;
-			wake_lock(&battery->monitor_wake_lock);
+			wake_lock_stock(&battery->monitor_wake_lock);
 			queue_delayed_work(battery->monitor_wqueue,
 				&battery->monitor_work, 0);
 			ret = count;
@@ -1916,7 +1916,7 @@ ssize_t sec_bat_store_attrs(
 						"%s: changed to OTG cable detached\n", __func__);
 
 				battery->wire_status = SEC_BATTERY_CABLE_HMT_CONNECTED;
-				wake_lock(&battery->cable_wake_lock);
+				wake_lock_stock(&battery->cable_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 			} else {
 				value.intval = true;
@@ -1927,7 +1927,7 @@ ssize_t sec_bat_store_attrs(
 						"%s: changed to OTG cable attached\n", __func__);
 
 				battery->wire_status = SEC_BATTERY_CABLE_OTG;
-				wake_lock(&battery->cable_wake_lock);
+				wake_lock_stock(&battery->cable_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 			}
 #endif
@@ -1974,7 +1974,7 @@ ssize_t sec_bat_store_attrs(
 					dev_info(battery->dev,
 						"%s: changed to OTG cable detached\n", __func__);
 					battery->wire_status = SEC_BATTERY_CABLE_HMT_CHARGE;
-					wake_lock(&battery->cable_wake_lock);
+					wake_lock_stock(&battery->cable_wake_lock);
 					queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 				} else {
 					value.intval = false;
@@ -1984,7 +1984,7 @@ ssize_t sec_bat_store_attrs(
 					dev_info(battery->dev,
 							"%s: changed to OTG cable detached\n", __func__);
 					battery->wire_status = SEC_BATTERY_CABLE_HMT_CONNECTED;
-					wake_lock(&battery->cable_wake_lock);
+					wake_lock_stock(&battery->cable_wake_lock);
 					queue_delayed_work(battery->monitor_wqueue, &battery->cable_work, 0);
 				}
 			}
@@ -2154,7 +2154,7 @@ ssize_t sec_bat_store_attrs(
 	case BATT_HV_WIRELESS_STATUS:
 		if (sscanf(buf, "%10d\n", &x) == 1) {
 			if (x == 1 && is_hv_wireless_type(battery->cable_type)) {
-				wake_lock(&battery->cable_wake_lock);
+				wake_lock_stock(&battery->cable_wake_lock);
 #ifdef CONFIG_SEC_FACTORY
 				pr_info("%s change cable type HV WIRELESS -> WIRELESS \n", __func__);
 				battery->wc_status = SEC_WIRELESS_PAD_WPC;
@@ -2356,7 +2356,7 @@ ssize_t sec_bat_store_attrs(
 			if (battery->data_path) {
 				sscanf(buf, "%s\n", battery->data_path);
 				cancel_delayed_work(&battery->batt_data_work);
-				wake_lock(&battery->batt_data_wake_lock);
+				wake_lock_stock(&battery->batt_data_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue,
 					&battery->batt_data_work, msecs_to_jiffies(100));
 			} else {
@@ -2567,7 +2567,7 @@ ssize_t sec_bat_store_attrs(
 				}
 			}
 			ret = count;
-			wake_lock(&battery->monitor_wake_lock);
+			wake_lock_stock(&battery->monitor_wake_lock);
 			queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 		}
 		break;

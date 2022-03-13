@@ -2921,7 +2921,7 @@ static void shmem_cp2ap_wakelock_handler(void *data)
 	       if (wake_lock_active(&mld->cp_wakelock)) {
 			mif_err("cp_wakelock already unlocked\n");
 	       } else {
-			wake_lock(&mld->cp_wakelock);
+			wake_lock_stock(&mld->cp_wakelock);
 			mif_err("cp_wakelock locked\n");
 	       }
 	} else {

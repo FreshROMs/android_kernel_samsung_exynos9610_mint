@@ -1204,7 +1204,7 @@ void mem_forced_cp_crash(struct mem_link_device *mld)
 
 	if (mc->wake_lock) {
 		if (!wake_lock_active(mc->wake_lock)) {
-			wake_lock(mc->wake_lock);
+			wake_lock_stock(mc->wake_lock);
 			mif_err("%s->wake_lock locked\n", mc->name);
 		}
 	}
