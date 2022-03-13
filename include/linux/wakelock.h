@@ -48,7 +48,7 @@ static inline void wake_lock_destroy(struct wake_lock *lock)
 	wakeup_source_trash(&lock->ws);
 }
 
-static inline void wake_lock_usb(struct wake_lock *lock)
+static inline void wake_lock_stock(struct wake_lock *lock)
 {
 	__pm_stay_awake(&lock->ws);
 }

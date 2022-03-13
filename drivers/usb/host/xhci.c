@@ -5135,7 +5135,7 @@ int xhci_wake_lock(struct usb_hcd *hcd, int is_lock) {
 		if (is_lock) {
 			xhci_info(xhci, "%s: WAKE LOCK\n", __func__);
 			xhci->l2_state = 0;
-			wake_lock_usb(xhci->wakelock);
+			wake_lock_stock(xhci->wakelock);
 		} else if (!hcd->driver->hub_check_speed(hcd->shared_hcd)) {
 			xhci_info(xhci, "%s: WAKE UNLOCK\n", __func__);
 			xhci->l2_state = 1;
