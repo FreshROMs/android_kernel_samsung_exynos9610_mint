@@ -137,6 +137,17 @@ config WAKELOCKS_DEFAULT_TIMEOUT
 	help
 	  Add wakelock timeout to Samsung's drivers.
 
+if WAKELOCKS_DEFAULT_TIMEOUT
+
+config WAKELOCKS_TIMEOUT
+	int "Default timeout of driver wakelocks."
+	default 500
+	help
+	  Sets the timeout of wakelocks of Samsung drivers
+	  in milliseconds.
+
+endif
+
 config PM_WAKELOCKS_LIMIT
 	int "Maximum number of user space wakeup sources (0 = no limit)"
 	range 0 100000
