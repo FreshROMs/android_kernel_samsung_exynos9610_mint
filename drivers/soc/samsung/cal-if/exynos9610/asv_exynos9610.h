@@ -190,6 +190,7 @@ int asv_table_init(void)
 	if (!id_tbl)
 		return 0;
 
+#if !IS_ENABLED(CONFIG_SAMSUNG_PRODUCT_SHIP)
 	pr_info("asv_table_version : %d\n", asv_tbl->asv_table_version);
 	pr_info("  bigcpu grp : %d\n", asv_tbl->bigcpu_asv_group);
 	pr_info("  littlecpu grp : %d\n", asv_tbl->littlecpu_asv_group);
@@ -202,6 +203,7 @@ int asv_table_init(void)
 	pr_info("  bigcpu ids : %d\n", id_tbl->ids_big);
 	pr_info("  g3d ids : %d\n", id_tbl->ids_g3d);
 	pr_info("  others ids : %d\n", id_tbl->ids_others);
+#endif
 
 	return asv_tbl->asv_table_version;
 }
