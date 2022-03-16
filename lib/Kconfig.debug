@@ -1139,6 +1139,11 @@ config PROVE_LOCKING
 
 	 For more details, see Documentation/locking/lockdep-design.txt.
 
+config LOCK_MONITOR_DEBUG
+	bool "Monitor lock holder"
+	depends on PROVE_LOCKING && DEBUG_LOCK_ALLOC && !KASAN && !UBSAN
+	default n
+
 config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT

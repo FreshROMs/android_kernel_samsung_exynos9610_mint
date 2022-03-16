@@ -2887,9 +2887,9 @@ static void sm5713_usbpd_notify_detach(void *data)
 		CCIC_NOTIFY_DETACH/*attach*/,
 		USB_STATUS_NOTIFY_DETACH/*drp*/, 0);
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
-	if (!pdic_data->try_state_change)
+	if (!pdic_data->try_state_change && !lpcharge)
 #elif defined(CONFIG_TYPEC)
-	if (!pdic_data->typec_try_state_change)
+	if (!pdic_data->typec_try_state_change && !lpcharge)
 #endif
 		sm5713_rprd_mode_change(pdic_data, TYPE_C_ATTACH_DRP);
 #endif /* end of CONFIG_CCIC_NOTIFIER */
@@ -3040,8 +3040,10 @@ static int sm5713_usbpd_reg_init(struct sm5713_phydrv_data *_data)
 	struct i2c_client *i2c = _data->i2c;
 
 	pr_info("%s", __func__);
-	/* Release SNK Only */
-	sm5713_usbpd_write_reg(i2c, SM5713_REG_CC_CNTL1, 0x80);
+	if (lpcharge) /* SNK Only Operation*/
+		sm5713_usbpd_write_reg(i2c, SM5713_REG_CC_CNTL1, 0x84);
+	else /* Release SNK Only */
+		sm5713_usbpd_write_reg(i2c, SM5713_REG_CC_CNTL1, 0x80);
 	/* DRP_PERIOD = 70ms, DUTY_DRP = 50% */
 	sm5713_usbpd_write_reg(i2c, SM5713_REG_CC_CNTL2, 0x12);
 	sm5713_check_cc_state(_data);

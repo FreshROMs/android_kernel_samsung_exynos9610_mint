@@ -943,6 +943,16 @@
 					net_boost,table_size = <1>;
 					net_boost,table= < 0 0 0 0 0 0 0 0 1 0 >;
 				};
+
+			        boot_device@4 {
+				 	net_boost,label="WIFI TX";
+				 	net_boost,node="wlan0";
+				 	net_boost,table_size = <2>;
+				 	net_boost,table= <
+				 		100 1326000 0 1326000 0 0 0 0 0 0
+				 		200 1534000 0 1534000 0 0 0 0 0 0
+				 		>;
+				 };         
 			};
 
 			fpcb_type {

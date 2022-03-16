@@ -17,6 +17,6 @@
 
 #define DUMP_TYPE_BASE		100
 
-void write_ssp_dump_file(struct ssp_data * data, char *dump, int dumpsize, int type);
+void write_ssp_dump_file(struct ssp_data * data, char *dump, int dumpsize, int type, int count);
 void initialize_ssp_dump(struct ssp_data *data);
 void remove_ssp_dump(struct ssp_data *data);

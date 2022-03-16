@@ -695,6 +695,9 @@ static int __init lockdep_proc_init(void)
 		    &proc_lock_stat_operations);
 #endif
 
+#ifdef CONFIG_LOCK_MONITOR_DEBUG
+	lock_monitor_init();
+#endif
 	return 0;
 }
 

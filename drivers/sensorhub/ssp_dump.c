@@ -28,17 +28,17 @@
 char* sensorhub_dump;
 int sensorhub_dump_size;
 
-void write_ssp_dump_file(struct ssp_data * data, char *dump, int dumpsize, int type)
+void write_ssp_dump_file(struct ssp_data *data, char *dump, int dumpsize, int type, int count)
 {
-	char buffer[2];
+	char buffer[3];
 
-	if(dump == NULL) {
+	if (dump == NULL) {
 		ssp_errf("dump is NULL");
 		return;
-	} else if(PTR_ERR_OR_ZERO(sensorhub_dump)) {
+	} else if (PTR_ERR_OR_ZERO(sensorhub_dump)) {
 		ssp_errf("dump ptr error");
 		return;
-	} else if(dumpsize != sensorhub_dump_size) {
+	} else if (dumpsize != sensorhub_dump_size) {
 		ssp_errf("dump size is wrong %d(%d)", dumpsize, sensorhub_dump_size);
 		return;
 	}
@@ -46,6 +46,7 @@ void write_ssp_dump_file(struct ssp_data * data, char *dump, int dumpsize, int t
 
 	buffer[0] = SENSORHUB_DUMP_NOTI_EVENT;
 	buffer[1] = type;
+	buffer[2] = count;
 	report_sensorhub_data(data, buffer);
 }
 

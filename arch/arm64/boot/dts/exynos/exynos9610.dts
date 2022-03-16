@@ -3321,20 +3321,20 @@
 		g3d_genpd_name = "pd-g3d"; /*KC, RM: pd-g3d, LT,MK: pd-embedded_g3d*/
         #cooling-cells = <2>; /* min followed by max */
 		governor = "interactive";
-		interactive_info = <385000 94 0>;
+		interactive_info = <764000 75 0>;
 		gpu_dvfs_table_size = <11 7>; /*<row col>*/
 		/*  8 columns      freq  down   up  stay  mif    little  middle   big  */
-		gpu_dvfs_table = <  1053000    95  100   1  2093000 1534000       0
-		                     949000    90   98   1  2093000 1534000       0
-		                     839000    90   98   1  2093000 1534000       0
-		                     764000    90   98   1  1539000 1456000       0
-		                     683000    90   95   1  1539000 1456000       0
-		                     572000    90   95   1  1539000 1456000       0
-		                     546000    90   95   1  1539000 1326000       0
-		                     455000    90   95   1   676000  702000       0
-		                     385000    85   95   1   546000  598000       0
-		                     338000    70   90   1   419000  403000       0
-		                     260000    70   90   1   419000  403000       0 >;
+		gpu_dvfs_table = <  1053000    95  100   1  2093000 1638000       0
+		                     949000    56   90   1  2093000 1638000       0
+		                     839000    58   90   1  2093000 1638000       0
+		                     764000    58   90   5  1794000 1534000       0
+		                     683000    53   70   4  1539000 1456000       0
+		                     572000    50   70   1  1539000 1456000       0
+		                     546000    50   70   1  1539000 1456000       0
+		                     455000    54   70   1   676000  702000       0
+		                     385000    56   70   1   546000  598000       0
+		                     338000    48   70   1   419000  403000       0
+		                     260000    48   70   1   419000  403000       0 >;
 		gpu_sustainable_info = <0 0 0 0 0>;
 		gpu_pmqos_cpu_cluster_num = <2>;
 		gpu_pmu_status_reg_offset = <0x4064>;
@@ -3360,11 +3360,11 @@
 		gpu_inter_frame_pm = <0>;
 		gpu_perf_gathering = <0>;
 		gpu_runtime_pm_delay_time = <50>;
-		gpu_dvfs_polling_time = <30>;
+		gpu_dvfs_polling_time = <10>;
 		gpu_pmqos_int_disable = <1>;
 		gpu_pmqos_mif_max_clock = <2093000>;
-		gpu_pmqos_mif_max_clock_base = <546000>;
-		gpu_cl_dvfs_start_base = <546000>;
+		gpu_pmqos_mif_max_clock_base = <572000>;
+		gpu_cl_dvfs_start_base = <572000>;
 		gpu_debug_level = <3>; /*DEBUG(1) INFO(2) WARNING(3) ERROR(4)*/
 		gpu_trace_level = <8>; /*TRACE_ALL*/
 		gpu_bts_support = <1>;

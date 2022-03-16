@@ -42,9 +42,9 @@
 #define SENSOR_INFO_LIGHT_CCT			   {"light_cct_sensor", true, 24, 12}
 #define SENSOR_INFO_AUTO_BIRGHTNESS		     {"auto_brightness", true, 9, 5}
 #define SENSOR_INFO_VDIS_GYRO			   {"vdis_gyro_sensor", true, 6, 6}
-#define SENSOR_INFO_POCKET_MODE			 {"pocket_mode_sensor", true, 5, 5}
+#define SENSOR_INFO_POCKET_MODE_LITE			 {"pocket_mode_lite", true, 5, 5}
 #define SENSOR_INFO_PROXIMITY_CALIBRATION	       {"proximity_calibration", true, 4, 0}
-#define SENSOR_INFO_SENSORHUB			   {"sensorhub_sensor", true, 0, 2}
+#define SENSOR_INFO_SENSORHUB			   {"sensorhub_sensor", true, 0, 3}
 #define SENSOR_INFO_PROTOS_MOTION		       {"protos_motion", true, 1, 1}
 #endif
 

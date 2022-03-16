@@ -276,6 +276,10 @@ struct held_lock {
 	 */
 	unsigned int gen_id;
 #endif
+#ifdef CONFIG_LOCK_MONITOR_DEBUG
+	unsigned long long timestamp;
+	bool acquired;
+#endif
 };
 
 #ifdef CONFIG_LOCKDEP_CROSSRELEASE
@@ -601,7 +605,7 @@ static inline void lockdep_init_task(struct task_struct *task) {}
 static inline void lockdep_free_task(struct task_struct *task) {}
 #endif /* CROSSRELEASE */
 
-#ifdef CONFIG_LOCK_STAT
+#if defined(CONFIG_LOCK_STAT) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 
 extern void lock_contended(struct lockdep_map *lock, unsigned long ip);
 extern void lock_acquired(struct lockdep_map *lock, unsigned long ip);
@@ -726,6 +730,7 @@ do {									\
 #endif
 
 #ifdef CONFIG_LOCKDEP
+void check_held_locks(int force);
 void lockdep_rcu_suspicious(const char *file, const int line, const char *s);
 #else
 static inline void
