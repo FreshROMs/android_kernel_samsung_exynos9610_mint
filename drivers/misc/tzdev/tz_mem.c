@@ -273,7 +273,7 @@ unlock:
 
 #if defined(CONFIG_TZDEV_PAGE_MIGRATION)
 
-static struct page *tzdev_alloc_kernel_page(struct page *page, unsigned long private, int **x)
+static struct page *tzdev_alloc_kernel_page(struct page *page, unsigned long private)
 {
 	return alloc_page(GFP_KERNEL);
 }
