@@ -164,9 +164,10 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 #ifdef CONFIG_ALWAYS_ENFORCE
      // If build is user build and enforce option is set, selinux is always enforcing
      new_value = 1;
-     length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
-                  SECCLASS_SECURITY, SECURITY__SETENFORCE,
-                  NULL);
+		length = avc_has_perm(&selinux_state,
+				      current_sid(), SECINITSID_SECURITY,
+				      SECCLASS_SECURITY, SECURITY__SETENFORCE,
+				      NULL);
      audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
          "config_always_enforce - true; enforcing=%d old_enforcing=%d auid=%u ses=%u",
          new_value, selinux_enforcing,
@@ -175,9 +176,9 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 #if !defined(CONFIG_RKP_KDP)
      selinux_enforcing = new_value;
 #endif
-     avc_ss_reset(0);
+     avc_ss_reset(state->avc, 0);
      selnl_notify_setenforce(new_value);
-     selinux_status_update_setenforce(new_value);
+     selinux_status_update_setenforce(state, new_value);
 #else
 	new_value = !!new_value;
 
