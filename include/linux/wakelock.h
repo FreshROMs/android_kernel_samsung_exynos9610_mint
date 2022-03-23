@@ -61,7 +61,7 @@ static inline void wake_lock(struct wake_lock *lock)
 static inline void wake_lock_timeout(struct wake_lock *lock, long timeout)
 {
 #ifdef CONFIG_WAKELOCKS_DEFAULT_TIMEOUT
-	__pm_wakeup_event(&lock->ws, CONFIG_WAKELOCKS_TIMEOUT);
+	__pm_wakeup_event(&lock->ws, min(jiffies_to_msecs(timeout), (unsigned int) CONFIG_WAKELOCKS_TIMEOUT));
 #else
 	__pm_wakeup_event(&lock->ws, jiffies_to_msecs(timeout));
 #endif
