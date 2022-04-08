@@ -164,7 +164,7 @@ int mfc_get_new_ctx(struct mfc_dev *dev)
 		mfc_debug(2, "preempt_ctx is : %d\n", new_ctx_index);
 	} else {
 		for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
-			if (dev->ctx[i] && dev->ctx[i]->otf_handle) {
+			if (test_bit(i, &dev->otf_inst_bits)) {
 				if (test_bit(i, &dev->work_bits.bits)) {
 					spin_unlock_irqrestore(&dev->work_bits.lock, wflags);
 					return i;
@@ -189,14 +189,13 @@ int mfc_get_new_ctx(struct mfc_dev *dev)
 	return new_ctx_index;
 }
 
-int __mfc_dec_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data, bool set)
+/* Check whether a context should be run on hardware */
+static int __mfc_dec_ctx_ready(struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	int src_buf_queue_greater_than_0 = 0;
 	int dst_buf_queue_greater_than_0 = 0;
 	int ref_buf_queue_same_dpb_count_plus_5 = 0;
-	unsigned long flags;
-	int is_ready = 0;
 
 	mfc_debug(1, "[c:%d] src = %d, dst = %d, src_nal = %d, dst_nal = %d, ref = %d, state = %d, capstat = %d\n",
 		  ctx->num, mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
@@ -218,67 +217,49 @@ int __mfc_dec_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data, bool
 	if (dev->shutdown)
 		return 0;
 
-	/* The ready condition check and set work_bit should be synchronized */
-	spin_lock_irqsave(&data->lock, flags);
-
 	/* Context is to parse header */
 	if (ctx->state == MFCINST_GOT_INST &&
 		src_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
 	/* Context is to decode a frame */
-	else if (ctx->state == MFCINST_RUNNING &&
+	if (ctx->state == MFCINST_RUNNING &&
 		ctx->wait_state == WAIT_NONE && src_buf_queue_greater_than_0 &&
 		(dst_buf_queue_greater_than_0 || ref_buf_queue_same_dpb_count_plus_5))
-		is_ready = 1;
+		return 1;
 
 	/* Context is to return last frame */
-	else if (ctx->state == MFCINST_FINISHING &&
+	if (ctx->state == MFCINST_FINISHING &&
 		(dst_buf_queue_greater_than_0 || ref_buf_queue_same_dpb_count_plus_5))
-		is_ready = 1;
+		return 1;
 
 	/* Context is to set buffers */
-	else if (ctx->state == MFCINST_HEAD_PARSED &&
+	if (ctx->state == MFCINST_HEAD_PARSED &&
 		(dst_buf_queue_greater_than_0 && ctx->wait_state == WAIT_NONE))
-		is_ready = 1;
+		return 1;
 
 	/* Resolution change */
-	else if ((ctx->state == MFCINST_RES_CHANGE_INIT || ctx->state == MFCINST_RES_CHANGE_FLUSH) &&
+	if ((ctx->state == MFCINST_RES_CHANGE_INIT || ctx->state == MFCINST_RES_CHANGE_FLUSH) &&
 		dst_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
-	else if (ctx->state == MFCINST_RES_CHANGE_END &&
+	if (ctx->state == MFCINST_RES_CHANGE_END &&
 		src_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
-	if ((is_ready == 1) && (set == true)) {
-		/* if the ctx is ready and request set_bit, set the work_bit */
-		__set_bit(ctx->num, &data->bits);
-	} else if ((is_ready == 0) && (set == false)) {
-		/* if the ctx is not ready and request clear_bit, clear the work_bit */
-		__clear_bit(ctx->num, &data->bits);
-	} else {
-		if (set == true) {
-			/* If the ctx is not ready, this is not included to S/W driver margin */
-			mfc_perf_cancel_drv_margin(dev);
-			mfc_debug(2, "ctx is not ready\n");
-		}
-	}
+	mfc_perf_cancel_drv_margin(dev);
+	mfc_debug(2, "ctx is not ready\n");
 
-	spin_unlock_irqrestore(&data->lock, flags);
-
-	return is_ready;
+	return 0;
 }
 
-static int __mfc_enc_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data, bool set)
+static int __mfc_enc_ctx_ready(struct mfc_ctx *ctx)
 {
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc_params *p = &enc->params;
 	int src_buf_queue_greater_than_0 = 0;
 	int dst_buf_queue_greater_than_0 = 0;
-	unsigned long flags;
-	int is_ready = 0;
 
 	mfc_debug(1, "[c:%d] src = %d, dst = %d, src_nal = %d, dst_nal = %d, ref = %d, state = %d\n",
 		  ctx->num, mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->src_buf_queue),
@@ -297,75 +278,49 @@ static int __mfc_enc_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *dat
 	if (dev->shutdown)
 		return 0;
 
-	/* The ready condition check and set work_bit should be synchronized */
-	spin_lock_irqsave(&data->lock, flags);
-
 	/* context is ready to make header */
 	if (ctx->state == MFCINST_GOT_INST &&
 		dst_buf_queue_greater_than_0) {
 		if (p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_AT_THE_READY) {
 			if (src_buf_queue_greater_than_0)
-				is_ready = 1;
+				return 1;
 		} else {
-			is_ready = 1;
+			return 1;
 		}
 	}
 
 	/* context is ready to allocate DPB */
-	else if (ctx->state == MFCINST_HEAD_PARSED &&
+	if (ctx->state == MFCINST_HEAD_PARSED &&
 		dst_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
 	/* context is ready to encode a frame */
-	else if (ctx->state == MFCINST_RUNNING &&
+	if (ctx->state == MFCINST_RUNNING &&
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
 	/* context is ready to encode a frame for NAL_ABORT command */
-	else if (ctx->state == MFCINST_ABORT_INST &&
+	if (ctx->state == MFCINST_ABORT_INST &&
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
 	/* context is ready to encode remain frames */
-	else if (ctx->state == MFCINST_FINISHING &&
+	if (ctx->state == MFCINST_FINISHING &&
 		src_buf_queue_greater_than_0 && dst_buf_queue_greater_than_0)
-		is_ready = 1;
+		return 1;
 
-	if ((is_ready == 1) && (set == true)) {
-		/* if the ctx is ready and request set_bit, set the work_bit */
-		__set_bit(ctx->num, &data->bits);
-	} else if ((is_ready == 0) && (set == false)) {
-		/* if the ctx is not ready and request clear_bit, clear the work_bit */
-		__clear_bit(ctx->num, &data->bits);
-	} else {
-		if (set == true) {
-			mfc_perf_cancel_drv_margin(dev);
-			mfc_debug(2, "ctx is not ready\n");
-		}
-	}
-
-	spin_unlock_irqrestore(&data->lock, flags);
-
-	return is_ready;
-}
-
-
-int mfc_ctx_ready_set_bit(struct mfc_ctx *ctx, struct mfc_bits *data)
-{
-	if (ctx->type == MFCINST_DECODER)
-		return __mfc_dec_ctx_ready_set_bit(ctx, data, true);
-	else if (ctx->type == MFCINST_ENCODER)
-		return __mfc_enc_ctx_ready_set_bit(ctx, data, true);
+	mfc_perf_cancel_drv_margin(dev);
+	mfc_debug(2, "ctx is not ready\n");
 
 	return 0;
 }
 
-int mfc_ctx_ready_clear_bit(struct mfc_ctx *ctx, struct mfc_bits *data)
+int mfc_ctx_ready(struct mfc_ctx *ctx)
 {
 	if (ctx->type == MFCINST_DECODER)
-		return __mfc_dec_ctx_ready_set_bit(ctx, data, false);
+		return __mfc_dec_ctx_ready(ctx);
 	else if (ctx->type == MFCINST_ENCODER)
-		return __mfc_enc_ctx_ready_set_bit(ctx, data, false);
+		return __mfc_enc_ctx_ready(ctx);
 
 	return 0;
 }

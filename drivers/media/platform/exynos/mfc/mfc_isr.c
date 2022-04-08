@@ -182,6 +182,62 @@ static void __mfc_handle_frame_copy_timestamp(struct mfc_ctx *ctx)
 		ref_mb->vb.vb2_buf.timestamp = src_mb->vb.vb2_buf.timestamp;
 }
 
+static void __mfc_handle_frame_output_move_vc1(struct mfc_ctx *ctx,
+		dma_addr_t dspl_y_addr, unsigned int released_flag)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_dec *dec = ctx->dec_priv;
+	struct mfc_buf *ref_mb;
+	int index = 0;
+	int i;
+
+	ref_mb = mfc_find_move_buf(&ctx->buf_queue_lock,
+			&ctx->dst_buf_queue, &ctx->ref_buf_queue, dspl_y_addr, released_flag);
+	if (ref_mb) {
+		index = ref_mb->vb.vb2_buf.index;
+
+		/* Check if this is the buffer we're looking for */
+		mfc_debug(2, "[DPB] Found buf[%d] 0x%08llx, looking for disp addr 0x%08llx\n",
+				index, ref_mb->addr[0][0], dspl_y_addr);
+
+		if (released_flag & (1 << index)) {
+			dec->available_dpb &= ~(1 << index);
+			released_flag &= ~(1 << index);
+			mfc_debug(2, "[DPB] Corrupted frame(%d), it will be re-used(release)\n",
+					mfc_get_warn(mfc_get_int_err()));
+		} else {
+			dec->err_reuse_flag |= 1 << index;
+			dec->dynamic_used |= (1 << index);
+			mfc_debug(2, "[DPB] Corrupted frame(%d), it will be re-used(not released)\n",
+					mfc_get_warn(mfc_get_int_err()));
+		}
+	}
+
+	if (!released_flag)
+		return;
+
+	for (i = 0; i < MFC_MAX_DPBS; i++) {
+		if (released_flag & (1 << i)) {
+			/*
+			 * If the released buffer is in ref_buf_q,
+			 * it means that driver owns that buffer.
+			 * In that case, move buffer from ref_buf_q to dst_buf_q to reuse it.
+			 */
+			if (mfc_move_reuse_buffer(ctx, i)) {
+				dec->available_dpb &= ~(1 << i);
+				mfc_debug(2, "[DPB] released buf[%d] is reused\n", i);
+			/*
+			 * Otherwise, because the user owns the buffer
+			 * the buffer should be included in release_info when display frame.
+			 */
+			} else {
+				dec->dec_only_release_flag |= (1 << i);
+				mfc_debug(2, "[DPB] released buf[%d] is in dec_only flag\n", i);
+			}
+		}
+	}
+}
+
 static void __mfc_handle_frame_output_move(struct mfc_ctx *ctx,
 		dma_addr_t dspl_y_addr, unsigned int released_flag)
 {
@@ -429,9 +485,10 @@ static void __mfc_handle_frame_new(struct mfc_ctx *ctx, unsigned int err)
 	/* decoder dst buffer CFW UNPROT */
 	mfc_unprotect_released_dpb(ctx, released_flag);
 
-	if ((IS_VC1_RCV_DEC(ctx) &&
-		mfc_get_warn(err) == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED) ||
-		(mfc_get_warn(err) == MFC_REG_ERR_BROKEN_LINK))
+	if (IS_VC1_RCV_DEC(ctx) &&
+		mfc_get_warn(err) == MFC_REG_ERR_SYNC_POINT_NOT_RECEIVED)
+		__mfc_handle_frame_output_move_vc1(ctx, dspl_y_addr, released_flag);
+	else if (mfc_get_warn(err) == MFC_REG_ERR_BROKEN_LINK)
 		__mfc_handle_frame_output_move(ctx, dspl_y_addr, released_flag);
 	else
 		__mfc_handle_frame_output_del(ctx, err, released_flag);
@@ -696,6 +753,7 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 			ctx->ts_is_full = 0;
 			mfc_qos_reset_last_framerate(ctx);
 			mfc_qos_set_framerate(ctx, DEC_DEFAULT_FPS);
+			mfc_qos_on(ctx);
 
 			goto leave_handle_frame;
 		} else {
@@ -1082,8 +1140,7 @@ static int __mfc_handle_seq_dec(struct mfc_ctx *ctx)
 	dec->mv_count = mfc_get_mv_count();
 	if (CODEC_10BIT(ctx) && dev->pdata->support_10bit) {
 		if (mfc_get_luma_bit_depth_minus8() ||
-			mfc_get_chroma_bit_depth_minus8() ||
-			mfc_get_profile() == MFC_REG_D_PROFILE_HEVC_MAIN_10) {
+			mfc_get_chroma_bit_depth_minus8()) {
 			ctx->is_10bit = 1;
 			mfc_info_ctx("[STREAM][10BIT] 10bit contents, profile: %d, depth: %d/%d\n",
 					mfc_get_profile(),
@@ -1205,10 +1262,8 @@ static int __mfc_handle_seq_enc(struct mfc_ctx *ctx)
 		mfc_release_codec_buffers(ctx);
 	}
 	ret = mfc_alloc_codec_buffers(ctx);
-	if (ret) {
+	if (ret)
 		mfc_err_ctx("Failed to allocate encoding buffers\n");
-		return ret;
-	}
 
 	mfc_change_state(ctx, MFCINST_HEAD_PARSED);
 
@@ -1563,12 +1618,14 @@ irqreturn_t mfc_irq(int irq, void *priv)
 	/* clean-up interrupt */
 	mfc_clear_int();
 
-	if (ctx->state != MFCINST_RES_CHANGE_INIT)
-		mfc_ctx_ready_clear_bit(ctx, &dev->work_bits);
+	if ((ctx->state != MFCINST_RES_CHANGE_INIT) && (mfc_ctx_ready(ctx) == 0))
+		mfc_clear_bit(ctx->num, &dev->work_bits);
 
 	if (ctx->otf_handle) {
-		if (mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits) == 0)
-			mfc_otf_ctx_ready_clear_bit(ctx, &dev->work_bits);
+		if (mfc_otf_ctx_ready(ctx))
+			mfc_set_bit(ctx->num, &dev->work_bits);
+		else
+			mfc_clear_bit(ctx->num, &dev->work_bits);
 	}
 
 	mfc_hwlock_handler_irq(dev, ctx, reason, err);

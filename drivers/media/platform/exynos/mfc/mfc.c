@@ -171,8 +171,8 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 
 	/* sh_handle: released dpb info */
 	dec->sh_handle_dpb.fd = -1;
-	dec->sh_handle_dpb.data_size = sizeof(struct dec_dpb_ref_info) * MFC_MAX_DPBS;
-	dec->ref_info = kzalloc(dec->sh_handle_dpb.data_size, GFP_KERNEL);
+	dec->ref_info = kzalloc(
+		(sizeof(struct dec_dpb_ref_info) * MFC_MAX_DPBS), GFP_KERNEL);
 	if (!dec->ref_info) {
 		mfc_err_dev("failed to allocate decoder information data\n");
 		ret = -ENOMEM;
@@ -183,8 +183,8 @@ static int __mfc_init_dec_ctx(struct mfc_ctx *ctx)
 
 	/* sh_handle: HDR10+ HEVC SEI meta */
 	dec->sh_handle_hdr.fd = -1;
-	dec->sh_handle_hdr.data_size = sizeof(struct hdr10_plus_meta) * MFC_MAX_DPBS;
-	dec->hdr10_plus_info = kzalloc(dec->sh_handle_hdr.data_size, GFP_KERNEL);
+	dec->hdr10_plus_info = kzalloc(
+			(sizeof(struct hdr10_plus_meta) * MFC_MAX_DPBS), GFP_KERNEL);
 	if (!dec->hdr10_plus_info) {
 		mfc_err_dev("[HDR+] failed to allocate HDR10+ information data\n");
 		ret = -ENOMEM;
@@ -296,9 +296,6 @@ static int __mfc_init_enc_ctx(struct mfc_ctx *ctx)
 	enc->sh_handle_svc.fd = -1;
 	enc->sh_handle_roi.fd = -1;
 	enc->sh_handle_hdr.fd = -1;
-	enc->sh_handle_svc.data_size = sizeof(struct temporal_layer_info);
-	enc->sh_handle_roi.data_size = sizeof(struct mfc_enc_roi_info);
-	enc->sh_handle_hdr.data_size = sizeof(struct hdr10_plus_meta) * MFC_MAX_BUFFERS;
 
 	/* Init videobuf2 queue for OUTPUT */
 	ctx->vq_src.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -339,9 +336,14 @@ static int __mfc_init_instance(struct mfc_dev *dev, struct mfc_ctx *ctx)
 {
 	int ret = 0;
 
+	/* set watchdog timer */
 	dev->watchdog_timer.expires = jiffies +
 		msecs_to_jiffies(WATCHDOG_TICK_INTERVAL);
 	add_timer(&dev->watchdog_timer);
+
+	/* set MFC idle timer */
+	atomic_set(&dev->hw_run_cnt, 0);
+	mfc_change_idle_mode(dev, MFC_IDLE_MODE_NONE);
 
 	/* Load the FW */
 	if (!dev->fw.status) {
@@ -446,6 +448,7 @@ err_hw_lock:
 err_fw_load:
 err_fw_alloc:
 	del_timer_sync(&dev->watchdog_timer);
+	del_timer_sync(&dev->mfc_idle_timer);
 
 	mfc_err_dev("failed to init first instance\n");
 	return ret;
@@ -765,6 +768,7 @@ static int mfc_release(struct file *file)
 			mfc_perf_boost_disable(dev);
 
 		del_timer_sync(&dev->watchdog_timer);
+		del_timer_sync(&dev->mfc_idle_timer);
 
 		flush_workqueue(dev->butler_wq);
 
@@ -1423,6 +1427,18 @@ static int mfc_probe(struct platform_device *pdev)
 	dev->watchdog_timer.data = (unsigned long)dev;
 	dev->watchdog_timer.function = mfc_watchdog_tick;
 
+	/* MFC timer for HW idle checking */
+	dev->mfc_idle_wq = create_singlethread_workqueue("mfc/idle");
+	if (!dev->mfc_idle_wq) {
+		dev_err(&pdev->dev, "failed to create workqueue for MFC QoS idle\n");
+		goto err_wq_idle;
+	}
+	INIT_WORK(&dev->mfc_idle_work, mfc_qos_idle_worker);
+	init_timer(&dev->mfc_idle_timer);
+	dev->mfc_idle_timer.data = (unsigned long)dev;
+	dev->mfc_idle_timer.function = mfc_idle_checker;
+	mutex_init(&dev->idle_qos_mutex);
+
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ
 	INIT_LIST_HEAD(&dev->qos_queue);
 #endif
@@ -1488,6 +1504,8 @@ err_alloc_debug:
 err_iovmm_active:
 	destroy_workqueue(dev->butler_wq);
 err_butler_wq:
+	destroy_workqueue(dev->mfc_idle_wq);
+err_wq_idle:
 	destroy_workqueue(dev->watchdog_wq);
 err_wq_watchdog:
 	video_unregister_device(dev->vfd_enc_otf_drm);
@@ -1531,6 +1549,9 @@ static int mfc_remove(struct platform_device *pdev)
 	del_timer_sync(&dev->watchdog_timer);
 	flush_workqueue(dev->watchdog_wq);
 	destroy_workqueue(dev->watchdog_wq);
+	del_timer_sync(&dev->mfc_idle_timer);
+	flush_workqueue(dev->mfc_idle_wq);
+	destroy_workqueue(dev->mfc_idle_wq);
 	flush_workqueue(dev->butler_wq);
 	destroy_workqueue(dev->butler_wq);
 	video_unregister_device(dev->vfd_enc);

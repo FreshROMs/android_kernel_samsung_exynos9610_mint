@@ -189,6 +189,13 @@ enum mfc_vb_flag {
 	MFC_FLAG_LAST_FRAME		= 31,
 };
 
+enum mfc_idle_mode {
+	MFC_IDLE_MODE_NONE	= 0,
+	MFC_IDLE_MODE_RUNNING	= 1,
+	MFC_IDLE_MODE_IDLE	= 2,
+	MFC_IDLE_MODE_CANCEL	= 3,
+};
+
 struct mfc_ctx;
 
 enum mfc_debug_cause {
@@ -214,6 +221,18 @@ enum mfc_debug_cause {
 	MFC_LAST_INFO_POWER                     = 29,
 	MFC_LAST_INFO_SHUTDOWN                  = 30,
 	MFC_LAST_INFO_DRM                       = 31,
+};
+
+enum mfc_real_time {
+	/* real-time */
+	MFC_RT                  = 0,
+	/* low-priority real-time */
+	MFC_RT_LOW              = 1,
+	/* constrained real-time */
+	MFC_RT_CON              = 2,
+	/* non real-time */
+	MFC_NON_RT              = 3,
+	MFC_RT_UNDEFINED        = 4,
 };
 
 struct mfc_debug {
@@ -793,6 +812,8 @@ struct mfc_dev {
 
 	int num_inst;
 
+	unsigned long otf_inst_bits;
+
 	struct mutex mfc_mutex;
 
 	int int_condition;
@@ -824,6 +845,14 @@ struct mfc_dev {
 	struct timer_list watchdog_timer;
 	struct workqueue_struct *watchdog_wq;
 	struct work_struct watchdog_work;
+
+	atomic_t hw_run_cnt;
+	atomic_t queued_cnt;
+	struct mutex idle_qos_mutex;
+	enum mfc_idle_mode idle_mode;
+	struct timer_list mfc_idle_timer;
+	struct workqueue_struct *mfc_idle_wq;
+	struct work_struct mfc_idle_work;
 
 	/* for DRM */
 	int curr_ctx_is_drm;
@@ -1258,7 +1287,6 @@ struct mfc_user_shared_handle {
 	int fd;
 	struct dma_buf *dma_buf;
 	void *vaddr;
-	size_t data_size;
 };
 
 struct mfc_raw_info {
@@ -1479,6 +1507,10 @@ struct mfc_ctx {
 	int int_condition;
 	int int_reason;
 	unsigned int int_err;
+	
+
+	int prio;
+	enum mfc_real_time rt;
 
 	struct mfc_fmt *src_fmt;
 	struct mfc_fmt *dst_fmt;
@@ -1542,6 +1574,7 @@ struct mfc_ctx {
 
 	unsigned long framerate;
 	unsigned long last_framerate;
+	unsigned long operating_framerate;
 	unsigned int qos_ratio;
 
 #ifdef CONFIG_MFC_USE_BUS_DEVFREQ

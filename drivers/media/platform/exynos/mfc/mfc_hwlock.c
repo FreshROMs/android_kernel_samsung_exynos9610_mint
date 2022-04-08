@@ -501,10 +501,8 @@ static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int need_cache_flush)
 			}
 
 			mfc_clear_bit(ctx->num, &dev->work_bits);
-
-			if (!ctx->clear_work_bit)
-				mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-			if (nal_q_handle->nal_q_exception)
+			if ((mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
+					nal_q_handle->nal_q_exception)
 				mfc_set_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 
@@ -541,9 +539,8 @@ static int __mfc_nal_q_just_run(struct mfc_ctx *ctx, int need_cache_flush)
 
 			mfc_clear_bit(ctx->num, &dev->work_bits);
 
-			if (!ctx->clear_work_bit)
-				mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-			if (nal_q_handle->nal_q_exception)
+			if ((mfc_ctx_ready(ctx) && !ctx->clear_work_bit) ||
+					nal_q_handle->nal_q_exception)
 				mfc_set_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 
@@ -590,11 +587,6 @@ static int __mfc_just_run_dec(struct mfc_ctx *ctx)
 		if (ctx->codec_buffer_allocated == 0) {
 			ctx->clear_work_bit = 1;
 			mfc_err_ctx("codec buffer is not allocated\n");
-			ret = -EAGAIN;
-			break;
-		}
-		if (ctx->wait_state != WAIT_NONE) {
-			mfc_err_ctx("wait_state(%d) is not ready\n", ctx->wait_state);
 			ret = -EAGAIN;
 			break;
 		}
@@ -672,6 +664,8 @@ int mfc_just_run(struct mfc_dev *dev, int new_ctx_index)
 	unsigned int ret = 0;
 	int need_cache_flush = 0;
 
+	atomic_inc(&dev->hw_run_cnt);
+
 	if (ctx->state == MFCINST_RUNNING)
 		mfc_clean_ctx_int_flags(ctx);
 
@@ -730,9 +724,7 @@ int mfc_just_run(struct mfc_dev *dev, int new_ctx_index)
 	if (ret) {
 		/* Check again the ctx condition and clear work bits
 		 * if ctx is not available. */
-		if (mfc_ctx_ready_clear_bit(ctx, &dev->work_bits) == 0)
-			ctx->clear_work_bit = 0;
-		if (ctx->clear_work_bit) {
+		if (mfc_ctx_ready(ctx) == 0 || ctx->clear_work_bit) {
 			mfc_clear_bit(ctx->num, &dev->work_bits);
 			ctx->clear_work_bit = 0;
 		}
@@ -775,8 +767,8 @@ void mfc_hwlock_handler_irq(struct mfc_dev *dev, struct mfc_ctx *curr_ctx,
 
 			spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-			mfc_release_hwlock_ctx(curr_ctx);
 			mfc_wake_up_ctx(curr_ctx, reason, err);
+			mfc_release_hwlock_ctx(curr_ctx);
 			queue_work(dev->butler_wq, &dev->butler_work);
 		} else {
 			mfc_debug(2, "No preempt_ctx and no waiting module\n");
@@ -789,8 +781,8 @@ void mfc_hwlock_handler_irq(struct mfc_dev *dev, struct mfc_ctx *curr_ctx,
 
 				spin_unlock_irqrestore(&dev->hwlock.lock, flags);
 
-				mfc_release_hwlock_ctx(curr_ctx);
 				mfc_wake_up_ctx(curr_ctx, reason, err);
+				mfc_release_hwlock_ctx(curr_ctx);
 				queue_work(dev->butler_wq, &dev->butler_work);
 			} else {
 				mfc_debug(2, "There is a ctx to run\n");

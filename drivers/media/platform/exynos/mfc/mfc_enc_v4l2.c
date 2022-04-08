@@ -480,9 +480,10 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 
 	mfc_debug(2, "Got instance number: %d\n", ctx->inst_no);
 
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
-	if (ctx->otf_handle)
-		mfc_otf_ctx_ready_set_bit(ctx, &dev->work_bits);
+	if (mfc_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+	if (ctx->otf_handle && mfc_otf_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 
@@ -719,6 +720,7 @@ static int mfc_enc_querybuf(struct file *file, void *priv,
 static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct mfc_dev *dev = ctx->dev;
 	int i, ret = -EINVAL;
 
 	mfc_debug_enter();
@@ -747,7 +749,7 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		mfc_debug(4, "enc src buf[%d] Q\n", buf->index);
 		if (ctx->src_fmt->mem_planes != buf->length) {
 			mfc_err_ctx("number of memory container miss-match "
-					"between Src planes (%d) and buffer length(%d)\n",
+					"between Src planes(%d) and buffer length(%d)\n",
 					ctx->src_fmt->mem_planes, buf->length);
 			return -EINVAL;
 		}
@@ -768,6 +770,8 @@ static int mfc_enc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		mfc_debug(4, "enc dst buf[%d] Q\n", buf->index);
 		ret = vb2_qbuf(&ctx->vq_dst, buf);
 	}
+
+	atomic_inc(&dev->queued_cnt);
 
 	mfc_debug_leave();
 	return ret;
@@ -914,6 +918,8 @@ static int __mfc_enc_ext_info(struct mfc_ctx *ctx)
 	val |= ENC_SET_FIXED_SLICE;
 	val |= ENC_SET_PVC_MODE;
 	val |= ENC_SET_RATIO_OF_INTRA;
+	val |= ENC_SET_OPERATING_FPS;
+	val |= ENC_SET_PRIORITY;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc))
 		val |= ENC_SET_COLOR_ASPECT;
@@ -1001,6 +1007,9 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		break;
 	case V4L2_CID_MPEG_VIDEO_BPG_HEADER_SIZE:
 		ctrl->value = enc->header_size;
+		break;
+	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
+		ctrl->value = mfc_qos_get_framerate(ctx);
 		break;
 	default:
 		mfc_err_ctx("Invalid control: 0x%08x\n", ctrl->id);
@@ -1098,6 +1107,11 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 	int ret = 0;
 
 	switch (ctrl->id) {
+	case V4L2_CID_MPEG_VIDEO_PRIORITY:
+		ctx->prio = ctrl->value;
+		mfc_update_real_time(ctx);
+		mfc_debug(2, "[PRIO] user set priority: %d\n", ctrl->value);
+		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		p->gop_size = ctrl->value;
 		break;
@@ -1805,6 +1819,11 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 					enc->sh_handle_hdr.fd,
 					enc->sh_handle_hdr.vaddr);
 		}
+		break;
+	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_RATE:
+		ctx->operating_framerate = ctrl->value;
+		mfc_update_real_time(ctx);
+		mfc_debug(2, "[QoS] user set the operating frame rate: %d\n", ctrl->value);
 		break;
 	default:
 		mfc_err_ctx("Invalid control: 0x%08x\n", ctrl->id);
