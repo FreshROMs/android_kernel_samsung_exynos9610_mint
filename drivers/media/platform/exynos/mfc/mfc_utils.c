@@ -13,6 +13,7 @@
 #include <linux/smc.h>
 
 #include "mfc_utils.h"
+#include "mfc_qos.h"
 
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 {
@@ -528,4 +529,66 @@ void mfc_watchdog_reset_tick(struct mfc_dev *dev)
 
 	/* Reset the timeout watchdog */
 	atomic_set(&dev->watchdog_tick_cnt, 0);
+}
+
+void mfc_idle_checker(unsigned long arg)
+{
+	struct mfc_dev *dev = (struct mfc_dev *)arg;
+
+	mfc_debug(5, "[MFCIDLE] MFC HW idle checker is ticking!\n");
+
+	if (perf_boost_mode) {
+		mfc_info_dev("[QoS][BOOST][MFCIDLE] skip control\n");
+		return;
+	}
+
+	if (atomic_read(&dev->qos_req_cur) == 0) {
+		mfc_debug(6, "[MFCIDLE] MFC QoS not started yet\n");
+		mfc_idle_checker_start_tick(dev);
+		return;
+	}
+
+	if (atomic_read(&dev->hw_run_cnt)) {
+		atomic_set(&dev->hw_run_cnt, 0);
+		mfc_idle_checker_start_tick(dev);
+		return;
+	}
+
+	if (atomic_read(&dev->queued_cnt)) {
+		atomic_set(&dev->queued_cnt, 0);
+		mfc_idle_checker_start_tick(dev);
+		return;
+	}
+
+#ifdef CONFIG_MFC_USE_BUS_DEVFREQ
+	mfc_change_idle_mode(dev, MFC_IDLE_MODE_RUNNING);
+	queue_work(dev->mfc_idle_wq, &dev->mfc_idle_work);
+#endif
+}
+
+void mfc_update_real_time(struct mfc_ctx *ctx)
+{
+	if (ctx->operating_framerate > 0) {
+		if (ctx->prio == 0)
+			ctx->rt = MFC_RT;
+		else if (ctx->prio >= 1)
+			ctx->rt = MFC_RT_CON;
+		else
+			ctx->rt = MFC_RT_LOW;
+	} else {
+		if ((ctx->prio == 0) && (ctx->type == MFCINST_ENCODER)) {
+			if (ctx->enc_priv->params.rc_framerate)
+				ctx->rt = MFC_RT;
+			else
+				ctx->rt = MFC_NON_RT;
+		} else if (ctx->prio >= 1) {
+			ctx->rt = MFC_NON_RT;
+		} else {
+			ctx->rt = MFC_RT_UNDEFINED;
+		}
+	}
+
+	mfc_debug(2, "[PRIO] update real time: %d, operating frame rate: %d, prio: %d\n",
+			ctx->rt, ctx->operating_framerate, ctx->prio);
+
 }

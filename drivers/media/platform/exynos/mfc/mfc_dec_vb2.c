@@ -260,9 +260,14 @@ static int mfc_dec_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct mfc_ctx *ctx = q->drv_priv;
 	struct mfc_dev *dev = ctx->dev;
+	
+
+	mfc_update_real_time(ctx);
 
 	/* If context is ready then dev = work->data;schedule it to run */
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
+	if (mfc_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
+
 	mfc_try_run(dev);
 
 	return 0;
@@ -273,7 +278,7 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb;
-	int index, csd, condition = 0;
+	int index = 0, csd, condition = 0, prev_state = 0;
 	int ret = 0;
 
 	while (1) {
@@ -282,10 +287,12 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 		if (csd == 1) {
 			mfc_clean_ctx_int_flags(ctx);
 			if (need_to_special_parsing(ctx)) {
+				prev_state = ctx->state;
 				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING);
 				condition = MFC_REG_R2H_CMD_SEQ_DONE_RET;
 				mfc_info_ctx("try to special parsing! (before NAL_START)\n");
 			} else if (need_to_special_parsing_nal(ctx)) {
+				prev_state = ctx->state;
 				mfc_change_state(ctx, MFCINST_SPECIAL_PARSING_NAL);
 				condition = MFC_REG_R2H_CMD_FRAME_DONE_RET;
 				mfc_info_ctx("try to special parsing! (after NAL_START)\n");
@@ -299,6 +306,7 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 				ret = mfc_just_run(dev, ctx->num);
 				if (ret) {
 					mfc_err_ctx("Failed to run MFC\n");
+					mfc_change_state(ctx, prev_state);
 				} else {
 					if (mfc_wait_for_done_ctx(ctx, condition))
 						mfc_err_ctx("special parsing time out\n");
@@ -337,7 +345,6 @@ static void __mfc_dec_src_stop_streaming(struct mfc_ctx *ctx)
 static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
-	struct mfc_dev *dev = ctx->dev;
 	int index = 0;
 
 	mfc_cleanup_assigned_iovmm(ctx);
@@ -369,7 +376,6 @@ static void __mfc_dec_dst_stop_streaming(struct mfc_ctx *ctx)
 	if (ctx->wait_state & WAIT_STOP) {
 		ctx->wait_state &= ~(WAIT_STOP);
 		mfc_debug(2, "clear WAIT_STOP %d\n", ctx->wait_state);
-		MFC_TRACE_CTX("** DEC clear WAIT_STOP(wait_state %d)\n", ctx->wait_state);
 	}
 }
 
@@ -427,7 +433,8 @@ static void mfc_dec_stop_streaming(struct vb2_queue *q)
 	mfc_clear_bit(ctx->num, &dev->work_bits);
 	mfc_release_hwlock_ctx(ctx);
 
-	mfc_ctx_ready_set_bit(ctx, &dev->work_bits);
+	if (mfc_ctx_ready(ctx))
+		mfc_set_bit(ctx->num, &dev->work_bits);
 	if (mfc_is_work_to_do(dev))
 		queue_work(dev->butler_wq, &dev->butler_work);
 }
@@ -477,8 +484,10 @@ static void mfc_dec_buf_queue(struct vb2_buffer *vb)
 		mfc_err_ctx("Unsupported buffer type (%d)\n", vq->type);
 	}
 
-	if (mfc_ctx_ready_set_bit(ctx, &dev->work_bits))
+	if (mfc_ctx_ready(ctx)) {
+		mfc_set_bit(ctx->num, &dev->work_bits);
 		mfc_try_run(dev);
+	}
 
 	mfc_debug_leave();
 }
