@@ -29,6 +29,7 @@ mali_kbase-y += \
     backend/gpu/mali_kbase_pm_ca.o \
     backend/gpu/mali_kbase_pm_always_on.o \
     backend/gpu/mali_kbase_pm_coarse_demand.o \
+    backend/gpu/mali_kbase_pm_adaptive.o \
     backend/gpu/mali_kbase_pm_policy.o \
     backend/gpu/mali_kbase_time.o \
     backend/gpu/mali_kbase_l2_mmu_config.o \

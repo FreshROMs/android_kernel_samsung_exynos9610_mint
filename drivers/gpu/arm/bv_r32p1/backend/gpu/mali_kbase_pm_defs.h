@@ -28,6 +28,7 @@
 
 #include "mali_kbase_pm_always_on.h"
 #include "mali_kbase_pm_coarse_demand.h"
+#include "mali_kbase_pm_adaptive.h"
 
 /* Forward definition - see mali_kbase.h */
 struct kbase_device;
@@ -206,6 +207,7 @@ struct kbasep_pm_tick_timer_state {
 union kbase_pm_policy_data {
 	struct kbasep_pm_policy_always_on always_on;
 	struct kbasep_pm_policy_coarse_demand coarse_demand;
+    struct kbasep_pm_policy_adaptive adaptive;
 };
 
 /**
@@ -461,6 +463,7 @@ enum kbase_pm_policy_id {
 #if !MALI_CUSTOMER_RELEASE
 	KBASE_PM_POLICY_ID_ALWAYS_ON_DEMAND,
 #endif
+    KBASE_PM_POLICY_ID_ADAPTIVE,
 	KBASE_PM_POLICY_ID_ALWAYS_ON
 };
 
