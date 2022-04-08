@@ -319,6 +319,19 @@ int kbase_device_init(struct kbase_device *kbdev)
 			}
 		}
 	}
+	kthread_init_worker(&kbdev->job_done_worker);
+	kbdev->job_done_worker_thread = kthread_run(kthread_worker_fn,
+		&kbdev->job_done_worker, "mali_jd_thread");
+	if (IS_ERR(kbdev->job_done_worker_thread)) {
+		err = -ENOMEM;
+	}
+
+	kthread_init_worker(&kbdev->event_worker);
+	kbdev->event_worker_thread = kthread_run(kthread_worker_fn,
+		&kbdev->event_worker, "mali_event_thread");
+	if (IS_ERR(kbdev->event_worker_thread)) {
+		err = -ENOMEM;
+	}
 
 	return err;
 }

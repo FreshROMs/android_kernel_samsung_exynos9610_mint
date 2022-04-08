@@ -928,6 +928,10 @@ struct kbase_process {
  *                          SYSC_ALLOC[0..7] GPU registers on L2 cache
  *                          power down. These come from either DTB or
  *                          via DebugFS (if it is available in kernel).
+ * @job_done_worker:        Worker for job_done work.
+ * @job_done_worker_thread: Thread for job_done work.
+ * @event_worker:           Worker for event work.
+ * @event_worker_thread:    Thread for event work. 
  * @process_root:           rb_tree root node for maintaining a rb_tree of
  *                          kbase_process based on key tgid(thread group ID).
  * @dma_buf_root:           rb_tree root node for maintaining a rb_tree of
@@ -1189,6 +1193,11 @@ struct kbase_device {
 	struct kbase_csf_device csf;
 #else
 	struct kbasep_js_device_data js_data;
+
+    struct kthread_worker job_done_worker;
+    struct task_struct *job_done_worker_thread;
+    struct kthread_worker event_worker;
+    struct task_struct *event_worker_thread;
 
 	/* See KBASE_JS_*_PRIORITY_MODE for details. */
 	u32 js_ctx_scheduling_mode;
@@ -1472,8 +1481,6 @@ struct kbase_sub_alloc {
  * @event_closed:         Flag set through POST_TERM ioctl, indicates that Driver
  *                        should stop posting events and also inform event handling
  *                        thread that context termination is in progress.
- * @event_workq:          Workqueue for processing work items corresponding to atoms
- *                        that do not return an event to userspace.
  * @event_count:          Count of the posted events to be consumed by Userspace.
  * @event_coalesce_count: Count of the events present in @event_coalesce_list.
  * @flags:                bitmap of enums from kbase_context_flags, indicating the
@@ -1739,7 +1746,6 @@ struct kbase_context {
 #if !MALI_USE_CSF
 	atomic_t event_closed;
 #endif
-	struct workqueue_struct *event_workq;
 	atomic_t event_count;
 	int event_coalesce_count;
 
