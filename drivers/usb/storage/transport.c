@@ -63,7 +63,9 @@
 
 #include <linux/blkdev.h>
 #include "../../scsi/sd.h"
-
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+#include "../core/usb.h"
+#endif
 
 /***********************************************************************
  * Data transfer routines
@@ -939,11 +941,16 @@ Retry_Sense:
 	 * Set the RESETTING bit, and clear the ABORTING bit so that
 	 * the reset may proceed.
 	 */
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+	printk(KERN_ERR USB_STORAGE "%s scsi_lock 1\n", __func__);
+#endif
 	scsi_lock(us_to_host(us));
 	set_bit(US_FLIDX_RESETTING, &us->dflags);
 	clear_bit(US_FLIDX_ABORTING, &us->dflags);
 	scsi_unlock(us_to_host(us));
-
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+	printk(KERN_ERR USB_STORAGE "%s scsi_unlock 1\n", __func__);
+#endif
 	/*
 	 * We must release the device lock because the pre_reset routine
 	 * will want to acquire it.
@@ -956,9 +963,15 @@ Retry_Sense:
 	mutex_lock(&us->dev_mutex);
 
 	if (result < 0) {
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+		printk(KERN_ERR USB_STORAGE "%s scsi_lock 2\n", __func__);
+#endif
 		scsi_lock(us_to_host(us));
 		usb_stor_report_device_reset(us);
 		scsi_unlock(us_to_host(us));
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+		printk(KERN_ERR USB_STORAGE "%s scsi_unlock 2\n", __func__);
+#endif
 		us->transport_reset(us);
 	}
 	clear_bit(US_FLIDX_RESETTING, &us->dflags);
@@ -1477,9 +1490,24 @@ int usb_stor_port_reset(struct us_data *us)
 			result = -EIO;
 			usb_stor_dbg(us, "No reset during disconnect\n");
 		} else {
+#ifdef CONFIG_USB_STORAGE_DETECT
+			if (test_bit(US_FLIDX_TIMED_OUT, &us->dflags)) {
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+				printk(KERN_ERR USB_STORAGE "%s remove device\n",
+					__func__);
+#endif
+				result = usb_remove_device(us->pusb_dev);
+
+			} else {
+				result = usb_reset_device(us->pusb_dev);
+				usb_stor_dbg(us, "usb_reset_device returns %d\n",
+					     result);
+			}
+#else
 			result = usb_reset_device(us->pusb_dev);
 			usb_stor_dbg(us, "usb_reset_device returns %d\n",
 				     result);
+#endif /* CONFIG_USB_STORAGE_DETECT */
 		}
 		usb_unlock_device(us->pusb_dev);
 	}

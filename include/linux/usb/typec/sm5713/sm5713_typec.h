@@ -266,7 +266,6 @@ struct sm5713_phydrv_data {
 #endif
 	bool is_otg_vboost;
 	bool is_jig_case_on;
-	bool is_mpsm_exit;
 	bool suspended;
 	int check_msg_pass;
 	int rid;
@@ -274,9 +273,6 @@ struct sm5713_phydrv_data {
 	int reset_done;
 	int pd_support;
 	struct delayed_work role_swap_work;
-	struct delayed_work usb_external_notifier_register_work;
-	struct notifier_block usb_external_notifier_nb;
-	struct completion exit_mpsm_completion;
 #if defined(CONFIG_SEC_FACTORY)
 	struct AP_REQ_GET_STATUS_Type factory_mode;
 	struct delayed_work factory_state_work;

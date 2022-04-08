@@ -2343,50 +2343,6 @@ void sm5713_error_recovery_mode(void *_data)
 	pr_info("%s: power_role = %s\n", __func__, power_role ? "SRC" : "SNK");
 }
 
-void sm5713_mpsm_enter_mode_change(struct sm5713_phydrv_data *usbpd_data)
-{
-	struct sm5713_usbpd_data *pd_data = dev_get_drvdata(usbpd_data->dev);
-	int power_role = 0;
-	sm5713_get_power_role(pd_data, &power_role);
-	switch (power_role) {
-		case PDIC_SINK: /* SNK */
-			pr_info("%s : do nothing for SNK\n", __func__);
-		break;
-		case PDIC_SOURCE: /* SRC */
-			sm5713_usbpd_kick_policy_work(usbpd_data->dev);
-		break;
-	};
-}
-
-void sm5713_mpsm_exit_mode_change(struct sm5713_phydrv_data *usbpd_data)
-{
-	struct sm5713_usbpd_data *pd_data = dev_get_drvdata(usbpd_data->dev);
-	int power_role = 0;
-	sm5713_get_power_role(pd_data, &power_role);
-	switch (power_role) {
-		case PDIC_SINK: /* SNK */
-			pr_info("%s : do nothing for SNK\n", __func__);
-		break;
-		case PDIC_SOURCE: /* SRC */
-			pr_info("%s : reattach to SRC\n", __func__);
-			usbpd_data->is_mpsm_exit = 1;
-			reinit_completion(&usbpd_data->exit_mpsm_completion);
-			sm5713_set_detach(usbpd_data, TYPE_C_ATTACH_DFP);
-			msleep(400); /* debounce time */
-			sm5713_set_attach(usbpd_data, TYPE_C_ATTACH_DFP);
-			if (!wait_for_completion_timeout(
-					&usbpd_data->exit_mpsm_completion,
-					msecs_to_jiffies(400))) {
-				pr_err("%s: SRC reattach failed\n", __func__);
-				usbpd_data->is_mpsm_exit = 0;
-				sm5713_rprd_mode_change(usbpd_data, TYPE_C_ATTACH_DRP);
-			} else {
-				pr_err("%s: SRC reattach success\n", __func__);
-			}
-		break;
-	};
-}
-
 void sm5713_set_enable_pd_function(void *_data, int enable)
 {
 	struct sm5713_usbpd_data *data = (struct sm5713_usbpd_data *) _data;
@@ -2723,11 +2679,6 @@ static int sm5713_usbpd_notify_attach(void *data)
 	} else if (((reg_data & SM5713_ATTACH_TYPE) == SM5713_ATTACH_SINK) &&
 			check_usb_killer(pdic_data) == 0) {
 		dev_info(dev, "ccstat : cc_SOURCE\n");
-		if (pdic_data->is_mpsm_exit) {
-			complete(&pdic_data->exit_mpsm_completion);
-			pdic_data->is_mpsm_exit = 0;
-			dev_info(dev, "exit mpsm completion\n");
-		}
 		manager->pn_flag = false;
 		/* add to turn on external 5V */
 #if defined(CONFIG_DUAL_ROLE_USB_INTF)
@@ -3207,66 +3158,6 @@ void sm5713_manual_JIGON(struct sm5713_phydrv_data *usbpd_data, int mode)
 	sm5713_usbpd_write_reg(i2c, SM5713_REG_SYS_CNTL, data);
 }
 
-static int sm5713_handle_usb_external_notifier_notification(
-	struct notifier_block *nb, unsigned long action, void *data)
-{
-	struct sm5713_phydrv_data *usbpd_data = container_of(nb,
-		struct sm5713_phydrv_data, usb_external_notifier_nb);
-	int ret = 0;
-	int enable = *(int *)data;
-
-	pr_info("%s : action=%lu , enable=%d\n", __func__, action, enable);
-	switch (action) {
-	case EXTERNAL_NOTIFY_HOSTBLOCK_PRE:
-		if (enable) {
-			pr_info("%s : EXTERNAL_NOTIFY_HOSTBLOCK_PRE\n", __func__);
-			/* sm5713_set_enable_alternate_mode(ALTERNATE_MODE_STOP); */
-			sm5713_mpsm_enter_mode_change(usbpd_data);
-		} else {
-		}
-		break;
-	case EXTERNAL_NOTIFY_HOSTBLOCK_POST:
-		if (enable) {
-		} else {
-			pr_info("%s : EXTERNAL_NOTIFY_HOSTBLOCK_POST\n", __func__);
-			/* sm5713_set_enable_alternate_mode(ALTERNATE_MODE_START); */
-			sm5713_mpsm_exit_mode_change(usbpd_data);
-		}
-		break;
-	}
-
-	return ret;
-}
-
-static void sm5713_delayed_external_notifier_init(struct work_struct *work)
-{
-	int ret = 0;
-	static int retry_count = 1;
-	int max_retry_count = 5;
-	struct delayed_work *delay_work =
-		container_of(work, struct delayed_work, work);
-	struct sm5713_phydrv_data *usbpd_data =
-		container_of(delay_work,
-			struct sm5713_phydrv_data, usb_external_notifier_register_work);
-
-	pr_info("%s : %d = times!\n", __func__, retry_count);
-
-	/* Register ccic handler to ccic notifier block list */
-	ret = usb_external_notify_register(&usbpd_data->usb_external_notifier_nb,
-		sm5713_handle_usb_external_notifier_notification,
-		EXTERNAL_NOTIFY_DEV_PDIC);
-	if (ret < 0) {
-		pr_err("Manager notifier init time is %d.\n", retry_count);
-		if (retry_count++ != max_retry_count)
-			schedule_delayed_work(
-			&usbpd_data->usb_external_notifier_register_work,
-			msecs_to_jiffies(2000));
-		else
-			pr_err("fail to init external notifier\n");
-	} else
-		pr_info("%s : external notifier register done!\n", __func__);
-}
-
 static void sm5713_usbpd_debug_reg_log(struct work_struct *work)
 {
 	struct sm5713_phydrv_data *pdic_data =
@@ -3518,18 +3409,6 @@ static int sm5713_usbpd_probe(struct i2c_client *i2c,
 
 	/* initial cable detection */
 	sm5713_ccic_irq_thread(-1, pdic_data);
-	INIT_DELAYED_WORK(&pdic_data->usb_external_notifier_register_work,
-				  sm5713_delayed_external_notifier_init);
-	/* Register ccic handler to ccic notifier block list */
-	ret = usb_external_notify_register(&pdic_data->usb_external_notifier_nb,
-			sm5713_handle_usb_external_notifier_notification,
-			EXTERNAL_NOTIFY_DEV_PDIC);
-	if (ret < 0)
-		schedule_delayed_work(&pdic_data->usb_external_notifier_register_work,
-			msecs_to_jiffies(2000));
-	else
-		pr_info("%s : external notifier register done!\n", __func__);
-	init_completion(&pdic_data->exit_mpsm_completion);
 	pr_info("%s : sm5713 usbpd driver uploaded!\n", __func__);
 	return 0;
 fail_init_irq:

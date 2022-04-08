@@ -1726,7 +1726,7 @@ void sm5713_usbpd_init_protocol(struct sm5713_usbpd_data *pd_data)
 			policy->state == PE_SNK_Send_Soft_Reset ||
 			policy->state == PE_SRC_Soft_Reset ||
 			policy->state == PE_SNK_Soft_Reset) {
-		if ((pdic_data->reset_done == 0) && !pdic_data->is_mpsm_exit)
+		if (pdic_data->reset_done == 0)
 			sm5713_protocol_layer_reset(pd_data);
 	}
 
