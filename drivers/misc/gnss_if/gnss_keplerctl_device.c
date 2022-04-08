@@ -516,6 +516,8 @@ static int kepler_req_bcmd(struct gnss_ctl *gc, u16 cmd_id, u16 flags,
 		return 0;
 	}
 
+	reinit_completion(&gc->bcmd_cmpl);
+
 	ret = wait_for_completion_interruptible_timeout(&gc->bcmd_cmpl,
 						timeout);
 	if (ret == 0) {
