@@ -172,7 +172,7 @@ struct exynos_context {
 	struct mutex gpu_clock_lock;
 	struct mutex gpu_dvfs_handler_lock;
 	spinlock_t gpu_dvfs_spinlock;
-#if (defined(CONFIG_SCHED_EMS) || defined(CONFIG_SCHED_EHMP) || defined(CONFIG_SCHED_HMP))
+#if defined(CONFIG_SCHED_EMS) || defined(CONFIG_SCHED_EHMP)
 	struct mutex gpu_sched_hmp_lock;
 #endif
 	/* clock & voltage related variables */
@@ -257,9 +257,6 @@ struct exynos_context {
 	bool inter_frame_pm_is_poweron;
 
 	bool power_status;
-	int power_runtime_suspend_ret;
-	int power_runtime_resume_ret;
-
 
 	int polling_speed;
 	int runtime_pm_delay_time;
@@ -291,7 +288,7 @@ struct exynos_context {
 	bool gpu_auto_cali_status;
 #endif
 
-#if (defined(CONFIG_SCHED_EMS) || defined(CONFIG_SCHED_EHMP) || defined(CONFIG_SCHED_HMP))
+#if defined(CONFIG_SCHED_EMS) || defined(CONFIG_SCHED_EHMP)
 	bool ctx_need_qos;
 #endif
 
@@ -310,16 +307,10 @@ struct exynos_context {
 		int info_array[5];
 	} sustainable;
 #endif
-
-#ifdef CONFIG_MALI_SEC_CL_BOOST
-	bool cl_boost_disable;
-#endif
-
 	int gpu_set_pmu_duration_reg;
 	int gpu_set_pmu_duration_val;
 	bool gpu_bts_support;
 	char g3d_genpd_name[30];
-	int gpu_dss_freq_id;
 };
 
 struct kbase_device *gpu_get_device_structure(void);

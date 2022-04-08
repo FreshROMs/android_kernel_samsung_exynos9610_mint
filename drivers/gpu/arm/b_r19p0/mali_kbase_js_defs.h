@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2019 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -301,6 +301,7 @@ struct kbasep_js_device_data {
 
 	/**< Value for JS_SOFT_JOB_TIMEOUT */
 	atomic_t soft_job_timeout_ms;
+	atomic_t fence_timeout_ms;
 
 	/** List of suspended soft jobs */
 	struct list_head suspended_soft_jobs_list;

@@ -615,6 +615,7 @@ struct kbase_ext_res {
 struct kbase_jd_atom {
 	struct work_struct work;
 	ktime_t start_timestamp;
+	u64 timeout_ms;
 
 	struct base_jd_udata udata;
 	struct kbase_context *kctx;

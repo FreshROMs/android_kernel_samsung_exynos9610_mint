@@ -1176,10 +1176,6 @@ static ssize_t show_trace_dump(struct device *dev, struct device_attribute *attr
 
 		kbasep_trace_format_msg(trace_msg, buffer, KBASE_TRACE_SIZE);
 		ret += snprintf(buf+ret, PAGE_SIZE-ret, "%s\n", buffer);
-
-        if (ret >= PAGE_SIZE - 1)
-            break;
-
 		start = (start + 1) & KBASE_TRACE_MASK;
 	}
 
@@ -1318,52 +1314,6 @@ static ssize_t show_sustainable_status(struct device *dev, struct device_attribu
 }
 #endif
 
-#ifdef CONFIG_MALI_SEC_CL_BOOST
-static ssize_t set_cl_boost_disable(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int cl_boost_disable = 0;
-	int ret;
-
-	struct exynos_context *platform = (struct exynos_context *)pkbdev->platform_context;
-
-	if (!platform)
-		return -ENODEV;
-
-	ret = kstrtoint(buf, 0, &cl_boost_disable);
-	if (ret) {
-		GPU_LOG(DVFS_WARNING, DUMMY, 0u, 0u, "%s: invalid value\n", __func__);
-		return -ENOENT;
-	}
-
-	if (cl_boost_disable == 0)
-		platform->cl_boost_disable = false;
-	else
-		platform->cl_boost_disable = true;
-
-	return count;
-}
-
-static ssize_t show_cl_boost_disable(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ssize_t ret = 0;
-	struct exynos_context *platform = (struct exynos_context *)pkbdev->platform_context;
-
-	if (!platform)
-		return -ENODEV;
-
-	ret += snprintf(buf+ret, PAGE_SIZE-ret, "%d", platform->cl_boost_disable);
-
-	if (ret < PAGE_SIZE - 1) {
-		ret += snprintf(buf+ret, PAGE_SIZE-ret, "\n");
-	} else {
-		buf[PAGE_SIZE-2] = '\n';
-		buf[PAGE_SIZE-1] = '\0';
-		ret = PAGE_SIZE-1;
-	}
-
-	return ret;
-}
-#endif
 /** The sysfs file @c clock, fbdev.
  *
  * This is used for obtaining information about the mali t series operating clock & framebuffer address,
@@ -1410,9 +1360,6 @@ DEVICE_ATTR(vk_boost_status, S_IRUGO, show_vk_boost_status, NULL);
 #endif
 #ifdef CONFIG_MALI_SUSTAINABLE_OPT
 DEVICE_ATTR(sustainable_status, S_IRUGO, show_sustainable_status, NULL);
-#endif
-#ifdef CONFIG_MALI_SEC_CL_BOOST
-DEVICE_ATTR(cl_boost_disable, S_IRUGO|S_IWUSR, show_cl_boost_disable, set_cl_boost_disable);
 #endif
 
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
@@ -2081,13 +2028,6 @@ int gpu_create_sysfs_file(struct device *dev)
 	}
 #endif
 
-#ifdef CONFIG_MALI_SEC_CL_BOOST
-	if (device_create_file(dev, &dev_attr_cl_boost_disable)) {
-		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "couldn't create sysfs file [cl_boost_disable]\n");
-		goto out;
-	}
-#endif
-
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
 	external_kobj = kobject_create_and_add("gpu", kernel_kobj);
 	if (!external_kobj) {
@@ -2151,9 +2091,6 @@ void gpu_remove_sysfs_file(struct device *dev)
 #endif
 #ifdef CONFIG_MALI_SUSTAINABLE_OPT
 	device_remove_file(dev, &dev_attr_sustainable_status);
-#endif
-#ifdef CONFIG_MALI_SEC_CL_BOOST
-	device_remove_file(dev, &dev_attr_cl_boost_disable);
 #endif
 #ifdef CONFIG_MALI_DEBUG_KERNEL_SYSFS
 	kobject_put(external_kobj);

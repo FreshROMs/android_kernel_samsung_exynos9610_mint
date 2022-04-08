@@ -465,6 +465,7 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 	jsdd->gpu_reset_ticks_dumping = DEFAULT_JS_RESET_TICKS_DUMPING;
 	jsdd->ctx_timeslice_ns = DEFAULT_JS_CTX_TIMESLICE_NS;
 	atomic_set(&jsdd->soft_job_timeout_ms, DEFAULT_JS_SOFT_JOB_TIMEOUT);
+	atomic_set(&jsdd->fence_timeout_ms, DEFAULT_JS_FENCE_TIMEOUT);
 
 	dev_dbg(kbdev->dev, "JS Config Attribs: ");
 	dev_dbg(kbdev->dev, "\tscheduling_period_ns:%u",
@@ -489,6 +490,8 @@ int kbasep_js_devdata_init(struct kbase_device * const kbdev)
 			jsdd->ctx_timeslice_ns);
 	dev_dbg(kbdev->dev, "\tsoft_job_timeout:%i",
 		atomic_read(&jsdd->soft_job_timeout_ms));
+	dev_dbg(kbdev->dev, "\tfence_timeout:%i",
+			atomic_read(&jsdd->fence_timeout_ms));
 
 	if (!(jsdd->soft_stop_ticks < jsdd->hard_stop_ticks_ss &&
 			jsdd->hard_stop_ticks_ss < jsdd->gpu_reset_ticks_ss &&

@@ -56,7 +56,7 @@ config MALI_MIDGARD_ENABLE_TRACE
 config MALI_DEVFREQ
 	bool "devfreq support for Mali"
 	depends on MALI_MIDGARD && PM_DEVFREQ
-	default n
+	default y
 	help
 	  Support devfreq for Mali.
 

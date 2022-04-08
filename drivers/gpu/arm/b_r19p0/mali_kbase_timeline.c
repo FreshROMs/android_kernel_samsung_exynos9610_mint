@@ -283,6 +283,8 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 					"Job dumping is enabled, readjusting the software event's timeout\n");
 			atomic_set(&kbdev->js_data.soft_job_timeout_ms,
 					1800000);
+			atomic_set(&kbdev->js_data.fence_timeout_ms,
+					1800000);
 		}
 
 		/* Summary stream was cleared during acquire.

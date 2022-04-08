@@ -135,7 +135,7 @@ config MALI_DEBUG
 config MALI_FENCE_DEBUG
 	bool "Debug sync fence usage"
 	depends on MALI_MIDGARD && MALI_EXPERT && (SYNC || SYNC_FILE)
-	default y if MALI_DEBUG
+	default y
 	help
 	  Select this option to enable additional checking and reporting on the
 	  use of sync fences in the Mali driver.

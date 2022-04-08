@@ -278,6 +278,8 @@ static void kbase_fence_debug_check_atom(struct kbase_jd_atom *katom)
 	struct device *dev = kctx->kbdev->dev;
 	int i;
 
+	dev_warn(dev,"kbase_fence_debug_check_atom\n");
+	
 	for (i = 0; i < 2; i++) {
 		struct kbase_jd_atom *dep;
 

@@ -126,6 +126,6 @@ config MALI_SEC_JOB_STATUS_CHECK
 config MALI_SUSTAINABLE_OPT
 	bool "Enable Sustainable optimize"
 	depends on MALI_MIDGARD && MALI_RT_PM && MALI_DVFS
-	default n
+	default y
 	help
 		Choose this option to enable sustainable optimization in the Mali tNOx DDK.

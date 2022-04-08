@@ -16,10 +16,11 @@
  */
 
 #include <mali_kbase.h>
-
 #ifdef CONFIG_MALI_SEC_JOB_STATUS_CHECK
+#if 0
 #if defined(CONFIG_MALI_FENCE_DEBUG)
 #error YOU MUST turn off MALI_FENCE_DEBUG.
+#endif
 #endif
 
 #include "backend/gpu/mali_kbase_jm_rb.h"
@@ -154,20 +155,21 @@ int gpu_job_fence_status_dump(struct sync_fence *timeout_fence)
 	if (timeout_fence != NULL)
 		dev_warn(dev, "Timeout Fence *** [%p] %s: %s\n", timeout_fence, timeout_fence->name, gpu_fence_status_to_string(atomic_read(&timeout_fence->status)));
 
-	kbase_dev_list_put(kbdev_list);
-
 	return 0;
 } /* #if defined(CONFIG_SYNC) */
 
 #elif defined(CONFIG_SYNC_FILE)
-
+#if 0
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
 #error YOU MUST turn off MALI_SEC_JOB_STATUS_CHECK
 #endif
-
+#endif
 #include "mali_kbase_sync.h"
 
+/* #define MALI_SEC_DEPENDENCY_CHECK */
+
 int gpu_job_fence_status_dump(struct sync_file *timeout_sync_file);
+#ifdef MALI_SEC_DEPENDENCY_CHECK
 void gpu_fence_debug_check_dependency_atom(struct kbase_jd_atom *katom)
 {
 	struct kbase_context *kctx = katom->kctx;
@@ -185,7 +187,11 @@ void gpu_fence_debug_check_dependency_atom(struct kbase_jd_atom *katom)
 			/* Found defendency fence & job */
 			if ((dep->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_TRIGGER) {
 				struct kbase_sync_fence_info info;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 				struct fence *fence;	/* trigger fence */
+#else
+				struct dma_fence *fence;
+#endif
 				if (!kbase_sync_fence_out_info_get(dep, &info)) {
 					fence = info.fence;
 					dev_warn(dev,
@@ -198,7 +204,11 @@ void gpu_fence_debug_check_dependency_atom(struct kbase_jd_atom *katom)
 				}
 			} else if ((dep->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_WAIT) {
 				struct kbase_sync_fence_info info;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 				struct fence *fence;	/* wait fence */
+#else
+				struct dma_fence *fence;
+#endif
 				if (!kbase_sync_fence_in_info_get(dep, &info)) {
 					fence = info.fence;
 					dev_warn(dev,
@@ -218,124 +228,119 @@ void gpu_fence_debug_check_dependency_atom(struct kbase_jd_atom *katom)
 		}
 	}
 }
+#endif
 
+extern struct kbase_device *pkbdev;
 int gpu_job_fence_status_dump(struct sync_file *timeout_sync_file)
 {
 	struct device *dev;
-	struct list_head *entry;
-	const struct list_head *kbdev_list;
 	struct kbase_device *kbdev = NULL;
 	struct kbase_context *kctx;
 	struct kbase_sync_fence_info info_in;
 	struct kbase_sync_fence_info info_out;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 	struct fence *fence_in;
 	struct fence *fence_out;
-	unsigned long lflags;
+#else
+	struct dma_fence *fence_in;
+	struct dma_fence *fence_out;
+#endif
+	/* unsigned long lflags; */
 	int i;
 	int cnt[5] = {0,};
 	bool check_fence;
 
 	/* dev_warn(dev,"GPU JOB STATUS DUMP\n"); */
 
-	kbdev_list = kbase_dev_list_get();
+	kbdev = pkbdev;
 
-	if (kbdev_list == NULL) {
-		kbase_dev_list_put(kbdev_list);
+	if (kbdev == NULL)
 		return -ENODEV;
-	}
-
-	list_for_each(entry, kbdev_list) {
-		kbdev = list_entry(entry, struct kbase_device, entry);
-
-		if (kbdev == NULL) {
-			kbase_dev_list_put(kbdev_list);
-			return -ENODEV;
-		}
-
-		dev = kbdev->dev;
-		dev_warn(dev, "[%p] kbdev dev name : %s\n", kbdev, kbdev->devname);
-		mutex_lock(&kbdev->kctx_list_lock);
-		list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
-			mutex_lock(&kctx->jctx.lock);
-			dev_warn(dev, "\t[%p] kctx(%d_%d_%d)_jobs_nr(%d)\n", kctx, kctx->pid, kctx->tgid, kctx->id, kctx->jctx.job_nr);
-			if (kctx->jctx.job_nr > 0) {
-				for (i = BASE_JD_ATOM_COUNT-1; i > 0; i--) {
-					if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_UNUSED) {
-						cnt[0]++;
-					} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED) {
-						cnt[1]++;
-						dev_warn(dev, "\t\t- [%p] Atom %d STATE_QUEUED\n", &kctx->jctx.atoms[i], i);
-						/* dev_warn(dev, "		-- Atom %d slot_nr 0x%x coreref_state 0x%x core_req 0x%x event_code 0x%x gpu_rb_state 0x%x\n",
-						   i, kctx->jctx.atoms[i].slot_nr, kctx->jctx.atoms[i].coreref_state, kctx->jctx.atoms[i].core_req, kctx->jctx.atoms[i].event_code, kctx->jctx.atoms[i].gpu_rb_state); */
-					} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_IN_JS) {
-						cnt[2]++;
-						dev_warn(dev, "\t\t- [%p] Atom %d STATE_IN_JS\n", &kctx->jctx.atoms[i], i);
-						dev_warn(dev, "\t\t\t-- Atom %d	slot_nr 0x%x coreref_state 0x%x core_req 0x%x event_code 0x%x gpu_rb_state 0x%x\n",
-								i, kctx->jctx.atoms[i].slot_nr, kctx->jctx.atoms[i].coreref_state, kctx->jctx.atoms[i].core_req, kctx->jctx.atoms[i].event_code, kctx->jctx.atoms[i].gpu_rb_state);
-					} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_HW_COMPLETED) {
-						cnt[3]++;
-					} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_COMPLETED) {
-						cnt[4]++;
-					}
-
-					spin_lock_irqsave(&kctx->waiting_soft_jobs_lock, lflags);
-					/* Print fence infomation */
-					if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED) {
-						if ((kctx->jctx.atoms[i].core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_TRIGGER) {
-							if (!kbase_sync_fence_out_info_get(&kctx->jctx.atoms[i], &info_out)) {
-								fence_out = info_out.fence;
-								if (timeout_sync_file != NULL && timeout_sync_file->fence != NULL) {
-									if (fence_out == timeout_sync_file->fence)
-										check_fence = true;
-									else
-										check_fence = false;
-								} else
-									check_fence = false;
-
-								dev_warn(dev, "\t\t\t-- Atom %d Fence_out Info [%p] %s: fence type = 0x%x, fence ctx = %llu, fence seqno = %u, %s\n",
-										i, info_out.fence, info_out.name, kctx->jctx.atoms[i].core_req, fence_out->context, fence_out->seqno, (check_fence == true) ? "***" : "  ");
-							}
-						}
-						if ((kctx->jctx.atoms[i].core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_WAIT) {
-							if (!kbase_sync_fence_in_info_get(&kctx->jctx.atoms[i], &info_in)) {
-								fence_in = info_in.fence;
-								if (timeout_sync_file != NULL && timeout_sync_file->fence != NULL) {
-									if (fence_in == timeout_sync_file->fence)
-										check_fence = true;
-									else
-										check_fence = false;
-								} else
-									check_fence = false;
-
-								dev_warn(dev, "\t\t\t-- Atom %d Fence_in Info [%p] %s: fence type = 0x%x, fence ctx = %llu, fence seqno = %u, %s\n",
-										i, info_in.fence, info_in.name, kctx->jctx.atoms[i].core_req, fence_in->context, fence_in->seqno, (check_fence == true) ? "***" : "  ");
-							}
-						}
-					}
-					/* Print dependency atom infomation */
-					if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED || kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_IN_JS) {
-						dev_warn(dev, "\t\t\t-- Dependency Atom List\n");
-						gpu_fence_debug_check_dependency_atom(&kctx->jctx.atoms[i]);
-					}
-					spin_unlock_irqrestore(&kctx->waiting_soft_jobs_lock, lflags);
-
+	dev = kbdev->dev;
+	dev_warn(dev, "[%p] kbdev dev name : %s\n", kbdev, kbdev->devname);
+	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+		dev_warn(dev, "\t[%p] kctx(%d_%d_%d)_jobs_nr(%d)\n", kctx, kctx->pid, kctx->tgid, kctx->id, kctx->jctx.job_nr);
+		if (kctx->jctx.job_nr > 0) {
+			for (i = BASE_JD_ATOM_COUNT-1; i > 0; i--) {
+				if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_UNUSED) {
+					cnt[0]++;
+				} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED) {
+					cnt[1]++;
+					dev_warn(dev, "\t\t- [%p] Atom %d STATE_QUEUED\n", &kctx->jctx.atoms[i], i);
+					dev_warn(dev, "\t\t\t-- Atom %d	slot_nr 0x%x core_req 0x%x event_code 0x%x gpu_rb_state 0x%x\n",
+							i, kctx->jctx.atoms[i].slot_nr, kctx->jctx.atoms[i].core_req, kctx->jctx.atoms[i].event_code, kctx->jctx.atoms[i].gpu_rb_state);
+				} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_IN_JS) {
+					cnt[2]++;
+					dev_warn(dev, "\t\t- [%p] Atom %d STATE_IN_JS\n", &kctx->jctx.atoms[i], i);
+					dev_warn(dev, "\t\t\t-- Atom %d	slot_nr 0x%x core_req 0x%x event_code 0x%x gpu_rb_state 0x%x\n",
+							i, kctx->jctx.atoms[i].slot_nr, kctx->jctx.atoms[i].core_req, kctx->jctx.atoms[i].event_code, kctx->jctx.atoms[i].gpu_rb_state);
+				} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_HW_COMPLETED) {
+					cnt[3]++;
+				} else if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_COMPLETED) {
+					cnt[4]++;
 				}
-				dev_warn(dev, "\t\t: ATOM STATE INFO : UNUSED(%d)_QUEUED(%d)_IN_JS(%d)_HW_COMPLETED(%d)_COMPLETED(%d)\n", cnt[0], cnt[1], cnt[2], cnt[3], cnt[4]);
-				cnt[0] = cnt[1] = cnt[2] = cnt[3] = cnt[4] = 0;
+
+				/* spin_lock_irqsave(&kctx->waiting_soft_jobs_lock, lflags); */
+				/* Print fence infomation */
+				if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED) {
+					if ((kctx->jctx.atoms[i].core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_TRIGGER) {
+						if (!kbase_sync_fence_out_info_get(&kctx->jctx.atoms[i], &info_out)) {
+							fence_out = info_out.fence;
+							if (timeout_sync_file != NULL && timeout_sync_file->fence != NULL) {
+								if (fence_out == timeout_sync_file->fence)
+									check_fence = true;
+								else
+									check_fence = false;
+							} else
+								check_fence = false;
+
+							dev_warn(dev, "\t\t\t-- Atom %d Fence_out Info [%p] %s: fence type = 0x%x, fence ctx = %llu, fence seqno = %u, %s\n",
+									i, info_out.fence, info_out.name, kctx->jctx.atoms[i].core_req, fence_out->context, fence_out->seqno, (check_fence == true) ? "***" : "  ");
+						}
+					}
+					if ((kctx->jctx.atoms[i].core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_WAIT) {
+						if (!kbase_sync_fence_in_info_get(&kctx->jctx.atoms[i], &info_in)) {
+							fence_in = info_in.fence;
+							if (timeout_sync_file != NULL && timeout_sync_file->fence != NULL) {
+								if (fence_in == timeout_sync_file->fence)
+									check_fence = true;
+								else
+									check_fence = false;
+							} else
+								check_fence = false;
+
+							dev_warn(dev, "\t\t\t-- Atom %d Fence_in Info [%p] %s: fence type = 0x%x, fence ctx = %llu, fence seqno = %u, %s\n",
+									i, info_in.fence, info_in.name, kctx->jctx.atoms[i].core_req, fence_in->context, fence_in->seqno, (check_fence == true) ? "***" : "  ");
+						}
+					}
+				}
+#ifdef MALI_SEC_DEPENDENCY_CHECK
+				/* Print dependency atom infomation */
+				if (kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_QUEUED || kctx->jctx.atoms[i].status == KBASE_JD_ATOM_STATE_IN_JS) {
+					dev_warn(dev, "\t\t\t-- Dependency Atom List\n");
+					gpu_fence_debug_check_dependency_atom(&kctx->jctx.atoms[i]);
+				}
+#endif
+				/* spin_unlock_irqrestore(&kctx->waiting_soft_jobs_lock, lflags); */
+
 			}
-			mutex_unlock(&kctx->jctx.lock);
+			dev_warn(dev, "\t\t: ATOM STATE INFO : UNUSED(%d)_QUEUED(%d)_IN_JS(%d)_HW_COMPLETED(%d)_COMPLETED(%d)\n", cnt[0], cnt[1], cnt[2], cnt[3], cnt[4]);
+			cnt[0] = cnt[1] = cnt[2] = cnt[3] = cnt[4] = 0;
 		}
-		mutex_unlock(&kbdev->kctx_list_lock);
-		/* katom list in backed slot rb */
-		kbase_gpu_dump_slots(kbdev);
 	}
+
+	/* katom list in backed slot rb */
+	kbase_gpu_dump_slots(kbdev);
 
 	if (timeout_sync_file != NULL) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 		dev_warn(dev, "Timeout Sync_file [%p] Sync_file name %s\n", timeout_sync_file, timeout_sync_file->name);
+#else
+		dev_warn(dev, "Timeout Sync_file [%p] Sync_file name %s\n", timeout_sync_file, timeout_sync_file->user_name);
+#endif
+
 		dev_warn(dev, "Timeout Fence *** [%p] \n", timeout_sync_file->fence);
 	}
-
-	kbase_dev_list_put(kbdev_list);
 
 	return 0;
 }

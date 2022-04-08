@@ -100,7 +100,7 @@ static struct notifier_block gpu_tmu_nb = {
 
 static int gpu_power_on(struct kbase_device *kbdev)
 {
-	int ret = 0;
+	int ret;
 	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
 	if (!platform)
 		return -ENODEV;
@@ -119,9 +119,6 @@ static int gpu_power_on(struct kbase_device *kbdev)
 	ret = 0;
 #endif
 
-
-	GPU_LOG(DVFS_INFO, LSI_GPU_RPM_RESUME_API, ret, 0u, "power on\n");
-
 	if (ret > 0) {
 #ifdef CONFIG_MALI_DVFS
 		if (platform->early_clk_gating_status) {
@@ -129,13 +126,10 @@ static int gpu_power_on(struct kbase_device *kbdev)
 			gpu_control_enable_clock(kbdev);
 		}
 #endif
-		platform->power_runtime_resume_ret = ret;
 		return 0;
 	} else if (ret == 0) {
-		platform->power_runtime_resume_ret = ret;
 		return 1;
 	} else {
-		platform->power_runtime_resume_ret = ret;
 		GPU_LOG(DVFS_ERROR, DUMMY, 0u, 0u, "runtime pm returned %d\n", ret);
 		return 0;
 	}
@@ -143,7 +137,6 @@ static int gpu_power_on(struct kbase_device *kbdev)
 
 static void gpu_power_off(struct kbase_device *kbdev)
 {
-	int ret = 0;
 	struct exynos_context *platform = (struct exynos_context *) kbdev->platform_context;
 	if (!platform)
 		return;
@@ -153,15 +146,13 @@ static void gpu_power_off(struct kbase_device *kbdev)
 	gpu_control_enable_customization(kbdev);
 
 	pm_runtime_mark_last_busy(kbdev->dev);
-	ret = pm_runtime_put_autosuspend(kbdev->dev);
+	pm_runtime_put_autosuspend(kbdev->dev);
 
 #ifdef CONFIG_MALI_DVFS
 	if (platform->early_clk_gating_status)
 		gpu_control_disable_clock(kbdev);
 #endif
 #endif
-	platform->power_runtime_suspend_ret = ret;
-	GPU_LOG(DVFS_INFO, LSI_GPU_RPM_SUSPEND_API, ret, 0u, "power off\n");
 }
 
 static void gpu_power_suspend(struct kbase_device *kbdev)
@@ -182,43 +173,20 @@ static void gpu_power_suspend(struct kbase_device *kbdev)
 	if (platform->early_clk_gating_status)
 		gpu_control_disable_clock(kbdev);
 #endif
-
-	platform->power_runtime_suspend_ret = ret;
-	GPU_LOG(DVFS_INFO, LSI_SUSPEND_CALLBACK, ret, 0u, "power suspend\n");
 }
 
 #ifdef CONFIG_MALI_RT_PM
+
 static int gpu_pm_notifier(struct notifier_block *nb, unsigned long event, void *cmd)
 {
 	int err = NOTIFY_OK;
-	struct kbase_device *kbdev = pkbdev;
-	struct kbasep_js_device_data *js_devdata = NULL;
-	struct exynos_context *platform = NULL;
-
-	if (kbdev) {
-		js_devdata = &kbdev->js_data;
-		platform = (struct exynos_context *)kbdev->platform_context;
-	}
-
-	if (!kbdev || !js_devdata || !platform) {
-		GPU_LOG(DVFS_ERROR, DUMMY, event, 0u, "[G3D] error control of variable : event[%lu]\n", event);
-		GPU_LOG(DVFS_ERROR, DUMMY, event, 0u, "    kbdev      [%p]\n", kbdev);
-		GPU_LOG(DVFS_ERROR, DUMMY, event, 0u, "    js_devdata [%p]\n", js_devdata);
-		GPU_LOG(DVFS_ERROR, DUMMY, event, 0u, "    platform   [%p]\n", platform);
-	}
 
 	switch (event) {
 	case PM_SUSPEND_PREPARE:
-		if (platform) {
-			GPU_LOG(DVFS_DEBUG, LSI_SUSPEND, platform->power_runtime_suspend_ret, platform->power_runtime_resume_ret, \
-					"%s: suspend event\n", __func__);
-		}
+		GPU_LOG(DVFS_DEBUG, LSI_SUSPEND, 0u, 0u, "%s: suspend prepare event\n", __func__);
 		break;
 	case PM_POST_SUSPEND:
-		if (platform) {
-			GPU_LOG(DVFS_DEBUG, LSI_RESUME, platform->power_runtime_suspend_ret, platform->power_runtime_resume_ret, \
-					"%s: resume event\n", __func__);
-		}
+		GPU_LOG(DVFS_DEBUG, LSI_RESUME, 0u, 0u, "%s: resume event\n", __func__);
 		break;
 	default:
 		break;
@@ -240,9 +208,6 @@ static int gpu_device_runtime_init(struct kbase_device *kbdev)
 		ret = -ENOSYS;
 		return ret;
 	}
-
-	platform->power_runtime_resume_ret = 0;
-	platform->power_runtime_suspend_ret = 0;
 
 	dev_dbg(kbdev->dev, "kbase_device_runtime_init\n");
 
@@ -294,7 +259,6 @@ static int pm_callback_runtime_on(struct kbase_device *kbdev)
 #endif
 	gpu_dvfs_start_env_data_gathering(kbdev);
 	platform->power_status = true;
-#if 0
 #ifdef CONFIG_MALI_DVFS
 #ifdef CONFIG_MALI_SEC_CL_BOOST
 	if (platform->dvfs_status && platform->wakeup_lock && !kbdev->pm.backend.metrics.is_full_compute_util)
@@ -305,7 +269,7 @@ static int pm_callback_runtime_on(struct kbase_device *kbdev)
 	else
 		gpu_set_target_clk_vol(platform->cur_clock, false);
 #endif /* CONFIG_MALI_DVFS */
-#endif
+
 	return 0;
 }
 extern void preload_balance_setup(struct kbase_device *kbdev);

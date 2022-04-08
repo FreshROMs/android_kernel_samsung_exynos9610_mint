@@ -653,10 +653,6 @@ static u64 kbase_pm_l2_update_state(struct kbase_device *kbdev)
 
 	if (kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off &&
 			backend->l2_state == KBASE_L2_OFF) {
-
-		/* MALI_SEC_INTEGRATION */
-		KBASE_TRACE_ADD(kbdev, KBASE_DEVICE_PM_WAIT_WQ_QUEUE_WORK, NULL, NULL, 0u, 0u);
-
 		kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off = false;
 		queue_work(kbdev->pm.backend.gpu_poweroff_wait_wq,
 				&kbdev->pm.backend.gpu_poweroff_wait_work);

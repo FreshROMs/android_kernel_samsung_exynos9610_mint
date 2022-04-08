@@ -2017,8 +2017,7 @@ static DEVICE_ATTR(core_mask, S_IRUGO | S_IWUSR, show_core_mask, set_core_mask);
  * @count: The number of bytes written to the sysfs file.
  *
  * This allows setting the timeout for software jobs. Waiting soft event wait
- * jobs will be cancelled after this period expires, while soft fence wait jobs
- * will print debug information if the fence debug feature is enabled.
+ * jobs will be cancelled after this period expires.
  *
  * This is expressed in milliseconds.
  *
@@ -2073,6 +2072,72 @@ static ssize_t show_soft_job_timeout(struct device *dev,
 
 static DEVICE_ATTR(soft_job_timeout, S_IRUGO | S_IWUSR,
 		   show_soft_job_timeout, set_soft_job_timeout);
+
+/**
+ * set_fence_timeout - Store callback for the fence_timeout sysfs
+ * file.
+ *
+ * @dev: The device this sysfs file is for.
+ * @attr: The attributes of the sysfs file.
+ * @buf: The value written to the sysfs file.
+ * @count: The number of bytes written to the sysfs file.
+ *
+ * This allows setting the timeout for fence wait jobs. Waiting fence wait jobs
+ * will be cancelled after this period expires and will print debug information
+ * if the fence debug feature is enabled.
+ *
+ * This is expressed in milliseconds.
+ *
+ * Return: count if the function succeeded. An error code on failure.
+ */
+static ssize_t fence_timeout_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct kbase_device *kbdev;
+	int timeout_ms;
+
+	kbdev = to_kbase_device(dev);
+	if (!kbdev)
+		return -ENODEV;
+
+	if ((kstrtoint(buf, 0, &timeout_ms) != 0) ||
+	    (timeout_ms <= 0))
+		return -EINVAL;
+
+	atomic_set(&kbdev->js_data.fence_timeout_ms,
+		   timeout_ms);
+
+	return count;
+}
+
+/**
+ * show_fence_timeout - Show callback for the fence_timeout sysfs
+ * file.
+ *
+ * This will return the timeout for fences
+ *
+ * @dev: The device this sysfs file is for.
+ * @attr: The attributes of the sysfs file.
+ * @buf: The output buffer for the sysfs file contents.
+ *
+ * Return: The number of bytes output to buf.
+ */
+static ssize_t fence_timeout_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char * const buf)
+{
+	struct kbase_device *kbdev;
+
+	kbdev = to_kbase_device(dev);
+	if (!kbdev)
+		return -ENODEV;
+
+	return scnprintf(buf, PAGE_SIZE, "%i\n",
+			 atomic_read(&kbdev->js_data.fence_timeout_ms));
+}
+
+static DEVICE_ATTR_RW(fence_timeout);
 
 static u32 timeout_ms_to_ticks(struct kbase_device *kbdev, long timeout_ms,
 				int default_ticks, u32 old_ticks)
@@ -3934,6 +3999,7 @@ static struct attribute *kbase_attrs[] = {
 #endif
 	&dev_attr_js_timeouts.attr,
 	&dev_attr_soft_job_timeout.attr,
+	&dev_attr_fence_timeout.attr,
 	&dev_attr_gpuinfo.attr,
 	&dev_attr_dvfs_period.attr,
 	&dev_attr_pm_poweroff.attr,

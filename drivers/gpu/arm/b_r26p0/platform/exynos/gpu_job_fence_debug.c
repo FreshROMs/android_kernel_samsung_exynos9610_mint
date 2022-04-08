@@ -160,9 +160,9 @@ int gpu_job_fence_status_dump(struct sync_fence *timeout_fence)
 
 #include "mali_kbase_sync.h"
 /* If MALI_SEC_DEPENDENCY_CHECK is enabled, there could be deadlock. So, it could be enabled for debugging only */
-/* #define MALI_SEC_DEPENDENCY_CHECK */
+/* #define MALI_SEC_DEPENDENCY_CHECK*/
 
-#ifdef MALI_SEC_DEPENDENCY_CHECK
+#ifdef MALI_SEC_DEPENDENCY_CHECK 
 void gpu_fence_debug_check_dependency_atom(struct kbase_jd_atom *katom)
 {
 	struct kbase_context *kctx = katom->kctx;

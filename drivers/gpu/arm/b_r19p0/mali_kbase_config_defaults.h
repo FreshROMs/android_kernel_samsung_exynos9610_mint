@@ -170,6 +170,11 @@ enum {
 #define DEFAULT_JS_SOFT_JOB_TIMEOUT (3000) /* 3s */
 
 /**
+ * Default timeout for wait fence jobs, after which the job will be cancelled.
+ */
+#define DEFAULT_JS_FENCE_TIMEOUT (3000) /* 3s */
+
+/**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
  * "stuck" job
  */
