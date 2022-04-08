@@ -777,7 +777,6 @@ config INCREASE_MAXIMUM_SWAPPINESS
 	depends on SWAP
 	default y
 
-# IOPP-dirty_buffer-v2.0.4.14
 config LARGE_DIRTY_BUFFER
 	bool "Use large dirty_threshold value by enabling dirty_ratio"
 	default y
@@ -788,6 +787,7 @@ config LARGE_DIRTY_BUFFER
 
 config MAX_DIRTY_THRESH_PAGES
 	int "The upper bound of VM dirty_thresh value in number of pages"
+	depends on LARGE_DIRTY_BUFFER
 	default 25600
 	help
 	  This value is the upper bound of VM dirty-thresh. (0 means no limit.)
