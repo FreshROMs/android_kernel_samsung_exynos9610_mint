@@ -27,6 +27,17 @@
 #ifndef _KBASE_CONFIG_DEFAULTS_H_
 #define _KBASE_CONFIG_DEFAULTS_H_
 
+/*
+ * Increase multiplier to increase timeout limit for:
+ *
+ *  - JS_HARD_STOP_TICKS_SS
+ *  - JS_SOFT_JOB_TIMEOUT
+ *  - JS_RESET_TICKS_SS
+ *
+ * Default is 1
+ */
+#define TICK_MULTIPLIER (1)
+
 /* Include mandatory definitions per platform */
 #include <mali_kbase_config_platform.h>
 
@@ -134,7 +145,7 @@ enum {
 /**
  * Default minimum number of scheduling ticks before jobs are hard-stopped
  */
-#define DEFAULT_JS_HARD_STOP_TICKS_SS    (50) /* 5s */
+#define DEFAULT_JS_HARD_STOP_TICKS_SS    (50 * TICK_MULTIPLIER) /* Default: 5s */
 
 /**
  * Default minimum number of scheduling ticks before CL jobs are hard-stopped.
@@ -151,13 +162,13 @@ enum {
  * Default timeout for some software jobs, after which the software event wait
  * jobs will be cancelled.
  */
-#define DEFAULT_JS_SOFT_JOB_TIMEOUT (3000) /* 3s */
+#define DEFAULT_JS_SOFT_JOB_TIMEOUT (3000 * TICK_MULTIPLIER) /* Default: 3s */
 
 /**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
  * "stuck" job
  */
-#define DEFAULT_JS_RESET_TICKS_SS           (55) /* 5.5s */
+#define DEFAULT_JS_RESET_TICKS_SS           (55 * TICK_MULTIPLIER) /* Default: 5.5s */
 
 /**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
