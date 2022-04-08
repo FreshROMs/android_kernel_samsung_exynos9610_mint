@@ -22,8 +22,7 @@ menuconfig MALI_DDK_VERSION
 choice
 	prompt "version Configuration"
 	depends on MALI_DDK_VERSION
-	default MALI_BIFROST_R32P1 if ANDROID_VERSION >= "120000"
-	default MALI_BIFROST_R26P0_R if ANDROID_VERSION = "110000"
+	default MALI_BIFROST_R32P1 if ANDROID_VERSION >= "110000"
 	default MALI_BIFROST_R19P0_Q if ANDROID_VERSION < "110000"
 	help
 	Select the gpu support version.
