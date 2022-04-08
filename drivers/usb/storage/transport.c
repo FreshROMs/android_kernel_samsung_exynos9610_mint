@@ -63,9 +63,7 @@
 
 #include <linux/blkdev.h>
 #include "../../scsi/sd.h"
-#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 #include "../core/usb.h"
-#endif
 
 /***********************************************************************
  * Data transfer routines
