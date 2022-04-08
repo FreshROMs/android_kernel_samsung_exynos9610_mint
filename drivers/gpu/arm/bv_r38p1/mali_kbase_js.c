@@ -3609,6 +3609,59 @@ bool kbase_js_atom_blocked_on_x_dep(struct kbase_jd_atom *const katom)
 	return false;
 }
 
+/**
+ * kbase_js_defer_activate_for_slot() - Determine whether submission for a slot can be deferred
+ *
+ * This function checks whether all atoms in the specified job slot in the specified &kbase_context
+ * are marked as deferrable.
+ *
+ * @kctx: Context pointer
+ * @js:   The job slot
+ *
+ * Context: Process context, locks and unlocks the JS mutex for &kctx and locks and unlocks the
+ *          HW access spinlock.
+ *
+ * Return: Returns true if all atoms in job slot &js in context &kctx are deferrable. Otherwise
+ *         false is returned.
+ */
+static bool kbase_js_defer_activate_for_slot(struct kbase_context *kctx, int js)
+{
+	struct kbase_device *kbdev = kctx->kbdev;
+	unsigned long flags;
+	int prio;
+	bool ret = false;
+
+	/* Currently we only mark atoms for JS1 deferrable. Rely on that here to
+	 * avoid the cost of traversing runnable queues that shouldn't have
+	 * deferrable atoms. If we ever extend deferrability to more cases this
+	 * will need to be revisited.
+	 */
+	if (js != 1 || kbase_pm_is_active(kbdev))
+		return false;
+
+	mutex_lock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+	for (prio = KBASE_JS_ATOM_SCHED_PRIO_HIGH; prio < KBASE_JS_ATOM_SCHED_PRIO_COUNT; prio++) {
+		struct rb_root *queue = &kctx->jsctx_queue[prio][js].runnable_tree;
+		struct rb_node *node;
+		struct kbase_jd_atom *katom;
+
+		for (node = rb_first(queue); node; node = rb_next(node)) {
+			katom = rb_entry(node, struct kbase_jd_atom, runnable_tree_node);
+			if (!(katom->atom_flags & KBASE_KATOM_FLAG_DEFER_WHILE_POWEROFF))
+				goto done;
+		}
+	}
+
+	ret = true;
+
+done:
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+	return ret;
+}
+
 void kbase_js_sched(struct kbase_device *kbdev, int js_mask)
 {
 	struct kbasep_js_device_data *js_devdata;
@@ -3633,6 +3686,7 @@ void kbase_js_sched(struct kbase_device *kbdev, int js_mask)
 	}
 
 	while (js_mask) {
+		struct kbase_context *first_deferred_ctx = NULL;
 		js = ffs(js_mask) - 1;
 
 		while (1) {
@@ -3641,6 +3695,21 @@ void kbase_js_sched(struct kbase_device *kbdev, int js_mask)
 			bool context_idle = false;
 
 			kctx = kbase_js_ctx_list_pop_head(kbdev, js);
+
+			if (first_deferred_ctx && kctx == first_deferred_ctx) {
+				if (!kbase_pm_is_active(kbdev)) {
+					mutex_lock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+					if (kbase_js_ctx_list_add_pullable_head(
+						kctx->kbdev, kctx, js))
+						kbase_js_sync_timers(kbdev);
+					mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+					/* Stop looking for new pullable work for this slot */
+					kctx = NULL;
+				} else {
+					/* The GPU is powered on now, give this ctx another try */
+					first_deferred_ctx = NULL;
+				}
+			}
 
 			if (!kctx) {
 				js_mask &= ~(1 << js);
@@ -3656,6 +3725,24 @@ void kbase_js_sched(struct kbase_device *kbdev, int js_mask)
 				dev_dbg(kbdev->dev,
 					"kctx %pK is not active (s:%d)\n",
 					(void *)kctx, js);
+
+				if (kbase_js_defer_activate_for_slot(kctx, js)) {
+					bool ctx_count_changed;
+					dev_dbg(kbdev->dev,
+						"Deferring activation of kctx %pK for JS%d\n",
+						(void *)kctx, js);
+					mutex_lock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+					spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+					ctx_count_changed = kbase_js_ctx_list_add_pullable_nolock(
+							kctx->kbdev, kctx, js);
+					spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+					mutex_unlock(&kctx->jctx.sched_info.ctx.jsctx_mutex);
+					if (ctx_count_changed)
+						kbase_backend_ctx_count_changed(kctx->kbdev);
+					if (!first_deferred_ctx)
+						first_deferred_ctx = kctx;
+					continue;
+				}
 
 				if (kbase_pm_context_active_handle_suspend(
 									kbdev,
@@ -3678,6 +3765,9 @@ void kbase_js_sched(struct kbase_device *kbdev, int js_mask)
 									  0);
 					return;
 				}
+				dev_dbg(kbdev->dev,
+					"Activated kctx %pK for JS%d\n",
+					(void *)kctx, js);
 				kbase_ctx_flag_set(kctx, KCTX_ACTIVE);
 			}
 
