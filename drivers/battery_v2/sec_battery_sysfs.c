@@ -2809,7 +2809,7 @@ ssize_t sec_bat_store_attrs(
 				pr_info("%s: update BATT_FULL_CAPACITY(%d)\n", __func__, x);
 				battery->batt_full_capacity = x;
 
-				wake_lock(&battery->monitor_wake_lock);
+				wake_lock_stock(&battery->monitor_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue,
 					&battery->monitor_work, 0);
 			} else {
