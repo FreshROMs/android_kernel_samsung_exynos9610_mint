@@ -5,7 +5,7 @@
 config TZIC
     tristate "TZIC Driver"
     depends on !PROCA_S_OS
-    default y
+    default n
     ---help---
       Enable TZIC Driver support.
 
