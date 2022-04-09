@@ -3,8 +3,8 @@
 #
 
 config FIVE_TEE_DRIVER
-    bool "Integrity TEE Driver"
-    depends on FIVE
+    tristate "Integrity TEE Driver"
+    depends on FIVE && !PROCA_S_OS
     default y
     ---help---
       Enable Integrity Trusted Execution Environment support
