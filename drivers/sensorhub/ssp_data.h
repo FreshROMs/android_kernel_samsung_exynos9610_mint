@@ -60,6 +60,7 @@ int save_gyro_cal_data(struct ssp_data *data, s16 *cal_data);
 #ifdef CONFIG_SENSORS_SSP_ACCELOMETER
 int accel_open_calibration(struct ssp_data *);
 int set_accel_cal(struct ssp_data *);
+int set_device_orientation_mode(struct ssp_data *data);
 #endif
 #ifdef CONFIG_SENSORS_SSP_BAROMETER
 int pressure_open_calibration(struct ssp_data *);

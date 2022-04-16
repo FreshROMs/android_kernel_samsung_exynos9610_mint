@@ -113,7 +113,16 @@ static int ssp_inject_additional_info(struct ssp_data *data,
 		}
 	}
 #endif
-
+#ifdef CONFIG_SENSORS_SSP_ACCELOMETER
+	if (type == SENSOR_TYPE_DEVICE_ORIENTATION) {
+		if (count < 2) {
+			ssp_errf("orientation mode length error %d", count);
+			return -EINVAL;
+		}
+		data->orientation_mode = buf[1];
+		set_device_orientation_mode(data);
+	}
+#endif
 	return ret;	
 }
 

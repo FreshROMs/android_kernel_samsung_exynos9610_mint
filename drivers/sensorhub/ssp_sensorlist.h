@@ -49,5 +49,7 @@
 #define SENSOR_INFO_PROXIMITY_CALIBRATION	       {"proximity_calibration", true, 4, 0}
 #define SENSOR_INFO_SENSORHUB			   {"sensorhub_sensor", true, 0, 3}
 #define SENSOR_INFO_PROTOS_MOTION		       {"protos_motion", true, 1, 1}
+#define SENSOR_INFO_DEVICE_ORIENTATION			{"device_orientation", true, 1, 1}
+#define SENSOR_INFO_DEVICE_ORIENTATION_WU		{"device_orientation_wu", true, 1, 1}
 #endif
 

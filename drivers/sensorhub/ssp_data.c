@@ -898,6 +898,29 @@ int set_accel_cal(struct ssp_data *data)
 
 	return ret;
 }
+
+
+#define ORIENTATION_CMD_MODE	128
+int set_device_orientation_mode(struct ssp_data *data)
+{
+	int ret = 0;
+
+	if (!(data->sensor_probe_state & (1ULL << SENSOR_TYPE_DEVICE_ORIENTATION))) {
+		ssp_infof("sensor is not connected(0x%llx)", data->sensor_probe_state);
+		return ret;
+	}
+
+	ret = ssp_send_command(data, CMD_SETVALUE, SENSOR_TYPE_DEVICE_ORIENTATION, ORIENTATION_CMD_MODE, 0,
+				&data->orientation_mode, sizeof(data->orientation_mode), NULL, NULL);
+	if (ret < 0) {
+		ssp_errf("CMD fail %d", ret);
+		return ret;
+	}
+
+	ssp_infof("%d", data->orientation_mode);
+
+	return ret;
+}
 #endif
 
 #ifdef CONFIG_SENSORS_SSP_BAROMETER

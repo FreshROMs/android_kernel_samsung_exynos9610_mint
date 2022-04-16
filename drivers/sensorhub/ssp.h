@@ -232,7 +232,7 @@ struct sensor_spec_t {
 	uint8_t uid;
 	uint8_t name[15];
 	uint8_t vendor;
-	uint16_t version;
+	uint32_t version;
 	uint8_t is_wake_up;
 	int32_t min_delay;
 	uint32_t max_delay;
@@ -328,6 +328,7 @@ struct ssp_data {
 	struct  accelometer_sensor_operations *accel_ops;
 	int accel_position;
 	struct calibraion_data accelcal;
+	u8 orientation_mode;
 #endif
 #ifdef CONFIG_SENSORS_SSP_GYROSCOPE
 	struct  gyroscope_sensor_operations *gyro_ops;
