@@ -228,13 +228,17 @@ bool scsc_bt_shm_h4_avdtp_detect_write(uint32_t flags,
 	return true;
 }
 
+#ifndef CONFIG_MINT_SESL
+#define HCI_GRP_LINK_CONTROL_CMDS (0x01 << 10)       /* 0x0400 */
+#define HCI_ENH_SETUP_ESCO_CONNECTION (0x003D | HCI_GRP_LINK_CONTROL_CMDS)
+#endif
 
 static ssize_t scsc_bt_shm_h4_hci_cmd_write(const unsigned char *data, size_t count)
 {
 	/* Store the read/write pointer on the stack since both are placed in unbuffered/uncached memory */
 	uint32_t tr_read = bt_service.bsmhcp_protocol->header.mailbox_hci_cmd_read;
 	uint32_t tr_write = bt_service.bsmhcp_protocol->header.mailbox_hci_cmd_write;
-#ifdef CONFIG_SCSC_PRINTK
+#if defined(CONFIG_SCSC_PRINTK) || !defined(CONFIG_MINT_SESL)
 	uint16_t op_code = *(uint16_t *) data;
 #endif
 
@@ -255,6 +259,15 @@ static ssize_t scsc_bt_shm_h4_hci_cmd_write(const unsigned char *data, size_t co
 		/* Fill the transfer descriptor with the HCI command data */
 		memcpy(td->data, data, count);
 		td->length = (u16)count;
+
+#ifndef CONFIG_MINT_SESL
+		if (op_code == HCI_ENH_SETUP_ESCO_CONNECTION) {
+			// input_transport_unit_size
+			td->data[55] = 16;
+			// output_transport_unit_size
+			td->data[56] = 16;
+		}
+#endif
 
 		/* Ensure the wake lock is acquired */
 		if (!wake_lock_active(&bt_service.write_wake_lock)) {
