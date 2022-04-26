@@ -76,10 +76,10 @@
 #include <uapi/linux/sched/types.h>
 #include "binder_alloc.h"
 #include "binder_trace.h"
+
 #ifdef CONFIG_SAMSUNG_FREECESS
 #include <linux/freecess.h>
 #endif
-
 int system_server_pid = 0;
 
 #ifdef CONFIG_FAST_TRACK
@@ -2457,7 +2457,8 @@ static size_t binder_get_object(struct binder_proc *proc,
 	size_t object_size = 0;
 
 	read_size = min_t(size_t, sizeof(*object), buffer->data_size - offset);
-	if (read_size < sizeof(*hdr) || !IS_ALIGNED(offset, sizeof(u32)))
+	if (offset > buffer->data_size || read_size < sizeof(*hdr) ||
+	    !IS_ALIGNED(offset, sizeof(u32)))
 		return 0;
 	binder_alloc_copy_from_buffer(&proc->alloc, object, buffer,
 				      offset, read_size);
@@ -2998,7 +2999,7 @@ static int binder_translate_fd_array(struct binder_fd_array_object *fda,
 	}
 	for (fdi = 0; fdi < fda->num_fds; fdi++) {
 		u32 fd;
-		int target_fd;
+
 		binder_size_t offset = fda_offset + fdi * sizeof(fd);
 
 		binder_alloc_copy_from_buffer(&target_proc->alloc,
@@ -3245,7 +3246,7 @@ static struct binder_node *binder_get_node_refs_for_txn(
 }
 
 #ifdef CONFIG_SAMSUNG_FREECESS
-// 1) Skip first 8(P)/12(Q) bytes (useless data)
+// 1) Skip first 8 bytes (useless data)
 // 2) Make sure that the invalid address issue is not occuring (j=9, j+=2)
 // 3) Java layer uses 2 bytes char. And only the first byte has the data. (p+=2)
 // 4) Parcel::writeInterfaceToken() in frameworks/native/libs/binder/Parcel.cpp
@@ -3285,8 +3286,8 @@ static void freecess_async_binder_report(struct binder_proc *proc,
 					j = skip_bytes + 1;
 					while (i < INTERFACETOKEN_BUFF_SIZE && j < t->buffer->data_size && *p != '\0') {
 						buf[i++] = *p;
-						j += 2;
-						p += 2;
+						j+=2;
+						p+=2;
 					}
 					if (i == INTERFACETOKEN_BUFF_SIZE) buf[i-1] = '\0';
 				}
@@ -3460,8 +3461,8 @@ static void binder_transaction(struct binder_proc *proc,
 #ifdef CONFIG_SAMSUNG_FREECESS
 		freecess_sync_binder_report(proc, target_proc, tr);
 #endif
-
-                if (security_binder_transaction(proc->tsk,
+		
+		if (security_binder_transaction(proc->tsk,
 						target_proc->tsk) < 0) {
 			return_error = BR_FAILED_REPLY;
 			return_error_param = -EPERM;
@@ -3571,7 +3572,7 @@ static void binder_transaction(struct binder_proc *proc,
 	if (target_node && target_node->txn_security_ctx) {
 		u32 secid;
 		size_t added_size;
-		
+
 		security_task_getsecid(proc->tsk, &secid);
 		ret = security_secid_to_secctx(secid, &secctx, &secctx_sz);
 		if (ret) {
@@ -3630,7 +3631,6 @@ static void binder_transaction(struct binder_proc *proc,
 		security_release_secctx(secctx, secctx_sz);
 		secctx = NULL;
 	}
-	
 	t->buffer->debug_id = t->debug_id;
 	t->buffer->transaction = t;
 	t->buffer->target_node = target_node;
@@ -3776,7 +3776,7 @@ static void binder_transaction(struct binder_proc *proc,
 			binder_size_t parent_offset;
 			struct binder_fd_array_object *fda =
 				to_binder_fd_array_object(hdr);
-			size_t num_valid = (buffer_offset - off_start_offset) *
+			size_t num_valid = (buffer_offset - off_start_offset) / 
 						sizeof(binder_size_t);
 			struct binder_buffer_object *parent =
 				binder_validate_ptr(target_proc, t->buffer,
@@ -3850,7 +3850,7 @@ static void binder_transaction(struct binder_proc *proc,
 				t->buffer->user_data + sg_buf_offset;
 			sg_buf_offset += ALIGN(bp->length, sizeof(u64));
 
-			num_valid = (buffer_offset - off_start_offset) *
+			num_valid = (buffer_offset - off_start_offset) /
 					sizeof(binder_size_t);
 			ret = binder_fixup_parent(t, thread, bp,
 						  off_start_offset,
@@ -4618,7 +4618,6 @@ retry:
 		uint32_t cmd;
 		struct binder_transaction_data_secctx tr;
 		struct binder_transaction_data *trd = &tr.transaction_data;
-
 		struct binder_work *w = NULL;
 		struct list_head *list = NULL;
 		struct binder_transaction *t = NULL;
@@ -4827,7 +4826,6 @@ retry:
 
 			trd->target.ptr = target_node->ptr;
 			trd->cookie =  target_node->cookie;
-
 			node_prio.sched_policy = target_node->sched_policy;
 			node_prio.prio = target_node->min_priority;
 			binder_transaction_priority(current, t, node_prio,
@@ -4846,8 +4844,9 @@ retry:
 		if (t_from) {
 			struct task_struct *sender = t_from->proc->tsk;
 
-			trd->sender_pid = task_tgid_nr_ns(sender,
-							task_active_pid_ns(current));
+			trd->sender_pid =
+				task_tgid_nr_ns(sender,
+						task_active_pid_ns(current));
 #ifdef CONFIG_FAST_TRACK
 			ftt_binder_enqueue(thread, t_from);
 #endif
@@ -4887,10 +4886,10 @@ retry:
 			return -EFAULT;
 		}
 		ptr += trsize;
+
 #ifdef CONFIG_DEBUG_SNAPSHOT_BINDER
 		dss_binder_transaction_received(t, thread);
 #endif
-		
 		trace_binder_transaction_received(t);
 		binder_stat_br(proc, thread, cmd);
 		binder_debug(BINDER_DEBUG_TRANSACTION,
@@ -5425,7 +5424,6 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto err;
 		break;
 	}
-
 	case BINDER_SET_CONTEXT_MGR:
 		ret = binder_ioctl_set_ctx_mgr(filp, NULL);
 		if (ret)

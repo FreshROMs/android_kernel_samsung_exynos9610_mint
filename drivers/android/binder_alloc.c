@@ -519,8 +519,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		alloc->free_async_space -= size + sizeof(struct binder_buffer);
 		if ((system_server_pid == alloc->pid) && (alloc->free_async_space <= 153600)) { // 150K
 			pr_info("%d: [free_size<150K] binder_alloc_buf size %zd async free %zd\n",
-                                 alloc->pid, size, alloc->free_async_space);
-                }
+					alloc->pid, size, alloc->free_async_space);
+		}
 		if ((system_server_pid == alloc->pid) && (size >= 122880)) { // 120K
 			pr_info("%d: [alloc_size>120K] binder_alloc_buf size %zd async free %zd\n",
 				alloc->pid, size, alloc->free_async_space);
@@ -954,7 +954,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 	index = page - alloc->pages;
 	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
-	
+
 	mm = alloc->vma_vm_mm;
 	if (!mmget_not_zero(mm))
 		goto err_mmget;
@@ -971,6 +971,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 		zap_page_range(vma, page_addr, PAGE_SIZE);
 
 		trace_binder_unmap_user_end(alloc, index);
+
 	}
 	up_write(&mm->mmap_sem);
 	mmput(mm);
