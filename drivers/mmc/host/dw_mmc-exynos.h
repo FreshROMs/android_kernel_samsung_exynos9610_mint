@@ -12,7 +12,6 @@
 #ifndef _DW_MMC_EXYNOS_H_
 #define _DW_MMC_EXYNOS_H_
 
-#include <crypto/smu.h>
 #include <crypto/fmp.h>
 
 #define NUM_PINS(x)			(x + 2)
@@ -73,9 +72,9 @@ struct dw_mci_exynos_priv_data {
 	struct pinctrl_state *clk_drive_str[6];
 	int cd_gpio;
 	int sec_sd_slot_type;
-#define SEC_NO_DET_SD_SLOT  0	/* No detect GPIO SD slot case */
-#define SEC_HOTPLUG_SD_SLOT 1	/* detect GPIO SD slot without Tray */
-#define SEC_HYBRID_SD_SLOT  2	/* detect GPIO SD slot with Tray */
+#define SEC_NO_DET_SD_SLOT  0 /* No detect GPIO SD slot case */
+#define SEC_HOTPLUG_SD_SLOT 1 /* detect GPIO SD slot without Tray */
+#define SEC_HYBRID_SD_SLOT  2 /* detect GPIO SD slot with Tray */
 	u32 caps;
 	u32 ctrl_flag;
 	u32 ctrl_windows;

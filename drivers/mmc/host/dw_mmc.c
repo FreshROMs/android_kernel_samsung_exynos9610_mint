@@ -999,6 +999,7 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 	int i;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int sector_offset = 0;
+	int page_index = 0;
 	int ret;
 
 	desc_first = desc_last = desc = host->sg_cpu;
@@ -1040,7 +1041,8 @@ static inline int dw_mci_prepare_desc64(struct dw_mci *host,
 
 			if (drv_data->crypto_engine_cfg) {
 				ret = drv_data->crypto_engine_cfg(host, desc, data,
-						sg_page(&data->sg[i]), sector_offset, false);
+						sg_page(&data->sg[i]), page_index++,
+						sector_offset, false);
 				if (ret) {
 					dev_err(host->dev,
 							"%s: failed to configure crypto engine (%d)\n",
@@ -3950,7 +3952,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 		/* Power down slot */
 		if (present == 0) {
- 			dw_mci_reset(host);
+			dw_mci_reset(host);
 
 			if (host->pdata->only_once_tune)
 				host->pdata->tuned = false;
@@ -4194,17 +4196,8 @@ int dw_mci_probe(struct dw_mci *host)
 			drv_data->hwacg_control(host, HWACG_Q_ACTIVE_DIS);
 	}
 
-	/* init fmp config */
-	if (drv_data && drv_data->crypto_engine_sec_cfg) {
-		ret = drv_data->crypto_engine_sec_cfg(host);
-		if (ret)
-			dev_err(host->dev, "%s: Fail to control security config.(%x)\n",
-						__func__, ret);
-	}
-
-	/* init smu config */
-	if (drv_data && drv_data->access_control_init) {
-		ret = drv_data->access_control_init(host);
+	if (drv_data && drv_data->crypto_sec_cfg) {
+		ret = drv_data->crypto_sec_cfg(host, true);
 		if (ret)
 			dev_err(host->dev, "%s: Fail to initialize access control.(%d)\n",
 				__func__, ret);
@@ -4538,17 +4531,10 @@ int dw_mci_runtime_resume(struct device *dev)
 			drv_data->hwacg_control(host, HWACG_Q_ACTIVE_DIS);
 	}
 
-	if (drv_data && drv_data->crypto_engine_sec_cfg) {
-		ret = drv_data->crypto_engine_sec_cfg(host);
+	if (drv_data && drv_data->crypto_sec_cfg) {
+		ret = drv_data->crypto_sec_cfg(host, false);
 		if (ret)
 			dev_err(host->dev, "%s: Fail to control security config.(%x)\n",
-				__func__, ret);
-	}
-
-	if (drv_data && drv_data->access_control_resume) {
-		ret = drv_data->access_control_resume(host);
-		if (ret)
-			dev_err(host->dev, "%s: Fail to resume access control.(%d)\n",
 				__func__, ret);
 	}
 

@@ -181,14 +181,14 @@ unsigned char *blk_crypt_get_key(blk_crypt_t *bc_ctx)
 	return bctx->bc_alg->hw_cbs->get_key(bctx->bc_private);
 }
 
-int blk_crypt_set_key(blk_crypt_t *bc_ctx, u8 *raw_key, u32 keysize)
+int blk_crypt_set_key(blk_crypt_t *bc_ctx, u8 *raw_key, u32 keysize, void *priv)
 {
 	struct blk_crypt_context *bctx = bc_ctx;
 
 	if (!bctx)
 		return -EINVAL;
 
-	return bctx->bc_alg->hw_cbs->set_key(bctx->bc_private, raw_key, keysize);
+	return bctx->bc_alg->hw_cbs->set_key(bctx->bc_private, raw_key, keysize, priv);
 }
 
 void *blk_crypt_get_data(blk_crypt_t *bc_ctx)

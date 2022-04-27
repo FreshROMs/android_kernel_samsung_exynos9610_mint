@@ -12,8 +12,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
+#include <linux/bio.h>
 
-#define FMP_DRV_VERSION "1.5.0"
+#define FMP_DRV_VERSION "2.0.0"
 
 #define FMP_KEY_SIZE_16		16
 #define FMP_KEY_SIZE_32		32
@@ -75,7 +76,9 @@ struct fmp_crypto_info {
 	void *ctx;
 };
 
-#if defined(CONFIG_MMC_DW_EXYNOS_FMP)
+#if defined(CONFIG_MMC_DW_EXYNOS_FMP) && defined(CONFIG_SCSI_UFS_EXYNOS_FMP)
+#error "FMP doesn't support muti-host"
+#elif defined(CONFIG_MMC_DW_EXYNOS_FMP)
 struct fmp_table_setting {
 	__le32 des0;		/* des0 */
 #define GET_CMDQ_LENGTH(d) \
@@ -258,17 +261,64 @@ static inline void exynos_fmp_bypass(void *desc, bool cmdq_enabled)
 #endif
 }
 
-int exynos_fmp_sec_config(int id);
+#define ACCESS_CONTROL_ABORT	0x14
+
+#ifndef SMC_CMD_FMP_SECURITY
+/* For FMP/SMU Ctrl */
+#define SMC_CMD_FMP_SECURITY		(0xC2001810)
+#define SMC_CMD_FMP_DISK_KEY_STORED	(0xC2001820)
+#define SMC_CMD_FMP_DISK_KEY_SET	(0xC2001830)
+#define SMC_CMD_FMP_DISK_KEY_CLEAR	(0xC2001840)
+#define SMC_CMD_SMU			(0xC2001850)
+#define SMC_CMD_FMP_SMU_RESUME		(0xC2001860)
+#define SMC_CMD_FMP_SMU_DUMP		(0xC2001870)
+#define SMC_CMD_UFS_LOG			(0xC2001880)
+
+/* For FMP/SMU Ctrl */
+#define SMC_CMD_FMP_SECURITY		(0xC2001810)
+#define SMC_CMD_FMP_DISK_KEY_STORED	(0xC2001820)
+#define SMC_CMD_FMP_DISK_KEY_SET	(0xC2001830)
+#define SMC_CMD_FMP_DISK_KEY_CLEAR	(0xC2001840)
+#define SMC_CMD_SMU			(0xC2001850)
+#define SMC_CMD_FMP_SMU_RESUME		(0xC2001860)
+#define SMC_CMD_FMP_SMU_DUMP		(0xC2001870)
+#define SMC_CMD_UFS_LOG			(0xC2001880)
+#endif
+
+enum smu_id {
+	SMU_EMBEDDED = 0,
+	SMU_UFSCARD = 1,
+	SMU_SDCARD = 2,
+	SMU_ID_MAX,
+};
+
+enum smu_command {
+	SMU_INIT = 0,
+	SMU_SET = 1,
+	SMU_ABORT = 2,
+};
+
+/* fmp functions */
+#ifdef CONFIG_EXYNOS_FMP
+int exynos_fmp_sec_cfg(int fmp_id, int smu_id, bool init);
+int exynos_fmp_smu_abort(int id);
+int exynos_fmp_crypt_cfg(struct bio *bio, void *table_base,
+		u32 page_idx, u32 sector_unit);
+int exynos_fmp_crypt_clear(struct bio *bio, void *table_addr);
+#else
+#define exynos_fmp_sec_cfg(a, b, c) (0)
+#define exynos_fmp_smu_abort(a) (0)
+#define exynos_fmp_crypt_cfg(a, b, c, d) (0)
+#define exynos_fmp_crypt_clear(a, b) (0)
+#endif
 int exynos_fmp_crypt(struct fmp_crypto_info *ci, void *priv);
 int exynos_fmp_clear(struct fmp_crypto_info *ci, void *priv);
 int exynos_fmp_setkey(struct fmp_crypto_info *ci,
 		u8 *in_key, u32 keylen, bool persistent);
 int exynos_fmp_clearkey(struct fmp_crypto_info *ci);
 void *exynos_fmp_init(struct platform_device *pdev);
-void exynos_fmp_exit(struct exynos_fmp *fmp);
-#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+void exynos_fmp_exit(struct platform_device *pdev);
 int exynos_fmp_test_crypt(struct fmp_crypto_info *ci,
 		const uint8_t *iv, uint32_t ivlen, uint8_t *src,
 		uint8_t *dst, uint32_t len, bool enc, void *priv);
-#endif
 #endif /* _EXYNOS_FMP_H_ */

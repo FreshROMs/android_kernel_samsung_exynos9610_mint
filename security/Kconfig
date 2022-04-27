@@ -235,10 +235,10 @@ source security/yama/Kconfig
 source security/mstdrv/Kconfig
 
 source security/integrity/Kconfig
-source security/proca/Kconfig
 source security/samsung/five/Kconfig
-source security/samsung/defex_lsm/Kconfig
+source security/proca/Kconfig
 source security/samsung/dsms/Kconfig
+source security/samsung/defex_lsm/Kconfig
 
 choice
 	prompt "Default security module"
@@ -282,12 +282,6 @@ config SDP
     default n
     help
     Sensitive Data Protection
-
-config DDAR
-    bool "Enables dual encryption"
-    default n
-    help
-    Knox Dual-DAR (Data-At-Rest) protection
 
 config SDP_KEY_DUMP
     bool "SDP KEY DUMP"

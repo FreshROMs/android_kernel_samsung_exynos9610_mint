@@ -98,7 +98,4 @@ endif
 obj-$(CONFIG_MMC_SDHCI_XENON)	+= sdhci-xenon-driver.o
 sdhci-xenon-driver-y		+= sdhci-xenon.o sdhci-xenon-phy.o
 
-ifneq ($(filter y, $(CONFIG_MMC_DW_EXYNOS_SMU) $(CONFIG_MMC_DW_EXYNOS_FMP)),)
-obj-y += dw_mmc-exynos-fmp.o
-endif
 obj-$(CONFIG_MMC_SRPMB)		+= dw_mmc-srpmb.o

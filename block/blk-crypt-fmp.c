@@ -44,13 +44,13 @@ static void blk_crypt_fmp_free_aes_xts(void *data)
 	if (!data)
 		return;
 
-	crypto_free_req_diskcipher((struct crypto_diskcipher *)data);
+	crypto_free_diskcipher((struct crypto_diskcipher *)data);
 }
 
-static int blk_crypt_fmp_set_key(void *data, const char *raw_key, int keysize)
+static int blk_crypt_fmp_set_key(void *data, const char *raw_key, int keysize, void *priv)
 {
 	return crypto_diskcipher_setkey((struct crypto_diskcipher *)data,
-					raw_key, keysize, 0);
+					raw_key, keysize, 0, (struct inode *)priv);
 }
 
 static const struct blk_crypt_algorithm_cbs fmp_hw_xts_cbs = {

@@ -1,6 +1,6 @@
 # Ext3 configs are here for backward compatibility with old configs which may
 # have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
-# kernels after the removal of ext3 driver.
+# kernels after the removal of ext3 driver..
 config EXT3_FS
 	tristate "The Extended 3 (ext3) filesystem"
 	# These must match EXT4_FS selects...
@@ -77,7 +77,7 @@ config EXT4_FS_POSIX_ACL
 	bool "Ext4 POSIX Access Control Lists"
 	depends on EXT4_FS
 	select FS_POSIX_ACL
-	default y if ANDROID_VERSION >= "90000"
+	default y
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.

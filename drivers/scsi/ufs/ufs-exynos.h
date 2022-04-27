@@ -18,7 +18,7 @@
 #else
 #include "ufs-cal-9810.h"
 #endif
-#include <crypto/smu.h>
+#include <crypto/fmp.h>
 
 #define UFS_VER_0004	4
 #define UFS_VER_0005	5

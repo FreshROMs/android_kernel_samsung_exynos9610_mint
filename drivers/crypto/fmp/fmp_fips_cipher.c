@@ -15,7 +15,7 @@
 #include "fmp_fips_info.h"
 
 int fmp_cipher_set_key(struct fmp_test_data *fdata,
-		uint8_t *key, uint32_t key_len)
+		const u8 *key, uint32_t key_len)
 {
 	int ret = 0;
 	struct fmp_crypto_info *ci;
@@ -68,7 +68,7 @@ err:
 }
 
 int fmp_cipher_set_iv(struct fmp_test_data *fdata,
-		uint8_t *iv, uint32_t iv_len)
+		const u8 *iv, uint32_t iv_len)
 {
 	int ret = 0;
 	struct fmp_crypto_info *ci;

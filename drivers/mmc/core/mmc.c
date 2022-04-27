@@ -622,15 +622,8 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 	/* eMMC v5 or later */
 	if (card->ext_csd.rev >= 7) {
-		u64 mmc_fwrev = 0;
-		int i;
-
-		for (i = 0 ; i < MMC_FIRMWARE_LEN ; i++) {
-			card->ext_csd.fwrev[i] =
-				ext_csd[EXT_CSD_FIRMWARE_VERSION + MMC_FIRMWARE_LEN - 1 - i];
-			mmc_fwrev |= card->ext_csd.fwrev[i] << ((MMC_FIRMWARE_LEN - 1 - i) << 3);
-		}
-		pr_info("%s: eMMC Firmware version: %llu\n", mmc_hostname(card->host), mmc_fwrev);
+		memcpy(card->ext_csd.fwrev, &ext_csd[EXT_CSD_FIRMWARE_VERSION],
+		       MMC_FIRMWARE_LEN);
 		card->ext_csd.ffu_capable =
 			(ext_csd[EXT_CSD_SUPPORTED_MODE] & 0x1) &&
 			!(ext_csd[EXT_CSD_FW_CONFIG] & 0x1);
@@ -774,42 +767,6 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 	return err;
 }
 
-static ssize_t mmc_gen_unique_number_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct mmc_card *card = mmc_dev_to_card(dev);
-	char gen_pnm[3];
-	int i;
-
-	switch (card->cid.manfid) {
-		case 0x02:  /* Sandisk  -> [3][4] */
-		case 0x45:
-			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 3);
-			break;
-		case 0x11:  /* Toshiba  -> [1][2] */
-		case 0x90:  /* Hynix */
-			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 1);
-			break;
-		case 0x13:
-		case 0xFE:  /* Micron   -> [4][5] */
-			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 4);
-			break;
-		case 0x15:  /* Samsung  -> [0][1] */
-		default:
-			sprintf(gen_pnm, "%.*s", 2, card->cid.prod_name + 0);
-			break;
-	}
-	/* Convert to Captal */
-	for (i = 0 ; i < 2 ; i++)
-	{
-		if (gen_pnm[i] >= 'a' && gen_pnm[i] <= 'z')
-			gen_pnm[i] -= ('a' - 'A');
-	}
-	return sprintf(buf, "C%s%02X%08X%02X\n",
-			gen_pnm, card->cid.prv, card->cid.serial, UNSTUFF_BITS(card->raw_cid, 8, 8));
-}
-
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
@@ -834,28 +791,6 @@ MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
 MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
-MMC_DEV_ATTR(hpi_support, "%d\n", card->ext_csd.hpi);
-MMC_DEV_ATTR(hpi_enable, "%d\n", card->ext_csd.hpi_en);
-MMC_DEV_ATTR(hpi_command, "%d\n", card->ext_csd.hpi_cmd);
-MMC_DEV_ATTR(bkops_support, "%d\n", card->ext_csd.bkops);
-MMC_DEV_ATTR(bkops_enable, "Manual : %s / Auto : %s\n", 
-		(card->ext_csd.auto_bkops_en) ? "Enable" : "Disable",
-		(card->ext_csd.man_bkops_en) ? "Enable" : "Disable");
-MMC_DEV_ATTR(caps, "0x%08x\n", (unsigned int)(card->host->caps));
-MMC_DEV_ATTR(caps2, "0x%08x\n", card->host->caps2);
-MMC_DEV_ATTR(erase_type, "MMC_CAP_ERASE %s, type %s, SECURE %s, Sanitize %s\n",
-		card->host->caps & MMC_CAP_ERASE ? "enabled" : "disabled",
-		mmc_can_discard(card) ? "DISCARD" :
-		(mmc_can_trim(card) ? "TRIM" : "NORMAL"),
-		(!mmc_can_sanitize(card) && mmc_can_secure_erase_trim(card) &&
-		 !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN)) ?
-		"supportable" : "disabled",
-		(mmc_can_sanitize(card) &&
-		 !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN)) ?
-		"enabled" : "disabled");
-MMC_DEV_ATTR(packed_cmd, "packed_cmd %s / %s\n",
-		card->host->caps2 & MMC_CAP2_PACKED_WR ? "WR enabled" : "WR disabled",
-		card->host->caps2 & MMC_CAP2_PACKED_RD ? "RD enabled" : "RD disabled");
 MMC_DEV_ATTR(ocr, "0x%08x\n", card->ocr);
 MMC_DEV_ATTR(cmdq_en, "%d\n", card->ext_csd.cmdq_en);
 
@@ -873,7 +808,6 @@ static ssize_t mmc_fwrev_show(struct device *dev,
 	}
 }
 
-static DEVICE_ATTR(unique_number, (S_IRUSR|S_IRGRP), mmc_gen_unique_number_show, NULL);
 static DEVICE_ATTR(fwrev, S_IRUGO, mmc_fwrev_show, NULL);
 
 static ssize_t mmc_dsr_show(struct device *dev,
@@ -913,19 +847,9 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_enhanced_area_size.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
-	&dev_attr_hpi_support.attr,
-	&dev_attr_hpi_enable.attr,
-	&dev_attr_hpi_command.attr,
-	&dev_attr_bkops_support.attr,
-	&dev_attr_bkops_enable.attr,
-	&dev_attr_caps.attr,
-	&dev_attr_caps2.attr,
-	&dev_attr_erase_type.attr,
-	&dev_attr_packed_cmd.attr,
 	&dev_attr_ocr.attr,
 	&dev_attr_dsr.attr,
 	&dev_attr_cmdq_en.attr,
-	&dev_attr_unique_number.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mmc_std);

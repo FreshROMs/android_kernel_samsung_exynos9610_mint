@@ -346,10 +346,12 @@ struct ufs_hba_variant_ops {
 	void	(*dbg_register_dump)(struct ufs_hba *hba);
 	u8      (*get_unipro_result)(struct ufs_hba *hba, u32 num);
 	int	(*phy_initialization)(struct ufs_hba *);
-	int	(*crypto_engine_cfg)(struct ufs_hba *, struct ufshcd_lrb *,
-					struct scatterlist *, int, int, int);
-	int	(*crypto_engine_clear)(struct ufs_hba *, struct ufshcd_lrb *);
-	int	(*access_control_abort)(struct ufs_hba *);
+	int	(*crypto_engine_cfg)(struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp);
+	int	(*crypto_engine_clear)(struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp);
+	int	(*crypto_sec_cfg)(struct ufs_hba *hba, bool init);
+	int	(*access_control_abort)(struct ufs_hba *hba);
 
 };
 
@@ -824,6 +826,7 @@ struct ufs_hba {
 	struct device_attribute manufacturer_id_attr;
 	char unique_number[UFS_UN_MAX_DIGITS];
 	u16 manufacturer_id;
+
 	u8 lifetime;
 	unsigned int lc_info;
 	
@@ -835,11 +838,10 @@ struct ufs_hba {
 	struct rw_semaphore clk_scaling_lock;
 	struct ufs_desc_size desc_size;
 	struct ufs_secure_log secure_log;
-
 	/* ITMON DEBUG */
 	void __iomem    *err_reg;
 	void __iomem    *monitor_reg;
-	
+
 #if defined(SEC_UFS_ERROR_COUNT)
 	struct SEC_UFS_counting SEC_err_info;
 #endif
@@ -1156,13 +1158,10 @@ static inline u8 ufshcd_vops_get_unipro(struct ufs_hba *hba, int num)
 }
 int ufshcd_read_health_desc(struct ufs_hba *hba, u8 *buf, u32 size);
 static inline int ufshcd_vops_crypto_engine_cfg(struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp,
-					struct scatterlist *sg, int index,
-					int sector_offset, int page_index)
+					struct ufshcd_lrb *lrbp)
 {
 	if (hba->vops && hba->vops->crypto_engine_cfg)
-		return hba->vops->crypto_engine_cfg(hba, lrbp, sg, index,
-						sector_offset, page_index);
+		return hba->vops->crypto_engine_cfg(hba, lrbp);
 	return 0;
 }
 
@@ -1181,6 +1180,12 @@ static inline int ufshcd_vops_access_control_abort(struct ufs_hba *hba)
 	return 0;
 }
 
+static inline int ufshcd_vops_crypto_sec_cfg(struct ufs_hba *hba, bool init)
+{
+	if (hba->vops && hba->vops->crypto_sec_cfg)
+		return hba->vops->crypto_sec_cfg(hba, init);
+	return 0;
+}
 #define UFS_DEV_ATTR(name, fmt, args...)					\
 static ssize_t ufs_##name##_show (struct device *dev, struct device_attribute *attr, char *buf)	\
 {										\

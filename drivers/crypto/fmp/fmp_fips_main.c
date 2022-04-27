@@ -25,9 +25,6 @@
 #include "fmp_fips_integrity.h"
 #include "fmp_test.h"
 
-static const char pass[] = "passed";
-static const char fail[] = "failed";
-
 enum fips_state {
 	FMP_FIPS_INIT_STATE,
 	FMP_FIPS_PROGRESS_STATE,
@@ -57,86 +54,6 @@ static void set_fmp_fips_state(uint32_t val)
 	fmp_fips_state = val;
 }
 
-static ssize_t fmp_fips_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.overall ? pass : fail);
-}
-
-static ssize_t fmp_fips_aes_xts_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.aes_xts ? pass : fail);
-}
-
-static ssize_t fmp_fips_aes_cbc_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.aes_cbc ? pass : fail);
-}
-
-static ssize_t fmp_fips_sha256_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.sha256 ? pass : fail);
-}
-
-static ssize_t fmp_fips_hmac_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.hmac ? pass : fail);
-}
-
-static ssize_t fmp_fips_integrity_result_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct exynos_fmp *fmp = dev_get_drvdata(dev);
-
-	return snprintf(buf, sizeof(pass), "%s\n", fmp->result.integrity ? pass : fail);
-}
-
-static DEVICE_ATTR(fmp_fips_status, 0444, fmp_fips_result_show, NULL);
-static DEVICE_ATTR(aes_xts_status, 0444, fmp_fips_aes_xts_result_show, NULL);
-static DEVICE_ATTR(aes_cbc_status, 0444, fmp_fips_aes_cbc_result_show, NULL);
-static DEVICE_ATTR(sha256_status, 0444, fmp_fips_sha256_result_show, NULL);
-static DEVICE_ATTR(hmac_status, 0444, fmp_fips_hmac_result_show, NULL);
-static DEVICE_ATTR(integrity_status, 0444, fmp_fips_integrity_result_show, NULL);
-
-static struct attribute *fmp_fips_attr[] = {
-	&dev_attr_fmp_fips_status.attr,
-	&dev_attr_aes_xts_status.attr,
-	&dev_attr_aes_cbc_status.attr,
-	&dev_attr_sha256_status.attr,
-	&dev_attr_hmac_status.attr,
-	&dev_attr_integrity_status.attr,
-	NULL,
-};
-
-static struct attribute_group fmp_fips_attr_group = {
-	.name	= "fmp-fips",
-	.attrs	= fmp_fips_attr,
-};
-
-static const struct file_operations fmp_fips_fops = {
-	.owner		= THIS_MODULE,
-	.open		= fmp_fips_open,
-	.release	= fmp_fips_release,
-	.unlocked_ioctl = fmp_fips_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= fmp_fips_compat_ioctl,
-#endif
-};
-
 int exynos_fmp_fips_init(struct exynos_fmp *fmp)
 {
 	int ret;
@@ -150,17 +67,9 @@ int exynos_fmp_fips_init(struct exynos_fmp *fmp)
 
 	fmp->miscdev.minor = MISC_DYNAMIC_MINOR;
 	fmp->miscdev.name = "fmp";
-	fmp->miscdev.fops = &fmp_fips_fops;
 	ret = misc_register(&fmp->miscdev);
 	if (ret) {
 		dev_err(fmp->dev, "%s: Fail to register misc device. ret(%d)\n",
-				__func__, ret);
-		return -EINVAL;
-	}
-
-	ret = sysfs_create_group(&fmp->dev->kobj, &fmp_fips_attr_group);
-	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to create sysfs. ret(%d)\n",
 				__func__, ret);
 		return -EINVAL;
 	}
@@ -211,6 +120,5 @@ err:
 
 void exynos_fmp_fips_exit(struct exynos_fmp *fmp)
 {
-	sysfs_remove_group(&fmp->dev->kobj, &fmp_fips_attr_group);
 	misc_deregister(&fmp->miscdev);
 }

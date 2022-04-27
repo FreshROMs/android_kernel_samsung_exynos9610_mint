@@ -116,7 +116,7 @@ struct fmp_test_data *fmp_test_init(struct exynos_fmp *fmp)
 {
 	int ret = 0;
 	struct fmp_test_data *data;
-	struct device *dev = fmp->dev;
+	struct device *dev;
 	struct inode *inode;
 	struct super_block *sb;
 	unsigned long blocksize;
@@ -124,9 +124,11 @@ struct fmp_test_data *fmp_test_init(struct exynos_fmp *fmp)
 	fmode_t fmode = FMODE_WRITE | FMODE_READ;
 
 	if (!fmp) {
-		dev_err(dev, "%s: Invalid exynos fmp struct\n", __func__);
+		pr_err("%s: Invalid exynos fmp struct\n", __func__);
 		return NULL;
 	}
+
+	dev = fmp->dev;
 	data = kmalloc(sizeof(struct fmp_test_data), GFP_KERNEL);
 	if (!data)
 		return NULL;
@@ -178,8 +180,7 @@ int fmp_cipher_run(struct exynos_fmp *fmp, struct fmp_test_data *fdata,
 	int op_flags;
 
 	if (!fmp || !fdata || !ci) {
-		pr_err("%s: Invalid fmp struct: %p, %p, %p\n",
-			__func__, fmp, fdata, ci);
+		pr_err("%s: Invalid fmp struct(fmp , fdata, ci)\n", __func__);
 		return -EINVAL;
 	}
 	dev = fmp->dev;
@@ -209,7 +210,7 @@ int fmp_cipher_run(struct exynos_fmp *fmp, struct fmp_test_data *fdata,
 		/* ci is crypto_tfm_ctx(tfm) */
 		bh->b_private = priv;
 	}
-	op_flags = REQ_CRYPT | REQ_AUX_PRIV;
+	op_flags = REQ_CRYPT;
 
 	if (write == WRITE_MODE) {
 		memcpy(bh->b_data, data, len);

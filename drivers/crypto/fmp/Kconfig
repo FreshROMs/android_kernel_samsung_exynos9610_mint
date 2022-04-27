@@ -1,20 +1,9 @@
 #
 # SMU/FMP controller drivers
 #
-
-config EXYNOS_SMU
-	tristate "Samsung EXYNOS SMU driver"
-	help
-	  Say yes here to build support for SMU (Secure Manangement Unit)
-	  to control access permission to storage device.
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here
-
 config EXYNOS_FMP
 	tristate "Samsung EXYNOS FMP driver"
-	depends on CRYPTO_DISKCIPHER
-	select EXYNOS_SMU
+	depends on CRYPTO_DISKCIPHER && (SCSI_UFS_EXYNOS_FMP || MMC_DW_EXYNOS_FMP)
 	help
 	  Say yes here to build support for FMP (Flash Memory Protector)
 	  to encrypt and decrypt userdata using inline H/W crypto module.

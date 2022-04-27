@@ -103,9 +103,6 @@ struct fscrypt_info {
 #ifdef CONFIG_FS_INLINE_ENCRYPTION
 	void *ci_private;	/* private data for inline encryption */
 #endif
-#ifdef CONFIG_DDAR
-	struct dd_info *ci_dd_info;
-#endif
 #ifdef CONFIG_FSCRYPT_SDP
 	struct sdp_info *ci_sdp_info;
 #endif

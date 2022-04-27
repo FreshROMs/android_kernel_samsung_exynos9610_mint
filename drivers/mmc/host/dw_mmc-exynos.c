@@ -27,8 +27,6 @@
 #include "dw_mmc-pltfm.h"
 #include "dw_mmc-exynos.h"
 
-#include "dw_mmc-exynos-fmp.h"
-
 extern int cal_pll_mmc_set_ssc(unsigned int mfr, unsigned int mrr, unsigned int ssc_on);
 extern int cal_pll_mmc_check(void);
 
@@ -136,10 +134,8 @@ void dw_mci_reg_dump(struct dw_mci *host)
 		host->sfr_dump->force_clk_stop = mci_readl(host, FORCE_CLK_STOP));
 	dev_err(host->dev, ": CDTHRCTL: 0x%08x\n", mci_readl(host, CDTHRCTL));
 	dev_err(host->dev, ": AXI_BURST_LEN: 0x%08x\n", mci_readl(host, AXI_BURST_LEN));
-
 	if (host->ch_id == 0)
 		dw_mci_exynos_register_dump(host);
-
 	dev_err(host->dev, ": ============== STATUS DUMP ================\n");
 	dev_err(host->dev, ": cmd_status:      0x%08x\n",
 		host->sfr_dump->cmd_status = host->cmd_status);
@@ -423,6 +419,9 @@ static void dw_mci_exynos_adjust_clock(struct dw_mci *host, unsigned int wanted)
 #ifndef MHZ
 #define MHZ (1000 * 1000)
 #endif
+#ifndef KHZ
+#define KHZ (1000)
+#endif
 
 static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 {
@@ -487,6 +486,9 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 		else if (ios->clock)
 			dw_mci_exynos_ssclk_control(host, 1);
 	}
+
+	if ((ios->clock > 0) && (ios->clock <= 400 * KHZ))
+		sample_path_sel_dis(host, AXI_BURST_LEN);
 
 	host->cclk_in = wanted;
 
@@ -572,7 +574,7 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 		of_property_read_u32(np,
 				"sec-sd-slot-type", &priv->sec_sd_slot_type);
 	else {
-		if (priv->cd_gpio != -1)	/* treat default SD slot if cd_gpio is defined */
+		if (priv->cd_gpio != -1) /* treat default SD slot if cd_gpio is defined */
 			priv->sec_sd_slot_type = SEC_HOTPLUG_SD_SLOT;
 		else
 			priv->sec_sd_slot_type = -1;
@@ -1634,7 +1636,6 @@ static int dw_mci_exynos_misc_control(struct dw_mci *host,
 	return ret;
 }
 
-
 static const struct dw_mci_drv_data exynos_drv_data = {
 	.caps = exynos_dwmmc_caps,
 	.num_caps		= ARRAY_SIZE(exynos_dwmmc_caps),
@@ -1644,12 +1645,6 @@ static const struct dw_mci_drv_data exynos_drv_data = {
 	.execute_tuning = dw_mci_exynos_execute_tuning,
 	.hwacg_control = dw_mci_card_int_hwacg_ctrl,
 	.misc_control = dw_mci_exynos_misc_control,
-	.crypto_engine_cfg	= exynos_mmc_fmp_cfg,
-	.crypto_engine_clear	= exynos_mmc_fmp_clear,
-	.crypto_engine_sec_cfg = exynos_mmc_fmp_sec_cfg,
-	.access_control_init	= exynos_mmc_smu_init,
-	.access_control_abort	= exynos_mmc_smu_abort,
-	.access_control_resume	= exynos_mmc_smu_resume,
 	.ssclk_control = dw_mci_exynos_ssclk_control,
 };
 

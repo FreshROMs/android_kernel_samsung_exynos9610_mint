@@ -26,7 +26,7 @@ class IntegrityRoutine(ELF):
     """
     Utils for fips-integrity process
     """
-    def __init__(self, elf_file, readelf_path="readelf"):
+    def __init__(self, elf_file, readelf_path=os.environ.get('CROSS_COMPILE')+"readelf"):
         ELF.__init__(self, elf_file, readelf_path)
 
     @staticmethod
@@ -58,26 +58,40 @@ class IntegrityRoutine(ELF):
             relocs_gaps.append(addr)
             relocs_gaps.append(addr + 8)
         self.__remove_all_dublicates(relocs_gaps)
-        relocs_gaps.sort()
         relocs_gaps = [[addr1, addr2] for addr1, addr2 in self.utils.pairwise(relocs_gaps)]
         return relocs_gaps
 
-    def get_addrs_for_hmac(self, sec_sym_sequence, relocs_gaps=None):
+    def get_altinstruction_gaps(self, start_addr, end_addr):
+        """
+        :param start_addr: start address :int
+        :param end_addr: end address: int
+        :returns list of relocation gaps like [[gap_start, gap_end], [gap_start, gap_end], ...]
+        """
+        all_altinstr = self.get_altinstructions(start_addr, end_addr)
+        altinstr_gaps = list()
+        for alinstr_item in all_altinstr:
+            altinstr_gaps.append(alinstr_item[0])
+            altinstr_gaps.append(alinstr_item[0] + alinstr_item[1])
+        self.__remove_all_dublicates(altinstr_gaps)
+        altinstr_gaps = [[addr1, addr2] for addr1, addr2 in self.utils.pairwise(altinstr_gaps)]
+        return altinstr_gaps
+
+    def get_addrs_for_hmac(self, sec_sym_sequence, gaps=None):
         """
         Generate addresses for calculating HMAC
         :param sec_sym_sequence: [addr_start1, addr_end1, ..., addr_startN, addr_endN],
-        :param relocs_gaps: [[start_gap_addr, end_gap_addr], [start_gap_addr, end_gap_addr]]
+        :param gaps: [[start_gap_addr, end_gap_addr], [start_gap_addr, end_gap_addr]]
         :return: addresses for calculating HMAC: [[addr_start, addr_end], [addr_start, addr_end], ...]
         """
         addrs_for_hmac = list()
+
+        if gaps == None:
+            return [[0, 0]]
+
         for section_name, sym_names in sec_sym_sequence.items():
-            if relocs_gaps is not None and section_name == ".rodata":
-                for symbol in self.get_symbol_by_name(sym_names):
-                    addrs_for_hmac.append(symbol.addr)
-            else:
-                for symbol in self.get_symbol_by_name(sym_names):
-                    addrs_for_hmac.append(symbol.addr)
-        addrs_for_hmac.extend(self.utils.flatten(relocs_gaps))
+            for symbol in self.get_symbol_by_name(sym_names):
+                addrs_for_hmac.append(symbol.addr)
+        addrs_for_hmac.extend(self.utils.flatten(gaps))
         addrs_for_hmac.sort()
         return [[item1, item2] for item1, item2 in self.utils.pairwise(addrs_for_hmac)]
 
@@ -278,12 +292,24 @@ class IntegrityRoutine(ELF):
         :param print_reloc_addrs: If True, print relocation addresses that are skipped
         :param sort_by: sort method
         :param reverse: sort order
+
+        Checks: .rodata     section for relocations
+                .text       section for alternated instructions
+                .init.text  section for alternated instructions
         """
         rel_addr_start = self.get_symbol_by_name("first_" + module_name + "_rodata")
         rel_addr_end = self.get_symbol_by_name("last_" + module_name + "_rodata")
+        text_addr_start = self.get_symbol_by_name("first_" + module_name + "_text")
+        text_addr_end = self.get_symbol_by_name("last_" + module_name + "_text")
+        init_addr_start = self.get_symbol_by_name("first_" + module_name + "_init")
+        init_addr_end = self.get_symbol_by_name("last_" + module_name + "_init")
 
-        reloc_gaps = self.get_reloc_gaps(rel_addr_start.addr, rel_addr_end.addr)
-        addrs_for_hmac = self.get_addrs_for_hmac(sec_sym, reloc_gaps)
+        gaps = self.get_reloc_gaps(rel_addr_start.addr, rel_addr_end.addr)
+        gaps.extend(self.get_altinstruction_gaps(text_addr_start.addr, text_addr_end.addr))
+        gaps.extend(self.get_altinstruction_gaps(init_addr_start.addr, init_addr_end.addr))
+        gaps.sort()
+
+        addrs_for_hmac = self.get_addrs_for_hmac(sec_sym, gaps)
 
         digest = self.get_hmac(addrs_for_hmac, "The quick brown fox jumps over the lazy dog")
 
@@ -298,7 +324,7 @@ class IntegrityRoutine(ELF):
 
         print("HMAC for \"{}\" module is: {}".format(module_name, binascii.hexlify(digest)))
         if debug:
-            self.print_covered_info(sec_sym, reloc_gaps, print_reloc_addrs=print_reloc_addrs, sort_by=sort_by,
+            self.print_covered_info(sec_sym, gaps, print_reloc_addrs=print_reloc_addrs, sort_by=sort_by,
                                     reverse=reverse)
             self.dump_covered_bytes(addrs_for_hmac, "covered_dump_for_" + module_name + ".bin")
 

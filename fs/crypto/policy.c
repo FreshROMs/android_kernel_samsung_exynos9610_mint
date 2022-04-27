@@ -269,14 +269,6 @@ int fscrypt_inherit_context(struct inode *parent, struct inode *child,
 	ctx.knox_flags = 0;
 #endif
 
-#ifdef CONFIG_DDAR
-	res = dd_test_and_inherit_context(&ctx, parent, child, ci, fs_data);
-	if(res) {
-		dd_error("failed to inherit dd policy\n");
-		return res;
-	}
-#endif
-
 #ifdef CONFIG_FSCRYPT_SDP
 	res = fscrypt_sdp_inherit_context(parent, child, &ctx, fs_data);
 	if (res) {

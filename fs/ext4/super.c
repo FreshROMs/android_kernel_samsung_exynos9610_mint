@@ -6038,12 +6038,30 @@ void print_iloc_info(struct super_block *sb, struct ext4_iloc iloc)
 void print_bh(struct super_block *sb, struct buffer_head *bh
 		, int start, int len)
 {
+	if (ignore_fs_panic)
+		return;
+
 	if (bh) {
+		struct ext4_sb_info *sbi = EXT4_SB(sb);
+
 		printk(KERN_ERR " print_bh: bh %p,"
 				" bh->b_size %lu, bh->b_data %p\n",
 				(void *) bh, (long unsigned int) bh->b_size,
 				(void *) bh->b_data);
 		print_block_data(sb, bh->b_blocknr, bh->b_data, start, len);
+		/* Debugging for FDE device */
+		if (strnlen(sbi->s_es->s_volume_name, 16) == strlen("data") &&
+		    strncmp(sbi->s_es->s_volume_name, "data", strlen("data")) == 0) {
+			lock_buffer(bh);
+			bh->b_end_io = end_buffer_read_sync;
+			get_bh(bh);
+			set_buffer_bypass(bh);
+			submit_bh(REQ_OP_READ, 0, bh);
+			wait_on_buffer(bh);
+			if (buffer_uptodate(bh))
+				print_block_data(sb, bh->b_blocknr, bh->b_data,
+						start, len);
+		}
 	} else {
 		printk(KERN_ERR " print_bh: bh is null!\n");
 	}

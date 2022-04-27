@@ -42,8 +42,6 @@
 #endif
 
 #define DEK_LOG_COUNT		100
-#define DEK_LOG_BUF_SIZE	1024
-#define LOG_ENTRY_BUF_SIZE	512
 
 //#if defined(CONFIG_SDP) && !defined(CONFIG_FSCRYPT_SDP)
 //extern void ecryptfs_mm_drop_cache(int userid, int engineid);
@@ -52,7 +50,7 @@
 /* Log buffer */
 struct log_struct {
 	int len;
-	char buf[DEK_LOG_BUF_SIZE];
+	char buf[256];
 	struct list_head list;
 	spinlock_t list_lock;
 };
@@ -62,13 +60,6 @@ static int log_count;
 /* Wait queue */
 wait_queue_head_t wq;
 static int flag;
-
-static struct workqueue_struct *queue_log_workqueue;
-typedef struct __log_entry_t {
-	int engineId;
-	char buffer[LOG_ENTRY_BUF_SIZE];
-	struct work_struct work;
-} log_entry_t;
 
 int dek_is_sdp_uid(uid_t uid)
 {
@@ -169,6 +160,9 @@ retry:
 
 	return 0;
 }
+
+/* Log */
+static void dek_add_to_log(int engine_id, char *buffer);
 
 static int dek_open_evt(struct inode *inode, struct file *file)
 {
@@ -1269,7 +1263,7 @@ static ssize_t dek_read_log(struct file *file, char __user *buffer, size_t len, 
 {
 	int ret = 0;
 	struct log_struct *tmp = NULL;
-	char log_buf[DEK_LOG_BUF_SIZE];
+	char log_buf[256];
 	int log_buf_len;
 
 	if (list_empty(&log_buffer.list)) {
@@ -1308,11 +1302,8 @@ static ssize_t dek_read_log(struct file *file, char __user *buffer, size_t len, 
 	return len;
 }
 
-void queue_log_work(struct work_struct *log_work)
+static void dek_add_to_log(int engine_id, char *buffer)
 {
-	log_entry_t *logStruct = container_of(log_work, log_entry_t, work);
-	int engine_id = logStruct->engineId;
-	char *buffer = logStruct->buffer;
 	struct timespec ts;
 	struct log_struct *tmp = (struct log_struct *)kmalloc(sizeof(struct log_struct), GFP_KERNEL);
 
@@ -1347,24 +1338,6 @@ void queue_log_work(struct work_struct *log_work)
 	} else {
 		DEK_LOGE("dek_add_to_log - failed to allocate buffer\n");
 	}
-
-	kfree(logStruct);
-}
-
-void dek_add_to_log(int engine_id, char *buffer)
-{
-	log_entry_t *temp = (log_entry_t *)kmalloc(sizeof(log_entry_t), GFP_ATOMIC);
-	int len;
-	if (!temp) {
-		DEK_LOGE("failed to allocate memory for log entry\n");
-		return;
-	}
-	temp->engineId = engine_id;
-	len = (strlen(buffer) > LOG_ENTRY_BUF_SIZE) ? (LOG_ENTRY_BUF_SIZE - 1) : strlen(buffer);
-	memcpy(temp->buffer, buffer, len);
-	temp->buffer[len] = '\0';
-	INIT_WORK(&temp->work, queue_log_work);
-	queue_work(queue_log_workqueue, &temp->work);
 }
 
 const struct file_operations dek_fops_evt = {
@@ -1439,12 +1412,6 @@ static int __init dek_init(void)
 	if (unlikely(ret)) {
 		DEK_LOGE("failed to create sysfs_key_dump device!\n");
 		return ret;
-	}
-
-	queue_log_workqueue = alloc_workqueue("queue_log_workqueue", WQ_HIGHPRI, 0);
-	if (!queue_log_workqueue) {
-		DEK_LOGE("failed to allocate queue_log_workqueue\n");
-		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&log_buffer.list);

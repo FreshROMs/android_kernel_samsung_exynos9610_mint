@@ -10,16 +10,17 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/backing-dev.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/sched/rt.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/backing-dev.h>
 
 #include "queue.h"
 #include "block.h"
@@ -241,21 +242,24 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	sema_init(&mq->thread_sem, 1);
 
 	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd/%d%s",
-			host->index, subname ? subname : "");
+		host->index, subname ? subname : "");
 
 	if (mmc_card_sd(card)) {
-		/* decrease max # of requests to 32. The goal of this tunning is
+		/* decrease max # of requests to 32. The goal of this tuning is
 		 * reducing the time for draining elevator when elevator_switch
 		 * function is called. It is effective for slow external sdcard.
 		 */
 		mq->queue->nr_requests = BLKDEV_MAX_RQ / 8;
-		if (mq->queue->nr_requests < 32) mq->queue->nr_requests = 32;
+		if (mq->queue->nr_requests < 32)
+			mq->queue->nr_requests = 32;
+
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 		/* apply more throttle on external sdcard */
 		mq->queue->backing_dev_info->capabilities |= BDI_CAP_STRICTLIMIT;
 		bdi_set_min_ratio(mq->queue->backing_dev_info, 30);
 		bdi_set_max_ratio(mq->queue->backing_dev_info, 60);
 #endif
+
 		pr_info("Parameters for external-sdcard: min/max_ratio: %u/%u "
 				"strictlimit: on nr_requests: %lu read_ahead_kb: %lu\n",
 				mq->queue->backing_dev_info->min_ratio,
@@ -288,7 +292,7 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	kthread_stop(mq->thread);
 
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
-	/* Restore bdi min/max ratio before device removal */
+	       /* Restore bdi min/max ratio before device removal */
 	bdi_set_min_ratio(q->backing_dev_info, 0);
 	bdi_set_max_ratio(q->backing_dev_info, 100);
 #endif

@@ -61,10 +61,6 @@ void fscrypt_set_bio_cryptd_dun(const struct inode *inode, struct bio *bio, u64 
 	if (dun)                          
 		bio->bi_iter.bi_dun = dun;
 #endif
-#if defined(CONFIG_CRYPTO_DISKCIPHER_DEBUG)
-	//crypto_diskcipher_set(bio, inode->i_crypt_info->ci_dtfm);
-	crypto_diskcipher_debug(DISKC_API_SET, 0);
-#endif
 }
 EXPORT_SYMBOL(fscrypt_set_bio_cryptd_dun);
 

@@ -995,12 +995,11 @@ struct dw_mci_drv_data {
 	int (*crypto_engine_cfg) (struct dw_mci * host,
 				  void *desc,
 				  struct mmc_data * data,
-				  struct page * page, int sector_offset, bool cmdq_enabled);
+				  struct page * page, int page_index,
+				  int sector_offset, bool cmdq_enabled);
 	int (*crypto_engine_clear) (struct dw_mci * host, void *desc, bool cmdq_enabled);
-	int (*crypto_engine_sec_cfg)(struct dw_mci *host);
-	int (*access_control_init) (struct dw_mci * host);
+	int (*crypto_sec_cfg) (struct dw_mci * host, bool init);
 	int (*access_control_abort) (struct dw_mci * host);
-	int (*access_control_resume) (struct dw_mci * host);
 	void (*ssclk_control) (struct dw_mci * host, int enable);
 };
 

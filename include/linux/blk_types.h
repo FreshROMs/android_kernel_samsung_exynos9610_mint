@@ -61,6 +61,7 @@ struct bio {
 						 */
 	unsigned short		bi_flags;	/* status, etc and bvec pool number */
 	unsigned short		bi_ioprio;
+	unsigned short          bi_sec_flags;   /* SEC only */
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
 	u8			bi_partno;
@@ -128,6 +129,9 @@ struct bio {
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
+
+#define __SEC_BYPASS   (0)
+#define SEC_BYPASS     (1ULL << __SEC_BYPASS)
 
 /*
  * bio flags
@@ -231,7 +235,6 @@ enum req_flag_bits {
 	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
-	__REQ_AUX_PRIV,		/* use bi_aux_private */
 	__REQ_CRYPT,		/* request inline crypt */
 	__REQ_RAHEAD,		/* read ahead, can fail anytime */
 	__REQ_BACKGROUND,	/* background IO */
@@ -252,7 +255,6 @@ enum req_flag_bits {
 #define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
 #define REQ_IDLE		(1ULL << __REQ_IDLE)
 #define REQ_INTEGRITY		(1ULL << __REQ_INTEGRITY)
-#define REQ_AUX_PRIV		(1ULL << __REQ_AUX_PRIV)
 #define REQ_CRYPT		(1ULL << __REQ_CRYPT)
 #define REQ_FUA			(1ULL << __REQ_FUA)
 #define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)

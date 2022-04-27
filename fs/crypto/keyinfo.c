@@ -260,7 +260,7 @@ static int prepare_inline_encryption(struct inode *inode, struct fscrypt_info *c
 		return PTR_ERR(bctx);
 	}
 
-	res = blk_crypt_set_key(bctx, raw_key, mode->keysize);
+	res = blk_crypt_set_key(bctx, raw_key, mode->keysize, (void *)inode);
 	if (res) {
 		pr_err("%s : failed to set key for blk_crypt"
 			"(transform: %s, err: %d)", __func__, cipher_str, res);
@@ -609,9 +609,6 @@ static void put_crypt_info(struct fscrypt_info *ci)
 {
 	if (!ci)
 		return;
-#ifdef CONFIG_DDAR
-	dd_info_try_free(ci->ci_dd_info);
-#endif
 #ifdef CONFIG_FSCRYPT_SDP
 	fscrypt_sdp_put_sdp_info(ci->ci_sdp_info);
 #endif
@@ -680,10 +677,6 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	crypt_info->ci_sdp_info = NULL;
 #endif
 
-#ifdef CONFIG_DDAR
-	crypt_info->ci_dd_info = NULL;
-#endif
-
 	mode = select_encryption_mode(crypt_info, inode);
 	if (IS_ERR(mode)) {
 		res = PTR_ERR(mode);
@@ -747,19 +740,6 @@ sdp_dek:
 attach_ci:
 #endif
 
-#ifdef CONFIG_DDAR
-	if (fscrypt_dd_flg_enabled(ctx.knox_flags)) {
-		struct dd_info *di = alloc_dd_info(inode);
-		if (IS_ERR(di)) {
-			dd_error("%s - failed to alloc dd_info(%d)\n", __func__, __LINE__);
-			res = PTR_ERR(di);
-
-			goto out;
-		}
-
-		crypt_info->ci_dd_info = di;
-	}
-#endif
 	if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) == NULL)
 		crypt_info = NULL;
 #ifdef CONFIG_FSCRYPT_SDP

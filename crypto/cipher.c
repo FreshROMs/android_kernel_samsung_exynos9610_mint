@@ -21,6 +21,10 @@
 #include <linux/string.h>
 #include "internal.h"
 
+#ifdef CONFIG_CRYPTO_FIPS /* FIPS_140_2 */
+#include "fips140.h"
+#endif
+
 static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
 			    unsigned int keylen)
 {
@@ -71,6 +75,11 @@ static void cipher_crypt_unaligned(void (*fn)(struct crypto_tfm *, u8 *,
 	u8 buffer[MAX_CIPHER_BLOCKSIZE + MAX_CIPHER_ALIGNMASK];
 	u8 *tmp = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 
+#ifdef CONFIG_CRYPTO_FIPS /* FIPS_140_2 */
+	if (unlikely(in_fips_err()))
+		return;
+#endif
+
 	memcpy(tmp, src, size);
 	fn(tfm, tmp, tmp);
 	memcpy(dst, tmp, size);
@@ -81,6 +90,11 @@ static void cipher_encrypt_unaligned(struct crypto_tfm *tfm,
 {
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
 	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+#ifdef CONFIG_CRYPTO_FIPS /* FIPS_140_2 */
+	if (unlikely(in_fips_err()))
+		return;
+#endif
 
 	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
 		cipher_crypt_unaligned(cipher->cia_encrypt, tfm, dst, src);
@@ -95,6 +109,11 @@ static void cipher_decrypt_unaligned(struct crypto_tfm *tfm,
 {
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
 	struct cipher_alg *cipher = &tfm->__crt_alg->cra_cipher;
+
+#ifdef CONFIG_CRYPTO_FIPS /* FIPS_140_2 */
+	if (unlikely(in_fips_err()))
+		return;
+#endif
 
 	if (unlikely(((unsigned long)dst | (unsigned long)src) & alignmask)) {
 		cipher_crypt_unaligned(cipher->cia_decrypt, tfm, dst, src);

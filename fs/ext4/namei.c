@@ -891,7 +891,7 @@ static void dx_release(struct dx_frame *frames)
 	info = &((struct dx_root *)frames[0].bh->b_data)->info;
 	/* save local copy, "info" may be freed after brelse() */
 	indirect_levels = info->indirect_levels;
-	for (i = 1; i <= info->indirect_levels; i++) {
+	for (i = 1; i <= indirect_levels; i++) {
 		if (frames[i].bh == NULL)
 			break;
 		brelse(frames[i].bh);

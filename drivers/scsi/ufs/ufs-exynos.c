@@ -19,13 +19,13 @@
 #include "mphy.h"
 #include "ufshcd-pltfrm.h"
 #include "ufs-exynos.h"
-#include "ufs-exynos-fmp.h"
 #include <soc/samsung/exynos-fsys0-tcxo.h>
 #include <soc/samsung/exynos-cpupm.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/soc/samsung/exynos-soc.h>
 #include <linux/spinlock.h>
+#include <crypto/fmp.h>
 
 /*
  * Unipro attribute value
@@ -157,7 +157,6 @@ static inline int ufs_pre_gear_change(struct exynos_ufs *ufs,
 	int ret = 0;
 
 	p->pmd = pmd;
-
 	if ((ret = ufs_cal_pre_pmc(p)) != UFS_CAL_NO_ERROR) {
 		dev_err(ufs->dev, "ufs_pre_gear_change = %d!!!\n", ret);
 		return -EPERM;
@@ -402,7 +401,6 @@ static void exynos_ufs_init_pmc_req(struct ufs_hba *hba,
 	/* update lane variable after link */
 	ufs->num_rx_lanes = pwr_max->lane_rx;
 	ufs->num_tx_lanes = pwr_max->lane_tx;
-	
 
 	p->connected_rx_lane = pwr_max->lane_rx;
 	p->connected_tx_lane = pwr_max->lane_tx;
@@ -628,8 +626,7 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 		ufs->smu = id;
 
 	/* FMPSECURITY & SMU */
-	exynos_ufs_fmp_sec_cfg(ufs);
-	exynos_ufs_smu_init(ufs);
+	ufshcd_vops_crypto_sec_cfg(hba, true);
 
 	/* Enable log */
 	ret =  exynos_ufs_init_dbg(hba);
@@ -1027,8 +1024,7 @@ static int __exynos_ufs_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	exynos_ufs_ctrl_auto_hci_clk(ufs, false);
 
 	/* FMPSECURITY & SMU resume */
-	exynos_ufs_fmp_sec_cfg(ufs);
-	exynos_ufs_smu_resume(ufs);
+	ufshcd_vops_crypto_sec_cfg(hba, false);
 
 	/* secure log */
 #ifdef CONFIG_EXYNOS_SMC_LOGGING
@@ -1057,26 +1053,102 @@ static u8 exynos_ufs_get_unipro_direct(struct ufs_hba *hba, u32 num)
 	return unipro_readl(ufs, offset[num]);
 }
 
-static int exynos_ufs_crypto_engine_cfg(struct ufs_hba *hba,
-				struct ufshcd_lrb *lrbp,
-				struct scatterlist *sg, int index,
-				int sector_offset, int page_index)
+#ifdef CONFIG_SCSI_UFS_EXYNOS_FMP
+static struct bio *get_bio(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
-	return exynos_ufs_fmp_cfg(hba, lrbp, sg, index, sector_offset, page_index);
+	if (!hba || !lrbp) {
+		pr_err("%s: Invalid MMC:%p data:%p\n", __func__, hba, lrbp);
+		return NULL;
+	}
+
+	if (!virt_addr_valid(lrbp->cmd)) {
+		dev_err(hba->dev, "Invalid cmd:%p\n", lrbp->cmd);
+		return NULL;
+	}
+
+	if (!virt_addr_valid(lrbp->cmd->request->bio)) {
+		if (lrbp->cmd->request->bio)
+			dev_err(hba->dev, "Invalid bio:%p\n",
+				lrbp->cmd->request->bio);
+		return NULL;
+	} else {
+		return lrbp->cmd->request->bio;
+	}
+}
+
+static int exynos_ufs_crypto_engine_cfg(struct ufs_hba *hba,
+				struct ufshcd_lrb *lrbp)
+{
+	int sg_segments = scsi_sg_count(lrbp->cmd);
+	int idx;
+	struct scatterlist *sg;
+	struct bio *bio = get_bio(hba, lrbp);
+	int ret;
+	int sector_offset = 0;
+
+	if (!bio || !sg_segments)
+		return 0;
+
+	scsi_for_each_sg(lrbp->cmd, sg, sg_segments, idx) {
+		ret = exynos_fmp_crypt_cfg(bio,
+			(void *)&lrbp->ucd_prdt_ptr[idx], idx, sector_offset);
+		sector_offset += 8; /* UFSHCI_SECTOR_SIZE / MIN_SECTOR_SIZE */
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static int exynos_ufs_crypto_engine_clear(struct ufs_hba *hba,
 				struct ufshcd_lrb *lrbp)
 {
-	return exynos_ufs_fmp_clear(hba, lrbp);
+	int sg_segments = scsi_sg_count(lrbp->cmd);
+	int idx;
+	struct scatterlist *sg;
+	struct bio *bio = get_bio(hba, lrbp);
+	int ret;
+
+	if (!bio || !sg_segments)
+		return 0;
+
+	scsi_for_each_sg(lrbp->cmd, sg, sg_segments, idx) {
+		ret = exynos_fmp_crypt_clear(bio,
+			(void *)&lrbp->ucd_prdt_ptr[idx]);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int exynos_ufs_crypto_sec_cfg(struct ufs_hba *hba, bool init)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	dev_err(ufs->dev, "%s: fmp:%d, smu:%d, init:%d\n",
+			__func__, ufs->fmp, ufs->smu, init);
+	return exynos_fmp_sec_cfg(ufs->fmp, ufs->smu, init);
 }
 
 static int exynos_ufs_access_control_abort(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-	return exynos_ufs_smu_abort(ufs);
+	dev_err(ufs->dev, "%s: smu:%d, ret:%d\n", __func__, ufs->smu);
+	return exynos_fmp_smu_abort(ufs->smu);
 }
+#else
+static int exynos_ufs_crypto_sec_cfg(struct ufs_hba *hba, bool init)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	writel(0x0, ufs->reg_ufsp + UFSPSBEGIN0);
+	writel(0xffffffff, ufs->reg_ufsp + UFSPSEND0);
+	writel(0xff, ufs->reg_ufsp + UFSPSLUN0);
+	writel(0xf1, ufs->reg_ufsp + UFSPSCTRL0);
+
+	return 0;
+}
+#endif
 
 static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.init = exynos_ufs_init,
@@ -1094,9 +1166,12 @@ static struct ufs_hba_variant_ops exynos_ufs_ops = {
 	.suspend = __exynos_ufs_suspend,
 	.resume = __exynos_ufs_resume,
 	.get_unipro_result = exynos_ufs_get_unipro_direct,
+#ifdef CONFIG_SCSI_UFS_EXYNOS_FMP
 	.crypto_engine_cfg = exynos_ufs_crypto_engine_cfg,
 	.crypto_engine_clear = exynos_ufs_crypto_engine_clear,
 	.access_control_abort = exynos_ufs_access_control_abort,
+#endif
+	.crypto_sec_cfg = exynos_ufs_crypto_sec_cfg,
 };
 
 static int exynos_ufs_populate_dt_phy(struct device *dev, struct exynos_ufs *ufs)

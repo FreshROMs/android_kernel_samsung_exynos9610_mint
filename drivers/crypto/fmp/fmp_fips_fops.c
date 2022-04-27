@@ -80,7 +80,6 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 		return -ENODEV;
 	}
 	fmp = info->fmp;
-
 	memset(out, 0, sizeof(*out));
 
 	if (!strcmp(alg_name, "cbc(aes-fmp)"))
@@ -89,12 +88,7 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 		info->data->ci.algo_mode = EXYNOS_FMP_ALGO_MODE_AES_XTS;
 	else {
 		dev_err(fmp->dev, "%s: Invalid mode\n", __func__);
-		ret = -EINVAL;
-		goto err;
-	}
-	if (ret) {
-		dev_err(fmp->dev, "%s: Fail to init fmp cipher\n", __func__);
-		goto err;
+		return -EINVAL;
 	}
 
 	out->blocksize = 16;
@@ -102,11 +96,10 @@ static int fmp_fips_cipher_init(struct fmp_fips_info *info,
 	ret = fmp_fips_set_key(fmp, info, enckey, twkey, key_len);
 	if (ret) {
 		dev_err(fmp->dev, "%s: Fail to set fmp key\n", __func__);
-		goto err;
+		return ret;
 	}
 
 	out->init = 1;
-err:
 	return ret;
 }
 
@@ -313,8 +306,8 @@ static int __fmp_run_std(struct fmp_fips_info *info,
 		size_t current_len = nbytes > bufsize ? bufsize : nbytes;
 
 		if (unlikely(copy_from_user(data, src, current_len))) {
-			dev_err(fmp->dev, "Error copying %d bytes from user address %p\n",
-						(int)current_len, src);
+			dev_err(fmp->dev, "Error copying %d bytes from user address\n",
+						(int)current_len);
 			ret = -EFAULT;
 			break;
 		}
@@ -371,7 +364,8 @@ static int fmp_run(struct fmp_fips_info *info, struct fcrypt *fcr,
 
 	if ((ses_ptr->cdata.init != 0) && (cop->len > PAGE_SIZE)) {
 		dev_err(fmp->dev, "Invalid input length. len = %d\n", cop->len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
 	if (ses_ptr->cdata.init != 0) {
@@ -456,7 +450,8 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 
 	if (cop->len > PAGE_SIZE) {
 		dev_err(fmp->dev, "Invalid input length. len = %d\n", cop->len);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_unlock;
 	}
 
 	if (ses_ptr->cdata.init != 0) {
@@ -499,7 +494,7 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 		Pt[k] = kzalloc(nbytes, GFP_KERNEL);
 		if (!Pt[k]) {
 			ret = -ENOMEM;
-			goto out_err_mem_pt_k;
+			goto out_err_mem_ct;
 		}
 	}
 
@@ -513,7 +508,7 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 		Ct[k] = kzalloc(nbytes, GFP_KERNEL);
 		if (!Ct[k]) {
 			ret = -ENOMEM;
-			goto out_err_mem_ct_k;
+			goto out_err_fail;
 		}
 	}
 
@@ -525,8 +520,7 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 
 	if (unlikely(copy_from_user(data, src, nbytes))) {
 		dev_err(fmp->dev,
-			"Error copying %d bytes from user address %p.\n",
-			(int)nbytes, src);
+			"Error copying %d bytes from user address.\n", (int)nbytes);
 		ret = -EFAULT;
 		goto out_err_fail;
 	}
@@ -583,13 +577,11 @@ static int fmp_run_AES_CBC_MCT(struct fmp_fips_info *info, struct fcrypt *fcr,
 out_err_fail:
 	for (k = 0; k < 1000; k++)
 		kzfree(Ct[k]);
-out_err_mem_ct_k:
 	kzfree(Ct);
 
 out_err_mem_ct:
 	for (k = 0; k < 1000; k++)
 		kzfree(Pt[k]);
-out_err_mem_pt_k:
 	kzfree(Pt);
 out_err_mem_pt:
 	free_page((unsigned long)data);
@@ -665,7 +657,8 @@ static int fmp_create_session(struct fmp_fips_info *info,
 
 	if (!fmp->test_data) {
 		dev_err(fmp->dev, "Invalid fips data\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error_cipher;
 	}
 
 	/* Set-up crypto transform. */
@@ -912,8 +905,7 @@ int fmp_fips_open(struct inode *inode, struct file *file)
 
 	if (!fmp || !fmp->dev) {
 		pr_err("%s: Invalid fmp driver\n", __func__);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	dev_info(fmp->dev, "fmp fips driver name : %s\n", dev_name(fmp->dev));
@@ -945,8 +937,7 @@ int fmp_fips_open(struct inode *inode, struct file *file)
 	for (i = 0; i < DEF_COP_RINGSIZE; i++) {
 		tmp = kzalloc(sizeof(struct todo_list_item), GFP_KERNEL);
 		info->itemcount++;
-		dev_info(fmp->dev, "%s: allocated new item at %lx\n",
-				__func__, (unsigned long)tmp);
+		dev_info(fmp->dev, "%s: allocated new item\n", __func__);
 		list_add(&tmp->__hook, &info->free.list);
 	}
 
@@ -958,6 +949,7 @@ int fmp_fips_open(struct inode *inode, struct file *file)
 err:
 	if (info)
 		fmp_test_exit(info->data);
+	kfree(info);
 	return ret;
 }
 
@@ -994,8 +986,8 @@ static int fill_kcop_from_cop(struct fmp_fips_info *info,
 		rc = copy_from_user(kcop->iv, cop->iv, kcop->ivlen);
 		if (unlikely(rc)) {
 			dev_err(fmp->dev,
-				"error copying IV (%d bytes), copy_from_user returned %d for address %lx\n",
-					kcop->ivlen, rc, (unsigned long)cop->iv);
+				"error copying IV (%d bytes), copy_from_user returned %d\n",
+					kcop->ivlen, rc);
 			return -EFAULT;
 		}
 	} else {
@@ -1404,8 +1396,7 @@ int fmp_fips_release(struct inode *inode, struct file *file)
 	list_splice_tail(&info->done.list, &info->free.list);
 
 	list_for_each_entry_safe(item, item_safe, &info->free.list, __hook) {
-		dev_err(fmp->dev, "%s: freeing item at %lx\n",
-				__func__, (unsigned long)item);
+		dev_info(fmp->dev, "%s: freeing item\n", __func__);
 		list_del(&item->__hook);
 		kzfree(item);
 		items_freed++;

@@ -182,11 +182,16 @@ int adjust_sg_array(struct csession *ses, int pagecount);
 #define MAX_TAP		8
 #define XBUFSIZE	8
 
+#define FIPS_MAX_LEN_KEY    128
+#define FIPS_MAX_LEN_IV    32
+#define FIPS_MAX_LEN_PCTEXT    512
+#define FIPS_MAX_LEN_DIGEST    64
+
 struct cipher_testvec {
-	char *key;
-	char *iv;
-	char *input;
-	char *result;
+	const char key[FIPS_MAX_LEN_KEY];
+	const char iv[FIPS_MAX_LEN_IV];
+	const char input[FIPS_MAX_LEN_PCTEXT];
+	const char result[FIPS_MAX_LEN_PCTEXT];
 	unsigned short tap[MAX_TAP];
 	int np;
 	unsigned char also_non_np;
@@ -197,9 +202,9 @@ struct cipher_testvec {
 
 struct hash_testvec {
 	/* only used with keyed hash algorithms */
-	char *key;
-	char *plaintext;
-	char *digest;
+	const char key[FIPS_MAX_LEN_KEY];
+	const char plaintext[FIPS_MAX_LEN_PCTEXT];
+	const char digest[FIPS_MAX_LEN_DIGEST];
 	unsigned char tap[MAX_TAP];
 	unsigned short psize;
 	unsigned char np;
@@ -208,13 +213,13 @@ struct hash_testvec {
 
 struct cipher_test_suite {
 	struct {
-		struct cipher_testvec *vecs;
+		const struct cipher_testvec *vecs;
 		unsigned int count;
 	} enc;
 };
 
 struct hash_test_suite {
-	struct hash_testvec *vecs;
+	const struct hash_testvec *vecs;
 	unsigned int count;
 };
 

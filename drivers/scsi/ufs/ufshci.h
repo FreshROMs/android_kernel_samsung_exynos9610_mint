@@ -258,8 +258,6 @@ enum link_status {
 	UFSHCD_LINK_IS_DOWN	= 1,
 	UFSHCD_LINK_IS_UP	= 2,
 };
-#define UFSHCI_SECTOR_SIZE                      0x1000
-#define MIN_SECTOR_SIZE                         0x200
 
 /* UIC Commands */
 enum uic_cmd_dme {

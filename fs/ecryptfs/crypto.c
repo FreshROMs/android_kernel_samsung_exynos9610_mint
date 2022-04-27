@@ -158,6 +158,7 @@ static void crypto_cc_rng_get_bytes(u8 *data, unsigned int len)
 	}
 }
 #endif
+
 /**
  * ecryptfs_to_hex
  * @dst: Buffer to take hex character representation of contents of
@@ -320,7 +321,6 @@ int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 #else
 	char dst[MD5_DIGEST_SIZE];
 #endif
-
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "root iv:\n");
 		ecryptfs_dump_hex(crypt_stat->root_iv, crypt_stat->iv_bytes);
@@ -872,7 +872,7 @@ int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 		rc = ecryptfs_calculate_sha256(dst, crypt_stat, crypt_stat->key, crypt_stat->key_size);
 	else
 #endif
-	rc = ecryptfs_calculate_md5(dst, crypt_stat, crypt_stat->key, crypt_stat->key_size);
+		rc = ecryptfs_calculate_md5(dst, crypt_stat, crypt_stat->key, crypt_stat->key_size);
 
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error attempting to compute "
@@ -885,7 +885,7 @@ out:
 		memset(crypt_stat->root_iv, 0, crypt_stat->iv_bytes);
 		crypt_stat->flags |= ECRYPTFS_SECURITY_WARNING;
 	}
-    #ifdef CONFIG_CRYPTO_FIPS
+	#ifdef CONFIG_CRYPTO_FIPS
 		kfree(dst);
 	#endif
 	return rc;
@@ -1804,11 +1804,11 @@ out:
 #ifdef CONFIG_CRYPTO_FIPS
 static int
 ecryptfs_process_key_cipher(struct crypto_skcipher **key_tfm,
-			    char *cipher_name, size_t *key_size, u32 mount_flags)
+				char *cipher_name, size_t *key_size, u32 mount_flags)
 #else
 static int
 ecryptfs_process_key_cipher(struct crypto_skcipher **key_tfm,
-			    char *cipher_name, size_t *key_size)
+				char *cipher_name, size_t *key_size)
 #endif
 {
 	char dummy_key[ECRYPTFS_MAX_KEY_BYTES];
@@ -1842,6 +1842,7 @@ ecryptfs_process_key_cipher(struct crypto_skcipher **key_tfm,
 	crypto_skcipher_set_flags(*key_tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 	if (*key_size == 0)
 		*key_size = crypto_skcipher_default_keysize(*key_tfm);
+
 	get_random_key(dummy_key, *key_size);
 	rc = crypto_skcipher_setkey(*key_tfm, dummy_key, *key_size);
 	if (rc) {
@@ -1919,9 +1920,6 @@ ecryptfs_add_new_key_tfm(struct ecryptfs_key_tfm **key_tfm, char *cipher_name,
 		ECRYPTFS_MAX_CIPHER_NAME_SIZE);
 	tmp_tfm->cipher_name[ECRYPTFS_MAX_CIPHER_NAME_SIZE] = '\0';
 	tmp_tfm->key_size = key_size;
-	rc = ecryptfs_process_key_cipher(&tmp_tfm->key_tfm,
-					 tmp_tfm->cipher_name,
-					 &tmp_tfm->key_size);
 #ifdef CONFIG_CRYPTO_FIPS
 	if (mount_flags & ECRYPTFS_ENABLE_CC) {
 		strncpy(tmp_tfm->cipher_mode, ECRYPTFS_AES_CBC_MODE, ECRYPTFS_MAX_CIPHER_MODE_SIZE+1);

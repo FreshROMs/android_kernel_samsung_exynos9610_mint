@@ -75,7 +75,7 @@ static void free_buf(char *buf[XBUFSIZE])
 		free_page((unsigned long)buf[i]);
 }
 
-static struct cipher_testvec aes_xts_enc_tv_template[] = {
+static const struct cipher_testvec aes_xts_enc_tv_template[] = {
 	/* http://grouper.ieee.org/groups/1619/email/pdf00086.pdf */
 	{ /* XTS-AES 1 */
 		.key    = "\xa1\xb9\x0c\xba\x3f\x06\xac\x35"
@@ -410,7 +410,7 @@ static struct cipher_testvec aes_xts_enc_tv_template[] = {
 	}
 };
 
-static struct cipher_testvec aes_cbc_enc_tv_template[] = {
+static const struct cipher_testvec aes_cbc_enc_tv_template[] = {
 	{ /* From RFC 3602 */
 		.key    = "\x06\xa9\x21\x40\x36\xb8\xa1\x5b"
 			  "\x51\x2e\x03\xd5\x34\x12\x00\x06",
@@ -606,7 +606,7 @@ static struct cipher_testvec aes_cbc_enc_tv_template[] = {
  */
 #define SHA256_TEST_VECTORS     2
 
-static struct hash_testvec sha256_tv_template[] = {
+static const struct hash_testvec sha256_tv_template[] = {
 	{
 		.plaintext = "abc",
 		.psize  = 3,
@@ -632,7 +632,7 @@ static struct hash_testvec sha256_tv_template[] = {
  */
 #define HMAC_SHA256_TEST_VECTORS	10
 
-static struct hash_testvec hmac_sha256_tv_template[] = {
+static const struct hash_testvec hmac_sha256_tv_template[] = {
 	{
 		.key	= "\x01\x02\x03\x04\x05\x06\x07\x08"
 			  "\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
@@ -855,7 +855,7 @@ static int selftest_hmac_sha256(struct exynos_fmp *fmp)
 	return ret;
 }
 
-static int fmp_test_run(struct exynos_fmp *fmp, struct cipher_testvec *template,
+static int fmp_test_run(struct exynos_fmp *fmp, const struct cipher_testvec *template,
 				const int idx, uint8_t *data, uint32_t len,
 				const int mode, uint32_t write)
 {
@@ -906,7 +906,7 @@ err:
 }
 
 static int test_cipher(struct exynos_fmp *fmp, int mode,
-			struct cipher_testvec *template, uint32_t tcount)
+			const struct cipher_testvec *template, uint32_t tcount)
 {
 	int ret;
 	uint32_t idx;

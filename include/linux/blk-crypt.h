@@ -28,7 +28,7 @@ struct blk_crypt_algorithm_cbs {
 	void *(*alloc)(void);
 	void (*free)(void *data);
 	unsigned char *(*get_key)(void *);
-	int (*set_key)(void *, const char *, int);
+	int (*set_key)(void *, const char *, int, void *);
 };
 
 extern bool blk_crypt_encrypted(const struct bio *bio);
@@ -42,5 +42,5 @@ extern blk_crypt_t *blk_crypt_get_context(struct block_device *, const char *);
 extern void blk_crypt_put_context(blk_crypt_t *);
 extern void *blk_crypt_get_data(blk_crypt_t *);
 extern unsigned char *blk_crypt_get_key(blk_crypt_t *);
-extern int blk_crypt_set_key(blk_crypt_t *, u8 *raw_key, u32 keysize);
+extern int blk_crypt_set_key(blk_crypt_t *, u8 *raw_key, u32 keysize, void *priv);
 #endif /* _BLK_CRYPT_H */

@@ -2440,8 +2440,6 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	struct scsi_cmnd *cmd;
 	int sg_segments;
 	int i, ret;
-	int sector_offset = 0;
-	int page_index = 0;
 
 #if defined(CONFIG_UFS_DATA_LOG)
 	unsigned int dump_index;
@@ -2501,7 +2499,7 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 			}
 		}
 #endif
-	
+
 	sg_segments = scsi_dma_map(cmd);
 	if (sg_segments < 0)
 		return sg_segments;
@@ -2526,18 +2524,16 @@ static int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 				cpu_to_le32(upper_32_bits(sg->dma_address));
 			prd_table[i].reserved = 0;
 			hba->transferred_sector += prd_table[i].size;
-
-			ret = ufshcd_vops_crypto_engine_cfg(hba, lrbp, sg, i, sector_offset, page_index++);
-			if (ret) {
-				dev_err(hba->dev,
-					"%s: failed to configure crypto engine (%d)\n",
-					__func__, ret);
-				return ret;
-			}
-			sector_offset += UFSHCI_SECTOR_SIZE / MIN_SECTOR_SIZE;
 		}
 	} else {
 		lrbp->utr_descriptor_ptr->prd_table_length = 0;
+	}
+	ret = ufshcd_vops_crypto_engine_cfg(hba, lrbp);
+	if (ret) {
+		dev_err(hba->dev,
+			"%s: failed to configure crypto engine (%d)\n",
+			__func__, ret);
+		return ret;
 	}
 
 	return 0;
@@ -3128,8 +3124,7 @@ static bool ufshcd_get_dev_cmd_tag(struct ufs_hba *hba, int *tag_out)
 
 	do {
 		tmp = ~hba->lrb_in_use;
-		tmp &= BITMAP_LAST_WORD_MASK(hba->nutrs);
-		tag = (int)(tmp) ? __fls(tmp) : ~0;
+		tag = find_last_bit(&tmp, hba->nutrs);
 		if (tag >= hba->nutrs)
 			goto out;
 	} while (test_and_set_bit_lock(tag, &hba->lrb_in_use));
@@ -5619,7 +5614,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 					__func__, result);
 			}
 			result = ufshcd_transfer_rsp_status(hba, lrbp);
-			
+
 #if defined(CONFIG_UFS_DATA_LOG)
 			if (cmd->request && hba->host->ufs_sys_log_en){
 				/*condition of data log*/
@@ -5651,7 +5646,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba, int reason,
 				}
 			}
 #endif
-			
+
 			cmd->result = result;
 				if (reason)
 					set_host_byte(cmd, reason);
@@ -7324,7 +7319,7 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 	dev_info(hba->dev,"LT: 0x%02x \n", health_buf[3]<<4|health_buf[4]);
 
 	hba->lifetime = dev_desc->lifetime;
-	
+
 out:
 	return err;
 }
@@ -7548,17 +7543,21 @@ retry:
 
 	dev_info(hba->dev, "UFS device initialized\n");
 
-	/* Init check for device descriptor sizes */
-	ufshcd_init_desc_sizes(hba);
+	if (!ufshcd_eh_in_progress(hba) && !hba->pm_op_in_progress
+			&& !hba->async_resume) {
+		/* Init check for device descriptor sizes */
+		ufshcd_init_desc_sizes(hba);
 
-	ret = ufs_get_device_desc(hba, &card);
-	if (ret) {
-		dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
-			__func__, ret);
-		goto out;
+		ret = ufs_get_device_desc(hba, &card);
+		if (ret) {
+			dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
+				__func__, ret);
+			goto out;
+		}
+
+		ufs_fixup_device_setup(hba, &card);
 	}
 
-	ufs_fixup_device_setup(hba, &card);
 	ufshcd_tune_unipro_params(hba);
 
 	ret = ufshcd_set_vccq_rail_unused(hba,
@@ -7670,7 +7669,6 @@ retry:
 	}
 	if (hba->sdev_rpmb)
 		hba->host->wlun_clr_uac = true;
-
 	if (!hba->is_init_prefetch)
 		hba->is_init_prefetch = true;
 
@@ -7731,7 +7729,9 @@ static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 
 	if (hba->async_resume) {
 		scsi_block_requests(hba->host);
+		dev_info(hba->dev, "UFS async resume started\n");
 		err = ufshcd_probe_hba(hba);
+		dev_info(hba->dev, "UFS async resume finished\n");
 		if (err)
 			goto err;
 
@@ -8899,6 +8899,7 @@ disable_clks:
 
 	hba->clk_gating.state = CLKS_OFF;
 	trace_ufshcd_clk_gating(dev_name(hba->dev), hba->clk_gating.state);
+	mdelay(10);
 	/*
 	 * Call vendor specific suspend callback. As these callbacks may access
 	 * vendor specific host controller register space call them before the
@@ -9504,7 +9505,6 @@ SEC_UFS_DATA_ATTR(SEC_UFS_err_sum, "\"OPERR\":\"%d\",\"UICCMD\":\"%d\",\"UICERR\
 		err_info->query_count.Query_err);
 #endif
 
-UFS_DEV_ATTR(lt,  "%01x", hba->lifetime);
 UFS_DEV_ATTR(sense_err_count, "\"MEDIUM\":\"%d\",\"HWERR\":\"%d\"\n",
 						hba->host->medium_err_cnt, hba->host->hw_err_cnt); 
 UFS_DEV_ATTR(sense_err_logging, "\"LBA0\":\"%lx\",\"LBA1\":\"%lx\",\"LBA2\":\"%lx\""
@@ -9517,6 +9517,37 @@ UFS_DEV_ATTR(sense_err_logging, "\"LBA0\":\"%lx\",\"LBA1\":\"%lx\",\"LBA2\":\"%l
 		, hba->host->issue_LBA_list[6], hba->host->issue_LBA_list[7]
 		, hba->host->issue_LBA_list[8], hba->host->issue_LBA_list[9]
 		, hba->host->issue_region_map);
+
+static ssize_t ufs_lt_info_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *host = container_of(dev, struct Scsi_Host, shost_dev);
+	struct ufs_hba *hba = shost_priv(host);
+	u8 health_buf[QUERY_DESC_MAX_SIZE];
+	int err = 0;
+
+	if (!hba) {
+		printk("skipping ufs lt read\n");
+		hba->lifetime = 0;
+	} else if (hba->ufshcd_state == UFSHCD_STATE_OPERATIONAL) {
+		pm_runtime_get_sync(hba->dev);
+		err = ufshcd_read_health_desc(hba, health_buf,
+						hba->desc_size.hlth_desc);
+		pm_runtime_put(hba->dev);
+		if (err)
+			goto skip;
+		dev_info(hba->dev,"LT: 0x%02x \n", health_buf[3]<<4|health_buf[4]);
+
+		hba->lifetime = health_buf[HEALTH_DEVICE_DESC_PARAM_LIFETIMEA];
+	} else {
+		/* return previous LT value if not operational */
+		dev_info(hba->dev, "ufshcd_state : %d, old LT: %01x\n",
+					hba->ufshcd_state, hba->lifetime);
+	}
+
+skip:
+	return sprintf(buf, "%01x\n", hba->lifetime);
+}
+static DEVICE_ATTR(lt, 0444, ufs_lt_info_show, NULL);
 
 static ssize_t ufs_lc_info_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -9574,6 +9605,7 @@ static void ufshcd_add_lt_sysfs_node(struct ufs_hba *hba)
 		printk("cannot create sysfs group err: %d\n", err);
 }
 
+
 static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
 {
 	ufshcd_add_rpm_lvl_sysfs_nodes(hba);
@@ -9586,7 +9618,7 @@ static inline void ufshcd_add_sysfs_nodes(struct ufs_hba *hba)
 static inline void ufshcd_remove_sysfs_nodes(struct ufs_hba *hba)
 {
 	struct device *dev = &(hba->host->shost_dev);
-	
+
 	device_remove_file(hba->dev, &hba->rpm_lvl_attr);
 	device_remove_file(hba->dev, &hba->spm_lvl_attr);
 	device_remove_file(hba->dev, &hba->unique_number_attr);

@@ -28,9 +28,9 @@ struct fscrypt_operations {
 	int (*get_context)(struct inode *, void *, size_t);
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	unsigned long long (*get_dun)(const struct inode *, pgoff_t p);
-#ifdef CONFIG_DDAR
+#if defined(CONFIG_DDAR) || defined(CONFIG_FSCRYPT_SDP)
 	int (*get_knox_context)(struct inode *, const char *, void *, size_t);
-	int (*set_knox_context)(struct inode *, const char *, const void *, size_t, void *);
+    int (*set_knox_context)(struct inode *, const char *, const void *, size_t, void *);
 #endif
 	bool (*dummy_context)(struct inode *);
 	bool (*empty_dir)(struct inode *);
@@ -97,7 +97,6 @@ extern int fscrypt_get_encryption_kek(struct inode *inode,
 						struct fscrypt_key *kek);
 
 #endif
-
 /* fname.c */
 extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
 				int lookup, struct fscrypt_name *);
@@ -213,12 +212,5 @@ extern int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 extern const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 				       unsigned int max_size,
 				       struct delayed_call *done);
-
-#ifdef CONFIG_DDAR
-extern int fscrypt_dd_decrypt_page(struct inode *inode, struct page *page);
-extern int fscrypt_dd_encrypted_inode(const struct inode *inode);
-extern long fscrypt_dd_ioctl(unsigned int cmd, unsigned long *arg, struct inode *inode);
-extern int fscrypt_dd_submit_bio(struct inode *inode, struct bio *bio);
-#endif
 
 #endif	/* _LINUX_FSCRYPT_SUPP_H */

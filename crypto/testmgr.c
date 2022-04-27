@@ -1683,7 +1683,7 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_CRYPTO_DISKCIPHER
+#if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
 static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 			   const struct cipher_testvec *template, unsigned int tcount,
 			   const int align_offset)
@@ -1731,7 +1731,7 @@ static int __test_diskcipher(struct crypto_diskcipher *tfm, int enc,
 			goto out;
 
 		ret = crypto_diskcipher_setkey(tfm, template[i].key,
-					     template[i].klen, 0);
+					     template[i].klen, 0, NULL);
 		if (ret == -ENOKEY) {
 			pr_err("alg: diskcipher: no support %d keylen for %s. skip it\n",
 			       template[i].klen, algo);
@@ -2695,7 +2695,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.dec = __VECS(aes_cbc_dec_tv_template)
 			}
 		}
-#ifdef CONFIG_CRYPTO_DISKCIPHER
+#if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
 	}, {
 		.alg = "cbc(aes)-disk",
 		.test = alg_test_diskcipher,
@@ -3761,7 +3761,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.dec = __VECS(aes_xts_dec_tv_template)
 			}
 		}
-#ifdef CONFIG_CRYPTO_DISKCIPHER
+#if defined(CONFIG_CRYPTO_DISKCIPHER) && !defined(CONFIG_EXYNOS_FMP_FIPS)
 	}, {
 		.alg = "xts(aes)-disk",
 		.test = alg_test_diskcipher,

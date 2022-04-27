@@ -23,14 +23,12 @@ if CRYPTO
 comment "Crypto core or helper"
 
 config CRYPTO_FIPS
-	bool "FIPS 200 compliance"
-	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
-	depends on (MODULE_SIG || !MODULES)
+	bool "FIPS 140-2 compliance"
+	default y
 	help
-	  This options enables the fips boot option which is
-	  required if you want to system to operate in a FIPS 200
-	  certification.  You should say no unless you know what
-	  this is.
+	  This options enables the fips option which is
+	  required if you want to system to operate in a FIPS 140-2
+	  certification. 
 
 config CRYPTO_ALGAPI
 	tristate
@@ -239,7 +237,7 @@ config CRYPTO_AUTHENC
 
 config CRYPTO_TEST
 	tristate "Testing module"
-	depends on m
+	default n
 	select CRYPTO_MANAGER
 	help
 	  Quick & dirty crypto test module.
@@ -416,6 +414,16 @@ config CRYPTO_ADIANTUM
 	  security than XTS, subject to the security bound.
 
 	  If unsure, say N.
+
+comment "KDF modes"
+
+config CRYPTO_KBKDF_CTR_HMAC_SHA512
+    tristate "KBKDF CTR HMAC(SHA512) support"
+    select CRYPTO_HMAC
+    select CRYPTO_SHA512
+    help
+      NIST SP 800-108 Key Derivation Function (KDF).
+      Counter mode. HMAC(SHA512) based
 
 comment "Hash modes"
 
@@ -1703,7 +1711,7 @@ config CRYPTO_ZSTD
 	select ZSTD_DECOMPRESS
 	help
 	  This is the zstd algorithm.
-	  
+
 comment "Random Number Generation"
 
 config CRYPTO_ANSI_CPRNG

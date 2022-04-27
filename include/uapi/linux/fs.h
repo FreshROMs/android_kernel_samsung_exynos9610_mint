@@ -257,12 +257,6 @@ struct fsxattr {
 #if defined(CONFIG_SDP) && !defined(CONFIG_FSCRYPT_SDP)
 #define FS_IOC_INVAL_MAPPING		_IO('f', 13)	/* CONFIG_EPM FMP */
 #endif
-
-#ifdef CONFIG_DDAR
-#define FS_IOC_GET_DD_POLICY			_IO('P', 0x00)
-#define FS_IOC_SET_DD_POLICY			_IO('P', 0x01)
-#endif
-
 /*
  * File system encryption support
  */
@@ -288,7 +282,6 @@ struct fsxattr {
 #define FS_ENCRYPTION_MODE_SPECK128_256_XTS	7 /* Removed, do not use. */
 #define FS_ENCRYPTION_MODE_SPECK128_256_CTS	8 /* Removed, do not use. */
 #define FS_ENCRYPTION_MODE_ADIANTUM		9
-
 #ifdef CONFIG_FS_INLINE_ENCRYPTION
 #define FS_ENCRYPTION_MODE_PRIVATE		127
 #endif

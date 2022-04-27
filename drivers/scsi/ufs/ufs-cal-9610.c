@@ -312,7 +312,7 @@ static struct ufs_cal_phy_cfg pre_h8_exit[] = {
 };
 
 static inline ufs_cal_errno ufs_cal_wait_cdr_afc_check(void *hba,
-                       u32 addr, u32 mask, int lane)
+			u32 addr, u32 mask, int lane)
 {
 	u32 delay_us = 1;
 	u32 delay2_us = 40;
@@ -321,7 +321,7 @@ static inline ufs_cal_errno ufs_cal_wait_cdr_afc_check(void *hba,
 
 	for (i = 0; i < 100; i++) {
 		ufs_lld_usleep_delay(delay2_us, delay2_us);
-		
+
 		reg = ufs_lld_pma_read(hba, PHY_PMA_TRSV_ADDR(addr, lane));
 		if (mask == (reg & mask))
 			return UFS_CAL_NO_ERROR;

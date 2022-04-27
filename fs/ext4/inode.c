@@ -1190,9 +1190,6 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	unsigned bbits;
 	struct buffer_head *bh, *head, *wait[2], **wait_bh = wait;
 	bool decrypt = false;
-#ifdef CONFIG_DDAR
-	bool dd_decrypt = false;
-#endif
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(from > PAGE_SIZE);
@@ -1250,18 +1247,10 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 			if (fscrypt_submit_bh(REQ_OP_READ, 0, bh, inode) < 0)
 				ll_rw_block(REQ_OP_READ, 0, 1, &bh);
 
-#if defined(CONFIG_CRYPTO_DISKCIPHER_DEBUG)
-			crypto_diskcipher_debug(FS_BLOCK_WRITE,
-				fscrypt_inline_encrypted(inode) ? REQ_CRYPT : 0);
-#endif
 			*wait_bh++ = bh;
 			decrypt = ext4_encrypted_inode(inode) &&
 				S_ISREG(inode->i_mode) &&
 				!fscrypt_inline_encrypted(inode);
-
-#ifdef CONFIG_DDAR
-			dd_decrypt = fscrypt_dd_encrypted_inode(inode);
-#endif
 		}
 	}
 	/*
@@ -1277,12 +1266,6 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
 	else if (decrypt)
 		err = fscrypt_decrypt_page(page->mapping->host, page,
 				PAGE_SIZE, 0, page->index);
-
-#ifdef CONFIG_DDAR
-	if (dd_decrypt)
-		err = fscrypt_dd_decrypt_page(inode, page);
-#endif
-
 	return err;
 }
 #endif
@@ -2221,10 +2204,7 @@ static int ext4_writepage(struct page *page,
 		return -ENOMEM;
 	}
 	ret = ext4_bio_write_page(&io_submit, page, len, wbc, keep_towrite);
-
-	if (ext4_io_submit_to_dd(inode, &io_submit) == -EOPNOTSUPP)
-		ext4_io_submit(&io_submit);
-
+	ext4_io_submit(&io_submit);
 	/* Drop io_end reference we got from init */
 	ext4_put_io_end_defer(io_submit.io_end);
 	return ret;
@@ -2878,9 +2858,7 @@ retry:
 	}
 	ret = mpage_prepare_extent_to_map(&mpd);
 	/* Submit prepared bio */
-	if (ext4_io_submit_to_dd(inode, &mpd.io_submit) == -EOPNOTSUPP)
-		ext4_io_submit(&mpd.io_submit);
-
+	ext4_io_submit(&mpd.io_submit);
 	ext4_put_io_end_defer(mpd.io_submit.io_end);
 	mpd.io_submit.io_end = NULL;
 	/* Unlock pages we didn't use */
@@ -2953,9 +2931,7 @@ retry:
 			mpd.do_map = 0;
 		}
 		/* Submit prepared bio */
-		if (ext4_io_submit_to_dd(inode, &mpd.io_submit) == -EOPNOTSUPP)
-			ext4_io_submit(&mpd.io_submit);
-
+		ext4_io_submit(&mpd.io_submit);
 		/* Unlock pages we didn't use */
 		mpage_release_unused_pages(&mpd, give_up_on_write);
 		/*
@@ -4050,11 +4026,6 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 			BUG_ON(blocksize != PAGE_SIZE);
 			WARN_ON_ONCE(fscrypt_decrypt_page(page->mapping->host,
 						page, PAGE_SIZE, 0, page->index));
-
-#ifdef CONFIG_DDAR
-			if (fscrypt_dd_encrypted_inode(inode))
-				WARN_ON_ONCE(fscrypt_dd_decrypt_page(page->mapping->host, page));
-#endif
 		}
 	}
 	if (ext4_should_journal_data(inode)) {

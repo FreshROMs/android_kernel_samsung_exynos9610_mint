@@ -76,8 +76,7 @@ static char *check[] = {
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
 	"camellia", "seed", "salsa20", "rmd128", "rmd160", "rmd256", "rmd320",
 	"lzo", "lzo-rle", "cts", "zlib", "sha3-224", "sha3-256", "sha3-384",
-	"sha3-512",
-	NULL
+	"sha3-512", NULL
 };
 
 struct tcrypt_result {

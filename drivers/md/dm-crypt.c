@@ -2054,7 +2054,7 @@ static int crypt_setkey(struct crypt_config *cc)
 		else if (crypt_mode_diskcipher(cc))
 			r = crypto_diskcipher_setkey(cc->cipher_tfm.tfms_diskc[i],
 						   cc->key + (i * subkey_size),
-						   subkey_size, 1);
+						   subkey_size, 1, NULL);
 		else
 			r = crypto_skcipher_setkey(cc->cipher_tfm.tfms[i],
 						   cc->key + (i * subkey_size),
@@ -2579,6 +2579,9 @@ static int crypt_ctr_cipher_old(struct dm_target *ti, char *cipher_in, char *key
 	if (*ivmode && (!strcmp(*ivmode, "disk") || !strcmp(*ivmode, "fmp")))
 		set_bit(CRYPT_MODE_DISKCIPHER, &cc->cipher_flags);
 
+	if (tmp)
+		DMWARN("Ignoring unexpected additional cipher options");
+
 	/*
 	 * For compatibility with the original dm-crypt mapping format, if
 	 * only the cipher name is supplied, use cbc-plain.
@@ -2973,7 +2976,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	 * - for REQ_OP_DISCARD caller must use flush if IO ordering matters
 	 */
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH ||
-	    bio_op(bio) == REQ_OP_DISCARD)) {
+	    bio_op(bio) == REQ_OP_DISCARD || bio->bi_sec_flags & SEC_BYPASS)) {
 		bio_set_dev(bio, cc->dev->bdev);
 		if (bio_sectors(bio))
 			bio->bi_iter.bi_sector = cc->start +

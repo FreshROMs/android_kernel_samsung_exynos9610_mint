@@ -1120,12 +1120,6 @@ out:
 	}
 	case EXT4_IOC_SHUTDOWN:
 		return ext4_shutdown(sb, arg);
-
-#ifdef CONFIG_DDAR
-	case EXT4_IOC_GET_DD_POLICY:
-	case EXT4_IOC_SET_DD_POLICY:
-		return fscrypt_dd_ioctl(cmd, &arg, inode);
-#endif
 #ifdef CONFIG_FSCRYPT_SDP
 	case FS_IOC_GET_SDP_INFO:
 	case FS_IOC_SET_SDP_POLICY:
