@@ -3326,8 +3326,7 @@ static void freecess_async_binder_report(struct binder_proc *proc,
 		skip_bytes = 16;
 
 	if ((tr->flags & TF_ONE_WAY) && target_proc
-		&& target_proc->tsk && target_proc->tsk->cred
-		&& (target_proc->tsk->cred->euid.val > 10000)
+		&& target_proc->tsk && task_euid(target_proc->tsk).val > 10000
 		&& (proc->pid != target_proc->pid)) {
 		if (thread_group_is_frozen(target_proc->tsk)) {
 			if (t->buffer->data_size > skip_bytes) {
@@ -3350,15 +3349,14 @@ static void freecess_async_binder_report(struct binder_proc *proc,
 }
 
 static void freecess_sync_binder_report(struct binder_proc *proc,
-						struct binder_proc *target_proc,
-						struct binder_transaction_data *tr)
+								struct binder_proc *target_proc,
+								struct binder_transaction_data *tr)
 {
 	if (!proc || !target_proc || !tr)
 		return;
 
 	if ((!(tr->flags & TF_ONE_WAY)) && target_proc
-		&& target_proc->tsk && target_proc->tsk->cred
-		&& (target_proc->tsk->cred->euid.val > 10000)
+		&& target_proc->tsk && task_euid(target_proc->tsk).val > 10000
 		&& (proc->pid != target_proc->pid) 
 		&& thread_group_is_frozen(target_proc->tsk)) {
 		//if sync binder, we don't need detecting info, so set code and interfacename as default value.
@@ -6426,7 +6424,7 @@ static void binder_in_transaction(struct binder_proc *proc, int uid)
 
 	//check binder proc todo list
 #ifdef CONFIG_FAST_TRACK
-        empty = binder_proc_worklist_empty_ilocked(proc);
+    empty = binder_proc_worklist_empty_ilocked(proc);
 	if (!empty) {
 		list_for_each_entry(w, &proc->todo, entry) {
 			if (w->type == BINDER_WORK_TRANSACTION) {
@@ -6493,7 +6491,7 @@ void binders_in_transcation(int uid)
 
 	mutex_lock(&binder_procs_lock);
 	hlist_for_each_entry(itr, &binder_procs, proc_node) {
-		if (itr != NULL && (itr->tsk->cred->euid.val == uid)) {
+		if (itr != NULL && task_euid(itr->tsk).val == uid) {
 			binder_in_transaction(itr, uid);
 		}
 	}
