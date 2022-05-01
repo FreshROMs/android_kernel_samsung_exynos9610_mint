@@ -2379,6 +2379,27 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 	return 1;
 }
 
+static noinline void tracing_mark_write(bool start, struct file *file, pgoff_t offset, unsigned int size, bool sync)
+{
+	char buf[256], *path;
+
+	if (!tracing_is_on() || file == NULL || file->f_path.dentry == NULL)
+		return;
+
+	if (start) {
+		path = dentry_path(file->f_path.dentry, buf, 256);
+
+		if (!IS_ERR(path))
+			trace_printk("B|%d|%d , %s , %lu , %d\n", current->pid, sync, path, offset, size);
+		else
+			trace_printk("B|%d|%d , %s , %lu , %d\n", current->pid, sync, "dentry_path failed", offset, size);
+	} else {
+		trace_printk("E|%d\n", current->pid);
+	}
+}
+
+#define trace_fault_file_path_start(...) tracing_mark_write(1, ##__VA_ARGS__)
+#define trace_fault_file_path_end(...) tracing_mark_write(0, ##__VA_ARGS__)
 
 #if CONFIG_MMAP_READAROUND_LIMIT == 0
 int mmap_readaround_limit = (VM_MAX_READAHEAD / 4); 		/* page */
@@ -2410,8 +2431,10 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 
 	if (vmf->vma->vm_flags & VM_SEQ_READ) {
 		fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+		trace_fault_file_path_start(file, offset, ra->ra_pages, 1);
 		page_cache_sync_readahead(mapping, ra, file, offset,
 					  ra->ra_pages);
+		trace_fault_file_path_end(file, offset, ra->ra_pages, 1);
 		return fpin;
 	}
 
@@ -2434,7 +2457,10 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	ra->start = max_t(long, 0, offset - ra_pages / 2);
 	ra->size = ra_pages;
 	ra->async_size = ra_pages / 4;
+
+	trace_fault_file_path_start(file, offset, ra_pages, 1);
 	ra_submit(ra, mapping, file);
+	trace_fault_file_path_end(file, offset, ra_pages, 1);
 	return fpin;
 }
 
@@ -2459,8 +2485,10 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 		ra->mmap_miss--;
 	if (PageReadahead(page)) {
 		fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+		trace_fault_file_path_start(file, offset, ra->ra_pages, 0);
 		page_cache_async_readahead(mapping, ra, file,
 					   page, offset, ra->ra_pages);
+		trace_fault_file_path_end(file, offset, ra->ra_pages, 0);
 	}
 	return fpin;
 }
@@ -2583,7 +2611,9 @@ page_not_uptodate:
 	 */
 	ClearPageError(page);
 	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+	trace_fault_file_path_start(file, offset, 1, 1);
 	error = mapping->a_ops->readpage(file, page);
+	trace_fault_file_path_end(file, offset, 1, 1);
 	if (!error) {
 		wait_on_page_locked(page);
 		if (!PageUptodate(page))
