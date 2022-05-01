@@ -302,7 +302,7 @@ static void tc3xxk_debug_work_func(struct work_struct *work)
 			data->max_diff = data->diff;
 	}
 #endif
-	schedule_delayed_work(&data->debug_work, msecs_to_jiffies(2000));
+	queue_delayed_work(system_power_efficient_wq, &data->debug_work, msecs_to_jiffies(2000));
 }
 
 static int tc3xxk_mode_check(struct i2c_client *client)
@@ -2191,7 +2191,7 @@ static int tc3xxk_probe(struct i2c_client *client,
 		SENSOR_INFO("mode %d, sar %d\n", ret, data->sar_enable);
 	}
 	device_init_wakeup(&client->dev, true);
-	schedule_delayed_work(&data->debug_work, msecs_to_jiffies(20000));
+	queue_delayed_work(system_power_efficient_wq, &data->debug_work, msecs_to_jiffies(20000));
 
 	SENSOR_INFO("done\n");
 	return 0;
@@ -2267,7 +2267,7 @@ static int tc3xxk_resume(struct device *dev)
 	struct tc3xxk_data *data = i2c_get_clientdata(client);
 
 	SENSOR_INFO("sar_enable(%d)\n", data->sar_enable);
-	schedule_delayed_work(&data->debug_work, msecs_to_jiffies(1000));
+	queue_delayed_work(system_power_efficient_wq, &data->debug_work, msecs_to_jiffies(1000));
 	
 	return 0;
 }
