@@ -79,6 +79,10 @@
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
 
+#ifdef CONFIG_PAGE_BOOST_RECORDING
+#include <linux/io_record.h>
+#endif
+
 #include "internal.h"
 
 #if defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS) && !defined(CONFIG_COMPILE_TEST)
@@ -3621,6 +3625,10 @@ static int do_read_fault(struct vm_fault *vmf)
 		ret = do_fault_around(vmf);
 		if (ret)
 			return ret;
+#ifdef CONFIG_PAGE_BOOST_RECORDING
+	} else if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT == 1) {
+		record_io_info(vma->vm_file, vmf->pgoff, 1);
+#endif
 	}
 
 	ret = __do_fault(vmf);
