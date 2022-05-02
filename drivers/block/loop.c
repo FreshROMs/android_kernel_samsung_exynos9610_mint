@@ -1458,8 +1458,7 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 	blk_mq_freeze_queue(lo->lo_queue);
 
 	/* invalidate_bdev should have truncated all the pages */
-	if (lo->lo_queue->limits.logical_block_size != arg &&
-			lo->lo_device->bd_inode->i_mapping->nrpages) {
+	if (lo->lo_device->bd_inode->i_mapping->nrpages) {
 		err = -EAGAIN;
 		pr_warn("%s: loop%d (%s) has still dirty pages (nrpages=%lu)\n",
 			__func__, lo->lo_number, lo->lo_file_name,
@@ -1503,8 +1502,10 @@ static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	case LOOP_CONFIGURE: {
 		struct loop_config config;
 
-		if (copy_from_user(&config, argp, sizeof(config)))
+		if (copy_from_user(&config, argp, sizeof(config))) {
+			mutex_unlock(&lo->lo_ctl_mutex);
 			return -EFAULT;
+		}
 
 		err = loop_configure(lo, mode, bdev, &config);
 		break;
