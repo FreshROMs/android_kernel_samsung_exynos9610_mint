@@ -3175,14 +3175,14 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	limits->max_segment_size = PAGE_SIZE;
 
+	if (crypt_mode_diskcipher(cc))
+		limits->logical_block_size = PAGE_SIZE;
+
 	limits->logical_block_size =
 		max_t(unsigned short, limits->logical_block_size, cc->sector_size);
 	limits->physical_block_size =
 		max_t(unsigned, limits->physical_block_size, cc->sector_size);
 	limits->io_min = max_t(unsigned, limits->io_min, cc->sector_size);
-
-        if (crypt_mode_diskcipher(cc))
-                limits->logical_block_size = PAGE_SIZE;
 }
 
 static struct target_type crypt_target = {
