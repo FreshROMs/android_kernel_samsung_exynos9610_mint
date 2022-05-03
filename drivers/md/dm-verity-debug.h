@@ -24,12 +24,16 @@ struct blks_info{
 
     /* fec corrected blocks list */
     sector_t fc_blks_list[MAX_FC_BLKS_LIST + FOR_SAFE]; 
-    char dev_name[MAX_FC_BLKS_LIST + FOR_SAFE][MAX_DEV_NAME],fec_off_list[MAX_DEV_LIST][MAX_DEV_NAME],dmv_ctr_list[MAX_DEV_LIST][MAX_DEV_NAME];
+    char dev_name[MAX_FC_BLKS_LIST + FOR_SAFE][MAX_DEV_NAME];
+	char fec_off_list[MAX_DEV_LIST][MAX_DEV_NAME];
+	char dmv_ctr_list[MAX_DEV_LIST][MAX_DEV_NAME];
     /* The "list_idx" value is the location of the new correct_blk to be entered for fc_blks_list []. */
     int list_idx; 
-    atomic_t fec_off_cnt,dmv_ctr_cnt;
+    atomic_t fec_off_cnt;
+    atomic_t dmv_ctr_cnt;
 };
 extern struct blks_info *b_info;
+extern int ignore_fs_panic;
 
 extern int verity_handle_err_hex_debug(struct dm_verity *v, enum verity_block_type type,
 					     unsigned long long block, struct dm_verity_io *io, struct bvec_iter *iter);
