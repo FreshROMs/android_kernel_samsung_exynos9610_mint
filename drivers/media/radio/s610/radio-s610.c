@@ -131,7 +131,7 @@ static struct v4l2_ctrl_config s610_ctrls[] = {
 				.type	= V4L2_CTRL_TYPE_INTEGER,
 				.name	= "Channel Band",
 				.min	= 0,
-				.max	= 1,
+				.max	= 2,
 				.step	= 1,
 		},
 		[S610_IDX_SOFT_STEREO_BLEND] = { /*0x03*/
@@ -275,10 +275,23 @@ static const struct v4l2_frequency_band s610_bands[] = {
 				| V4L2_TUNER_CAP_RDS
 				| V4L2_TUNER_CAP_RDS_BLOCK_IO
 				| V4L2_TUNER_CAP_FREQ_BANDS,
-				/* default region Eu/US */
+				/* Japan region */
 				.rangelow	= 76000*FAC_VALUE,
 				.rangehigh	= 90000*FAC_VALUE,
 				.modulation	= V4L2_BAND_MODULATION_FM,
+		},
+		[2] = {
+				.type		= V4L2_TUNER_RADIO,
+				.index		= S610_BAND_FM,
+				.capability = V4L2_TUNER_CAP_LOW
+				| V4L2_TUNER_CAP_STEREO
+				| V4L2_TUNER_CAP_RDS
+				| V4L2_TUNER_CAP_RDS_BLOCK_IO
+				| V4L2_TUNER_CAP_FREQ_BANDS,
+				/* custom region */
+				.rangelow	= 76000*FAC_VALUE,
+				.rangehigh	= 108000*FAC_VALUE,
+				.modulation = V4L2_BAND_MODULATION_FM,
 		},
 };
 
@@ -297,6 +310,13 @@ static struct region_info region_configs[] = {
 			.bot_freq = 76000,	/* 76 MHz */
 			.top_freq = 90000,	/* 90 MHz */
 			.fm_band = 1,
+		},
+		/* Custom */
+		{
+			.chanl_space = FM_CHANNEL_SPACING_200KHZ * FM_FREQ_MUL,
+			.bot_freq = 76000,	/* 76 MHz */
+			.top_freq = 108000,	/* 108 MHz */
+			.fm_band = 2,
 		},
 };
 

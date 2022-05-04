@@ -2444,7 +2444,7 @@ fm_tuner_state_s low_fm_tuner_state_init = {
 		.band_limit_hi = 108000
 };
 
-fm_band_s fm_bands_init[] = { { 87500, 108000 }, { 76000, 90000 } };
+fm_band_s fm_bands_init[] = { { 87500, 108000 }, { 76000, 90000 }, {76000, 108000} };
 u16 fm_freq_steps_init[] = { 50, 100, 200 };
 #ifdef USE_SPUR_CANCEL
 extern u32 *fm_spur_init;
@@ -2466,7 +2466,7 @@ int init_low_struc(struct s610_radio *radio)
 	memcpy(&radio->low->fm_state, &low_fm_state_init, sizeof(fm_state_s));
 	memcpy(&radio->low->fm_tuner_state, &low_fm_tuner_state_init,
 			sizeof(fm_tuner_state_s));
-	memcpy(&radio->low->fm_bands, &fm_bands_init, sizeof(fm_band_s) * 2);
+	memcpy(&radio->low->fm_bands, &fm_bands_init, sizeof(fm_band_s) * 3);
 	memcpy(&radio->low->fm_freq_steps,
 			&fm_freq_steps_init, sizeof(u16) * 3);
 	if (radio->sw_mute_weak) {

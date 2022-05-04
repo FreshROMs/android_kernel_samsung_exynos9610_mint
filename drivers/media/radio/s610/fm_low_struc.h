@@ -456,7 +456,7 @@ struct s610_low {
 
 	struct_fm_rx_tune_info fm_tune_info;
 
-	fm_band_s fm_bands[2];
+	fm_band_s fm_bands[3];
 
 	u16 fm_freq_steps[3];
 
