@@ -600,14 +600,6 @@ void mx_dbg_sampler_probe(struct scsc_mx_module_client *module_client, struct sc
 			return;
 		}
 
-#if 0
-		/* TODO GET UID */
-		if (kstrtol(dev_uid, 10, &uid)) {
-			SCSC_TAG_ERR(MX_SAMPLER, "Invalid device uid default to zero\n");
-			uid = 0;
-		}
-#endif
-
 		devn = MKDEV(MAJOR(mx_dbg_sampler.device), MINOR(minor));
 
 		snprintf(dev_name, sizeof(dev_name), "%s_%d_%s", "mx", (int)uid, "debug_sampler");

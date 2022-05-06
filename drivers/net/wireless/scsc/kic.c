@@ -29,7 +29,7 @@ static int wifi_kic_trigger_recovery(void *priv, enum slsi_kic_test_recovery_typ
 	case slsi_kic_test_recovery_type_emulate_firmware_no_response:
 		SLSI_INFO(sdev, "Trigger Wi-Fi host panic\n");
 		snprintf(reason, sizeof(reason), "slsi_kic_test_recovery_type_emulate_firmware_no_response");
-		slsi_sm_service_failed(sdev, reason);
+		slsi_sm_service_failed(sdev, reason, false);
 		return 0;
 	case slsi_kic_test_recovery_type_watch_dog:
 	case slsi_kic_test_recovery_type_chip_crash:

@@ -162,7 +162,15 @@ static int slsi_rx_amsdu_deaggregate(struct net_device *dev, struct sk_buff *skb
 			kfree_skb(skb);
 			return -EINVAL;
 		}
-		data_len = ((skb->data[ETH_ALEN * 2] << 8) | skb->data[(ETH_ALEN * 2) + 1]) - LLC_SNAP_HDR_LEN;
+
+		data_len = (skb->data[ETH_ALEN * 2] << 8) | skb->data[(ETH_ALEN * 2) + 1];
+		if (unlikely(data_len <= LLC_SNAP_HDR_LEN)) {
+			SLSI_NET_ERR(dev, "invalid data length %d < %d\n", data_len, LLC_SNAP_HDR_LEN);
+			__skb_queue_purge(msdu_list);
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+		data_len -= LLC_SNAP_HDR_LEN;
 		/* check if the length of sub-frame is valid.
 		 * <---------------------(ETH_ALEN * 2 + 2 + 8 + data_len)---------------------->
 		 * +-----+-----+-----+-----------------------------+----------------------+------+-----+
@@ -466,11 +474,8 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 			struct ethhdr *ehdr = (struct ethhdr *)(rx_skb->data);
 
 			if (is_multicast_ether_addr(ehdr->h_dest)) {
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+				/* For the case of uing NAPI, we need to use GFP_ATOMIC */
 				struct sk_buff *rebroadcast_skb = skb_copy(rx_skb, GFP_ATOMIC);
-#else
-				struct sk_buff *rebroadcast_skb = skb_copy(rx_skb, GFP_KERNEL);
-#endif
 				if (!rebroadcast_skb) {
 					SLSI_WARN(sdev, "Intra BSS: failed to alloc new SKB for broadcast\n");
 				} else {
@@ -525,11 +530,8 @@ void slsi_rx_data_deliver_skb(struct slsi_dev *sdev, struct net_device *dev, str
 						if (other_ndev_vif->peer_sta_record[j] &&
 							other_ndev_vif->peer_sta_record[j]->valid &&
 						    ether_addr_equal(other_ndev_vif->peer_sta_record[j]->address, ehdr->h_source)) {
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+							/* For the case of uing NAPI, we need to use GFP_ATOMIC */
 							struct sk_buff *duplicate_skb = skb_copy(rx_skb, GFP_ATOMIC);
-#else
-							struct sk_buff *duplicate_skb = skb_copy(rx_skb, GFP_KERNEL);
-#endif
 							SLSI_NET_DBG2(other_dev, SLSI_RX, "NAN: source address match %pM\n", other_ndev_vif->peer_sta_record[j]->address);
 							if (!duplicate_skb) {
 								SLSI_NET_WARN(other_dev, "NAN: multicast: failed to alloc new SKB\n");
@@ -875,10 +877,12 @@ void slsi_rx_netdev_data_work(struct work_struct *work)
 			break;
 		}
 
+		slsi_spinlock_lock(&ndev_vif->ba_lock);
 		if (atomic_read(&ndev_vif->ba_flush)) {
 			atomic_set(&ndev_vif->ba_flush, 0);
 			slsi_ba_process_complete(dev, false);
 		}
+		slsi_spinlock_unlock(&ndev_vif->ba_lock);
 
 		skb = slsi_skb_work_dequeue(w);
 		if (!skb) {

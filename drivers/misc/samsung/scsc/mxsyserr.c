@@ -92,7 +92,7 @@ void mx_syserr_handler(struct mxman *mxman, const void *message)
 	}
 
 	/* Ignore if panic reset in progress */
-	if ((srvman->error) || (mxman->mxman_state == MXMAN_STATE_FAILED)) {
+	if (srvman_in_error_safe(srvman) || (mxman->mxman_state == MXMAN_STATE_FAILED)) {
 		SCSC_TAG_INFO(MXMAN, "MM_SYSERR_IND code: 0x%08x ignored (reset in progess)\n",
 			msg->syserr.syserr_code);
 		return;

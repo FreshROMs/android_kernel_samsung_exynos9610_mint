@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 #ifndef __SLSI_REGINFO_H__
@@ -42,7 +42,7 @@ struct regdb_file_reg_rule {
 struct regdb_file_reg_rules_collection {
 	uint32_t reg_rule_num;
 	/* pointers to struct regdb_file_reg_rule */
-	struct regdb_file_reg_rule *reg_rule[8];
+	struct regdb_file_reg_rule *reg_rule[12];
 };
 
 struct regdb_file_reg_country {

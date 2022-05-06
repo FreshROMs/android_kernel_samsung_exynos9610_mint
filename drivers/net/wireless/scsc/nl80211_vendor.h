@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -99,6 +99,7 @@
 #define SLSI_ATTRIBUTE_START_VAL 0
 #define SLSI_NL_ATTRIBUTE_COUNTRY_CODE 4
 #define SLSI_NL_ATTRIBUTE_LATENCY_MODE 5
+#define SLSI_NL_ATTRIBUTE_TX_POWER_SCENARIO 6
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
@@ -110,6 +111,11 @@ enum slsi_low_latency_attr {
 enum slsi_country_code_attr {
 	SLSI_NL_ATTRIBUTE_COUNTRY_CODE = 1,
 	SLSI_NL_ATTRIBUTE_COUNTRY_CODE_MAX
+};
+
+enum slsi_tx_power_scenario_attr {
+	SLSI_NL_ATTRIBUTE_TX_POWER_SCENARIO = 1,
+	SLSI_NL_ATTRIBUTE_TX_POWER_SCENARIO_MAX
 };
 #endif
 
@@ -151,6 +157,15 @@ enum slsi_acs_attr_offload {
 	SLSI_ACS_ATTR_AFTER_LAST,
 	SLSI_ACS_ATTR_MAX =
 	SLSI_ACS_ATTR_AFTER_LAST - 1
+};
+
+enum slsi_scan_attr_config {
+	SLSI_SCAN_DEFAULT_IE_LEN = 1,
+	SLSI_SCAN_DEFAULT_IES,
+	/* keep last */
+	SLSI_SCAN_DEFAULT_AFTER_LAST,
+	SLSI_SCAN_DEFAULT_MAX =
+	SLSI_SCAN_DEFAULT_AFTER_LAST - 1,
 };
 
 #ifdef CONFIG_SLSI_WLAN_STA_FWD_BEACON
@@ -342,6 +357,8 @@ enum slsi_hal_vendor_subcmds {
 	SLSI_NL80211_VENDOR_SUBCMD_GET_ROAMING_CAPABILITIES,
 	SLSI_NL80211_VENDOR_SUBCMD_SET_ROAMING_STATE,
 	SLSI_NL80211_VENDOR_SUBCMD_SET_LATENCY_MODE,
+	SLSI_NL80211_VENDOR_SUBCMD_SELECT_TX_POWER_SCENARIO,
+	SLSI_NL80211_VENDOR_SUBCMD_RESET_TX_POWER_SCENARIO,
 	SLSI_NL80211_VENDOR_SUBCMD_RTT_GET_CAPABILITIES = SLSI_NL80211_RTT_SUBCMD_RANGE_START,
 	SLSI_NL80211_VENDOR_SUBCMD_RTT_RANGE_START,
 	SLSI_NL80211_VENDOR_SUBCMD_RTT_RANGE_CANCEL,
@@ -382,6 +399,7 @@ enum slsi_supp_vendor_subcmds {
 	SLSI_NL80211_VENDOR_SUBCMD_UNSPEC = 0,
 	SLSI_NL80211_VENDOR_SUBCMD_KEY_MGMT_SET_KEY,
 	SLSI_NL80211_VENDOR_SUBCMD_ACS_INIT,
+	SLSI_NL80211_VENDOR_SUBCMD_DEFAULT_SCAN_IES
 };
 
 enum slsi_vendor_event_values {
@@ -419,7 +437,8 @@ enum slsi_vendor_event_values {
 	SLSI_NAN_EVENT_NDP_REQ,
 	SLSI_NAN_EVENT_NDP_CFM,
 	SLSI_NAN_EVENT_NDP_END,
-	SLSI_NL80211_VENDOR_RCL_CHANNEL_LIST_EVENT = 30
+	SLSI_NL80211_VENDOR_RCL_CHANNEL_LIST_EVENT = 30,
+	SLSI_NL80211_VENDOR_POWER_MEASUREMENT_EVENT
 };
 
 enum slsi_lls_interface_mode {
@@ -1033,14 +1052,6 @@ struct slsi_acs_request {
 	u8 hw_mode;
 	u16 ch_width;
 	u8 ch_list_len;
-};
-
-struct slsi_logging_ap_info {
-	short score;
-	short rssi;
-	u8 mac[ETH_ALEN];
-	u32 tp_score;
-	u32 ch_util;
 };
 
 void slsi_nl80211_vendor_init(struct slsi_dev *sdev);

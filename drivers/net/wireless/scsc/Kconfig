@@ -81,12 +81,6 @@ config SCSC_WLAN_MUTEX_DEBUG
 	---help---
 	  This option enables the Mutex debug reports in slsi wlan driver.
 
-config CONFIG_SCSC_WLAN_BLOCK_IPV6
-	bool "Block IPv6"
-	default n
-	---help---
-	  This option blocks IPv6 packets.
-
 config CONFIG_SCSC_WLAN_DISABLE_NAT_KA
 	bool "Disable NAT"
 	default n
@@ -170,6 +164,11 @@ config SCSC_WLAN_SAE_CONFIG
         default n
         ---help---
           This option tells if wpa3  is supported or not.
+config SCSC_WLAN_SAE_PWE
+        bool "WPA3 SAE PWE Support"
+        default n
+        ---help---
+          This option tells if wpa3 sae pwe is supported or not.
 
 config SCSC_WLAN_ENABLE_MAC_RANDOMISATION
         bool "Wifi Mac Randomization Support"
@@ -208,6 +207,7 @@ config SCSC_WLAN_MHS_STATIC_INTERFACE
 
 config SCSC_WLAN_PRIORITISE_IMP_FRAMES
         bool "Change priority of important frames such as DNS, MDNS, TCP SYN"
+        depends on SOC_EXYNOS9610
         default y
         ---help---
           The option enables the driver to prioritise important frames
@@ -333,14 +333,20 @@ config SCSC_WLAN_NW_PKT_DROP
         ---help---
         This option enable the dumps for packets getting dropped in Network Stack.
 
-config SCSC_WLAN_BSS_SELECTION
-        bool "Select AP if bssid is not present"
-        default n
-        ---help---
-        This option enable the selection of AP based on the BSSID hint.
-
 config SCSC_WLAN_EXPONENTIAL_SCHED_SCAN
         bool "Enable exponential scheduled scan"
         default n
         ---help---
         This option enables the exponential scheduled scan.
+
+config SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
+        bool "Enable this to debug memory corruption in mlme work struct"
+        default n
+        ---help---
+        This option enables debug if memory corruption happen in mlme work struct.
+
+config SCSC_WLAN_SAR_SUPPORTED
+        bool "Enables SAR configuration through NL commands"
+        default n
+        ---help---
+        This option enables the SAR configuration through NL commands.

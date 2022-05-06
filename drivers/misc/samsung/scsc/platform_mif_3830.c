@@ -769,23 +769,6 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 	CHECK(regmap_write(platform->dbus_baaw, 0x4, WLBT_DBUS_BAAW_0_END >> 12));
 	CHECK(regmap_write(platform->dbus_baaw, 0x8, platform->mem_start >> 12)); // FW AP base addr >> 12
 	CHECK(regmap_write(platform->dbus_baaw, 0xC, WLBT_BAAW_ACCESS_CTRL));
-#if 0
-	/* Additional DRAM mappings for future use */
-	CHECK(regmap_write(platform->dbus_baaw, 0x10, 0x000C0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x14, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x18, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x1C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->dbus_baaw, 0x20, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x24, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x28, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x2C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->dbus_baaw, 0x30, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x34, 0x000F0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x38, 0x000F0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x3C, WLBT_BAAW_ACCESS_CTRL));
-#endif
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "DBUS_BAAW end\n");
 
 	/* PBUS_BAAW regions */
@@ -803,33 +786,6 @@ irqreturn_t platform_cfg_req_isr(int irq, void *data)
 	CHECK(regmap_write(platform->pbus_baaw, 0x14, WLBT_CBUS_BAAW_1_END >> 12));
 	CHECK(regmap_write(platform->pbus_baaw, 0x18, WLBT_PBUS_MBOX_GNSS2WLBT_BASE >> 12));
 	CHECK(regmap_write(platform->pbus_baaw, 0x1C, WLBT_BAAW_ACCESS_CTRL));
-#if 0
-	/* These mappings are not yet used by WLBT FW */
-	CHECK(regmap_write(platform->pbus_baaw, 0x20, WLBT_CBUS_BAAW_2_START >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x24, WLBT_CBUS_BAAW_2_END >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x28, WLBT_PBUS_MBOX_APM2WLBT_BASE >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x2C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->pbus_baaw, 0x30, WLBT_CBUS_BAAW_3_START >>12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x34, WLBT_CBUS_BAAW_3_END >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x38, WLBT_PBUS_MBOX_AP2WLBT_BASE >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x3C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->pbus_baaw, 0x40, WLBT_CBUS_BAAW_4_START >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x44, WLBT_CBUS_BAAW_4_END >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x48, WLBT_PBUS_MBOX_WLBT2ABOX_BASE >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x4C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->pbus_baaw, 0x50, WLBT_CBUS_BAAW_5_START >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x54, WLBT_CBUS_BAAW_5_END >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x58, WLBT_PBUS_MBOX_WLBT2CHUB_BASE >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x5C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->pbus_baaw, 0x60, WLBT_CBUS_BAAW_6_START >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x64, WLBT_CBUS_BAAW_6_START >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x68, WLBT_PBUS_CHUB_BASE >> 12));
-	CHECK(regmap_write(platform->pbus_baaw, 0x6C, WLBT_BAAW_ACCESS_CTRL));
-#endif
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "PBUS_BAAW end\n");
 
 	/* PMU boot patch
@@ -1175,6 +1131,29 @@ static int platform_mif_pmu_reset_release(struct scsc_mif_abs *interface)
 		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 			"updated successfully WLBT_CTRL_NS[WLBT_ACTIVE_EN]: 0x%x\n", val);
 
+#ifdef CONFIG_SCSC_MX152_EXT_DUAL_FEM
+		ret = regmap_update_bits(platform->pmureg, UART_IO_SHARE_CTRL,
+                                SEL_TXD_GPIO_1_20, BIT(20));
+                if (ret < 0) {
+                        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+                                "Failed to update UART_IO_SHARE_CTRL[SEL_TXD_GPIO_1_20]: %d\n", ret);
+                        return ret;
+                }
+                regmap_read(platform->pmureg, UART_IO_SHARE_CTRL, &val);
+		SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+                        "updated successfully UART_IO_SHARE_CTRL[SEL_TXD_GPIO_1_20]: 0x%x\n", val);
+
+		               ret = regmap_update_bits(platform->pmureg, UART_IO_SHARE_CTRL,
+                                SEL_TXD_GPIO_1_21, BIT(21));
+                if (ret < 0) {
+                        SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
+                                "Failed to update UART_IO_SHARE_CTRL[SEL_TXD_GPIO_1_21]: %d\n", ret);
+                        return ret;
+                }
+                regmap_read(platform->pmureg, UART_IO_SHARE_CTRL, &val);
+                SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
+                        "updated successfully UART_IO_SHARE_CTRL[SEL_TXD_GPIO_1_21]: 0x%x\n", val);
+#endif
 		init_done = true;
 
 		goto init_code_done;
@@ -1823,7 +1802,7 @@ inline void platform_int_debug(struct platform_mif *platform)
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_ACTIVE,  &active);
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_MASKED,  &masked);
 		if (!ret)
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d",
+			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d\n",
 							  irq, irqs_name[i], pending, active, masked);
 	}
 	platform_mif_dump_register(&platform->interface);

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *       Copyright (c) 2012 - 2016 Samsung Electronics Co., Ltd
+ *       Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd
  *
  ****************************************************************************/
 
@@ -517,3 +517,14 @@ void scsc_wifi_unpause_arp_q_all_vif(struct slsi_dev *sdev)
 void scsc_wifi_pause_arp_q_all_vif(struct slsi_dev *sdev)
 {
 }
+
+int mx140_request_file(struct scsc_mx *mx, char *path, const struct firmware **firmp)
+{
+	return -EINVAL;
+}
+
+int mx140_release_file(struct scsc_mx *mx, const struct firmware *firmp)
+{
+	return -EINVAL;
+}
+

@@ -250,6 +250,9 @@ struct hip4_priv {
 	struct tasklet_struct	     intr_tl_fb;
 	struct napi_struct           napi;
 	unsigned long                napi_state;
+	bool                         napi_perf_mode;
+	u8                           napi_rx_full_cnt;
+	u8                           napi_rx_saturated;
 #else
 	struct work_struct           intr_wq;
 #endif
@@ -384,9 +387,11 @@ void hip4_resume(struct slsi_hip4 *hip);
 void hip4_freeze(struct slsi_hip4 *hip);
 void hip4_deinit(struct slsi_hip4 *hip);
 int hip4_free_ctrl_slots_count(struct slsi_hip4 *hip);
-void hip4_set_napi_cpu(struct slsi_hip4 *hip, u8 napi_cpu);
+void hip4_set_napi_cpu(struct slsi_hip4 *hip, u8 napi_cpu, bool perf_mode);
 int scsc_wifi_transmit_frame(struct slsi_hip4 *hip, struct sk_buff *skb, bool ctrl_packet, u8 vif_index, u8 peer_index, u8 priority);
-#ifndef CONFIG_SCSC_WLAN_RX_NAPI
+#ifdef CONFIG_SCSC_WLAN_RX_NAPI
+void hip4_sched_wq_ctrl(struct slsi_hip4 *hip);
+#else
 void hip4_sched_wq(struct slsi_hip4 *hip);
 #endif
 

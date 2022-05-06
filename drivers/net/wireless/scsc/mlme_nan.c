@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -299,11 +299,11 @@ static u32 slsi_mlme_nan_append_ranging(struct sk_buff *req, struct slsi_nan_ran
 	u8 *p;
 
 	p = fapi_append_data_u16(req, SLSI_NAN_TLV_TAG_RANGING);
-	p = fapi_append_data_u16(req, 0x0009);
+	p = fapi_append_data_u16(req, 0x000d);
 	p = fapi_append_data_u32(req, ranging_cfg->ranging_interval_msec);
 	p = fapi_append_data_u8(req, ranging_cfg->config_ranging_indications);
-	p = fapi_append_data_u16(req, ranging_cfg->distance_ingress_mm);
-	p = fapi_append_data_u16(req, ranging_cfg->distance_egress_mm);
+	p = fapi_append_data_u32(req, ranging_cfg->distance_ingress_mm);
+	p = fapi_append_data_u32(req, ranging_cfg->distance_egress_mm);
 	if (p)
 		return 0;
 	return 1;
@@ -387,7 +387,7 @@ static u32 slsi_mlme_nan_enable_fapi_data(struct netdev_vif *ndev_vif, struct sk
 						       hal_req->nss_discovery, hal_req->enable_dw_early_termination,
 						       hal_req->enable_ranging);
 	if (ret) {
-		SLSI_WARN_NODEV("Error append configuration supplemental TLV\n");
+		SLSI_WARN_NODEV("Failed to add config supplemental TLV\n");
 		return ret;
 	}
 
@@ -464,7 +464,8 @@ static u32 slsi_mlme_nan_publish_fapi_data(struct sk_buff *req, struct slsi_hal_
 
 	ret = slsi_mlme_nan_append_discovery_config(req, hal_req->publish_type, hal_req->tx_type, hal_req->ttl,
 						    hal_req->period, hal_req->publish_count, hal_req->publish_match_indicator,
-						    (u16)hal_req->rssi_threshold_flag, (u16)0, (u16)hal_req->sdea_params.config_nan_data_path);
+						    (u16)hal_req->rssi_threshold_flag, (u16)hal_req->sdea_params.ranging_state,
+						    (u16)hal_req->sdea_params.config_nan_data_path);
 	if (ret) {
 		SLSI_WARN_NODEV("Error append disovery config TLV\n");
 		return ret;
@@ -512,14 +513,18 @@ static u32 slsi_mlme_nan_publish_fapi_data(struct sk_buff *req, struct slsi_hal_
 		}
 	}
 
-	ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->sec_info);
-	if (ret) {
-		SLSI_WARN_NODEV("Error append datapath sec TLV\n");
-		return ret;
+	if (hal_req->sdea_params.config_nan_data_path) {
+		ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->sec_info);
+		if (ret) {
+			SLSI_WARN_NODEV("Error append datapath sec TLV\n");
+			return ret;
+		}
 	}
-	ret = slsi_mlme_nan_append_ranging(req, &hal_req->ranging_cfg);
-	if (ret)
-		SLSI_WARN_NODEV("Error append ranging config TLV\n");
+	if (hal_req->sdea_params.ranging_state) {
+		ret = slsi_mlme_nan_append_ranging(req, &hal_req->ranging_cfg);
+		if (ret)
+			SLSI_WARN_NODEV("Error append ranging config TLV\n");
+	}
 	return ret;
 }
 
@@ -620,7 +625,8 @@ static u32 slsi_mlme_nan_subscribe_fapi_data(struct sk_buff *req, struct slsi_ha
 	ret = slsi_mlme_nan_append_discovery_config(req, hal_req->subscribe_type,
 						    hal_req->subscribe_type ? 0 : 1, hal_req->ttl,
 						    hal_req->period, hal_req->subscribe_count, hal_req->subscribe_match_indicator,
-						    hal_req->rssi_threshold_flag, (u16)0, (u16)0);
+						    hal_req->rssi_threshold_flag, (u16)hal_req->sdea_params.ranging_state,
+						    hal_req->sdea_params.config_nan_data_path);
 	if (ret) {
 		SLSI_WARN_NODEV("Error append discovery config TLV\n");
 		return ret;
@@ -668,16 +674,19 @@ static u32 slsi_mlme_nan_subscribe_fapi_data(struct sk_buff *req, struct slsi_ha
 		}
 	}
 
-	ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->sec_info);
-	if (ret) {
-		SLSI_WARN_NODEV("Error append datapath sec TLV\n");
-		return ret;
+	if (hal_req->sdea_params.config_nan_data_path) {
+		ret = slsi_mlme_nan_append_data_path_sec(req, &hal_req->sec_info);
+		if (ret) {
+			SLSI_WARN_NODEV("Error append datapath sec TLV\n");
+			return ret;
+		}
 	}
-
-	ret = slsi_mlme_nan_append_ranging(req, &hal_req->ranging_cfg);
-	if (ret) {
-		SLSI_WARN_NODEV("Error append ranging config TLV\n");
-		return ret;
+	if (hal_req->sdea_params.ranging_state) {
+		ret = slsi_mlme_nan_append_ranging(req, &hal_req->ranging_cfg);
+		if (ret) {
+			SLSI_WARN_NODEV("Error append ranging config TLV\n");
+			return ret;
+		}
 	}
 
 	ret = slsi_mlme_nan_append_address_set(req, hal_req->num_intf_addr_present, (u8 *)hal_req->intf_addr);
@@ -899,7 +908,7 @@ static u32 slsi_mlme_nan_config_fapi_data(struct netdev_vif *ndev_vif, struct sk
 						       hal_req->nss_discovery, hal_req->enable_dw_early_termination,
 						       hal_req->enable_ranging);
 	if (ret) {
-		SLSI_WARN_NODEV("Error append configuration supplemental TLV\n");
+		SLSI_WARN_NODEV("Failed to add config supplemental TLV\n");
 		return ret;
 	}
 	return ret;
@@ -1298,7 +1307,7 @@ int slsi_mlme_nan_range_cancel_req(struct slsi_dev *sdev, struct net_device *dev
 	/*fill the data */
 	fapi_set_u16(req, u.mlme_nan_range_cancel_req.vif, ndev_vif->ifnum);
 
-	rx = slsi_mlme_req_cfm_ind(sdev, dev, req, MLME_NAN_RANGE_CANCEL_CFM, MLME_NAN_RANGE_IND, slsi_nan_range_cancel_cfm_validate);
+	rx = slsi_mlme_req_cfm_ind(sdev, dev, req, MLME_NAN_RANGE_CANCEL_CFM, MLME_SPARE_5_IND, slsi_nan_range_cancel_cfm_validate);
 	if (!rx) {
 		SLSI_NET_ERR(dev, "mlme_nan_range_cancel_cfm() ERROR\n");
 		r = -EINVAL;

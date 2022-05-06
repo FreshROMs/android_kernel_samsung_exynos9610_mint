@@ -9,10 +9,6 @@
 #include "dev.h"
 #include "hip4_sampler.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
-#include "porting_imx.h"
-#endif
-
 /* Queues hierarchy and control domains
  *
  *             wlan             p2p                p2pX

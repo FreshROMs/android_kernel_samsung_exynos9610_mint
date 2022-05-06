@@ -875,23 +875,6 @@ void platform_set_wlbt_regs(struct platform_mif *platform)
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Updated WLBT_DBUS_BAAW_0_REMAP: 0x%x.\n", val);
 	regmap_read(platform->dbus_baaw, 0xc, &val);
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "Updated WLBT_DBUS_BAAW_0_ENABLE_DONE: 0x%x.\n", val);
-#if 0
-	/* Additional DRAM mappings for future use */
-	CHECK(regmap_write(platform->dbus_baaw, 0x10, 0x000C0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x14, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x18, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x1C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->dbus_baaw, 0x20, 0x000D0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x24, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x28, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x2C, WLBT_BAAW_ACCESS_CTRL));
-
-	CHECK(regmap_write(platform->dbus_baaw, 0x30, 0x000E0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x34, 0x000F0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x38, 0x000F0000));
-	CHECK(regmap_write(platform->dbus_baaw, 0x3C, WLBT_BAAW_ACCESS_CTRL));
-#endif
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "DBUS_BAAW end\n");
 
 	/* PBUS_BAAW regions */
@@ -1208,24 +1191,8 @@ static int platform_mif_start(struct scsc_mif_abs *interface, bool start)
 	struct platform_mif *platform = platform_mif_from_mif_abs(interface);
 
 	/* done as part of platform_mif_pmu_reset_release() init_done sequence */
-#if 0
-	//s32                 ret = 0;
-	if (start)
-		val = WLBT_START;
-
-	/* See sequence in TODO update when available */
-	ret = regmap_update_bits(platform->pmureg, WLBT_CTRL_S,
-				 WLBT_START, val);
-	if (ret < 0) {
-		SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"Failed to update WLBT_CTRL_S[WLBT_START]: %d\n", ret);
-		return ret;
-	}
-	SCSC_TAG_ERR_DEV(PLAT_MIF, platform->dev,
-			"update WIFI_CTRL_S[WLBT_START]: %d\n", ret);
-
-#endif
 	SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "start %d\n", start);
+
 	/* At this point WLBT should assert the CFG_REQ IRQ, so wait for it */
 	if (start &&
 	    wait_for_completion_timeout(&platform->cfg_ack, WLBT_BOOT_TIMEOUT) == 0) {
@@ -1987,7 +1954,7 @@ inline void platform_int_debug(struct platform_mif *platform)
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_ACTIVE,  &active);
 		ret |= irq_get_irqchip_state(irq, IRQCHIP_STATE_MASKED,  &masked);
 		if (!ret)
-			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d",
+			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev, "IRQCHIP_STATE %d(%s): pending %d, active %d, masked %d\n",
 							  irq, irqs_name[i], pending, active, masked);
 	}
 	platform_mif_dump_register(&platform->interface);

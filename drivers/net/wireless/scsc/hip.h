@@ -61,7 +61,8 @@ void *slsi_hip_get_skb_data_from_smapper(struct slsi_dev *sdev, struct sk_buff *
 struct sk_buff *slsi_hip_get_skb_from_smapper(struct slsi_dev *sdev, struct sk_buff *skb);
 int slsi_hip_stop(struct slsi_dev *sdev);
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-void slsi_hip_set_napi_cpu(struct slsi_dev *sdev, u8 napi_cpu);
+void slsi_hip_set_napi_cpu(struct slsi_dev *sdev, u8 napi_cpu, bool perf_mode);
+void slsi_hip_reprocess_skipped_ctrl_bh(struct slsi_dev *sdev);
 #else
 void slsi_hip_reprocess_skipped_data_bh(struct slsi_dev *sdev);
 #endif

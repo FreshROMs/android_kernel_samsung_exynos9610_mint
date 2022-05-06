@@ -18,11 +18,7 @@
 #define AID_MX  0444
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define MIF_PDE_DATA(inode) PDE_DATA(inode)
-#else
-#define MIF_PDE_DATA(inode) (PDE(inode)->data)
-#endif
 
 #define MIF_PROCFS_SEQ_FILE_OPS(name)                                                      \
 	static int mifprocfs_ ## name ## _show(struct seq_file *m, void *v);              \
@@ -66,39 +62,18 @@
 		.llseek = generic_file_llseek                                 \
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define MIF_PROCFS_SET_UID_GID(_entry) \
 	do { \
 		kuid_t proc_kuid = KUIDT_INIT(AID_MX); \
 		kgid_t proc_kgid = KGIDT_INIT(AID_MX); \
 		proc_set_user(_entry, proc_kuid, proc_kgid); \
 	} while (0)
-#else
-#define MIF_PROCFS_SET_UID_GID(entry) \
-	do { \
-		(entry)->uid = AID_MX; \
-		(entry)->gid = AID_MX; \
-	} while (0)
-#endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define MIF_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
 	do {                                                               \
 		struct proc_dir_entry *entry = proc_create_data(# name, mode, parent, &mifprocfs_ ## name ## _fops, _sdev); \
 		MIF_PROCFS_SET_UID_GID(entry);                            \
 	} while (0)
-#else
-#define MIF_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
-	do {                                                               \
-		struct proc_dir_entry *entry;                              \
-		entry = create_proc_entry(# name, mode, parent);           \
-		if (entry) {                                               \
-			entry->proc_fops = &mifprocfs_ ## name ## _fops; \
-			entry->data = _sdev;                               \
-			MIF_PROCFS_SET_UID_GID(entry);                      \
-		}                                                          \
-	} while (0)
-#endif
 
 #define MIF_PROCFS_REMOVE_FILE(name, parent) remove_proc_entry(# name, parent)
 

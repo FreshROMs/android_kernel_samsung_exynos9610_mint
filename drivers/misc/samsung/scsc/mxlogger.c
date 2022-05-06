@@ -64,19 +64,6 @@ static int mxlogger_manual_udi;
 module_param(mxlogger_manual_udi , int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(mxlogger_manual_udi, "size for UDI buffer when mxlogger_manual_layout is enabled");
 
-#if 0 //TODO
-bool mxlogger_set_enabled_status(bool enable)
-{
-	mxlogger_disabled = !enable;
-
-	SCSC_TAG_INFO(MXMAN, "MXLOGGER has been NOW %sABLED. Effective at next WLBT boot.\n",
-		      mxlogger_disabled ? "DIS" : "EN");
-
-	return mxlogger_disabled;
-}
-EXPORT_SYMBOL(mxlogger_set_enabled_status);
-#endif
-
 static bool mxlogger_forced_to_host;
 
 static void update_fake_observer(void)

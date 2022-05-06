@@ -19,6 +19,7 @@
 #include "src_sink.h"
 #include "unifiio.h"
 #include "procfs.h"
+#include "sap_mlme.h"
 
 #ifdef SLSI_TEST_DEV
 #include "unittest.h"
@@ -404,16 +405,225 @@ static ssize_t slsi_cdev_write(struct file *filp, const char *p, size_t len, lof
 	return len;
 }
 
+static long slsi_unifi_set_mib(struct slsi_dev *sdev, unsigned long arg)
+{
+	struct net_device *dev = NULL;
+	long              r = 0;
+	u32               mib_data_length; /* Length of valid Mib data in the buffer */
+	u32               mib_data_size;   /* Size of the mib buffer  */
+	unsigned char     *mib_data;       /* Mib Input/Output Buffer */
+	u16               mib_vif;
+
+	if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Device not yet available\n");
+		return -EFAULT;
+	}
+	/* First 2 Bytes are the VIF */
+	if (copy_from_user((void *)&mib_vif, (void *)arg, 2)) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in vif\n");
+		return -EFAULT;
+	}
+	/* First 4 Bytes are the Number of Bytes of input Data */
+	if (copy_from_user((void *)&mib_data_length, (void *)(arg + 2), 4)) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data_length\n");
+		return -EFAULT;
+	}
+	/* Second 4 Bytes are the size of the Buffer */
+	if (copy_from_user((void *)&mib_data_size, (void *)(arg + 6), 4)) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data_size\n");
+		return -EFAULT;
+	}
+	/* check if length is valid */
+	if (unlikely(mib_data_length > UDI_MIB_SET_LEN_MAX || mib_data_size > UDI_MIB_SET_LEN_MAX)) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: size too long (mib_data_length:%u mib_data_size:%u)\n", mib_data_length, mib_data_size);
+		return -EFAULT;
+	}
+
+	mib_data = kmalloc(mib_data_size, GFP_KERNEL);
+	if (!mib_data) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to allocate memory for mib_data\n");
+		return -ENOMEM;
+	}
+	/* Read the rest of the Mib Data */
+	if (copy_from_user((void *)mib_data, (void *)(arg + 10), mib_data_length)) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data\n");
+		kfree(mib_data);
+		return -EFAULT;
+	}
+
+	SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
+	dev = slsi_get_netdev_locked(sdev, mib_vif);
+	if (mib_vif != 0 && !dev) {
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed - net_device is NULL for interface = %d\n", mib_vif);
+		kfree(mib_data);
+		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+		return -EFAULT;
+	}
+
+	r = slsi_mlme_set(sdev, dev, mib_data, mib_data_length);
+	if (r != 0)
+		SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed - mlme_set_req : Result code = %d\n", r);
+
+	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+	kfree(mib_data);
+
+	return r;
+}
+
+static long slsi_unifi_get_mib(struct slsi_dev *sdev, unsigned long arg)
+{
+	struct net_device *dev = NULL;
+	long              r = 0;
+	u32               mib_data_length; /* Length of valid Mib data in the buffer */
+	u32               mib_data_size;   /* Size of the mib buffer  */
+	unsigned char     *mib_data;       /* Mib Input/Output Buffer */
+	u16               mib_vif;
+
+	if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Device not yet available\n");
+		return -EFAULT;
+	}
+
+	/* First 2 Bytes are the VIF */
+	if (copy_from_user((void *)&mib_vif, (void *)arg, 2)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in vif\n");
+		return -EFAULT;
+	}
+
+	/* First 4 Bytes are the Number of Bytes of input Data */
+	if (copy_from_user((void *)&mib_data_length, (void *)(arg + 2), 4)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_length\n");
+		return -EFAULT;
+	}
+
+	/* Second 4 Bytes are the size of the Buffer */
+	if (copy_from_user((void *)&mib_data_size, (void *)(arg + 6), 4)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_size\n");
+		return -EFAULT;
+	}
+
+	/* check if length is valid */
+	if (unlikely(mib_data_length > UDI_MIB_GET_LEN_MAX || mib_data_size > UDI_MIB_GET_LEN_MAX)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: size too long (mib_data_length:%u mib_data_size:%u)\n", mib_data_length, mib_data_size);
+		return -EFAULT;
+	}
+
+	mib_data = kmalloc(mib_data_size, GFP_KERNEL);
+	if (!mib_data) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to allocate memory for mib_data\n");
+		return -ENOMEM;
+	}
+	/* Read the rest of the Mib Data */
+	if (copy_from_user((void *)mib_data, (void *)(arg + 10), mib_data_length)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data\n");
+		kfree(mib_data);
+		return -EFAULT;
+	}
+
+	SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
+	dev = slsi_get_netdev_locked(sdev, mib_vif);
+	if (mib_vif != 0 && !dev) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed - net_device is NULL for interface = %d\n", mib_vif);
+		kfree(mib_data);
+		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+		return -EFAULT;
+	}
+
+	r = slsi_mlme_get(sdev, dev, mib_data, mib_data_length, mib_data, mib_data_size, &mib_data_length);
+	if (r != 0) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed - mlme_get_req : Result code = %d\n", r);
+		kfree(mib_data);
+		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+		return -EINVAL;
+	}
+
+	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
+
+	/* Check the buffer is big enough */
+	if (mib_data_length > mib_data_size) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Mib result data is to long. (%d bytes when the max is %d bytes)\n", mib_data_length, mib_data_size);
+		kfree(mib_data);
+		return -EINVAL;
+	}
+
+	/* Copy back the number of Bytes in the Mib result */
+	if (copy_to_user((void *)arg, (void *)&mib_data_length, 4)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_length back to user\n");
+		kfree(mib_data);
+		return -EFAULT;
+	}
+
+	/* Copy back the Mib data */
+	if (copy_to_user((void *)(arg + 4), mib_data, mib_data_length)) {
+		SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data back to user\n");
+		kfree(mib_data);
+		return -EFAULT;
+	}
+	kfree(mib_data);
+	return 0;
+}
+
+static long slsi_unifi_set_log_mask(struct slsi_cdev_client *client, struct slsi_dev *sdev, unsigned long arg)
+{
+	struct unifiio_filter_t filter;
+	int                     i;
+
+	/* to minimise load on data path, list is converted here to array indexed by signal number */
+	if (copy_from_user(&filter, (void *)arg, sizeof(filter))) {
+		SLSI_ERR(sdev, "UNIFI_SET_UDI_LOG_MASK: Failed to copy from userspace\n");
+		return -EFAULT;
+	}
+
+	if (unlikely(filter.signal_ids_n > UDI_LOG_MASK_FILTER_NUM_MAX)) {
+		SLSI_ERR(sdev, "UNIFI_SET_UDI_LOG_MASK: number of filters too long\n");
+		return -EFAULT;
+	}
+
+	if (filter.signal_ids_n) {
+		char *signal_filter_index;
+		int  max;
+		int  min;
+
+		max = filter.signal_ids[0];
+		min = filter.signal_ids[0];
+
+		/* find maximum and minimum signal id in filter */
+		for (i = 0; i < filter.signal_ids_n; i++) {
+			if (filter.signal_ids[i] & UDI_MA_UNITDATA_FILTER_ALLOW_MASK) {
+				client->ma_unitdata_filter_config |= filter.signal_ids[i];
+				continue;
+			}
+			if (filter.signal_ids[i] > max)
+				max = filter.signal_ids[i];
+			else if (filter.signal_ids[i] < min)
+				min = filter.signal_ids[i];
+		}
+		/* and create array only big enough to index the range of signal id specified */
+		signal_filter_index = kmalloc(max - min + 1, GFP_KERNEL);
+		if (signal_filter_index) {
+			memset(signal_filter_index, 0, max - min + 1);
+			for (i = 0; i < filter.signal_ids_n; i++) {
+				if (filter.signal_ids[i] & UDI_MA_UNITDATA_FILTER_ALLOW_MASK)
+					continue;
+				signal_filter_index[filter.signal_ids[i] - min] = 1;
+			}
+			slsi_log_client_unregister(sdev, client);
+			slsi_log_client_register(sdev, client,
+						 filter.log_listed_flag ? send_signal_to_inverse_log_filter :
+						 send_signal_to_log_filter, signal_filter_index, min, max);
+		} else {
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
 static long slsi_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct slsi_cdev_client *client = (void *)filp->private_data;
 	struct slsi_dev         *sdev;
 	long                    r = 0;
 	int                     int_param;
-	u32                     mib_data_length; /* Length of valid Mib data in the buffer */
-	u32                     mib_data_size;   /* Size of the mib buffer  */
-	unsigned char           *mib_data;       /* Mib Input/Output Buffer */
-	u16                     mib_vif;
 
 	if (!client || !client->ufcdev)
 		return -EINVAL;
@@ -459,225 +669,17 @@ static long slsi_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 		break;
 	}
 	case UNIFI_SET_UDI_LOG_MASK:
-	{
-		struct unifiio_filter_t filter;
-		int                     i;
-
-		/* to minimise load on data path, list is converted here to array indexed by signal number */
-		if (copy_from_user(&filter, (void *)arg, sizeof(filter))) {
-			SLSI_ERR(sdev, "UNIFI_SET_UDI_LOG_MASK: Failed to copy from userspace\n");
-			r = -EFAULT;
-			break;
-		}
-
-		if (unlikely(filter.signal_ids_n > UDI_LOG_MASK_FILTER_NUM_MAX)) {
-			SLSI_ERR(sdev, "UNIFI_SET_UDI_LOG_MASK: number of filters too long\n");
-			r = -EFAULT;
-			break;
-		}
-
-		if (filter.signal_ids_n) {
-			char *signal_filter_index;
-			int  max;
-			int  min;
-
-			max = filter.signal_ids[0];
-			min = filter.signal_ids[0];
-
-			/* find maximum and minimum signal id in filter */
-			for (i = 0; i < filter.signal_ids_n; i++) {
-				if (filter.signal_ids[i] & UDI_MA_UNITDATA_FILTER_ALLOW_MASK) {
-					client->ma_unitdata_filter_config |= filter.signal_ids[i];
-					continue;
-				}
-				if (filter.signal_ids[i] > max)
-					max = filter.signal_ids[i];
-				else if (filter.signal_ids[i] < min)
-					min = filter.signal_ids[i];
-			}
-			/* and create array only big enough to index the range of signal id specified */
-			signal_filter_index = kmalloc(max - min + 1, GFP_KERNEL);
-			if (signal_filter_index) {
-				memset(signal_filter_index, 0, max - min + 1);
-				for (i = 0; i < filter.signal_ids_n; i++) {
-					if (filter.signal_ids[i] & UDI_MA_UNITDATA_FILTER_ALLOW_MASK)
-						continue;
-					signal_filter_index[filter.signal_ids[i] - min] = 1;
-				}
-				slsi_log_client_unregister(sdev, client);
-				slsi_log_client_register(sdev, client,
-							 filter.log_listed_flag ? send_signal_to_inverse_log_filter :
-							 send_signal_to_log_filter, signal_filter_index, min, max);
-			} else {
-				r = -ENOMEM;
-			}
-		}
+		r = slsi_unifi_set_log_mask(client, sdev, arg);
 		break;
-	}
+
 	case UNIFI_SET_MIB:
-	{
-		struct net_device *dev = NULL;
-
-		if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Device not yet available\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* First 2 Bytes are the VIF */
-		if (copy_from_user((void *)&mib_vif, (void *)arg, 2)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in vif\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* First 4 Bytes are the Number of Bytes of input Data */
-		if (copy_from_user((void *)&mib_data_length, (void *)(arg + 2), 4)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data_length\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* Second 4 Bytes are the size of the Buffer */
-		if (copy_from_user((void *)&mib_data_size, (void *)(arg + 6), 4)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data_size\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* check if length is valid */
-		if (unlikely(mib_data_length > UDI_MIB_SET_LEN_MAX || mib_data_size > UDI_MIB_SET_LEN_MAX)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: size too long (mib_data_length:%u mib_data_size:%u)\n", mib_data_length, mib_data_size);
-			r = -EFAULT;
-			break;
-		}
-
-		mib_data = kmalloc(mib_data_size, GFP_KERNEL);
-		if (!mib_data) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to allocate memory for mib_data\n");
-			r = -ENOMEM;
-			break;
-		}
-
-		/* Read the rest of the Mib Data */
-		if (copy_from_user((void *)mib_data, (void *)(arg + 10), mib_data_length)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in mib_data\n");
-			kfree(mib_data);
-			r = -EFAULT;
-			break;
-		}
-
-		SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
-		dev = slsi_get_netdev_locked(sdev, mib_vif);
-		if (mib_vif != 0 && !dev) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed - net_device is NULL for interface = %d\n", mib_vif);
-			kfree(mib_data);
-			r = -EFAULT;
-			SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
-			break;
-		}
-
-		r = slsi_mlme_set(sdev, dev, mib_data, mib_data_length);
-		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
-		kfree(mib_data);
+		r = slsi_unifi_set_mib(sdev, arg);
 		break;
-	}
+
 	case UNIFI_GET_MIB:
-	{
-		struct net_device *dev = NULL;
-
-		if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Device not yet available\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* First 2 Bytes are the VIF */
-		if (copy_from_user((void *)&mib_vif, (void *)arg, 2)) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed to copy in vif\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* First 4 Bytes are the Number of Bytes of input Data */
-		if (copy_from_user((void *)&mib_data_length, (void *)(arg + 2), 4)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_length\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* Second 4 Bytes are the size of the Buffer */
-		if (copy_from_user((void *)&mib_data_size, (void *)(arg + 6), 4)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_size\n");
-			r = -EFAULT;
-			break;
-		}
-
-		/* check if length is valid */
-		if (unlikely(mib_data_length > UDI_MIB_GET_LEN_MAX || mib_data_size > UDI_MIB_GET_LEN_MAX)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: size too long (mib_data_length:%u mib_data_size:%u)\n", mib_data_length, mib_data_size);
-			r = -EFAULT;
-			break;
-		}
-
-		mib_data = kmalloc(mib_data_size, GFP_KERNEL);
-		if (!mib_data) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to allocate memory for mib_data\n");
-			r = -ENOMEM;
-			break;
-		}
-		/* Read the rest of the Mib Data */
-		if (copy_from_user((void *)mib_data, (void *)(arg + 10), mib_data_length)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data\n");
-			kfree(mib_data);
-			r = -EFAULT;
-			break;
-		}
-
-		SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
-		dev = slsi_get_netdev_locked(sdev, mib_vif);
-		if (mib_vif != 0 && !dev) {
-			SLSI_ERR(sdev, "UNIFI_SET_MIB: Failed - net_device is NULL for interface = %d\n", mib_vif);
-			kfree(mib_data);
-			r = -EFAULT;
-			SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
-			break;
-		}
-		if (slsi_mlme_get(sdev, dev, mib_data, mib_data_length, mib_data, mib_data_size, &mib_data_length)) {
-			kfree(mib_data);
-			r = -EINVAL;
-			SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
-			break;
-		}
-
-		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
-
-		/* Check the buffer is big enough */
-		if (mib_data_length > mib_data_size) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Mib result data is to long. (%d bytes when the max is %d bytes)\n", mib_data_length, mib_data_size);
-			kfree(mib_data);
-			r = -EINVAL;
-			break;
-		}
-
-		/* Copy back the number of Bytes in the Mib result */
-		if (copy_to_user((void *)arg, (void *)&mib_data_length, 4)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data_length back to user\n");
-			kfree(mib_data);
-			r = -EINVAL;
-			break;
-		}
-
-		/* Copy back the Mib data */
-		if (copy_to_user((void *)(arg + 4), mib_data, mib_data_length)) {
-			SLSI_ERR(sdev, "UNIFI_GET_MIB: Failed to copy in mib_data back to user\n");
-			kfree(mib_data);
-			r = -EINVAL;
-			break;
-		}
-		kfree(mib_data);
+		r = slsi_unifi_get_mib(sdev, arg);
 		break;
-	}
+
 	case UNIFI_SRC_SINK_IOCTL:
 		if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
 			SLSI_ERR(sdev, "UNIFI_SRC_SINK_IOCTL: Device not yet available\n");
@@ -713,6 +715,51 @@ static long slsi_cdev_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 			client->ma_unitdata_filter_config = UDI_MA_UNITDATA_FILTER_ALLOW_EAPOL_ID;
 		else
 			client->ma_unitdata_filter_config = 0;
+		break;
+	}
+	case UNIFI_GET_SW_VERSION:
+	{
+		int res = 0;
+		char build_info[200];
+		int len = 0;
+#ifndef SLSI_TEST_DEV
+		memset(build_info, 0, 200);
+		mxman_get_fw_version(build_info, 200);
+		len = strlen(build_info);
+		sprintf(build_info + len, " ");
+		if (len >= 200) {
+			build_info[len - 1] = '.';
+			build_info[len - 2] = '.';
+			build_info[len - 3] = '.';
+		}
+		mxman_get_driver_version(build_info + len + 1, 200 - len - 1);
+#else
+		memset(build_info, 0, 200);
+		strcpy(build_info, "UT Build");
+#endif
+		/* Copy back the number of Bytes in the version result */
+		res = copy_to_user((void *)arg, build_info, 200);
+		if (res) {
+			SLSI_ERR(sdev, "UNIFI_GET_SW_VERSION: error back to user %d\n", res);
+			r = -EINVAL;
+			break;
+		}
+		break;
+	}
+	case UNIFI_GET_FAPI_VERSION:
+	{
+		int res = 0;
+		char fapi_info[100];
+
+		memset(fapi_info, 0, 100);
+		slsi_get_fapi_version_string(fapi_info);
+		/* Copy back the number of Bytes in the version result */
+		res = copy_to_user((void *)arg, fapi_info, 100);
+		if (res) {
+			SLSI_ERR(sdev, "UNIFI_GET_FAPI_VERSION: error back to user %d\n", res);
+			r = -EINVAL;
+			break;
+		}
 		break;
 	}
 	default:

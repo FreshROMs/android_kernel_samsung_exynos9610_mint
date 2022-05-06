@@ -81,285 +81,136 @@ int hip4_sampler_register_hip(struct scsc_mx *mx);
 void hip4_sampler_update_record(u32 minor, u8 param1, u8 param2, u8 param3, u8 param4, u32 param5);
 void hip4_sampler_tcp_decode(struct slsi_dev *sdev, struct net_device *dev, u8 *frame, bool from_ba);
 
-extern bool hip4_sampler_sample_q;
-extern bool hip4_sampler_sample_qref;
-extern bool hip4_sampler_sample_int;
-extern bool hip4_sampler_sample_fapi;
-extern bool hip4_sampler_sample_through;
-extern bool hip4_sampler_sample_tcp;
-extern bool hip4_sampler_sample_start_stop_q;
-extern bool hip4_sampler_sample_mbulk;
-extern bool hip4_sampler_sample_qfull;
-extern bool hip4_sampler_sample_mfull;
-extern bool hip4_sampler_vif;
-extern bool hip4_sampler_bot;
-extern bool hip4_sampler_pkt_tx;
-extern bool hip4_sampler_suspend_resume;
-
 #ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
 #define SCSC_HIP4_SAMPLER_Q(minor, q, idx_rw, value, rw) \
-	do { \
-		if (hip4_sampler_sample_q) { \
-			hip4_sampler_update_record(minor, q, idx_rw, value, rw, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, q, idx_rw, value, rw, 0)
+
 #define SCSC_HIP4_SAMPLER_QREF(minor, ref, q) \
-	do { \
-		if (hip4_sampler_sample_qref) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_QREF, (ref & 0xff0000) >> 16, (ref & 0xff00) >> 8, (ref & 0xf0) | q, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_QREF, (ref & 0xff0000) >> 16, (ref & 0xff00) >> 8, (ref & 0xf0) | q, 0)
+
 #define SCSC_HIP4_SAMPLER_SIGNAL_CTRLTX(minor, bytes16_h, bytes16_l) \
-	do { \
-		if (hip4_sampler_sample_fapi) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_SIGNAL_CTRLTX, 0, bytes16_h, bytes16_l, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_SIGNAL_CTRLTX, 0, bytes16_h, bytes16_l, 0)
+
 #define SCSC_HIP4_SAMPLER_SIGNAL_CTRLRX(minor, bytes16_h, bytes16_l) \
-	do { \
-		if (hip4_sampler_sample_fapi) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_SIGNAL_CTRLRX, 0, bytes16_h, bytes16_l, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_SIGNAL_CTRLRX, 0, bytes16_h, bytes16_l, 0)
 
 #define SCSC_HIP4_SAMPLER_TCP_DECODE(sdev, dev, frame, from_ba) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_tcp_decode(sdev, dev, frame, from_ba); \
-		} \
-	} while (0)
+	hip4_sampler_tcp_decode(sdev, dev, frame, from_ba)
+
 #define SCSC_HIP4_SAMPLER_THROUG(minor, rx_tx, bytes16_h, bytes16_l) \
-	do { \
-		if (hip4_sampler_sample_through) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG, rx_tx, bytes16_h, bytes16_l, 0);        \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG, rx_tx, bytes16_h, bytes16_l, 0)
+
 #define SCSC_HIP4_SAMPLER_THROUG_K(minor, rx_tx, bytes16_h, bytes16_l) \
-	do { \
-		if (hip4_sampler_sample_through) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG_K, rx_tx, bytes16_h, bytes16_l, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG_K, rx_tx, bytes16_h, bytes16_l, 0)
+
 #define SCSC_HIP4_SAMPLER_THROUG_M(minor, rx_tx, bytes16_h, bytes16_l) \
-	do { \
-		if (hip4_sampler_sample_through) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG_M, rx_tx, bytes16_h, bytes16_l, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_THROUG_M, rx_tx, bytes16_h, bytes16_l, 0)
+
 #define SCSC_HIP4_SAMPLER_STOP_Q(minor, vif_id) \
-	do { \
-		if (hip4_sampler_sample_start_stop_q) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_STOP_Q, 0, 0, vif_id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_STOP_Q, 0, 0, vif_id, 0)
+
 #define SCSC_HIP4_SAMPLER_START_Q(minor, vif_id) \
-	do { \
-		if (hip4_sampler_sample_start_stop_q) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_START_Q, 0, 0, vif_id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_START_Q, 0, 0, vif_id, 0)
+
 #define SCSC_HIP4_SAMPLER_MBULK(minor, bytes16_h, bytes16_l, clas) \
-	do { \
-		if (hip4_sampler_sample_mbulk) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_MBULK, clas, bytes16_h, bytes16_l, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_MBULK, clas, bytes16_h, bytes16_l, 0)
+
 #define SCSC_HIP4_SAMPLER_QFULL(minor, q) \
-	do { \
-		if (hip4_sampler_sample_qfull) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_QFULL, 0, 0, q, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_QFULL, 0, 0, q, 0)
+
 #define SCSC_HIP4_SAMPLER_MFULL(minor) \
-	do { \
-		if (hip4_sampler_sample_mfull) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_MFULL, 0, 0, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_MFULL, 0, 0, 0, 0)
+
 #define SCSC_HIP4_SAMPLER_INT(minor, id) \
-	do { \
-		if (hip4_sampler_sample_int) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_INT, 0, 0, id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_INT, 0, 0, id, 0)
+
 #define SCSC_HIP4_SAMPLER_INT_OUT(minor, id) \
-	do { \
-		if (hip4_sampler_sample_int) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_OUT, 0, 0, id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_OUT, 0, 0, id, 0)
+
 #define SCSC_HIP4_SAMPLER_INT_BH(minor, id) \
-	do { \
-		if (hip4_sampler_sample_int) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_BH, 0, 0, id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_BH, 0, 0, id, 0)
+
 #define SCSC_HIP4_SAMPLER_INT_OUT_BH(minor, id) \
-	do { \
-		if (hip4_sampler_sample_int) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_OUT_BH, 0, 0, id, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_INT_OUT_BH, 0, 0, id, 0)
+
 #define SCSC_HIP4_SAMPLER_RESET(minor) \
 	hip4_sampler_update_record(minor, HIP4_SAMPLER_RESET, 0, 0, 0, 0)
 
 #define SCSC_HIP4_SAMPLER_VIF_PEER(minor, tx, vif, peer_index) \
-	do { \
-		if (hip4_sampler_vif) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_PEER, tx, vif, peer_index, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_PEER, tx, vif, peer_index, 0)
 
 #define SCSC_HIP4_SAMPLER_BOT_RX(minor, vif, peer_index, pri, smod_and_scod) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_RX, vif, peer_index, pri, smod_and_scod); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_RX, vif, peer_index, pri, smod_and_scod)
 
 #define SCSC_HIP4_SAMPLER_BOT_TX(minor, vif, peer_index, pri, smod_and_scod) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_TX, vif, peer_index, pri, smod_and_scod); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_TX, vif, peer_index, pri, smod_and_scod)
+
 #define SCSC_HIP4_SAMPLER_BOT_ADD(minor, vif, peer_index, addr_0_to_3) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_ADD, vif, peer_index, 0, addr_0_to_3); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_ADD, vif, peer_index, 0, addr_0_to_3)
 
 #define SCSC_HIP4_SAMPLER_BOT_REMOVE(minor, vif, peer_index) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_REMOVE, vif, peer_index, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_REMOVE, vif, peer_index, 0, 0)
 
 #define SCSC_HIP4_SAMPLER_BOT_START_Q(minor, vif, peer_index) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_START_Q, vif, peer_index, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_START_Q, vif, peer_index, 0, 0)
 
 #define SCSC_HIP4_SAMPLER_BOT_STOP_Q(minor, vif, peer_index) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_STOP_Q, vif, peer_index, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_STOP_Q, vif, peer_index, 0, 0)
+
 #define SCSC_HIP4_SAMPLER_BOT_QMOD_RX(minor, vif, peer_index, pri, qmod_and_qcod) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_RX, vif, peer_index, pri, qmod_and_qcod); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_RX, vif, peer_index, pri, qmod_and_qcod)
 
 #define SCSC_HIP4_SAMPLER_BOT_QMOD_TX(minor, vif, peer_index, pri, qmod_and_qcod) \
-	do { \
-		if (hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_TX, vif, peer_index, pri, qmod_and_qcod); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_TX, vif, peer_index, pri, qmod_and_qcod)
+
 #define SCSC_HIP4_SAMPLER_BOT_QMOD_START(minor, vif, peer_index, priority) \
-	do { \
-		if (hip4_sampler_sample_start_stop_q || hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_START, vif, peer_index, priority, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_START, vif, peer_index, priority, 0)
 
 #define SCSC_HIP4_SAMPLER_BOT_QMOD_STOP(minor, vif, peer_index, priority) \
-	do { \
-		if (hip4_sampler_sample_start_stop_q || hip4_sampler_bot) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_STOP, vif, peer_index, priority, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_BOT_QMOD_STOP, vif, peer_index, priority, 0)
+
 #define SCSC_HIP4_SAMPLER_PKT_TX(minor, host_tag) \
-	do { \
-		if (hip4_sampler_pkt_tx) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0)
+
 #define SCSC_HIP4_SAMPLER_PKT_TX_HIP4(minor, host_tag) \
-	do { \
-		if (hip4_sampler_pkt_tx) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX_HIP4, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX_HIP4, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0)
+
 #define SCSC_HIP4_SAMPLER_PKT_TX_FB(minor, host_tag) \
-	do { \
-		if (hip4_sampler_pkt_tx) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX_FB, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_PKT_TX_FB, 0, (host_tag >> 8) & 0xff, host_tag & 0xff, 0)
+
 #define SCSC_HIP4_SAMPLER_SUSPEND(minor) \
-	do { \
-		if (hip4_sampler_suspend_resume) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_SUSPEND, 0, 0, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_SUSPEND, 0, 0, 0, 0)
+
 #define SCSC_HIP4_SAMPLER_RESUME(minor) \
-	do { \
-		if (hip4_sampler_suspend_resume) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_RESUME, 0, 0, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_RESUME, 0, 0, 0, 0)
+
 #define SCSC_HIP4_SAMPLER_TCP_SYN(minor, id, mss) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_SYN, id, 0, 0, mss); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_SYN, id, 0, 0, mss)
+
 #define SCSC_HIP4_SAMPLER_TCP_FIN(minor, id) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_FIN, id, 0, 0, 0); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_FIN, id, 0, 0, 0)
+
 #define SCSC_HIP4_SAMPLER_TCP_DATA(minor, id, seq_num) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_DATA, id, 0, 0, seq_num); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_DATA, id, 0, 0, seq_num)
+
 #define SCSC_HIP4_SAMPLER_TCP_ACK(minor, id, ack_num) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_ACK, id, 0, 0, ack_num); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_ACK, id, 0, 0, ack_num)
+
 #define SCSC_HIP4_SAMPLER_TCP_DATA_IN(minor, id, seq_num) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_DATA_IN, id, 0, 0, seq_num); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_DATA_IN, id, 0, 0, seq_num)
+
 #define SCSC_HIP4_SAMPLER_TCP_ACK_IN(minor, id, ack_num) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_ACK_IN, id, 0, 0, ack_num); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_ACK_IN, id, 0, 0, ack_num)
+
 #define SCSC_HIP4_SAMPLER_TCP_RWND(minor, id, rwnd) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_RWND, id, 0, 0, rwnd); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_RWND, id, 0, 0, rwnd)
+
 #define SCSC_HIP4_SAMPLER_TCP_CWND(minor, id, cwnd) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_CWND, id, 0, 0, cwnd); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_CWND, id, 0, 0, cwnd)
+
 #define SCSC_HIP4_SAMPLER_TCP_SEND_BUF(minor, id, send_buff_size) \
-	do { \
-		if (hip4_sampler_sample_tcp) { \
-			hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_SEND_BUF, id, 0, 0, send_buff_size); \
-		} \
-	} while (0)
+	hip4_sampler_update_record(minor, HIP4_SAMPLER_TCP_SEND_BUF, id, 0, 0, send_buff_size)
+
 #else
 #define SCSC_HIP4_SAMPLER_Q(minor, q, idx_rw, value, rw)
 #define SCSC_HIP4_SAMPLER_QREF(minor, ref, q)

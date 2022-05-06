@@ -18,11 +18,7 @@
 #define AID_MX  0444
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define LOG_COLLECT_PDE_DATA(inode) PDE_DATA(inode)
-#else
-#define LOG_COLLECT_PDE_DATA(inode) (PDE(inode)->data)
-#endif
 
 #define LOG_COLLECT_PROCFS_RW_FILE_OPS(name)                                           \
 	static ssize_t log_collect_procfs_ ## name ## _write(struct file *file, const char __user *user_buf, size_t count, loff_t *ppos); \
@@ -35,39 +31,18 @@
 	}
 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define LOG_COLLECT_PROCFS_SET_UID_GID(_entry) \
 	do { \
 		kuid_t proc_kuid = KUIDT_INIT(AID_MX); \
 		kgid_t proc_kgid = KGIDT_INIT(AID_MX); \
 		proc_set_user(_entry, proc_kuid, proc_kgid); \
 	} while (0)
-#else
-#define LOG_COLLECT_PROCFS_SET_UID_GID(entry) \
-	do { \
-		(entry)->uid = AID_MX; \
-		(entry)->gid = AID_MX; \
-	} while (0)
-#endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define LOG_COLLECT_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
 	do {                                                               \
 		struct proc_dir_entry *entry = proc_create_data(# name, mode, parent, &log_collect_procfs_ ## name ## _fops, _sdev); \
 		LOG_COLLECT_PROCFS_SET_UID_GID(entry);                            \
 	} while (0)
-#else
-#define LOG_COLLECT_PROCFS_ADD_FILE(_sdev, name, parent, mode)                      \
-	do {                                                               \
-		struct proc_dir_entry *entry;                              \
-		entry = create_proc_entry(# name, mode, parent);           \
-		if (entry) {                                               \
-			entry->proc_fops = &log_collect_procfs_ ## name ## _fops; \
-			entry->data = _sdev;                               \
-			LOG_COLLECT_PROCFS_SET_UID_GID(entry);                      \
-		}                                                          \
-	} while (0)
-#endif
 
 #define LOG_COLLECT_PROCFS_REMOVE_FILE(name, parent) remove_proc_entry(# name, parent)
 

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2020 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -25,8 +25,8 @@ extern "C" {
 #define FAPI_SAP_TYPE_DEBUG 0x8000
 #define FAPI_SAP_TYPE_TEST  0x9000
 
-#define FAPI_DATA_SAP_ENG_VERSION                0x0001
 #define FAPI_DEBUG_SAP_ENG_VERSION               0x0001
+#define FAPI_DATA_SAP_ENG_VERSION                0x0001
 #define FAPI_CONTROL_SAP_ENG_VERSION             0x000d
 #define FAPI_TEST_SAP_ENG_VERSION                0x0017
 #define FAPI_DEBUG_SAP_VERSION                   0x0d03

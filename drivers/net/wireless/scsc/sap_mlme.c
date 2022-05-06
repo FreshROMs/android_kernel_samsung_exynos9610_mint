@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2014 - 2020 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2014 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 #include <linux/types.h>
@@ -38,9 +38,7 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 #if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 	struct net_device *dev;
 #endif
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 	int level;
-#endif
 	struct netdev_vif *ndev_vif;
 	bool is_recovery = false;
 
@@ -52,37 +50,31 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 	case SCSC_WIFI_STOP:
 		/* Stop sending signals down*/
 		sdev->mlme_blocked = true;
+		sdev->detect_vif_active = false;
 		/* cleanup all the VIFs and scan data */
 		SLSI_MUTEX_LOCK(sdev->netdev_add_remove_mutex);
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 		level = atomic_read(&sdev->cm_if.reset_level);
 		SLSI_INFO_NODEV("MLME BLOCKED system error level:%d\n", level);
 		if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC)
 			is_recovery = true;
-#endif
 		complete_all(&sdev->sig_wait.completion);
 		/*WLAN system down actions*/
 		for (i = 1; i <= CONFIG_SCSC_WLAN_MAX_INTERFACES; i++)
 			if (sdev->netdev[i]) {
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 				bool vif_type_ap = false;
-#endif
 				ndev_vif = netdev_priv(sdev->netdev[i]);
 				complete_all(&ndev_vif->sig_wait.completion);
 				slsi_scan_cleanup(sdev, sdev->netdev[i]);
 				cancel_work_sync(&ndev_vif->set_multicast_filter_work);
 				cancel_work_sync(&ndev_vif->update_pkt_filter_work);
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 /* For level8 use the older panic flow */
 				if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC && ndev_vif->vif_type == FAPI_VIFTYPE_AP)
 					vif_type_ap = true;
-#endif
+				sdev->require_vif_delete[ndev_vif->ifnum] = false;
 				SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 				slsi_vif_cleanup(sdev, sdev->netdev[i], 0, is_recovery);
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 				if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC && vif_type_ap)
 					ndev_vif->vif_type = FAPI_VIFTYPE_AP;
-#endif
 #ifdef CONFIG_SCSC_WLAN_ARP_FLOW_CONTROL
 				if (atomic_read(&ndev_vif->arp_tx_count) && atomic_read(&sdev->ctrl_pause_state))
 					scsc_wifi_unpause_arp_q_all_vif(sdev);
@@ -95,27 +87,20 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 				scsc_wifi_unpause_arp_q_all_vif(sdev);
 			atomic_set(&sdev->arp_tx_count, 0);
 #endif
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 			if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC)
 				sdev->device_state = SLSI_DEVICE_STATE_STOPPING;
 			if (sdev->netdev_up_count == 0)
 				sdev->mlme_blocked = false;
-#endif
 		SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 		SLSI_INFO_NODEV("Force cleaned all VIFs\n");
 		break;
 
 	case SCSC_WIFI_FAILURE_RESET:
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 		level = atomic_read(&sdev->cm_if.reset_level);
 		if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC || sdev->require_service_close) {
-			SLSI_INFO(sdev, "remove work queue!!");
+			SLSI_INFO(sdev, "Error Level:%d, start recovery_work_on_stop queue!!\n", level);
 			queue_work(sdev->device_wq, &sdev->recovery_work_on_stop);
 		}
-#else
-		if (sdev->require_service_close)
-			queue_work(sdev->device_wq, &sdev->recovery_work_on_stop);
-#endif
 		break;
 
 	case SCSC_WIFI_SUSPEND:
@@ -139,7 +124,8 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 		    ndev_vif->sta.vif_status == SLSI_VIF_STATUS_CONNECTED) {
 			ndev_vif->is_wips_running = false;
 
-			slsi_send_forward_beacon_abort_vendor_event(sdev, SLSI_FORWARD_BEACON_ABORT_REASON_SUSPENDED);
+			slsi_send_forward_beacon_abort_vendor_event(sdev, dev,
+								    SLSI_FORWARD_BEACON_ABORT_REASON_SUSPENDED);
 			SLSI_INFO_NODEV("FORWARD_BEACON: SUSPEND_RESUMED!! send abort event\n");
 		}
 
@@ -153,7 +139,6 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 		}
 		SLSI_MUTEX_UNLOCK(sdev->device_config_mutex);
 		break;
-#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 	case SCSC_WIFI_SUBSYSTEM_RESET:
 		/*wlan system down actions*/
 		queue_work(sdev->device_wq, &sdev->recovery_work);
@@ -163,7 +148,6 @@ static int sap_mlme_notifier(struct slsi_dev *sdev, unsigned long event)
 		if (level < SLSI_WIFI_CM_IF_SYSTEM_ERROR_PANIC && sdev->netdev_up_count != 0)
 			queue_work(sdev->device_wq, &sdev->recovery_work_on_start);
 		break;
-#endif
 	default:
 		SLSI_INFO_NODEV("Unknown event code %lu\n", event);
 		break;
@@ -313,6 +297,9 @@ static int slsi_rx_netdev_mlme(struct slsi_dev *sdev, struct net_device *dev, st
 		slsi_rx_send_frame_cfm_async(sdev, dev, skb);
 		break;
 #endif
+	case MLME_START_DETECT_IND:
+		slsi_rx_start_detect_ind(sdev, dev, skb);
+		break;
 	case SAP_DRV_MA_TO_MLME_DELBA_REQ:
 		slsi_rx_ma_to_mlme_delba_req(sdev, dev, skb);
 		break;
@@ -329,15 +316,34 @@ void slsi_rx_netdev_mlme_work(struct work_struct *work)
 	struct slsi_skb_work *w = container_of(work, struct slsi_skb_work, work);
 	struct slsi_dev *sdev = w->sdev;
 	struct net_device *dev = w->dev;
-	struct sk_buff *skb = slsi_skb_work_dequeue(w);
+	struct sk_buff *skb = NULL;
+#ifdef CONFIG_SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
+	struct slsi_dev *org_sdev = slsi_get_sdev();
+	spinlock_t *w_lock = &w->queue.lock;
+	volatile spinlock_t *lock = NULL;
 
+	if (w->sdev != org_sdev) {
+		SLSI_INFO_NODEV("Deliberately panic the kernel due to corrupted worker struct\n");
+		SLSI_INFO_NODEV("calling BUG_ON(1)\n");
+		BUG_ON(1);
+	}
+#endif
 	if (WARN_ON(!dev))
 		return;
+	skb = slsi_skb_work_dequeue(w);
 
 	slsi_wake_lock(&sdev->wlan_wl);
 	while (skb) {
 		slsi_debug_frame(sdev, dev, skb, "RX");
 		slsi_rx_netdev_mlme(sdev, dev, skb);
+#ifdef CONFIG_SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
+		lock = &w->queue.lock;
+		if (w_lock != lock) {
+			SLSI_INFO_NODEV("Deliberately panic the kernel due to corrupted lock address\n");
+			SLSI_INFO_NODEV("calling BUG_ON(1)\n");
+			BUG_ON(1);
+		}
+#endif
 		skb = slsi_skb_work_dequeue(w);
 	}
 	slsi_wake_unlock(&sdev->wlan_wl);
@@ -347,6 +353,15 @@ int slsi_rx_enqueue_netdev_mlme(struct slsi_dev *sdev, struct sk_buff *skb, u16 
 {
 	struct net_device *dev;
 	struct netdev_vif *ndev_vif;
+#ifdef CONFIG_SCSC_WLAN_DEBUG_MLME_WORK_STRUCT
+	struct slsi_dev *org_sdev = slsi_get_sdev();
+
+	if (sdev != org_sdev) {
+		SLSI_INFO_NODEV("Deliberately panic the kernel due to memory corruption\n");
+		SLSI_INFO_NODEV("calling BUG_ON(1)\n");
+		BUG_ON(1);
+	}
+#endif
 
 	rcu_read_lock();
 #ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
@@ -489,6 +504,8 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 		case MLME_EVENT_LOG_IND:
 			return slsi_rx_enqueue_netdev_mlme(sdev, skb, SLSI_NET_INDEX_WLAN);
 #endif
+		case MLME_START_DETECT_IND:
+			return slsi_rx_enqueue_netdev_mlme(sdev, skb, SLSI_NET_INDEX_WLAN);
 		case MLME_ROAMED_IND:
 			if (vif == 0) {
 				SLSI_WARN(sdev, "MLME_ROAMED_IND VIF 0\n");
@@ -546,6 +563,17 @@ static int sap_mlme_rx_handler(struct slsi_dev *sdev, struct sk_buff *skb)
 
 err:
 	return -EINVAL;
+}
+
+void slsi_get_fapi_version_string(char *res)
+{
+	int count = 0;
+
+	count = snprintf(res, 100, "FAPI_CONTROL_SAP_VERSION : %d.%d.%d\n",
+			 FAPI_MAJOR_VERSION(FAPI_CONTROL_SAP_VERSION),
+			 FAPI_MINOR_VERSION(FAPI_CONTROL_SAP_VERSION),
+			 FAPI_CONTROL_SAP_ENG_VERSION);
+	res[count] = '\0';
 }
 
 int sap_mlme_init(void)

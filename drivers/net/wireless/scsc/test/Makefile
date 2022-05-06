@@ -108,17 +108,14 @@ endif
 ifeq ($(CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT),y)
 ccflags-y += -DCONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 endif
-ifeq ($(CONFIG_SCSC_WLAN_SET_NUM_ANTENNAS),y)
-ccflags-y += -DCONFIG_SCSC_WLAN_SET_NUM_ANTENNAS
+ifeq ($(CONFIG_SCSC_WLAN_NUM_ANTENNAS),y)
+ccflags-y += -DCONFIG_SCSC_WLAN_NUM_ANTENNAS
 endif
 ifeq ($(CONFIG_SCSC_ENHANCED_PACKET_STATS),y)
 ccflags-y += -DCONFIG_SCSC_ENHANCED_PACKET_STATS
 endif
 ifeq ($(CONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER),y)
 ccflags-y += -DCONFIG_SCSC_WLAN_ENHANCED_PKT_FILTER
-endif
-ifeq ($(CONFIG_SCSC_WLAN_BSS_SELECTION),y)
-ccflags-y += -DCONFIG_SCSC_WLAN_BSS_SELECTION
 endif
 
 # ----------------------------------------------------------------------------

@@ -138,6 +138,13 @@
 #define TCXO_BUF_CTRL		0x3B78
 #define TCXO_BUF_BIAS_EN_WLBT	BIT(0)
 
+#ifdef CONFIG_SCSC_MX152_EXT_DUAL_FEM
+/* Exynos 3830 UM - TODO */
+#define UART_IO_SHARE_CTRL	0x0760
+#define SEL_TXD_GPIO_1_20	BIT(20)
+#define SEL_TXD_GPIO_1_21	BIT(21)
+#endif
+
 /* New WLBT SFRs for MEM config */
 
 /* end address is exclusive so the ENDx register should be set to the first

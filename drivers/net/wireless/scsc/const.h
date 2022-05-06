@@ -36,16 +36,6 @@ extern "C" {
 #define SLSI_BA_TRAFFIC_STREAM_MAX 8
 #define SLSI_BA_BUFFER_SIZE_MAX 64
 
-/* Until LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 1) the IE Value for
- * HT OPERATION was incorrectly defined as HT INFORMATION
- */
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 7, 0))
-#ifndef WLAN_EID_HT_INFORMATION
-#define WLAN_EID_HT_INFORMATION 61
-#endif
-
-#define WLAN_EID_HT_OPERATION WLAN_EID_HT_INFORMATION
-#endif
 
 #ifdef __cplusplus
 }

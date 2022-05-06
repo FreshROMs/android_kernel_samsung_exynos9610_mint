@@ -20,7 +20,7 @@ struct slsi_traffic_mon_client_entry {
 	void (*traffic_mon_client_cb)(void *client_ctx, u32 state, u32 tput_tx, u32 tput_rx);
 };
 
-static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32 tput_tx, u32 tput_rx)
+static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32 tput_tx, u32 tput_rx, bool override)
 {
 	struct list_head       *pos, *n;
 	struct slsi_traffic_mon_client_entry *traffic_client;
@@ -28,9 +28,14 @@ static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32
 	list_for_each_safe(pos, n, &sdev->traffic_mon_clients.client_list) {
 		traffic_client = list_entry(pos, struct slsi_traffic_mon_client_entry, q);
 
-		if (traffic_client->mode == TRAFFIC_MON_CLIENT_MODE_PERIODIC) {
+		if (override) {
+			traffic_client->state = TRAFFIC_MON_CLIENT_STATE_OVERRIDE;
 			if (traffic_client->traffic_mon_client_cb)
-				traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_NONE, tput_tx, tput_rx);
+				traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_OVERRIDE, tput_tx, tput_rx);
+		} else if (traffic_client->mode == TRAFFIC_MON_CLIENT_MODE_PERIODIC) {
+			if (traffic_client->traffic_mon_client_cb)
+				traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_LOW, tput_tx, tput_rx);
+			traffic_client->throughput = (tput_tx + tput_rx);
 		} else if (traffic_client->mode == TRAFFIC_MON_CLIENT_MODE_EVENTS) {
 			if ((traffic_client->high_tput) && ((tput_tx + tput_rx) > traffic_client->high_tput)) {
 				if (traffic_client->state != TRAFFIC_MON_CLIENT_STATE_HIGH &&
@@ -61,8 +66,8 @@ static inline void traffic_mon_invoke_client_callback(struct slsi_dev *sdev, u32
 				if (traffic_client->traffic_mon_client_cb)
 					traffic_client->traffic_mon_client_cb(traffic_client->client_ctx, TRAFFIC_MON_CLIENT_STATE_LOW, tput_tx, tput_rx);
 			}
+			traffic_client->throughput = (tput_tx + tput_rx);
 		}
-		traffic_client->throughput = (tput_tx + tput_rx);
 	}
 }
 
@@ -133,7 +138,7 @@ static void traffic_mon_timer(unsigned long data)
 		}
 	}
 
-	traffic_mon_invoke_client_callback(sdev, tput_tx, tput_rx);
+	traffic_mon_invoke_client_callback(sdev, tput_tx, tput_rx, false);
 	stop_monitor = list_empty(&sdev->traffic_mon_clients.client_list);
 
 	spin_unlock_bh(&sdev->traffic_mon_clients.lock);
@@ -166,6 +171,19 @@ inline void slsi_traffic_mon_event_tx(struct slsi_dev *sdev, struct net_device *
 		ndev_vif->num_bytes_tx_per_timer += ((skb->len - 40) - cb->sig_length);
 	else
 		ndev_vif->num_bytes_tx_per_timer += (skb->len - cb->sig_length);
+}
+
+void slsi_traffic_mon_override(struct slsi_dev *sdev)
+{
+	if (WARN_ON_ONCE(in_irq()))
+		return;
+
+	spin_lock_bh(&sdev->traffic_mon_clients.lock);
+	if (!list_empty(&sdev->traffic_mon_clients.client_list)) {
+		traffic_mon_invoke_client_callback(sdev, 0, 0, true);
+	}
+	spin_unlock_bh(&sdev->traffic_mon_clients.lock);
+
 }
 
 u8 slsi_traffic_mon_is_running(struct slsi_dev *sdev)

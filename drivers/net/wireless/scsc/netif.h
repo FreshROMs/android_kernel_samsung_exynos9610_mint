@@ -55,6 +55,7 @@
 /* sizeof ma_unitdata_req [36] + pad [30] + pad_words [2]  */
 #define SLSI_NETIF_SKB_HEADROOM (68 + 160)
 #define SLSI_NETIF_SKB_TAILROOM 0
+#define SLSI_SYS_ERROR_RECOVERY_TIMEOUT  1000 /* 1s timeout */
 
 static inline u16 slsi_netif_get_peer_queue(s16 queueset, s16 ac)
 {

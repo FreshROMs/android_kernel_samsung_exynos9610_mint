@@ -20,7 +20,6 @@ struct slsi_vif;
 #  define AID_WIFI      1010
 # endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define SLSI_PROCFS_SET_UID_GID(_entry) \
 	do { \
 		kuid_t proc_kuid = KUIDT_INIT(AID_WIFI); \
@@ -28,21 +27,10 @@ struct slsi_vif;
 		proc_set_user(_entry, proc_kuid, proc_kgid); \
 	} while (0)
 #else
-#define SLSI_PROCFS_SET_UID_GID(entry) \
-	do { \
-		(entry)->uid = AID_WIFI; \
-		(entry)->gid = AID_WIFI; \
-	} while (0)
-#endif
-#else
 #define SLSI_PROCFS_SET_UID_GID(entry)
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define SLSI_PDE_DATA(inode) PDE_DATA(inode)
-#else
-#define SLSI_PDE_DATA(inode) (PDE(inode)->data)
-#endif
 
 /* procfs operations */
 int slsi_create_proc_dir(struct slsi_dev *sdev);
@@ -99,26 +87,11 @@ int slsi_procfs_open_file_generic(struct inode *inode, struct file *file);
 		.llseek = generic_file_llseek                                 \
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 #define SLSI_PROCFS_ADD_FILE(_sdev, name, parent, mode)                    \
 	do {                                                               \
 		struct proc_dir_entry *entry = proc_create_data(# name, mode, parent, &slsi_procfs_ ## name ## _fops, _sdev); \
 		SLSI_PROCFS_SET_UID_GID(entry);                            \
 	} while (0)
-#else
-#define SLSI_PROCFS_ADD_FILE(_sdev, name, parent, mode)                    \
-	do {                                                               \
-		struct proc_dir_entry *entry;                              \
-		entry = create_proc_entry(# name, mode, parent);           \
-		if (entry) {                                               \
-			entry->proc_fops = &slsi_procfs_ ## name ## _fops; \
-			entry->data = _sdev;                               \
-			SLSI_PROCFS_SET_UID_GID(entry);                    \
-		} else {                                                   \
-			goto err;                                          \
-		}                                                          \
-	} while (0)
-#endif
 #define SLSI_PROCFS_REMOVE_FILE(name, parent) remove_proc_entry(# name, parent)
 
 void slsi_procfs_inc_node(void);

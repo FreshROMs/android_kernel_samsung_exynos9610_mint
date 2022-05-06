@@ -27,6 +27,7 @@ struct slsi_skb_cb {
 #endif
 	bool wakeup;
 };
+struct netdev_vif;
 
 static inline struct slsi_skb_cb *slsi_skb_cb_get(struct sk_buff *skb)
 {
@@ -144,17 +145,26 @@ static inline u32  slsi_convert_tlv_data_to_value(u8 *data, u16 length)
 	return value;
 }
 
+static inline void  slsi_convert_tlv_to_64bit_value(u8 *data, u16 length, u32 *lower, u32 *higher)
+{
+	int i;
+
+	*lower = 0;
+	*higher = 0;
+	if (length > 8)
+		return;
+	for (i = 0; i < 4 && i < length; i++)
+		*lower |= ((u32)data[i]) << i * 8;
+	for (i = 4; i < 8 && i < length; i++)
+		*higher |= ((u32)data[i]) << (i - 4) * 8;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 #define SLSI_ETHER_COPY(dst, src)	ether_addr_copy((dst), (src))
 #define SLSI_ETHER_EQUAL(mac1, mac2)	ether_addr_equal((mac1), (mac2))
-#else
-#define SLSI_ETHER_COPY(dst, src)	memcpy((dst), (src), ETH_ALEN)
-#define SLSI_ETHER_EQUAL(mac1, mac2)	(memcmp((mac1), (mac2), ETH_ALEN) == 0)
-#endif
 
 extern uint slsi_sg_host_align_mask;
 #define SLSI_HIP_FH_SIG_PREAMBLE_LEN 4
@@ -279,7 +289,8 @@ struct slsi_skb_work {
 	void __rcu              *sync_ptr;
 };
 
-static inline int slsi_skb_work_init(struct slsi_dev *sdev, struct net_device *dev, struct slsi_skb_work *work, const char *name, void (*func)(struct work_struct *work))
+static inline int slsi_skb_work_init(struct slsi_dev *sdev, struct net_device *dev, struct slsi_skb_work *work,
+				     const char *name, void (*func)(struct work_struct *work))
 {
 	rcu_assign_pointer(work->sync_ptr, (void *)sdev);
 	work->sdev = sdev;
@@ -343,11 +354,7 @@ static inline void slsi_skb_work_deinit(struct slsi_skb_work *work)
 
 static inline void slsi_cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
 	cfg80211_put_bss(wiphy, bss);
-#else
-	cfg80211_put_bss(bss);
-#endif  /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0)) */
 }
 
 #define slsi_skb_work_enqueue(work_, skb_) slsi_skb_work_enqueue_l(work_, skb_)
@@ -513,11 +520,9 @@ static inline u32 slsi_get_center_freq1(struct slsi_dev *sdev, u16 chann_info, u
 	case 40:
 		center_freq1 = center_freq - 20 * ((chann_info & 0xFF00) >> 8) + 10;
 		break;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 	case 80:
 		center_freq1 = center_freq - 20 * ((chann_info & 0xFF00) >> 8) + 30;
 		break;
-#endif
 	default:
 		break;
 	}
@@ -694,6 +699,25 @@ static inline int slsi_util_nla_get_data(const struct nlattr *attr, size_t size,
 		return 0;
 	}
 	return -EINVAL;
+}
+
+static inline struct net_device *slsi_ndev_vif_2_net_device(struct netdev_vif *ndev_vif)
+{
+	unsigned long int address = (unsigned long int)ndev_vif;
+	unsigned int offset = ALIGN(sizeof(struct net_device), NETDEV_ALIGN);
+
+	if (address < offset)
+		return NULL;
+	return (struct net_device *)((char*)ndev_vif - offset);
+}
+
+static inline void get_kernel_timestamp(int *time)
+{
+	struct timespec64 tv;
+
+	ktime_get_ts64(&tv);
+	time[0] = tv.tv_sec;
+	time[1] = tv.tv_nsec;
 }
 
 #ifdef __cplusplus
