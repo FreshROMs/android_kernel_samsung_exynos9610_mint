@@ -1,0 +1,4 @@
+
+# Mount ZRAM with writeback as swap
+on property:sys.boot_completed=1
+	swapon_all /vendor/etc/fstab.zram
