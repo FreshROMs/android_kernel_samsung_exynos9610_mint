@@ -5,3 +5,5 @@ config OLAF_SUPPORT
 	default n
 	help
 		thaw frozen process when recieve sig. enable if samsung olaf solution exist
+
+source "kernel/Kconfig.fresh"

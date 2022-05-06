@@ -1,0 +1,26 @@
+config MINT
+	def_bool y
+	help
+	 This is a Mint kernel build. Enabled by default
+	 for Mint Kernel trees.
+
+config MINT_SESL
+	depends on MINT
+	bool "One UI support"
+	default n
+	help
+		Build Mint Kernel components for One UI support
+
+config MINT_AOSP
+	depends on MINT
+	bool "AOSP support"
+	default n
+	help
+		Build Mint Kernel components for AOSP support
+
+config MINT_PLATFORM_VERSION
+	depends on MINT
+	int "Android platform version"
+	range 9 12
+	help
+		Android platform version of Mint build
