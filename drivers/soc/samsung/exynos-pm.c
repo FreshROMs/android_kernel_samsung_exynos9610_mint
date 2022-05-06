@@ -115,8 +115,7 @@ static void exynos_show_wakeup_reason_eint(void)
 			irq = gpio_to_irq(gpio);
 
 #ifdef CONFIG_SUSPEND
-			log_wakeup_reason(irq);
-		//	update_wakeup_reason_stats(irq, i + bit);
+			log_irq_wakeup_reason(irq);
 #endif
 			found = 1;
 		}
@@ -156,9 +155,6 @@ static void exynos_show_wakeup_reason_sysint(unsigned int stat,
 
 		if (!name)
 			continue;
-#ifdef CONFIG_SUSPEND
-		log_wakeup_reason_name(name);
-#endif
 	}
 }
 

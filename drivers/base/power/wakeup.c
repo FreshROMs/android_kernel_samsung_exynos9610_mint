@@ -1097,9 +1097,6 @@ void pm_wakeup_clear(bool reset)
 
 void pm_system_irq_wakeup(unsigned int irq_number)
 {
-#ifdef CONFIG_SEC_PM_DEBUG
-	struct irq_desc *desc = irq_to_desc(irq_number);
-#endif
 	if (pm_wakeup_irq == 0) {
 		struct irq_desc *desc;
 		const char *name = "null";
