@@ -3633,12 +3633,13 @@ static int sd_probe(struct device *dev)
 #endif
 		struct request_queue *q = sdp->request_queue;
 
-		/* decrease max # of requests to 32. The goal of this tunning is
+		/* decrease max # of requests to 32. The goal of this tuning is
 		 * reducing the time for draining elevator when elevator_switch
 		 * function is called. It is effective for slow USB memory.
 		 */
 		q->nr_requests = BLKDEV_MAX_RQ / 8;
-		if (q->nr_requests < 32) q->nr_requests = 32;
+		if (q->nr_requests < 32)
+			q->nr_requests = 32;
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
 		/* apply more throttle on non-ufs scsi device */
 		q->backing_dev_info->capabilities |= BDI_CAP_STRICTLIMIT;
