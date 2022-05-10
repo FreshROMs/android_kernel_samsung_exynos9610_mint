@@ -148,11 +148,7 @@ DEFINE_EVENT(timer_class, timer_cancel,
 		{ HRTIMER_MODE_ABS,		"ABS"		},	\
 		{ HRTIMER_MODE_REL,		"REL"		},	\
 		{ HRTIMER_MODE_ABS_PINNED,	"ABS|PINNED"	},	\
-		{ HRTIMER_MODE_REL_PINNED,	"REL|PINNED"	},	\
-		{ HRTIMER_MODE_ABS_SOFT,	"ABS|SOFT"	},	\
-		{ HRTIMER_MODE_REL_SOFT,	"REL|SOFT"	},	\
-		{ HRTIMER_MODE_ABS_PINNED_SOFT,	"ABS|PINNED|SOFT" },	\
-		{ HRTIMER_MODE_REL_PINNED_SOFT,	"REL|PINNED|SOFT" })
+		{ HRTIMER_MODE_REL_PINNED,	"REL|PINNED"	})
 
 /**
  * hrtimer_init - called when the hrtimer is initialized
@@ -190,16 +186,15 @@ TRACE_EVENT(hrtimer_init,
  */
 TRACE_EVENT(hrtimer_start,
 
-	TP_PROTO(struct hrtimer *hrtimer, enum hrtimer_mode mode),
+	TP_PROTO(struct hrtimer *hrtimer),
 
-	TP_ARGS(hrtimer, mode),
+	TP_ARGS(hrtimer),
 
 	TP_STRUCT__entry(
 		__field( void *,	hrtimer		)
 		__field( void *,	function	)
 		__field( s64,		expires		)
 		__field( s64,		softexpires	)
-		__field( enum hrtimer_mode,	mode	)
 	),
 
 	TP_fast_assign(
@@ -207,14 +202,12 @@ TRACE_EVENT(hrtimer_start,
 		__entry->function	= hrtimer->function;
 		__entry->expires	= hrtimer_get_expires(hrtimer);
 		__entry->softexpires	= hrtimer_get_softexpires(hrtimer);
-		__entry->mode		= mode;
 	),
 
-	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu "
-		  "mode=%s", __entry->hrtimer, __entry->function,
+	TP_printk("hrtimer=%p function=%pf expires=%llu softexpires=%llu",
+		  __entry->hrtimer, __entry->function,
 		  (unsigned long long) __entry->expires,
-		  (unsigned long long) __entry->softexpires,
-		  decode_hrtimer_mode(__entry->mode))
+		  (unsigned long long) __entry->softexpires)
 );
 
 /**

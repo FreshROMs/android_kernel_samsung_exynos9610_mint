@@ -281,7 +281,8 @@ static inline u64 account_other_time(u64 max)
 {
 	u64 accounted;
 
-	lockdep_assert_irqs_disabled();
+	/* Shall be converted to a lockdep-enabled lightweight check */
+	WARN_ON_ONCE(!irqs_disabled());
 
 	accounted = steal_account_process_time(max);
 
