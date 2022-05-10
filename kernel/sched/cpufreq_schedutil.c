@@ -632,11 +632,11 @@ void sugov_update_rate_limit_us(struct cpufreq_policy *policy,
 	if (!tunables)
 		return;
 
-	tunables->up_rate_limit_us = (unsigned int)(up_rate_limit_ms * USEC_PER_MSEC);
-	tunables->down_rate_limit_us = (unsigned int)(down_rate_limit_ms * USEC_PER_MSEC);
+	tunables->up_rate_limit_us = CONFIG_SCHEDUTIL_UP_RATE_LIMIT;
+	tunables->down_rate_limit_us = CONFIG_SCHEDUTIL_DOWN_RATE_LIMIT;
 
-	sg_policy->up_rate_delay_ns = up_rate_limit_ms * NSEC_PER_MSEC;
-	sg_policy->down_rate_delay_ns = down_rate_limit_ms * NSEC_PER_MSEC;
+	sg_policy->up_rate_delay_ns = CONFIG_SCHEDUTIL_UP_RATE_LIMIT * NSEC_PER_USEC;
+	sg_policy->down_rate_delay_ns = CONFIG_SCHEDUTIL_DOWN_RATE_LIMIT * NSEC_PER_USEC;
 
 	update_min_rate_limit_ns(sg_policy);
 }
