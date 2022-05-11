@@ -32,7 +32,7 @@ jobs:
       run: sudo apt-get update
 
     - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
 
     - name: Build Mint kernel
       run: |
@@ -95,7 +95,7 @@ jobs:
       run: sudo apt-get update
 
     - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 -y
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
 
     - name: Build Mint kernel
       run: |
