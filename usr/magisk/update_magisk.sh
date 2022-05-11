@@ -12,11 +12,11 @@ then
 	magisk_link="https://github.com/topjohnwu/magisk-files/raw/${nver}/app-debug.apk"
 else
 	if [ "x$1" = "x" ]; then
-		nver="$(curl -s https://github.com/topjohnwu/Magisk/releases | grep -m 1 -Poe 'Magisk v[\d\.]+' | cut -d ' ' -f 2)"
+		nver="$(curl -s https://raw.githubusercontent.com/topjohnwu/magisk-files/master/stable.json | jq '.magisk.version' | cut -d '"' -f 2)"
 	else
 		nver="$1"
 	fi
-	magisk_link="https://github.com/topjohnwu/Magisk/releases/download/${nver}/Magisk-${nver}.apk"
+	magisk_link="https://cdn.jsdelivr.net/gh/topjohnwu/magisk-files@${nver}/app-release.apk"
 fi
 
 if [ \( -n "$nver" \) -a \( "$nver" != "$ver" \) -o ! \( -f "$DIR/arm/magiskinit64" \) -o \( "$nver" = "canary" \) ]
