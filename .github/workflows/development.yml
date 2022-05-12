@@ -176,13 +176,6 @@ jobs:
           mkdir -p ./release
           mv -f `find ./ -iname MintBeta-*.zip` ./release/
 
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: One UI Four Kernel ZIPs
-        path: 'release'
-        if-no-files-found: error
-
     - name: Prepare build config artifact
       run: |
           cp .config ./release/kernel_config_a50_aosp-s-e.txt
@@ -306,13 +299,6 @@ jobs:
       run: |
           mkdir -p ./release
           mv -f `find ./ -iname MintBeta-*.zip` ./release/
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: One UI Four Kernel ZIPs
-        path: 'release'
-        if-no-files-found: error
 
     - name: Prepare build config artifact
       run: |
