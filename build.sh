@@ -557,6 +557,7 @@ get_devicedb_info
 
 # All variants get semi-Knox while we're fixing compile issues
 merge_config partial-deknox-${BUILD_ANDROID_PLATFORM}
+merge_config mali-${BUILD_ANDROID_PLATFORM}
 merge_config variant_${BUILD_KERNEL_CODE}
 
 if [[ ${BUILD_KERNEL_PERMISSIVE} == 'true' ]]; then
