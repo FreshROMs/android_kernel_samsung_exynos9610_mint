@@ -141,6 +141,7 @@ jobs:
 
   aosp-s-e:
     name: Build AOSP 12 (Enforcing)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -203,6 +204,7 @@ jobs:
 
   aosp-s-p:
     name: Build AOSP 12 (Permissive)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -265,6 +267,7 @@ jobs:
 
   oneui-r-e:
     name: Build One UI 3 (Enforcing)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -327,6 +330,7 @@ jobs:
 
   oneui-r-p:
     name: Build One UI 3 (Permissive)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -389,6 +393,7 @@ jobs:
 
   aosp-r-e:
     name: Build AOSP 11 (Enforcing)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -458,6 +463,7 @@ jobs:
 
   aosp-r-p:
     name: Build AOSP 11 (Permissive)
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -520,7 +526,7 @@ jobs:
 
   release:
     name: Release files and configs
-    if: always()
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     needs: [oneui-s-e, oneui-s-p, oneui-r-e, oneui-r-p, aosp-s-e, aosp-s-p, aosp-r-e, aosp-r-p]
     runs-on: ubuntu-latest
     strategy:
