@@ -434,7 +434,7 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
-static inline int schedtune_adj_ta(struct task_struct *p, int orig_boost)
+bool schedtune_is_ux_task(struct task_struct *p)
 {
 	struct schedtune *st;
 	char name_buf[NAME_MAX + 1];
@@ -442,20 +442,20 @@ static inline int schedtune_adj_ta(struct task_struct *p, int orig_boost)
 
 	/* We only care about adj == 0 */
 	if (adj != 0)
-		return orig_boost;
+		return false;
 
 	/* Don't touch kthreads */
 	if (p->flags & PF_KTHREAD)
-		return orig_boost;
+		return false;
 
 	st = task_schedtune(p);
 	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
 	if (!strncmp(name_buf, "top-app", strlen("top-app"))) {
 		pr_debug("top app is %s with adj %i\n", p->comm, adj);
-		return 1;
+		return true;
 	}
 
-	return orig_boost;
+	return false;
 }
 
 int schedtune_task_boost(struct task_struct *p)
@@ -469,7 +469,7 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = schedtune_adj_ta(p, st->boost);
+	task_boost = schedtune_is_ux_task(p) ? max(st->boost, 1) : st->boost;
 	rcu_read_unlock();
 
 	return task_boost;
