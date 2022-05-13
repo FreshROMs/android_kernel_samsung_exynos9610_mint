@@ -3412,8 +3412,8 @@
 			shared-cpus = "4-7";
 
 			boost_table = < 20 1352000 10 1664000 5 2080000 0 >;
-			up_rate_limit_table = < 2 >;
-			down_rate_limit_table = < 10 >;
+			up_rate_limit_table = < 1 >;
+			down_rate_limit_table = < 20 >;
 			upscale_ratio_table = < 75 1508000 80 >;
 		};
 	};
