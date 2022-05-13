@@ -546,6 +546,11 @@ jobs:
         name: Release
         path: release
 
+    - name: Delete build config files
+      run: |
+          set -eo pipefail
+          rm -rf ./release/kernel_config_*.txt
+
     - name: Delete older release
       uses: dev-drprasad/delete-older-releases@v0.2.0
       with:
