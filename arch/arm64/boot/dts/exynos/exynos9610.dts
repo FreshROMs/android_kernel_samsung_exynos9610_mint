@@ -3403,7 +3403,7 @@
 
 			boost_table = < 0 >;
 			up_rate_limit_table = < 2 >;
-			down_rate_limit_table = < 10 >;
+			down_rate_limit_table = < 5 >;
 			upscale_ratio_table = < 60 1456000 80 >;
 		};
 
