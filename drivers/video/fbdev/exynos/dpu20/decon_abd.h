@@ -10,8 +10,10 @@
 #ifndef __DECON_ABD_H__
 #define __DECON_ABD_H__
 
-#include <linux/interrupt.h>
 #include <linux/fb.h>
+#include <linux/interrupt.h>
+#include <linux/miscdevice.h>
+
 #if defined(CONFIG_EXYNOS_DPU30)
 #include <linux/dma-fence.h>
 #endif
@@ -182,6 +184,9 @@ struct abd_protect {
 
 	struct dentry *debugfs_root;
 	unsigned int init_done;
+	
+	struct miscdevice misc_entry;
+	struct mutex misc_lock;
 };
 
 #if defined(CONFIG_EXYNOS_DPU20)

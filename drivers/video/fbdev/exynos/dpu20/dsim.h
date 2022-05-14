@@ -254,6 +254,7 @@ struct dsim_device {
 	int esd_test;
 	bool esd_recovering;
 #endif
+	int continuous_irq_count;
 };
 
 struct dsim_lcd_driver {

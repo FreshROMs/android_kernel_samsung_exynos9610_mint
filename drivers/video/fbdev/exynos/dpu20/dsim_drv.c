@@ -488,13 +488,17 @@ static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 #ifdef CONFIG_EXYNOS_PD
 	active = pm_runtime_active(dsim->dev);
 	if (!active) {
-		dsim_info("dsim power(%d), state(%d)\n", active, dsim->state);
+		if (dsim->continuous_irq_count < 10) {
+			dsim_info("dsim power(%d), state(%d)\n", active, dsim->state);
+			dsim->continuous_irq_count++;
+		}
 		spin_unlock(&dsim->slock);
 		return IRQ_HANDLED;
 	}
 #endif
 
 	int_src = dsim_reg_get_int_and_clear(dsim->id);
+	dsim->continuous_irq_count = 0;
 	if (int_src & DSIM_INTSRC_SFR_PH_FIFO_EMPTY) {
 		del_timer(&dsim->cmd_timer);
 		complete(&dsim->ph_wr_comp);
@@ -835,6 +839,7 @@ static int _dsim_enable(struct dsim_device *dsim, enum dsim_state state)
 	dsim_reg_start(dsim->id);
 
 	dsim->state = state;
+	dsim->continuous_irq_count = 0;
 	enable_irq(dsim->res.irq);
 
 	return 0;
@@ -926,6 +931,7 @@ static int _dsim_disable(struct dsim_device *dsim, enum dsim_state state)
 		__dsim_dump(dsim->id, &regs);
 	}
 	disable_irq(dsim->res.irq);
+	dsim->continuous_irq_count = 0;
 
 	/* HACK */
 	phy_power_off(dsim->phy);

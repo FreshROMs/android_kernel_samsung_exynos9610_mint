@@ -962,6 +962,8 @@ static int decon_abd_show(struct seq_file *m, void *unused)
 	struct dsim_device *dsim = v4l2_get_subdevdata(decon->out_sd[0]);
 	unsigned int i = 0;
 
+	mutex_lock(&abd->misc_lock);
+
 	abd_printf(m, "==========_DECON_ABD_==========\n");
 	abd_printf(m, "bypass: %d,%d, lcdtype: %6X\n", get_frame_bypass(abd), get_mipi_rw_bypass(abd), get_boot_lcdtype());
 
@@ -1000,12 +1002,19 @@ static int decon_abd_show(struct seq_file *m, void *unused)
 	abd_printf(m, "==========_RAM_DEBUG_==========\n");
 	decon_abd_print_ss_log(abd, m);
 
+	mutex_unlock(&abd->misc_lock);
+
 	return 0;
 }
 
 static int decon_abd_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, decon_abd_show, inode->i_private);
+	struct miscdevice *dev = file->private_data;
+	struct abd_protect *abd = container_of(dev, struct abd_protect, misc_entry);
+
+	file->private_data = NULL;
+
+	return single_open(file, decon_abd_show, abd);
 }
 
 static const struct file_operations decon_abd_fops = {
@@ -1014,6 +1023,22 @@ static const struct file_operations decon_abd_fops = {
 	.release = seq_release,
 	.open = decon_abd_open,
 };
+
+static void decon_abd_register_fops(struct abd_protect *abd)
+{
+	int ret = 0;
+
+	abd->misc_entry.minor = MISC_DYNAMIC_MINOR;
+	abd->misc_entry.name = "sec_display_debug";
+	abd->misc_entry.fops = &decon_abd_fops;
+	abd->misc_entry.parent = NULL;
+
+	mutex_init(&abd->misc_lock);
+
+	ret = misc_register(&abd->misc_entry);
+	if (ret < 0)
+		dbg_info("%s: misc_register fail(%d)\n", __func__, ret);
+}
 
 static int decon_abd_reboot_notifier(struct notifier_block *this,
 		unsigned long code, void *unused)
@@ -1481,16 +1506,9 @@ static void decon_abd_pin_register(struct abd_protect *abd)
 
 static void decon_abd_register(struct abd_protect *abd)
 {
-	struct decon_device *decon = get_abd_container_of(abd);
-	struct dentry *abd_debugfs_root = decon->d.debug_root;
 	unsigned int i = 0;
 
 	dbg_info("%s: ++\n", __func__);
-
-	if (!abd_debugfs_root)
-		abd_debugfs_root = debugfs_create_dir("panel", NULL);
-
-	abd->debugfs_root = abd_debugfs_root;
 
 	abd->u_first.name = abd->f_first.name = abd->b_first.name = "first";
 	abd->u_lcdon.name = abd->f_lcdon.name = "lcdon";
@@ -1502,10 +1520,10 @@ static void decon_abd_register(struct abd_protect *abd)
 		abd->u_event.log[i].bts = kzalloc(sizeof(struct decon_bts), GFP_KERNEL);
 	}
 
-	debugfs_create_file("debug", 0444, abd_debugfs_root, abd, &decon_abd_fops);
-
 	abd->reboot_notifier.notifier_call = decon_abd_reboot_notifier;
 	register_reboot_notifier(&abd->reboot_notifier);
+
+	decon_abd_register_fops(abd);
 
 	dbg_info("%s: -- entity was registered\n", __func__);
 }
