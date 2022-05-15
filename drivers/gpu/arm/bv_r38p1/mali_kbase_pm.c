@@ -394,10 +394,13 @@ void kbase_pm_apc_term(struct kbase_device *kbdev)
  * This worker handles the power on request on mali_apc_thread.
  *
  * Normally it will power on the GPU and schedule a timer to power off the GPU
- * based on the requested wake duration.
+ * based on the requested wake duration. If relative wake duration is not larger
+ * than zero after GPU has been powered on, do power off here directly.
  *
  * If the driver is suspending, it won't power on the GPU or schedule the timer
  * for powering off.
+ *
+ * apc.pending must be reset before this worker function returns.
  */
 static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
 {
@@ -407,10 +410,15 @@ static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
 	ktime_t cur_ts;
 
 	if (kbase_pm_context_active_handle_suspend(kbdev,
-			KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE))
+			KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE)) {
+		mutex_lock(&kbdev->apc.lock);
+		kbdev->apc.pending = false;
+		mutex_unlock(&kbdev->apc.lock);
 		return;
+	}
 
 	mutex_lock(&kbdev->apc.lock);
+	kbdev->apc.pending = false;
 	cur_ts = ktime_get();
 	if (ktime_after(kbdev->apc.end_ts, cur_ts)) {
 		hrtimer_start(&kbdev->apc.timer,
@@ -421,10 +429,7 @@ static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
 	}
 	mutex_unlock(&kbdev->apc.lock);
 
-	/* When relative duration is non-positive, queue power off work here. */
-	kthread_init_work(&kbdev->apc.power_off_work,
-			kbase_pm_apc_power_off_worker);
-	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_off_work);
+	kbase_pm_context_idle(kbdev);
 }
 
 void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
@@ -435,7 +440,7 @@ void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
 	req_ts = ktime_add_us(ktime_get(),
 			min(dur_usec, (u32)KBASE_APC_MAX_DUR_USEC));
 	if (!ktime_after(req_ts, kbdev->apc.end_ts))
-		goto out;
+		goto out_unlock;
 
 	/* When the return value of hrtimer_try_to_cancel() is:
 	 *  1: Timer is canceled, so restart to extend wake duration and exit.
@@ -447,16 +452,20 @@ void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
 		hrtimer_start(&kbdev->apc.timer,
 				ktime_sub(req_ts, kbdev->apc.end_ts),
 				HRTIMER_MODE_REL);
-		goto out;
+		goto out_unlock;
 	}
 	kbdev->apc.end_ts = req_ts;
-	mutex_unlock(&kbdev->apc.lock);
+	if (!kbdev->apc.pending) {
+		kbdev->apc.pending = true;
+		mutex_unlock(&kbdev->apc.lock);
 
-	kthread_init_work(&kbdev->apc.power_on_work,
-			kbase_pm_apc_power_on_worker);
-	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_on_work);
-	return;
+		kthread_init_work(&kbdev->apc.power_on_work,
+				kbase_pm_apc_power_on_worker);
+		kthread_queue_work(&kbdev->apc.worker,
+				&kbdev->apc.power_on_work);
+		return;
+	}
 
-out:
+out_unlock:
 	mutex_unlock(&kbdev->apc.lock);
 }

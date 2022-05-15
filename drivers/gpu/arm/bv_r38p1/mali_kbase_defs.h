@@ -948,7 +948,8 @@ struct kbase_process {
  * @apc.power_off_work:     Work struct for powering off the GPU.
  * @apc.end_ts:             The latest end timestamp to power off the GPU.
  * @apc.timer:              A hrtimer for powering off based on wake duration.
- * @apc.lock:               Lock for @apc.end_ts and @apc.timer.
+ * @apc.pending:            Whether apc is requested and not handled yet.
+ * @apc.lock:               Lock for @apc.end_ts, @apc.timer and @apc.pending.
  * @process_root:           rb_tree root node for maintaining a rb_tree of
  *                          kbase_process based on key tgid(thread group ID).
  * @dma_buf_root:           rb_tree root node for maintaining a rb_tree of
@@ -1223,6 +1224,7 @@ struct kbase_device {
 		struct kthread_work power_off_work;
 		ktime_t end_ts;
 		struct hrtimer timer;
+		bool pending;
 		struct mutex lock;
 	} apc;
 
