@@ -49,8 +49,8 @@ extern unsigned int sysctl_numa_balancing_scan_size;
 # include <linux/static_key.h>
 
 extern __read_mostly unsigned int sysctl_sched_migration_cost;
-#ifdef CONFIG_SCHED_DEBUG
 extern __read_mostly unsigned int sysctl_sched_nr_migrate;
+#ifdef CONFIG_SCHED_DEBUG
 extern __read_mostly unsigned int sysctl_sched_time_avg;
 #endif
 
