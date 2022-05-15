@@ -117,7 +117,7 @@
 /**
  * Priority level for realtime worker threads
  */
-#define KBASE_RT_THREAD_PRIO (60)
+#define KBASE_RT_THREAD_PRIO (2)
 
 /* TODO(b/181145264) get the following two numbers from device tree */
 /**
