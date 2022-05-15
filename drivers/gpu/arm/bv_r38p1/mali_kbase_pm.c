@@ -23,9 +23,6 @@
  * DOC: Base kernel power management APIs
  */
 
-#include <linux/sched/rt.h>
-#include <uapi/linux/sched/types.h>
-
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_vinstr.h>
@@ -350,29 +347,11 @@ static enum hrtimer_restart kbase_pm_apc_timer_callback(struct hrtimer *timer)
 
 int kbase_pm_apc_init(struct kbase_device *kbdev)
 {
-	static const struct sched_param param = {
-		.sched_priority = KBASE_APC_THREAD_RT_PRIO,
-	};
-	/* TODO(b/181145264) get this number from the device tree */
-	static const unsigned int nr_little_cores = 4;
-	cpumask_t mask = { CPU_BITS_NONE };
-
 	kthread_init_worker(&kbdev->apc.worker);
-	kbdev->apc.thread = kthread_create(kthread_worker_fn,
-		&kbdev->apc.worker, "mali_apc_thread");
+	kbdev->apc.thread = kbase_create_realtime_thread(kbdev,
+		kthread_worker_fn, &kbdev->apc.worker, "mali_apc_thread");
 	if (IS_ERR(kbdev->apc.thread))
-		return -ENOMEM;
-
-	for (unsigned int i = 0; i < nr_little_cores; i++)
-		cpumask_set_cpu(i, &mask);
-	kthread_bind_mask(kbdev->apc.thread, &mask);
-	wake_up_process(kbdev->apc.thread);
-
-	if (sched_setscheduler(kbdev->apc.thread, SCHED_FIFO, &param))
-		dev_warn(kbdev->dev, "mali_apc_thread not set to RT prio");
-	else
-		dev_dbg(kbdev->dev, "mali_apc_thread set to RT prio: %i",
-			param.sched_priority);
+		return PTR_ERR(kbdev->apc.thread);
 
 	hrtimer_init(&kbdev->apc.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	kbdev->apc.timer.function = kbase_pm_apc_timer_callback;

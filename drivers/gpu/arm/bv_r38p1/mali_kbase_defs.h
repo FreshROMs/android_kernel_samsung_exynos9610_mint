@@ -115,9 +115,20 @@
 #define KBASE_LOCK_REGION_MAX_SIZE_LOG2 (48) /*  256 TB */
 
 /**
- * Realtime priority level of mali_apc_thread.
+ * Priority level for realtime worker threads
  */
-#define KBASE_APC_THREAD_RT_PRIO (60)
+#define KBASE_RT_THREAD_PRIO (60)
+
+/* TODO(b/181145264) get the following two numbers from device tree */
+/**
+ * First CPU in the contiguous CPU mask used for realtime worker threads.
+ */
+#define KBASE_RT_THREAD_CPUMASK_MIN (0)
+
+/**
+ * Last CPU in the contiguous CPU mask used for realtime worker threads.
+ */
+#define KBASE_RT_THREAD_CPUMASK_MAX (3)
 
 /**
  * Maximum allowed wake duration in usec for apc request.
