@@ -74,6 +74,7 @@
 #ifdef CONFIG_MALI_CINSTR_GWT
 #include "mali_kbase_gwt.h"
 #endif
+#include "mali_kbase_pm.h"
 #include "backend/gpu/mali_kbase_pm_internal.h"
 #include "mali_kbase_dvfs_debugfs.h"
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -745,6 +746,13 @@ static int kbase_api_set_flags(struct kbase_file *kfile,
 	}
 
 	return err;
+}
+
+static int kbase_api_apc_request(struct kbase_file *kfile,
+		struct kbase_ioctl_apc_request *apc)
+{
+	kbase_pm_apc_request(kfile->kbdev, apc->dur_usec);
+	return 0;
 }
 
 #if !MALI_USE_CSF
@@ -1719,6 +1727,13 @@ static long __kbase_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 	case KBASE_IOCTL_GET_GPUPROPS:
 		KBASE_HANDLE_IOCTL_IN(KBASE_IOCTL_GET_GPUPROPS, kbase_api_get_gpuprops,
 				      struct kbase_ioctl_get_gpuprops, kfile);
+		break;
+
+	case KBASE_IOCTL_APC_REQUEST:
+		KBASE_HANDLE_IOCTL_IN(KBASE_IOCTL_APC_REQUEST,
+				kbase_api_apc_request,
+				struct kbase_ioctl_apc_request,
+				kfile);
 		break;
 	}
 

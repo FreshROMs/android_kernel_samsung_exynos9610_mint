@@ -294,6 +294,7 @@ static void kbase_device_term_partial(struct kbase_device *kbdev,
 
 void kbase_device_term(struct kbase_device *kbdev)
 {
+	kbase_pm_apc_term(kbdev);
 	kbase_device_term_partial(kbdev, ARRAY_SIZE(dev_init));
 	kbasep_js_devdata_halt(kbdev);
 	kbase_mem_halt(kbdev);
@@ -339,6 +340,10 @@ int kbase_device_init(struct kbase_device *kbdev)
 		dev_info(kbdev->dev, "mali_jd_thread set to RT prio: %i",
 			 MALI_JD_THREAD_RT_PRIORITY);
 	}
+
+	err = kbase_pm_apc_init(kbdev);
+	if (err)
+		return err;
 
 	kthread_init_worker(&kbdev->event_worker);
 	kbdev->event_worker_thread = kthread_run(kthread_worker_fn,
