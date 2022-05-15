@@ -297,7 +297,6 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 /**
  * kbase_pm_apc_power_off_worker - Power off worker running on mali_apc_thread
  * @data: A &struct kthread_work
- *
  * This worker runs kbase_pm_context_idle on mali_apc_thread.
  */
 static void kbase_pm_apc_power_off_worker(struct kthread_work *data)
@@ -309,8 +308,122 @@ static void kbase_pm_apc_power_off_worker(struct kthread_work *data)
 }
 
 /**
- * kbase_pm_apc_timer_callback - Timer callback for powering off the GPU
+ * kbase_pm_apc_power_on_worker - Power on worker running on mali_apc_thread
  * @data: A &struct kthread_work
+ *
+ * APC power on works by increasing the active context count on the GPU. If the
+ * GPU is powered down, this will initiate the power on sequence. If the GPU is
+ * already on, it will remain on as long as the active context count is greater
+ * than zero.
+ *
+ * In order to keep the GPU from remaining on indefinitely as a result of this
+ * call, we need to ensure that any APC-driven active context count increase
+ * has a corresponding active context count decrease.
+ *
+ * In the normal case we hand over this decrease to an hrtimer which in turn
+ * queues work on mali_apc_thread to decrease the count. However, if the process
+ * of increasing the active context count only completes after the requested end
+ * time, then we release the count immediately.
+ *
+ * If the GPU is in the process of suspending when we attempt to increase the
+ * active context count, we can't increase the active context count and so the
+ * APC request fails.
+ *
+ * Note: apc.pending must be reset before this worker function returns.
+ */
+static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
+{
+	struct kbase_device *kbdev = container_of(data, struct kbase_device, apc.power_on_work);
+	ktime_t cur_ts;
+
+	/* Attempt to add a vote to keep the GPU on (or power it on if it is off) */
+	if (kbase_pm_context_active_handle_suspend(kbdev, KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE)) {
+		/* We couldn't add a vote as the GPU was being suspended. */
+		mutex_lock(&kbdev->apc.lock);
+		kbdev->apc.pending = false;
+		mutex_unlock(&kbdev->apc.lock);
+	} else {
+		/* We have added a vote to keep the GPU power on */
+		mutex_lock(&kbdev->apc.lock);
+
+		cur_ts = ktime_get();
+		if (ktime_after(kbdev->apc.end_ts, cur_ts)) {
+			/* Initiate a timer to eventually release our power on vote */
+			hrtimer_start(&kbdev->apc.timer,
+					ktime_sub(kbdev->apc.end_ts, cur_ts),
+					HRTIMER_MODE_REL);
+			kbdev->apc.pending = false;
+			mutex_unlock(&kbdev->apc.lock);
+		} else {
+			/* We're past the end time already so release our power on vote immediately */
+			kbdev->apc.pending = false;
+			mutex_unlock(&kbdev->apc.lock);
+
+			kbase_pm_context_idle(kbdev);
+		}
+	}
+}
+
+void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
+{
+	ktime_t req_ts;
+
+	if (dur_usec < KBASE_APC_MIN_DUR_USEC)
+		return;
+
+	mutex_lock(&kbdev->apc.lock);
+
+	req_ts = ktime_add_us(ktime_get(), min(dur_usec, (u32)KBASE_APC_MAX_DUR_USEC));
+	if (!ktime_after(req_ts, kbdev->apc.end_ts))
+		goto out_unlock;
+
+	switch (hrtimer_try_to_cancel(&kbdev->apc.timer)) {
+	case 1:
+		/*
+		 * The timer was successfully cancelled before firing, so extend the existing APC
+		 * request to the new end time.
+		 */
+		hrtimer_start(&kbdev->apc.timer,
+			ktime_sub(req_ts, kbdev->apc.end_ts),
+			HRTIMER_MODE_REL);
+		kbdev->apc.end_ts = req_ts;
+		goto out_unlock;
+
+	case -1:
+		/*
+		 * The timer callback is already running so we can't directly update it. Wait until
+		 * it has completed before resuming, as long as we haven't had to wait too long.
+		 */
+		hrtimer_cancel(&kbdev->apc.timer);
+		if (ktime_after(ktime_get(), req_ts))
+			goto out_unlock;
+		break;
+
+	case 0:
+		/* The timer was inactive so we perform the usual setup */
+		break;
+	}
+
+	kbdev->apc.end_ts = req_ts;
+
+	/* If a power on is already in flight, it will pick up the new apc.end_ts */
+	if (!kbdev->apc.pending) {
+		kbdev->apc.pending = true;
+		mutex_unlock(&kbdev->apc.lock);
+
+		WARN_ONCE(!kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_on_work),
+			"APC power on queue blocked");
+		return;
+	}
+
+out_unlock:
+	mutex_unlock(&kbdev->apc.lock);
+}
+
+/**
+ * kbase_pm_apc_timer_callback - Timer callback for powering off the GPU via APC
+ *
+ * @timer: Timer structure.
  *
  * This hrtimer callback queues the power off work to mali_apc_thread.
  *
@@ -321,9 +434,9 @@ static enum hrtimer_restart kbase_pm_apc_timer_callback(struct hrtimer *timer)
 	struct kbase_device *kbdev =
 			container_of(timer, struct kbase_device, apc.timer);
 
-	kthread_init_work(&kbdev->apc.power_off_work,
-			kbase_pm_apc_power_off_worker);
-	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_off_work);
+	WARN_ONCE(!kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_off_work),
+		"APC power off queue blocked");
+
 	return HRTIMER_NORESTART;
 }
 
@@ -335,9 +448,18 @@ int kbase_pm_apc_init(struct kbase_device *kbdev)
 	if (IS_ERR(kbdev->apc.thread))
 		return PTR_ERR(kbdev->apc.thread);
 
+	/*
+	 * We initialize power off and power on work on init as they will each
+	 * only operate on one worker.
+	 */
+	kthread_init_work(&kbdev->apc.power_off_work, kbase_pm_apc_power_off_worker);
+	kthread_init_work(&kbdev->apc.power_on_work, kbase_pm_apc_power_on_worker);
+
 	hrtimer_init(&kbdev->apc.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	kbdev->apc.timer.function = kbase_pm_apc_timer_callback;
+
 	mutex_init(&kbdev->apc.lock);
+
 	return 0;
 }
 
@@ -346,87 +468,4 @@ void kbase_pm_apc_term(struct kbase_device *kbdev)
 	hrtimer_cancel(&kbdev->apc.timer);
 	kthread_flush_worker(&kbdev->apc.worker);
 	kthread_stop(kbdev->apc.thread);
-}
-
-/**
- * kbase_pm_apc_power_on_worker - Power on worker running on mali_apc_thread
- * @data: A &struct kthread_work
- *
- * This worker handles the power on request on mali_apc_thread.
- *
- * Normally it will power on the GPU and schedule a timer to power off the GPU
- * based on the requested wake duration. If relative wake duration is not larger
- * than zero after GPU has been powered on, do power off here directly.
- *
- * If the driver is suspending, it won't power on the GPU or schedule the timer
- * for powering off.
- *
- * apc.pending must be reset before this worker function returns.
- */
-static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
-{
-	struct kbase_device *kbdev =
-			container_of(data, struct kbase_device,
-					apc.power_on_work);
-	ktime_t cur_ts;
-
-	if (kbase_pm_context_active_handle_suspend(kbdev,
-			KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE)) {
-		mutex_lock(&kbdev->apc.lock);
-		kbdev->apc.pending = false;
-		mutex_unlock(&kbdev->apc.lock);
-		return;
-	}
-
-	mutex_lock(&kbdev->apc.lock);
-	kbdev->apc.pending = false;
-	cur_ts = ktime_get();
-	if (ktime_after(kbdev->apc.end_ts, cur_ts)) {
-		hrtimer_start(&kbdev->apc.timer,
-				ktime_sub(kbdev->apc.end_ts, cur_ts),
-				HRTIMER_MODE_REL);
-		mutex_unlock(&kbdev->apc.lock);
-		return;
-	}
-	mutex_unlock(&kbdev->apc.lock);
-
-	kbase_pm_context_idle(kbdev);
-}
-
-void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
-{
-	ktime_t req_ts;
-
-	mutex_lock(&kbdev->apc.lock);
-	req_ts = ktime_add_us(ktime_get(),
-			min(dur_usec, (u32)KBASE_APC_MAX_DUR_USEC));
-	if (!ktime_after(req_ts, kbdev->apc.end_ts))
-		goto out_unlock;
-
-	/* When the return value of hrtimer_try_to_cancel() is:
-	 *  1: Timer is canceled, so restart to extend wake duration and exit.
-	 *  0: Timer is inactive, so we follow normal power on sequence below.
-	 * -1: Timer callback is running, so we need to follow normal power on
-	 *     sequence again since we are not able to update the timer now.
-	 */
-	if (hrtimer_try_to_cancel(&kbdev->apc.timer) == 1) {
-		hrtimer_start(&kbdev->apc.timer,
-				ktime_sub(req_ts, kbdev->apc.end_ts),
-				HRTIMER_MODE_REL);
-		goto out_unlock;
-	}
-	kbdev->apc.end_ts = req_ts;
-	if (!kbdev->apc.pending) {
-		kbdev->apc.pending = true;
-		mutex_unlock(&kbdev->apc.lock);
-
-		kthread_init_work(&kbdev->apc.power_on_work,
-				kbase_pm_apc_power_on_worker);
-		kthread_queue_work(&kbdev->apc.worker,
-				&kbdev->apc.power_on_work);
-		return;
-	}
-
-out_unlock:
-	mutex_unlock(&kbdev->apc.lock);
 }

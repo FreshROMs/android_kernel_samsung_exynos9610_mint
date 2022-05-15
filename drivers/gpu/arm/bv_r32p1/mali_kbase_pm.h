@@ -242,31 +242,40 @@ void kbase_pm_handle_gpu_lost(struct kbase_device *kbdev);
 #endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
 /**
- * kbase_pm_apc_init - Handle apc initialization
- * @kbdev: Device pointer
+ * kbase_pm_apc_init - Initialize Async Power Control (APC)
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * Initialize all apc related resources and create a realtime thread to handle
- * apc requests.
+ * Performs setup for Async Power Control including initialization of work
+ * structs and the creation of a realtime kernel thread on which asynchronous
+ * power operations will be performed.
  *
  * Return: 0 on success, -ENOMEM on resource allocation failures.
  */
 int kbase_pm_apc_init(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_apc_term - Handle apc termination
- * @kbdev: Device pointer
+ * kbase_pm_apc_term - Handle APC termination
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
  *
- * Cancel timer, flush pending work and release related resources.
+ * Cleans up all structures and threads set up to support Async Power Control.
  */
 void kbase_pm_apc_term(struct kbase_device *kbdev);
 
 /**
- * kbase_pm_apc_request - Handle apc request
- * @kbdev:    Device pointer
- * @dur_usec: Duration for GPU to stay awake
+ * kbase_pm_apc_request - Handle APC power on request
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ * @dur_usec: Requested duration for GPU to stay awake in microseconds
  *
- * Initiate a work to power on the GPU on mali_apc_thread and keep GPU powered
- * on for a specified duration (capped by KBASE_APC_MAX_DUR_USEC).
+ * Instructs the APC mechanism to start powering on the GPU and requests to keep
+ * it powered on for at least &dur_usec microseconds.
+ *
+ * Note that the APC mechanism will limit the power on duration requests made
+ * via &dur_usec to &KBASE_APC_MAX_DUR_USEC. The GPU may remain powered on
+ * for longer than &dur_usec if there are outstanding tasks remaining for it to
+ * process.
+ *
+ * Duration requests smaller than &KBASE_APC_MIN_DUR_USEC will are not supported
+ * and will result in no APC work being queued.
  */
 void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec);
 
