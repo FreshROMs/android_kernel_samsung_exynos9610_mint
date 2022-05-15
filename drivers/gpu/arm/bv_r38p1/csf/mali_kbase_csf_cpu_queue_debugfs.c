@@ -61,7 +61,7 @@ static int kbasep_csf_cpu_queue_debugfs_show(struct seq_file *file, void *data)
 
 	atomic_set(&kctx->csf.cpu_queue.dump_req_status, BASE_CSF_CPU_QUEUE_DUMP_ISSUED);
 	init_completion(&kctx->csf.cpu_queue.dump_cmp);
-	kbase_event_wakeup(kctx);
+	kbase_event_wakeup_nosync(kctx);
 	mutex_unlock(&kctx->csf.lock);
 
 	seq_puts(file,

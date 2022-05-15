@@ -104,6 +104,9 @@
  * Kernel-side Base (KBase) APIs
  */
 
+#define kbase_event_wakeup_sync(kctx) _kbase_event_wakeup(kctx, true)
+#define kbase_event_wakeup_nosync(kctx) _kbase_event_wakeup(kctx, false)
+
 struct kbase_device *kbase_device_alloc(void);
 /*
  * note: configuration attributes member of kbdev needs to have
@@ -394,7 +397,7 @@ int kbase_event_pending(struct kbase_context *ctx);
 int kbase_event_init(struct kbase_context *kctx);
 void kbase_event_close(struct kbase_context *kctx);
 void kbase_event_cleanup(struct kbase_context *kctx);
-void kbase_event_wakeup(struct kbase_context *kctx);
+void _kbase_event_wakeup(struct kbase_context *kctx, bool sync);
 
 /**
  * kbasep_jit_alloc_validate() - Validate the JIT allocation info.

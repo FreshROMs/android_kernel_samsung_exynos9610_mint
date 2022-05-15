@@ -208,7 +208,7 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 		mutex_unlock(&ctx->event_mutex);
 		dev_dbg(kbdev->dev, "Reporting %d events\n", event_count);
 
-		kbase_event_wakeup(ctx);
+		kbase_event_wakeup_sync(ctx);
 
 		/* Post-completion latency */
 		trace_sysgraph(SGR_POST, ctx->id,
@@ -222,7 +222,7 @@ void kbase_event_close(struct kbase_context *kctx)
 	mutex_lock(&kctx->event_mutex);
 	atomic_set(&kctx->event_closed, true);
 	mutex_unlock(&kctx->event_mutex);
-	kbase_event_wakeup(kctx);
+	kbase_event_wakeup_sync(kctx);
 }
 
 int kbase_event_init(struct kbase_context *kctx)
