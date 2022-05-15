@@ -51,7 +51,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/sizes.h>
-
+#include <linux/rtmutex.h>
 
 #if defined(CONFIG_SYNC)
 #include <sync.h>
@@ -285,7 +285,7 @@ struct kbase_fault {
  */
 struct kbase_mmu_table {
 	u64 *mmu_teardown_pages[MIDGARD_MMU_BOTTOMLEVEL];
-	struct mutex mmu_lock;
+	struct rt_mutex mmu_lock;
 	phys_addr_t pgd;
 	u8 group_id;
 	struct kbase_context *kctx;
