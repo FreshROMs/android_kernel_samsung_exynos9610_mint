@@ -2676,7 +2676,7 @@ static void program_suspending_csg_slots(struct kbase_device *kbdev)
 
 				kbase_csf_add_group_fatal_error(group,
 								&err_payload);
-				kbase_event_wakeup(group->kctx);
+				kbase_event_wakeup_nosync(group->kctx);
 
 				/* TODO GPUCORE-25328: The CSG can't be
 				 * terminated, the GPU will be reset as a

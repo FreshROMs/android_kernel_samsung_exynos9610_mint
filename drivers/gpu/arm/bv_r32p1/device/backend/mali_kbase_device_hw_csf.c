@@ -117,7 +117,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 			scheduler->active_protm_grp->faulted = true;
 			kbase_csf_add_group_fatal_error(
 				scheduler->active_protm_grp, &err_payload);
-			kbase_event_wakeup(scheduler->active_protm_grp->kctx);
+			kbase_event_wakeup_nosync(scheduler->active_protm_grp->kctx);
 		}
 		kbase_csf_scheduler_spin_unlock(kbdev, flags);
 
