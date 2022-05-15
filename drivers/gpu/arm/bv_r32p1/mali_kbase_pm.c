@@ -23,6 +23,9 @@
  * DOC: Base kernel power management APIs
  */
 
+#include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
+
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_vinstr.h>
@@ -292,4 +295,150 @@ void kbase_pm_resume(struct kbase_device *kbdev)
 #else
 	kbase_pm_driver_resume(kbdev, false);
 #endif /* CONFIG_MALI_ARBITER_SUPPORT */
+}
+
+/**
+ * kbase_pm_apc_power_off_worker - Power off worker running on mali_apc_thread
+ * @data: A &struct kthread_work
+ *
+ * This worker runs kbase_pm_context_idle on mali_apc_thread.
+ */
+static void kbase_pm_apc_power_off_worker(struct kthread_work *data)
+{
+	struct kbase_device *kbdev = container_of(data, struct kbase_device,
+			apc.power_off_work);
+
+	kbase_pm_context_idle(kbdev);
+}
+
+/**
+ * kbase_pm_apc_timer_callback - Timer callback for powering off the GPU
+ * @data: A &struct kthread_work
+ *
+ * This hrtimer callback queues the power off work to mali_apc_thread.
+ *
+ * Return: Always returns HRTIMER_NORESTART.
+ */
+static enum hrtimer_restart kbase_pm_apc_timer_callback(struct hrtimer *timer)
+{
+	struct kbase_device *kbdev =
+			container_of(timer, struct kbase_device, apc.timer);
+
+	kthread_init_work(&kbdev->apc.power_off_work,
+			kbase_pm_apc_power_off_worker);
+	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_off_work);
+	return HRTIMER_NORESTART;
+}
+
+int kbase_pm_apc_init(struct kbase_device *kbdev)
+{
+	static const struct sched_param param = {
+		.sched_priority = KBASE_APC_THREAD_RT_PRIO,
+	};
+	/* TODO(b/181145264) get this number from the device tree */
+	static const unsigned int nr_little_cores = 4;
+	cpumask_t mask = { CPU_BITS_NONE };
+
+	kthread_init_worker(&kbdev->apc.worker);
+	kbdev->apc.thread = kthread_create(kthread_worker_fn,
+		&kbdev->apc.worker, "mali_apc_thread");
+	if (IS_ERR(kbdev->apc.thread))
+		return -ENOMEM;
+
+	for (unsigned int i = 0; i < nr_little_cores; i++)
+		cpumask_set_cpu(i, &mask);
+	kthread_bind_mask(kbdev->apc.thread, &mask);
+	wake_up_process(kbdev->apc.thread);
+
+	if (sched_setscheduler(kbdev->apc.thread, SCHED_FIFO, &param))
+		dev_warn(kbdev->dev, "mali_apc_thread not set to RT prio");
+	else
+		dev_dbg(kbdev->dev, "mali_apc_thread set to RT prio: %i",
+			param.sched_priority);
+
+	hrtimer_init(&kbdev->apc.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	kbdev->apc.timer.function = kbase_pm_apc_timer_callback;
+	mutex_init(&kbdev->apc.lock);
+	return 0;
+}
+
+void kbase_pm_apc_term(struct kbase_device *kbdev)
+{
+	hrtimer_cancel(&kbdev->apc.timer);
+	kthread_flush_worker(&kbdev->apc.worker);
+	kthread_stop(kbdev->apc.thread);
+}
+
+/**
+ * kbase_pm_apc_power_on_worker - Power on worker running on mali_apc_thread
+ * @data: A &struct kthread_work
+ *
+ * This worker handles the power on request on mali_apc_thread.
+ *
+ * Normally it will power on the GPU and schedule a timer to power off the GPU
+ * based on the requested wake duration.
+ *
+ * If the driver is suspending, it won't power on the GPU or schedule the timer
+ * for powering off.
+ */
+static void kbase_pm_apc_power_on_worker(struct kthread_work *data)
+{
+	struct kbase_device *kbdev =
+			container_of(data, struct kbase_device,
+					apc.power_on_work);
+	ktime_t cur_ts;
+
+	if (kbase_pm_context_active_handle_suspend(kbdev,
+			KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE))
+		return;
+
+	mutex_lock(&kbdev->apc.lock);
+	cur_ts = ktime_get();
+	if (ktime_after(kbdev->apc.end_ts, cur_ts)) {
+		hrtimer_start(&kbdev->apc.timer,
+				ktime_sub(kbdev->apc.end_ts, cur_ts),
+				HRTIMER_MODE_REL);
+		mutex_unlock(&kbdev->apc.lock);
+		return;
+	}
+	mutex_unlock(&kbdev->apc.lock);
+
+	/* When relative duration is non-positive, queue power off work here. */
+	kthread_init_work(&kbdev->apc.power_off_work,
+			kbase_pm_apc_power_off_worker);
+	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_off_work);
+}
+
+void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec)
+{
+	ktime_t req_ts;
+
+	mutex_lock(&kbdev->apc.lock);
+	req_ts = ktime_add_us(ktime_get(),
+			min(dur_usec, (u32)KBASE_APC_MAX_DUR_USEC));
+	if (!ktime_after(req_ts, kbdev->apc.end_ts))
+		goto out;
+
+	/* When the return value of hrtimer_try_to_cancel() is:
+	 *  1: Timer is canceled, so restart to extend wake duration and exit.
+	 *  0: Timer is inactive, so we follow normal power on sequence below.
+	 * -1: Timer callback is running, so we need to follow normal power on
+	 *     sequence again since we are not able to update the timer now.
+	 */
+	if (hrtimer_try_to_cancel(&kbdev->apc.timer) == 1) {
+		hrtimer_start(&kbdev->apc.timer,
+				ktime_sub(req_ts, kbdev->apc.end_ts),
+				HRTIMER_MODE_REL);
+		goto out;
+	}
+	kbdev->apc.end_ts = req_ts;
+	mutex_unlock(&kbdev->apc.lock);
+
+	kthread_init_work(&kbdev->apc.power_on_work,
+			kbase_pm_apc_power_on_worker);
+	kthread_queue_work(&kbdev->apc.worker, &kbdev->apc.power_on_work);
+	return;
+
+out:
+	mutex_unlock(&kbdev->apc.lock);
 }

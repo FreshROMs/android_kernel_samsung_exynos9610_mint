@@ -241,4 +241,33 @@ void kbase_pm_driver_resume(struct kbase_device *kbdev,	bool arb_gpu_start);
 void kbase_pm_handle_gpu_lost(struct kbase_device *kbdev);
 #endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
+/**
+ * kbase_pm_apc_init - Handle apc initialization
+ * @kbdev: Device pointer
+ *
+ * Initialize all apc related resources and create a realtime thread to handle
+ * apc requests.
+ *
+ * Return: 0 on success, -ENOMEM on resource allocation failures.
+ */
+int kbase_pm_apc_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_apc_term - Handle apc termination
+ * @kbdev: Device pointer
+ *
+ * Cancel timer, flush pending work and release related resources.
+ */
+void kbase_pm_apc_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_apc_request - Handle apc request
+ * @kbdev:    Device pointer
+ * @dur_usec: Duration for GPU to stay awake
+ *
+ * Initiate a work to power on the GPU on mali_apc_thread and keep GPU powered
+ * on for a specified duration (capped by KBASE_APC_MAX_DUR_USEC).
+ */
+void kbase_pm_apc_request(struct kbase_device *kbdev, u32 dur_usec);
+
 #endif /* _KBASE_PM_H_ */
