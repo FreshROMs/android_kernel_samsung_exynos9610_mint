@@ -1233,17 +1233,6 @@ struct kbase_device {
     struct kthread_worker event_worker;
     struct task_struct *event_worker_thread;
 
-	struct {
-		struct kthread_worker worker;
-		struct task_struct *thread;
-		struct kthread_work power_on_work;
-		struct kthread_work power_off_work;
-		ktime_t end_ts;
-		struct hrtimer timer;
-		bool pending;
-		struct mutex lock;
-	} apc;
-
 	/* See KBASE_JS_*_PRIORITY_MODE for details. */
 	u32 js_ctx_scheduling_mode;
 
@@ -1255,6 +1244,17 @@ struct kbase_device {
 #endif /* CONFIG_MALI_CINSTR_GWT */
 
 #endif /* MALI_USE_CSF */
+
+    struct {
+        struct kthread_worker worker;
+        struct task_struct *thread;
+        struct kthread_work power_on_work;
+        struct kthread_work power_off_work;
+        ktime_t end_ts;
+        struct hrtimer timer;
+        bool pending;
+        struct mutex lock;
+    } apc;
 
 	struct rb_root process_root;
 	struct rb_root dma_buf_root;
