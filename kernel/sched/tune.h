@@ -13,7 +13,6 @@ struct target_nrg {
 };
 
 int schedtune_cpu_boost(int cpu);
-bool schedtune_is_ux_task(struct task_struct *p);
 int schedtune_task_boost(struct task_struct *tsk);
 
 int schedtune_prefer_idle(struct task_struct *tsk);
