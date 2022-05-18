@@ -127,6 +127,9 @@ struct cpufreq_policy {
 	 */
 	unsigned int		transition_delay_us;
 
+	/* Boost switch for tasks with p->in_iowait set */
+	bool            iowait_boost_enable;
+
 	/*
 	 * Remote DVFS flag (Not added to the driver structure as we don't want
 	 * to access another structure from scheduler hotpath).
