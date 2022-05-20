@@ -871,3 +871,5 @@ config PAGE_BOOST_RECORDING
 	  Record Everything for the chosen process.
 	  As Android executes an app one by one, only allow 1 recording
 	  at a time.
+
+source "mm/sec_mm/Kconfig"
