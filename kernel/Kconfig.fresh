@@ -11,13 +11,6 @@ config MINT_SESL
 	help
 		Build Mint Kernel components for One UI support
 
-config MINT_AOSP
-	depends on MINT
-	bool "AOSP support"
-	default n
-	help
-		Build Mint Kernel components for AOSP support
-
 config MINT_PLATFORM_VERSION
 	depends on MINT
 	int "Android platform version"
