@@ -164,7 +164,7 @@ static struct sec_vib_pdata *sec_vib_get_dt(struct device *dev)
 		goto err_out;
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		ret = -ENOMEM;
 		goto err_out;
@@ -195,7 +195,6 @@ static struct sec_vib_pdata *sec_vib_get_dt(struct device *dev)
 	return pdata;
 
 err_gpio_req:
-	kfree(pdata);
 err_out:
 	return ERR_PTR(ret);
 }
@@ -223,7 +222,8 @@ static int sec_vib_probe(struct platform_device *pdev)
 #endif
 	}
 
-	ddata = kzalloc(sizeof(struct sec_vib_drvdata), GFP_KERNEL);
+	ddata = devm_kzalloc(&pdev->dev, sizeof(struct sec_vib_drvdata),
+			GFP_KERNEL);
 	if (!ddata) {
 		ret = -ENOMEM;
 		pr_err("[VIB] Failed to memory alloc\n");
@@ -277,7 +277,6 @@ err_work_queue:
 		regulator_put(ddata->regulator);
 	}
 err_regulator_get:
-	kfree(ddata);
 err_ddata:
 #if defined(CONFIG_OF)
 	kfree(pdata);
