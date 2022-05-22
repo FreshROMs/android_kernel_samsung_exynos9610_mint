@@ -6055,7 +6055,7 @@ void print_bh(struct super_block *sb, struct buffer_head *bh
 			lock_buffer(bh);
 			bh->b_end_io = end_buffer_read_sync;
 			get_bh(bh);
-			set_buffer_bypass(bh);
+			// set_buffer_bypass(bh);
 			submit_bh(REQ_OP_READ, 0, bh);
 			wait_on_buffer(bh);
 			if (buffer_uptodate(bh))
