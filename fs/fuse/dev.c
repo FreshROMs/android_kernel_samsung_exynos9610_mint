@@ -7,7 +7,6 @@
 */
 
 #include "fuse_i.h"
-#include "fuse_shortcircuit.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -101,11 +100,7 @@ void fuse_request_free(struct fuse_req *req)
 		kfree(req->pages);
 		kfree(req->page_descs);
 	}
-	if (req->iname) {
-	  __putname(req->iname);
-	  req->iname = NULL;
 	kmem_cache_free(fuse_req_cachep, req);
-	}
 }
 
 void __fuse_get_request(struct fuse_req *req)
@@ -574,16 +569,10 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	       args->in.numargs * sizeof(struct fuse_in_arg));
 	req->out.argvar = args->out.argvar;
 	req->out.numargs = args->out.numargs;
-	req->iname = args->iname;
-	args->iname = NULL;
 	memcpy(req->out.args, args->out.args,
 	       args->out.numargs * sizeof(struct fuse_arg));
 	fuse_request_send(fc, req);
 	ret = req->out.h.error;
-	if (!ret) {
-	  if (req->private_lower_rw_file != NULL)
-	    args->private_lower_rw_file = req->private_lower_rw_file;
-	}
 	if (!ret && args->out.argvar) {
 		BUG_ON(args->out.numargs != 1);
 		ret = req->out.args[0].size;
@@ -1369,23 +1358,6 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	__fuse_get_request(req);
 	set_bit(FR_SENT, &req->flags);
 	spin_unlock(&fpq->lock);
-	if (sct_mode == 1) {
-	  if (current->fpack) {
-	    if (current->fpack->iname)
-	      __putname(current->fpack->iname);
-	    memset(current->fpack, 0, sizeof(struct fuse_package));
-	  }
-	  if (req->in.h.opcode == FUSE_OPEN || req->in.h.opcode == FUSE_CREATE) {
-	    if (!current->fpack)
-	      current->fpack = kzalloc(sizeof(struct fuse_package), GFP_KERNEL);
-	    if (likely(current->fpack)) {
-	      current->fpack->fuse_open_req = true;
-	      current->fpack->iname = req->iname;
-	      req->iname = NULL;
-	    }
-	  }
-	}
-
 	/* matches barrier in request_wait_answer() */
 	smp_mb__after_atomic();
 	if (test_bit(FR_INTERRUPTED, &req->flags))
@@ -1915,11 +1887,6 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	struct fuse_req *req;
 	struct fuse_out_header oh;
 
-	if (current->fpack && current->fpack->iname) {
-	  __putname(current->fpack->iname);
-	    current->fpack->iname = NULL;
-	}
-
 	if (nbytes < sizeof(struct fuse_out_header))
 		return -EINVAL;
 
@@ -1991,8 +1958,6 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 		req->out.h.error = kern_path(path, 0, req->canonical_path);
 	}
 	fuse_copy_finish(cs);
-
-	fuse_setup_shortcircuit(fc, req);
 
 	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);

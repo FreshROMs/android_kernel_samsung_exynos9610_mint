@@ -166,9 +166,6 @@ struct fuse_file {
 
 	/** Has flock been performed on this file? */
 	bool flock:1;
-  
-  	/* the read write file */
-	struct file *rw_lower_file;
 };
 
 /** One input argument of a request */
@@ -249,9 +246,6 @@ struct fuse_args {
 		unsigned numargs;
 		struct fuse_arg args[2];
 	} out;
-        /** fuse shortcircuit file  */
-        struct file *private_lower_rw_file;
-        char *iname;
 };
 
 #define FUSE_ARGS(args) struct fuse_args args = {}
@@ -401,10 +395,6 @@ struct fuse_req {
 
 	/** Request is stolen from fuse_file->reserved_req */
 	struct file *stolen_file;
-
-        /** fuse shortcircuit file */
-        struct file *private_lower_rw_file;
-        char *iname;
 };
 
 struct fuse_iqueue {
@@ -564,9 +554,6 @@ struct fuse_conn {
 
 	/** handle fs handles killing suid/sgid/cap on write/chown/trunc */
 	unsigned handle_killpriv:1;
-
-        /** Shortcircuited IO. */
-        unsigned shortcircuit_io:1;
 
 	/*
 	 * The following bitfields are only for optimization purposes
@@ -1020,7 +1007,6 @@ extern const struct xattr_handler *fuse_acl_xattr_handlers[];
 struct posix_acl;
 struct posix_acl *fuse_get_acl(struct inode *inode, int type);
 int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-extern int sct_mode;
 
 #ifdef CONFIG_FREEZER
 static inline void fuse_freezer_do_not_count(void)
