@@ -1819,7 +1819,7 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
  */
 static int current_may_throttle(void)
 {
-	if ((current->signal->oom_score_adj <= 0))
+	if (current->signal->oom_score_adj < 0)
 		return 0;
 
 	return !(current->flags & PF_LESS_THROTTLE) ||
