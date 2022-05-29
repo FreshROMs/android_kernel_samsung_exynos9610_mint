@@ -90,6 +90,7 @@ static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
 #define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
+#define SEC_CAMERA_BIN_PREFIX "/vendor/bin/hw/vendor.samsung.hardware.camera"
 
 #define ZYGOTE32_BIN "/system/bin/app_process32"
 #define ZYGOTE64_BIN "/system/bin/app_process64"
@@ -2069,6 +2070,11 @@ static int do_execveat_common(int fd, struct filename *filename,
 		else if (unlikely(!strncmp(filename->name,
 					   HWCOMPOSER_BIN_PREFIX,
 					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
+			current->pc_flags |= PC_PERF_AFFINE;
+			set_cpus_allowed_ptr(current, cpu_perf_mask);
+		} else if (unlikely(!strncmp(filename->name,
+					   SEC_CAMERA_BIN_PREFIX,
+					   strlen(SEC_CAMERA_BIN_PREFIX)))) {
 			current->pc_flags |= PC_PERF_AFFINE;
 			set_cpus_allowed_ptr(current, cpu_perf_mask);
 		}
