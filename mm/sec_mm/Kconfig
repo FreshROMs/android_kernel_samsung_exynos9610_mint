@@ -1,9 +1,0 @@
-menu "SEC Memory Management Options"
-
-config SEC_MM
-	tristate "Enable SEC MM"
-	default y
-	help
-	  SEC memory management module
-
-endmenu

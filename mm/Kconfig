@@ -877,5 +877,3 @@ config REAP_ON_SIGKILL_DEFAULT
 	default n
 	help
 	  Enables reaping memory on sigkill by default
-
-source "mm/sec_mm/Kconfig"
