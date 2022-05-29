@@ -183,6 +183,12 @@ config DEVFREQ_EXYNOS_MIF_BOOST_FREQ
 	help
 	  Boost frequency for the Exynos MIF (DDR) bus.
 
+config DEVFREQ_DECON_BOOST_DURATION_MS
+	int "Frame commit boost duration"
+	default "70"
+	help
+	  MIF Boost duration in milliseconds when decon is committing a frame.
+
 endif
 
 endif # PM_DEVFREQ
