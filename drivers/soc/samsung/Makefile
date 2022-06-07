@@ -37,7 +37,7 @@ obj-$(CONFIG_EXYNOS_DVFS_MANAGER)	+= exynos-dm.o
 obj-$(CONFIG_EXYNOS_PD)        += exynos-pd.o exynos-pd-dbg.o
 obj-$(CONFIG_EXYNOS_PM_DOMAINS) += pm_domains.o
 #CPUHOTPLUG
-obj-$(CONFIG_EXYNOS_CPUHP)	+= exynos-cpuhp.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-cpuhp.o
 obj-$(CONFIG_EXYNOS_PSTATE_MODE_CHANGER)	+= exynos-emc.o
 
 # CPU Topology
