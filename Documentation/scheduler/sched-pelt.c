@@ -115,8 +115,8 @@ void main(void)
 
 		printf("\n#ifdef CONFIG_PELT_UTIL_HALFLIFE_%d\n", halflife);
 		calc_runnable_avg_yN_inv(halflife);
-		calc_runnable_avg_yN_sum(halflife * 2);
-		calc_converged_max(halflife * 2);
+		calc_runnable_avg_yN_sum(halflife);
+		calc_converged_max(halflife);
 		/*
 		 * calc_accumulated_sum_32(halflife) precomputed load sum table of half-life,
 		 * not used yet.
