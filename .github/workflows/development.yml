@@ -123,7 +123,7 @@ jobs:
 
     - name: Prepare build config artifact
       run: |
-          cp .config ./release/kernel_config_a50_oneui-s-m.txt
+          cp .config ./release/kernel_config_a50_oneui-s-c.txt
 
     - name: Upload kernel image artifact
       uses: actions/upload-artifact@v2
@@ -136,14 +136,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Kernel Configs
-        path: 'release/kernel_config_a50_oneui-s-m.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
+        path: 'release/kernel_config_a50_oneui-s-c.txt'
         if-no-files-found: error
 
   oneui-s-p:
