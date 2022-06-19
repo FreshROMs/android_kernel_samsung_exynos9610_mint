@@ -10,6 +10,10 @@ if [ "x$1" = "xcanary" ]
 then
 	nver="canary"
 	magisk_link="https://github.com/topjohnwu/magisk-files/raw/${nver}/app-debug.apk"
+elif [ "x$1" = "xlocal" ]
+then
+	nver="local"
+	magisk_link="https://gitlab.com/TenSeventy7/magisk-files/raw/main/app-debug.apk"
 else
 	if [ "x$1" = "x" ]; then
 		nver="$(curl -s https://raw.githubusercontent.com/topjohnwu/magisk-files/master/stable.json | jq '.magisk.version' | cut -d '"' -f 2)"
@@ -19,7 +23,7 @@ else
 	magisk_link="https://cdn.jsdelivr.net/gh/topjohnwu/magisk-files@${nver}/app-release.apk"
 fi
 
-if [ \( -n "$nver" \) -a \( "$nver" != "$ver" \) -o ! \( -f "$DIR/arm/magiskinit64" \) -o \( "$nver" = "canary" \) ]
+if [ \( -n "$nver" \) -a \( "$nver" != "$ver" \) -o ! \( -f "$DIR/arm/magiskinit64" \) -o \( "$nver" = "canary" \) -o \( "$nver" = "local" \) ]
 then
 	echo "Updating Magisk from $ver to $nver"
 	curl -s --output "$DIR/magisk.zip" -L "$magisk_link"

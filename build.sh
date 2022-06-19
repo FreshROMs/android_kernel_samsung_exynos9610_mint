@@ -119,6 +119,8 @@ update_magisk() {
 
 	if [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xcanary" ]]; then
 		MAGISK_BRANCH="canary"
+	elif [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xlocal" ]]; then
+		MAGISK_BRANCH="local"
 	else
 		MAGISK_BRANCH=""
 	fi
@@ -429,8 +431,10 @@ while [[ $# -gt 0 ]]; do
       BUILD_KERNEL_MAGISK='true'
       BUILD_KERNEL_MAGISK_BRANCH=`echo ${2} | tr 'A-Z' 'a-z'`
 
+      # Shift twice if asking for canary or local builds. Otherwise, shift only once.
       if [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xcanary" ]]; then
-      	# Shift twice if asking for canary builds. Otherwise, shift only once.
+      	shift
+      elif [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xlocal" ]]; then
       	shift
       fi
       
