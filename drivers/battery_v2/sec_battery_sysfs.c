@@ -2811,7 +2811,7 @@ ssize_t sec_bat_store_attrs(
 
 				wake_lock_stock(&battery->monitor_wake_lock);
 				queue_delayed_work(battery->monitor_wqueue,
-					&battery->monitor_work, 0);
+					&battery->monitor_work, msecs_to_jiffies(100));
 			} else {
 				pr_info("%s: out of range(%d)\n", __func__, x);
 			}
