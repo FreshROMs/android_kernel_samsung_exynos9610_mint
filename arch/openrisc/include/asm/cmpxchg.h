@@ -9,6 +9,8 @@
 #ifndef __ASM_OPENRISC_CMPXCHG_H
 #define __ASM_OPENRISC_CMPXCHG_H
 
+#include  <linux/bits.h>
+#include  <linux/compiler.h>
 #include  <linux/types.h>
 
 /*
