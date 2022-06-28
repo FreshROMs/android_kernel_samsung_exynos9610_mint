@@ -101,19 +101,20 @@ static struct prefer_perf *find_prefer_perf(int boost)
 	return NULL;
 }
 
-extern unsigned long capacity_curr_of(int cpu);
 static int
 select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *prefer_cpus)
 {
 	struct cpumask mask;
 	int coregroup, cpu;
-	unsigned long tsk_util = task_util(p);
 	unsigned long best_perf_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
 	int best_perf_cstate = INT_MAX;
 	int best_active_cpu = -1;
 	int best_perf_cpu = -1;
 	int backup_cpu = -1;
+
+	unsigned long task_util = task_util_est(p);
+	unsigned long boosted_util = boosted_task_util(p);
 
 	rcu_read_lock();
 
@@ -136,7 +137,8 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 
 			capacity_orig = capacity_orig_of(cpu);
 			wake_util = cpu_util_wake(cpu, p);
-			new_util = wake_util + tsk_util;
+			new_util = wake_util + task_util;
+			new_util = max(new_util, boosted_util);
 
 			/* Skip over-capacity cpu */
 			if (capacity_orig < new_util)
@@ -191,7 +193,6 @@ int select_service_cpu(struct task_struct *p)
 {
 	struct prefer_perf *pp;
 	int boost, service_cpu;
-	unsigned long util;
 	char state[30];
 
 	if (!prefer_perf_services)
@@ -205,13 +206,6 @@ int select_service_cpu(struct task_struct *p)
 	if (!pp)
 		return -1;
 
-	util = task_util_est(p);
-	if (util <= pp->threshold) {
-		service_cpu = select_prefer_cpu(p, 1, pp->prefer_cpus);
-		strcpy(state, "light task");
-		goto out;
-	}
-
 	if (p->prio <= 110) {
 		service_cpu = select_prefer_cpu(p, 1, pp->prefer_cpus);
 		strcpy(state, "high-prio task");
@@ -220,8 +214,7 @@ int select_service_cpu(struct task_struct *p)
 		strcpy(state, "heavy task");
 	}
 
-out:
-	trace_ems_prefer_perf_service(p, util, service_cpu, state);
+	trace_ems_prefer_perf_service(p, -1, service_cpu, state);
 	return service_cpu;
 }
 
