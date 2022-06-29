@@ -1054,7 +1054,7 @@ struct ffsi_class *ffsi_obj_creator(const char *alias,
 		.resilience	= resilience,
 		.ep_ratio	= FFSI_BALANCED_EP_RATIO,
 		.max_capa	= max_capa,
-		.max_capa	= min_capa,
+		.min_capa	= min_capa,
 		.epsilon	= 43000,
 		.elasticity	= *elasticity,
 
