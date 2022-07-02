@@ -89,6 +89,7 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
+#define SURFACEFLINGER_BIN_PREFIX "/system/bin/surfaceflinger"
 #define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
 #define SEC_CAMERA_BIN_PREFIX "/vendor/bin/hw/vendor.samsung.hardware.camera"
 
@@ -2079,6 +2080,11 @@ static int do_execveat_common(int fd, struct filename *filename,
 		else if (unlikely(!strncmp(filename->name,
 					   HWCOMPOSER_BIN_PREFIX,
 					   strlen(HWCOMPOSER_BIN_PREFIX)))) {
+			current->pc_flags |= PC_LITTLE_AFFINE;
+			set_cpus_allowed_ptr(current, cpu_lp_mask);
+		} else if (unlikely(!strncmp(filename->name,
+					   SURFACEFLINGER_BIN_PREFIX,
+					   strlen(SURFACEFLINGER_BIN_PREFIX)))) {
 			current->pc_flags |= PC_PERF_AFFINE;
 			set_cpus_allowed_ptr(current, cpu_perf_mask);
 		} else if (unlikely(!strncmp(filename->name,
