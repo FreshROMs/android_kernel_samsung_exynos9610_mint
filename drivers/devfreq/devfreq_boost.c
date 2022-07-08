@@ -17,11 +17,9 @@ static unsigned long devfreq_boost_freq =
 	CONFIG_DEVFREQ_EXYNOS_MIF_BOOST_FREQ;
 static unsigned short devfreq_boost_dur =
 	CONFIG_DEVFREQ_MIF_BOOST_DURATION_MS;
-static bool devfreq_enable_frame_boost = false;
 
 module_param(devfreq_boost_freq, long, 0644);
 module_param(devfreq_boost_dur, short, 0644);
-module_param(devfreq_enable_frame_boost, bool, 0644);
 
 enum {
 	SCREEN_OFF,
@@ -129,9 +127,6 @@ void devfreq_boost_kick_max(enum df_device device, unsigned int duration_ms)
 void devfreq_boost_frame_kick(enum df_device device)
 {
 	struct df_boost_drv *d = &df_boost_drv_g;
-
-	if (likely(!devfreq_enable_frame_boost))
-		return;
 
 	if (unlikely(disable_boost))
 		return;
