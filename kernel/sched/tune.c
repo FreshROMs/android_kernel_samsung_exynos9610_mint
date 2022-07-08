@@ -95,7 +95,11 @@ root_schedtune = {
  *    implementation especially for the computation of the per-CPU boost
  *    value
  */
+#if defined(CONFIG_MINT_SESL) && defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
+#define BOOSTGROUPS_COUNT 8
+#else
 #define BOOSTGROUPS_COUNT 6
+#endif
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
