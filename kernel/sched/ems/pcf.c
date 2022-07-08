@@ -20,16 +20,27 @@ int select_perf_cpu(struct task_struct *p)
 {
 	int cpu;
 	unsigned long best_perf_cap_orig = 0;
+	unsigned long best_perf_util = ULONG_MAX;
+	unsigned long best_wake_util = ULONG_MAX;
+	unsigned long best_active_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
 	int best_perf_cstate = INT_MAX;
 	int best_perf_cpu = -1;
+	int best_active_cpu = -1;
 	int backup_cpu = -1;
 
 	rcu_read_lock();
 
 	for_each_cpu_and(cpu, &p->cpus_allowed, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long wake_util;
+		unsigned long new_util, spare_cap, wake_util = cpu_util_wake(cpu, p);
+
+		new_util = wake_util + task_util_est(p);
+		new_util = max(new_util, boosted_task_util(p));
+
+		/* Skip over-capacity cpu */
+		if (capacity_orig < new_util)
+			continue;
 
 		/*
 		 * A) Find best performance cpu.
@@ -50,22 +61,34 @@ int select_perf_cpu(struct task_struct *p)
 
 			/*
 			 * if we find a better-performing cpu, re-initialize
-			 * best_perf_cstate
+			 * best_perf_util and best_perf_cstate
 			 */
 			if (capacity_orig > best_perf_cap_orig) {
 				best_perf_cap_orig = capacity_orig;
-				best_perf_cstate = INT_MAX;
+				best_perf_util = wake_util;
+				best_perf_cstate = idle_idx;
+				best_perf_cpu = cpu;
+				continue;
 			}
 
 			/* find shallowest idle state cpu */
-			if (idle_idx >= best_perf_cstate)
+			if (idle_idx > best_perf_cstate)
+				continue;
+
+			/* if same cstate, select lower util */
+			if (idle_idx == best_perf_cstate &&
+				wake_util >= best_perf_util)
 				continue;
 
 			/* Keep track of best idle CPU */
+			best_perf_util = wake_util;
 			best_perf_cstate = idle_idx;
 			best_perf_cpu = cpu;
 			continue;
 		}
+
+		if (cpu_selected(best_perf_cpu))
+			continue;
 
 		/*
 		 * B) Find backup performance cpu.
@@ -76,19 +99,35 @@ int select_perf_cpu(struct task_struct *p)
 		 * computations. Since a high performance cpu has a large capacity,
 		 * cpu having a high performance is likely to be selected.
 		 */
-		wake_util = cpu_util_wake(cpu, p);
-		if ((capacity_orig - wake_util) < max_spare_cap)
+		spare_cap = capacity_orig - new_util;
+
+		if (capacity_curr_of(cpu) > new_util &&
+			spare_cap > max_spare_cap) {
+			max_spare_cap = spare_cap;
+			best_active_cpu = cpu;
+			continue;
+		}
+		
+		if (wake_util > best_wake_util)
 			continue;
 
-		max_spare_cap = capacity_orig - wake_util;
+		if (new_util > best_active_util)
+			continue;
+
+		best_wake_util = wake_util;
+		best_active_util = new_util;
 		backup_cpu = cpu;
 	}
 
 	rcu_read_unlock();
 
-	trace_ems_select_perf_cpu(p, best_perf_cpu, backup_cpu);
+	if (!cpu_selected(best_active_cpu))
+		best_active_cpu = backup_cpu;
+
+	trace_ems_select_perf_cpu(p, best_perf_cpu, best_active_cpu);
+
 	if (best_perf_cpu == -1)
-		return backup_cpu;
+		return best_active_cpu;
 
 	return best_perf_cpu;
 }
