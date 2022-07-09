@@ -767,13 +767,17 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, attribute-alias)
 ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
 KBUILD_CFLAGS += -O2
 else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
-KBUILD_CFLAGS += -O3 -march=armv8.2-a+crypto+crc -mtune=cortex-a73 \
-			-mcpu=cortex-a73+crypto+crc
+KBUILD_CFLAGS += -O3
 else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS += -Os
 endif
 
 ifeq ($(cc-name),clang)
+ifeq ($(CONFIG_SOC_EXYNOS9610), y)
+KBUILD_CFLAGS	+= -march=armv8-a+crypto+crc+sha2+aes -mtune=cortex-a53 \
+			-mcpu=cortex-a53+crypto+crc+sha2+aes
+endif
+
 ifdef CONFIG_LLVM_POLLY
 KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-run-dce \
@@ -785,6 +789,10 @@ KBUILD_CFLAGS	+= -mllvm -polly \
 		   -mllvm -polly-invariant-load-hoisting
 endif
 else ifeq ($(cc-name),gcc)
+ifeq ($(CONFIG_SOC_EXYNOS9610), y)
+KBUILD_CFLAGS	+= $(call cc-option,-mcpu=cortex-a73.cortex-a53,$(call cc-option,-mcpu=cortex-a53))
+endif
+
 ifdef CONFIG_GCC_GRAPHITE
 KBUILD_CFLAGS   += -fgraphite-identity
 endif
