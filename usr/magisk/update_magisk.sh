@@ -26,22 +26,13 @@ then
 	if fgrep 'Not Found' "$DIR/magisk.zip"; then
 		curl -s --output "$DIR/magisk.zip" -L "${magisk_link%.apk}.zip"
 	fi
-	if unzip -o "$DIR/magisk.zip" arm/magiskinit64 -d "$DIR"; then
-		mv -f "$DIR/arm/magiskinit64" "$DIR/magiskinit"
-		: > "$DIR/magisk32.xz"
-		: > "$DIR/magisk64.xz"
-	elif unzip -o "$DIR/magisk.zip" lib/armeabi-v7a/libmagiskinit.so lib/armeabi-v7a/libmagisk32.so lib/armeabi-v7a/libmagisk64.so -d "$DIR"; then
-		mv -f "$DIR/lib/armeabi-v7a/libmagiskinit.so" "$DIR/magiskinit"
-		mv -f "$DIR/lib/armeabi-v7a/libmagisk32.so" "$DIR/magisk32"
-		mv -f "$DIR/lib/armeabi-v7a/libmagisk64.so" "$DIR/magisk64"
-		xz --force --check=crc32 "$DIR/magisk32" "$DIR/magisk64"
-	else
-		unzip -o "$DIR/magisk.zip" lib/arm64-v8a/libmagiskinit.so lib/armeabi-v7a/libmagisk32.so lib/arm64-v8a/libmagisk64.so -d "$DIR"
-		mv -f "$DIR/lib/arm64-v8a/libmagiskinit.so" "$DIR/magiskinit"
-		mv -f "$DIR/lib/armeabi-v7a/libmagisk32.so" "$DIR/magisk32"
-		mv -f "$DIR/lib/arm64-v8a/libmagisk64.so" "$DIR/magisk64"
-		xz --force --check=crc32 "$DIR/magisk32" "$DIR/magisk64"
-	fi
+
+	7z e "$DIR/magisk.zip" lib/arm64-v8a/libmagiskinit.so lib/armeabi-v7a/libmagisk32.so lib/arm64-v8a/libmagisk64.so -o"$DIR" -y
+	mv -f "$DIR/libmagiskinit.so" "$DIR/magiskinit"
+	mv -f "$DIR/libmagisk32.so" "$DIR/magisk32"
+	mv -f "$DIR/libmagisk64.so" "$DIR/magisk64"
+	xz --force --check=crc32 "$DIR/magisk32" "$DIR/magisk64"
+
 	echo -n "$nver" > "$DIR/magisk_version"
 	rm "$DIR/magisk.zip"
 	touch "$DIR/initramfs_list"
