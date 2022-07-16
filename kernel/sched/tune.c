@@ -42,6 +42,10 @@ struct schedtune {
 	 * towards high performance CPUs */
 	int prefer_perf;
 
+	/* Hint to bias scheduling of tasks on that SchedTune CGroup
+	 * towards higher-capacity CPUs */
+	int prefer_high_cap;
+
 	/* SchedTune ontime migration */
 	int ontime_en;
 };
@@ -75,6 +79,7 @@ root_schedtune = {
 	.boost	= 0,
 	.prefer_idle = 0,
 	.prefer_perf = 0,
+	.prefer_high_cap = 0,
 };
 
 /* Array of configured boostgroups */
@@ -469,10 +474,27 @@ int schedtune_prefer_perf(struct task_struct *p)
 	/* Get prefer_perf value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	prefer_perf = max(st->prefer_perf, kpp_status(st->idx));
+	prefer_perf = st->prefer_perf;
 	rcu_read_unlock();
 
 	return prefer_perf;
+}
+
+int schedtune_prefer_high_cap(struct task_struct *p)
+{
+	struct schedtune *st;
+	int prefer_high_cap;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get prefer_high_cap value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	prefer_high_cap = max(st->prefer_high_cap, kpp_status(st->idx));
+	rcu_read_unlock();
+
+	return prefer_high_cap;
 }
 
 int schedtune_ux_interaction(struct task_struct *p)
@@ -548,6 +570,24 @@ prefer_perf_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	return 0;
 }
 
+static u64
+prefer_high_cap_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->prefer_high_cap;
+}
+
+static int
+prefer_high_cap_write(struct cgroup_subsys_state *css, struct cftype *cft,
+	    u64 prefer_high_cap)
+{
+	struct schedtune *st = css_st(css);
+	st->prefer_high_cap = prefer_high_cap;
+
+	return 0;
+}
+
 static s64
 boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
@@ -588,6 +628,11 @@ static struct cftype files[] = {
 		.name = "prefer_perf",
 		.read_u64 = prefer_perf_read,
 		.write_u64 = prefer_perf_write,
+	},
+	{
+		.name = "prefer_high_cap",
+		.read_u64 = prefer_high_cap_read,
+		.write_u64 = prefer_high_cap_write,
 	},
 	{
 		.name = "ontime_en",
