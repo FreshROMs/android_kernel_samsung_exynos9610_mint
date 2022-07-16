@@ -615,8 +615,13 @@ else
 	build_package
 fi
 
+TIME_NOW=$(date +%s)
+BUILD_TIME=$((TIME_NOW-BUILD_DATE))
+BUILD_TIME_STR=$(printf '%02dh:%02dm:%02ds\n' $((BUILD_TIME/3600)) $((BUILD_TIME%3600/60)) $((BUILD_TIME%60)))
+
 script_echo " "
 script_echo "I: Yay! Kernel build is done!"
+script_echo "   Kernel build took ${BUILD_TIME_STR}"
 script_echo "   File can be found at:"
 script_echo "   ${BUILD_KERNEL_OUTPUT}"
 rm -f "${BUILD_CONFIG_DIR}/${BUILD_DEVICE_TMP_CONFIG}"
