@@ -72,7 +72,9 @@ extern int alloc_bands(void);
 extern void update_band(struct task_struct *p, long old_util);
 extern int band_playing(struct task_struct *p, int cpu);
 
-extern bool is_slowest_cpu(int cpu);
+extern const struct cpumask *cpu_slowest_mask(void);
+extern const struct cpumask *cpu_fastest_mask(void);
+extern inline bool is_slowest_cpu(int cpu);
 #else
 static inline void exynos_init_entity_util_avg(struct sched_entity *se) { }
 

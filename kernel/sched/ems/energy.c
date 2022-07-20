@@ -34,18 +34,26 @@ struct energy_table {
 
 	struct energy_state *states;
 
-	bool is_min_mips;
-	bool is_max_mips;
-
 	unsigned int nr_states;
 };
 DEFINE_PER_CPU(struct energy_table, energy_table);
 
-bool is_slowest_cpu(int cpu)
-{
-	struct energy_table *table = &per_cpu(energy_table, cpu);
+struct cpumask slowest_mask;
+struct cpumask fastest_mask;
 
-	return table->is_min_mips;
+const struct cpumask *cpu_slowest_mask(void)
+{
+	return &slowest_mask;
+}
+
+const struct cpumask *cpu_fastest_mask(void)
+{
+	return &fastest_mask;
+}
+
+inline bool is_slowest_cpu(int cpu)
+{
+	return cpumask_test_cpu(cpu, cpu_slowest_mask());
 }
 
 inline unsigned int get_cpu_mips(unsigned int cpu)
@@ -456,6 +464,39 @@ static struct notifier_block sched_cpufreq_policy_notifier = {
 	.notifier_call = sched_cpufreq_policy_callback,
 };
 
+static void cpumask_speed_init(void)
+{
+	int cpu;
+	unsigned long min_cap = ULONG_MAX, max_cap = 0;
+
+	cpumask_clear(&slowest_mask);
+	cpumask_clear(&fastest_mask);
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		unsigned long cap;
+
+		cap = get_cpu_max_capacity(cpu);
+		if (cap < min_cap)
+			min_cap = cap;
+		if (cap > max_cap)
+			max_cap = cap;
+	}
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		unsigned long cap;
+
+		cap = get_cpu_max_capacity(cpu);
+		if (cap == min_cap) {
+			pr_info("cpu%d is_min_cap=%d\n", cpu, 1);
+			cpumask_set_cpu(cpu, &slowest_mask);
+		}
+		if (cap == max_cap) {
+			pr_info("cpu%d is_min_cap=%d\n", cpu, 0);
+			cpumask_set_cpu(cpu, &fastest_mask);
+		}
+	}
+}
+
 /*
  * Whenever frequency domain is registered, and energy table corresponding to
  * the domain is created. Because cpu in the same frequency domain has the same
@@ -470,7 +511,6 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	struct energy_table *table;
 	int cpu, i, mips, valid_table_size = 0;
 	int max_mips = 0;
-	int min_mips = INT_MAX;
 	unsigned long max_mips_freq = 0;
 	int last_state;
 
@@ -516,7 +556,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	}
 
 	/*
-	 * Find fastest/slowest cpu among the cpu to which the energy table is allocated.
+	 * Find fastest cpu among the cpu to which the energy table is allocated.
 	 * The mips and max frequency of fastest cpu are needed to calculate
 	 * capacity.
 	 */
@@ -531,21 +571,6 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 			last_state = table->nr_states - 1;
 			max_mips_freq = table->states[last_state].frequency;
 		}
-
-		if (table->mips < min_mips)
-			min_mips = table->mips;
-	}
-
-	/*
-	 * Mark fastest/slowest CPU in each per-cpu energy table
-	 */
-	for_each_possible_cpu(cpu) {
-		table = &per_cpu(energy_table, cpu);
-		if (!table->states)
-			continue;
-
-		table->is_min_mips = table->mips == min_mips;
-		table->is_max_mips = table->mips == max_mips;
 	}
 
 	/*
@@ -575,6 +600,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	}
 
 	topology_update();
+	cpumask_speed_init();
 }
 
 static int __init init_sched_energy_data(void)
