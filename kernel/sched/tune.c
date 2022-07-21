@@ -42,9 +42,6 @@ struct schedtune {
 	 * towards high performance CPUs */
 	int prefer_perf;
 
-	/* SchedTune util-est */
-	int util_est_en;
-
 	/* SchedTune ontime migration */
 	int ontime_en;
 };
@@ -425,23 +422,6 @@ int schedtune_task_boost(struct task_struct *p)
 	return task_boost;
 }
 
-int schedtune_util_est_en(struct task_struct *p)
-{
-	struct schedtune *st;
-	int util_est_en;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get util_est value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	util_est_en = st->util_est_en;
-	rcu_read_unlock();
-
-	return util_est_en;
-}
-
 int schedtune_ontime_en(struct task_struct *p)
 {
 	struct schedtune *st;
@@ -511,24 +491,6 @@ int schedtune_ux_interaction(struct task_struct *p)
 	rcu_read_unlock();
 
 	return (task_boost == prefer_high_cap);
-}
-
-static u64
-util_est_en_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->util_est_en;
-}
-
-static int
-util_est_en_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 util_est_en)
-{
-	struct schedtune *st = css_st(css);
-	st->util_est_en = util_est_en;
-
-	return 0;
 }
 
 static u64
@@ -625,11 +587,6 @@ static struct cftype files[] = {
 		.name = "prefer_perf",
 		.read_u64 = prefer_perf_read,
 		.write_u64 = prefer_perf_write,
-	},
-	{
-		.name = "util_est_en",
-		.read_u64 = util_est_en_read,
-		.write_u64 = util_est_en_write,
 	},
 	{
 		.name = "ontime_en",
