@@ -48,7 +48,24 @@ unsigned long task_util(struct task_struct *p)
 		return p->se.avg.util_avg;
 }
 
-unsigned long cpu_util_wake(int cpu, struct task_struct *p)
+/*
+ * When a task is dequeued, its estimated utilization should not be update if
+ * its util_avg has not been updated at least once.
+ * This flag is used to synchronize util_avg updates with util_est updates.
+ * We map this information into the LSB bit of the utilization saved at
+ * dequeue time (i.e. util_est.dequeued).
+ */
+#define UTIL_AVG_UNCHANGED 0x1
+
+static
+inline unsigned long _task_util_est(struct task_struct *p)
+{
+	struct util_est ue = READ_ONCE(p->se.avg.util_est);
+
+	return max(ue.ewma, ue.enqueued);
+}
+
+unsigned long cpu_util_without(int cpu, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -89,8 +106,33 @@ unsigned long cpu_util_wake(int cpu, struct task_struct *p)
 	 * covered by the following code when estimated utilization is
 	 * enabled.
 	 */
-	if (sched_feat(UTIL_EST))
-		util = max(util, READ_ONCE(cfs_rq->avg.util_est.enqueued));
+	if (sched_feat(UTIL_EST)) {
+		unsigned int estimated =
+			READ_ONCE(cfs_rq->avg.util_est.enqueued);
+
+		/*
+		 * Despite the following checks we still have a small window
+		 * for a possible race, when an execl's select_task_rq_fair()
+		 * races with LB's detach_task():
+		 *
+		 *   detach_task()
+		 *     p->on_rq = TASK_ON_RQ_MIGRATING;
+		 *     ---------------------------------- A
+		 *     deactivate_task()                   \
+		 *       dequeue_task()                     + RaceTime
+		 *         util_est_dequeue()              /
+		 *     ---------------------------------- B
+		 *
+		 * The additional check on "current == p" it's required to
+		 * properly fix the execl regression and it helps in further
+		 * reducing the chances for the above race.
+		 */
+		if (unlikely(task_on_rq_queued(p) || current == p)) {
+			estimated -= min_t(unsigned int, estimated,
+					   (_task_util_est(p) | UTIL_AVG_UNCHANGED));
+		}
+		util = max(util, estimated);
+	}
 
 	/*
 	 * Utilization (estimated) can exceed the CPU capacity, thus let's
@@ -191,7 +233,7 @@ static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long wake_util, new_util, spare_util;
 
-			wake_util = cpu_util_wake(i, p);
+			wake_util = cpu_util_without(i, p);
 			new_util = wake_util + task_util_est(p);
 			new_util = max(new_util, boosted_task_util(p));
 

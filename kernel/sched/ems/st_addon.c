@@ -130,7 +130,7 @@ static int select_idle_cpu(struct task_struct *p)
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long new_util, wake_util;
 
-			wake_util = cpu_util_wake(i, p);
+			wake_util = cpu_util_without(i, p);
 			new_util = wake_util + task_util_est(p);
 			new_util = max(new_util, boosted_task_util(p));
 

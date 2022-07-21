@@ -136,7 +136,7 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 			unsigned long new_util;
 
 			capacity_orig = capacity_orig_of(cpu);
-			wake_util = cpu_util_wake(cpu, p);
+			wake_util = cpu_util_without(cpu, p);
 			new_util = wake_util + task_util;
 			new_util = max(new_util, boosted_util);
 

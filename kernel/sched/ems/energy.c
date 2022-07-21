@@ -120,7 +120,7 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 	 *    is assigned to target cpu.
 	 */
 	for_each_cpu(cpu, cpu_active_mask) {
-		util[cpu] = cpu_util_wake(cpu, p);
+		util[cpu] = cpu_util_without(cpu, p);
 
 		if (unlikely(cpu == target_cpu))
 			util[cpu] += task_util_est(p);

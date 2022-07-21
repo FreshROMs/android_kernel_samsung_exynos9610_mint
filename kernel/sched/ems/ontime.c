@@ -209,7 +209,7 @@ ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
 			if (cpu_rq(i)->ontime_migrating)
 				continue;
 
-			wake_util = cpu_util_wake(i, p);
+			wake_util = cpu_util_without(i, p);
 			
 			if (idle_cpu(i)) {
 				/* 1. Find shallowest idle_cpu */
@@ -669,7 +669,7 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 	 * If so, allow the task to be migrated.
 	 */
 	if (cpu_rq(src_cpu)->nr_running > 1) {
-		unsigned long cpu_util = cpu_util_wake(src_cpu, p);
+		unsigned long cpu_util = cpu_util_without(src_cpu, p);
 		unsigned long util = task_util(p);
 		unsigned long coverage_ratio = get_coverage_ratio(src_cpu);
 

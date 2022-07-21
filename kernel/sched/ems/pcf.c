@@ -33,7 +33,7 @@ int select_perf_cpu(struct task_struct *p)
 
 	for_each_cpu_and(cpu, &p->cpus_allowed, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long new_util, spare_cap, wake_util = cpu_util_wake(cpu, p);
+		unsigned long new_util, spare_cap, wake_util = cpu_util_without(cpu, p);
 
 		new_util = wake_util + task_util_est(p);
 		new_util = max(new_util, boosted_task_util(p));
