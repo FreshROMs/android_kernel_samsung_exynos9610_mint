@@ -20,16 +20,17 @@
 /****************************************************************/
 /*			On-time migration			*/
 /****************************************************************/
-#define TASK_TRACK_COUNT	5
+static int ontime_enabled[BOOSTGROUPS_COUNT];
+
+static int support_ontime(struct task_struct *p)
+{
+	int group_idx = schedtune_task_group_idx(p);
+
+	return ontime_enabled[group_idx];
+}
+
 #define MIN_CAPACITY_CPU	0
 #define MAX_CAPACITY_CPU	(NR_CPUS - 1)
-
-#define ontime_of(p)		(&p->se.ontime)
-
-#define cap_scale(v, s)		((v)*(s) >> SCHED_CAPACITY_SHIFT)
-
-#define entity_is_cfs_rq(se)	(se->my_q)
-#define entity_is_task(se)	(!se->my_q)
 
 /* Structure of ontime migration condition */
 struct ontime_cond {
@@ -37,8 +38,6 @@ struct ontime_cond {
 
 	unsigned long		upper_boundary;
 	unsigned long		lower_boundary;
-	/* Ratio at which ontime util can be covered within capacity */
-	int			coverage_ratio;
 
 	int			coregroup;
 	struct cpumask		cpus;
@@ -53,30 +52,12 @@ LIST_HEAD(cond_list);
 /* Structure of ontime migration environment */
 struct ontime_env {
 	struct rq		*dst_rq;
-	int			dst_cpu;
 	struct rq		*src_rq;
-	int			src_cpu;
 	struct task_struct	*target_task;
 	int			boost_migration;
+	u64			flags;
 };
 DEFINE_PER_CPU(struct ontime_env, ontime_env);
-
-static inline struct sched_entity *se_of(struct sched_avg *sa)
-{
-	return container_of(sa, struct sched_entity, avg);
-}
-
-extern long schedtune_margin(unsigned long signal, long boost);
-static inline unsigned long ontime_load_avg(struct task_struct *p)
-{
-	int boost = schedtune_task_boost(p);
-	unsigned long load_avg = ontime_of(p)->avg.load_avg;
-
-	if (boost == 0)
-		return load_avg;
-
-	return load_avg + schedtune_margin(load_avg, boost);
-}
 
 struct ontime_cond *get_current_cond(int cpu)
 {
@@ -110,260 +91,189 @@ static unsigned long get_lower_boundary(int cpu)
 		return 0;
 }
 
-static unsigned long get_coverage_ratio(int cpu)
-{
-	struct ontime_cond *curr = get_current_cond(cpu);
-
-	if (curr)
-		return curr->coverage_ratio;
-	else
-		return 0;
-}
-
 static bool is_faster_than(int src, int dst)
 {
-	if (get_cpu_max_capacity(src) < get_cpu_max_capacity(dst))
+	if (capacity_max_of(src) < capacity_max_of(dst))
 		return true;
 	else
 		return false;
 }
 
-static int
+static inline int check_migrate_slower(int src, int dst)
+{
+	if (cpumask_test_cpu(src, cpu_coregroup_mask(dst)))
+		return false;
+
+	if (capacity_max_of(src) > capacity_max_of(dst))
+		return true;
+	else
+		return false;
+}
+
+void
 ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 {
 	struct ontime_cond *curr;
+	struct cpumask mask;
 	int src_cpu = task_cpu(p);
+	unsigned long load_avg = ml_task_load_avg(p);
+
+	cpumask_clear(&mask);
+	cpumask_copy(&mask, cpu_active_mask);
 
 	curr = get_current_cond(src_cpu);
 	if (!curr)
-		return -EINVAL;
+		goto done;
 
-	cpumask_clear(fit_cpus);
+	/*
+	 * If the task belongs to a group that does not support ontime
+	 * migration or task is currently migrating, it can be assigned to all
+	 * active cpus without specifying fit cpus.
+	 */
+	if (!support_ontime(p) || ml_of(p)->migrating)
+		goto done;
 
-	if (ontime_load_avg(p) >= curr->upper_boundary) {
-		/*
-		 * If task's load is above upper boundary of source,
-		 * find fit_cpus that have higher mips than source.
-		 */
+	/*
+	 * case 1) task load_avg < lower boundary
+	 *
+	 * If task 'load_avg' is smaller than lower boundary of current domain,
+	 * do not target specific cpu because ontime migration is not involved
+	 * in down migration. All active cpus are fit.
+	 *
+	 * fit_cpus = cpu_active_mask
+	 */
+	if (load_avg < curr->lower_boundary)
+		goto done;
+
+	cpumask_clear(&mask);
+
+	/*
+	 * case 2) lower boundary <= task load_avg < upper boundary
+	 *
+	 * If task 'load_avg' is between lower boundary and upper boundary of
+	 * current domain, both current and faster domain are fit.
+	 *
+	 * fit_cpus = current cpus & faster cpus
+	 */
+	if (load_avg < curr->upper_boundary) {
+		cpumask_or(&mask, &mask, &curr->cpus);
 		list_for_each_entry(curr, &cond_list, list) {
 			int dst_cpu = cpumask_first(&curr->cpus);
 
 			if (is_faster_than(src_cpu, dst_cpu))
-				cpumask_or(fit_cpus, fit_cpus, &curr->cpus);
+				cpumask_or(&mask, &mask, &curr->cpus);
 		}
-	} else if (ontime_load_avg(p) >= curr->lower_boundary) {
-		/*
-		 * If task's load is between upper boundary and lower boundary of source,
-		 * fit cpus is the coregroup of source.
-		 */
-		cpumask_copy(fit_cpus, cpu_coregroup_mask(src_cpu));
-	} else {
-		/*
-		 * If task's load is below lower boundary,
-		 * don't need to do ontime migration or wakeup.
-		 */
-		return -1;
+
+		goto masking;
 	}
-
-	if (cpumask_empty(fit_cpus))
-		return -1;
-
-	return 0;
-}
-
-static int
-ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
-{
-	struct cpumask candidates;
-	int cpu, energy_cpu = -1;
-	int candidate_count = 0;
-
-	rcu_read_lock();
-
-	cpumask_clear(&candidates);
 
 	/*
-	 * First) Find min_util_cpu for each coregroup in fit cpus and candidate it.
+	 * case 3) task load_avg >= upper boundary
+	 *
+	 * If task 'load_avg' is greater than boundary of current domain, only
+	 * faster domain is fit to gurantee cpu performance.
+	 *
+	 * fit_cpus = faster cpus
 	 */
-	for_each_cpu(cpu, fit_cpus) {
-		int i;
-		int best_cpu = -1, backup_cpu = -1;
-		unsigned int min_exit_latency = UINT_MAX;
-		unsigned long min_util = ULONG_MAX;
-		unsigned long coverage_util;
+	list_for_each_entry(curr, &cond_list, list) {
+		int dst_cpu = cpumask_first(&curr->cpus);
 
-		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
-			continue;
-
-		coverage_util = capacity_orig_of(cpu) * get_coverage_ratio(cpu);
-
-		for_each_cpu_and(i, cpu_coregroup_mask(cpu), cpu_active_mask) {
-
-			if (!cpumask_test_cpu(i, tsk_cpus_allowed(p)))
-				continue;
-
-			if (cpu_rq(i)->ontime_migrating)
-				continue;
-
-			if (idle_cpu(i)) {
-				/* 1. Find shallowest idle_cpu */
-				struct cpuidle_state *idle = idle_get_state(cpu_rq(cpu));
-
-				if (!idle) {
-					best_cpu = i;
-					break;
-				}
-
-				if (idle->exit_latency < min_exit_latency) {
-					min_exit_latency = idle->exit_latency;
-					best_cpu = i;
-				}
-			} else {
-				/* 2. Find cpu that have to spare */
-				unsigned long new_util = task_util(p) + cpu_util_wake(i, p);
-
-				if (new_util * 100 >= coverage_util)
-					continue;
-
-				if (new_util < min_util) {
-					min_util = new_util;
-					backup_cpu = i;
-				}
-			}
-		}
-		if (cpu_selected(best_cpu)) {
-			cpumask_set_cpu(best_cpu, &candidates);
-			candidate_count++;
-		} else if (cpu_selected(backup_cpu)) {
-			cpumask_set_cpu(backup_cpu, &candidates);
-			candidate_count++;
-		}
+		if (is_faster_than(src_cpu, dst_cpu))
+			cpumask_or(&mask, &mask, &curr->cpus);
 	}
 
-	rcu_read_unlock();
-
+masking:
+	cpumask_and(&mask, &mask, cpu_active_mask);
+done:
 	/*
-	 * Second) Find min_energy_cpu among the candidates and return it.
+	 * Check if the task is given a mulligan.
+	 * If so, remove src_cpu from candidate.
 	 */
-	if (candidate_count > 1) {
-		/*
-		 * If there is more than one candidate,
-		 * calculate each energy and choose min_energy_cpu.
-		 */
-		unsigned int min_energy = UINT_MAX;
+	if (EMS_PF_GET(p) & EMS_PF_MULLIGAN)
+		cpumask_clear_cpu(src_cpu, &mask);
 
-		for_each_cpu(cpu, &candidates) {
-			unsigned int new_energy = calculate_energy(p, cpu);
-
-			if (min_energy > new_energy) {
-				min_energy = new_energy;
-				energy_cpu = cpu;
-			}
-		}
-	} else if (candidate_count == 1) {
-		/*
-		 * If there is just one candidate, this will be min_energy_cpu.
-		 */
-		energy_cpu = cpumask_first(&candidates);
-	}
-
-	return energy_cpu;
+	cpumask_clear(fit_cpus);
+	cpumask_copy(fit_cpus, &mask);
 }
 
-extern struct sched_entity *__pick_next_entity(struct sched_entity *se);
-static struct task_struct *
-ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
+static struct task_struct *pick_heavy_task(struct rq *rq, int *boost_migration)
 {
-	struct task_struct *heaviest_task = NULL;
-	struct task_struct *p;
-	unsigned int max_util_avg = 0;
+	struct task_struct *p, *heaviest_task = NULL;
+	unsigned long util_avg, max_util_avg = 0;
 	int task_count = 0;
-	int boosted = !!global_boosted() || !!schedtune_prefer_perf(task_of(se));
 
-	/*
-	 * Since current task does not exist in entity list of cfs_rq,
-	 * check first that current task is heavy.
-	 */
-	p = task_of(se);
-	if (boosted) {
-		*boost_migration = 1;
-		return p;
-	}
-	if (schedtune_ontime_en(p)) {
-		if (ontime_load_avg(p) >= get_upper_boundary(task_cpu(p))) {
-			heaviest_task = p;
-			max_util_avg = ontime_load_avg(p);
-			*boost_migration = 0;
-		}
-	}
-
-	se = __pick_first_entity(se->cfs_rq);
-	while (se && task_count < TASK_TRACK_COUNT) {
-		/* Skip non-task entity */
-		if (entity_is_cfs_rq(se))
-			goto next_entity;
-
-		p = task_of(se);
-		if (schedtune_prefer_perf(p)) {
+	list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
+		if (tex_task(p) || ems_task_on_top(p) || ems_task_boosted(p)) {
 			heaviest_task = p;
 			*boost_migration = 1;
 			break;
 		}
 
-		if (!schedtune_ontime_en(p))
-			goto next_entity;
+		if (!support_ontime(p))
+			continue;
 
-		if (ontime_load_avg(p) < get_upper_boundary(task_cpu(p)))
-			goto next_entity;
+		/*
+		 * Pick the task with the biggest util_avg among tasks whose
+		 * util_avg is greater than the upper boundary.
+		 */
+		util_avg = ml_task_load_avg(p);
+		if (util_avg < get_upper_boundary(task_cpu(p)))
+			continue;
 
-		if (ontime_load_avg(p) > max_util_avg) {
+		if (util_avg > max_util_avg) {
 			heaviest_task = p;
-			max_util_avg = ontime_load_avg(p);
-			*boost_migration = 0;
+			max_util_avg = util_avg;
 		}
 
-next_entity:
-		se = __pick_next_entity(se);
-		task_count++;
+		if (++task_count >= TRACK_TASK_COUNT)
+			break;
 	}
 
 	return heaviest_task;
 }
 
-static bool can_migrate(struct task_struct *p, struct ontime_env *env)
+static bool __can_migrate(struct task_struct *p, struct ontime_env *env)
 {
-	struct rq *src_rq = env->src_rq;
-	int src_cpu = env->src_cpu;
-
-	if (ontime_of(p)->migrating == 0)
-		return false;
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
 
 	if (p->exit_state)
+		return false;
+
+	if (!cpu_active(dst_rq->cpu))
 		return false;
 
 	if (unlikely(src_rq != task_rq(p)))
 		return false;
 
-	if (unlikely(src_cpu != smp_processor_id()))
+	if (unlikely(src_rq->cpu != smp_processor_id()))
 		return false;
 
 	if (src_rq->nr_running <= 1)
 		return false;
 
-	if (!cpumask_test_cpu(env->dst_cpu, tsk_cpus_allowed(p)))
+	if (!cpumask_test_cpu(dst_rq->cpu, &p->cpus_allowed))
 		return false;
 
-	if (task_running(env->src_rq, p))
+	if (task_running(src_rq, p))
 		return false;
 
 	return true;
+}
+
+static
+bool can_migrate(struct task_struct *p, struct ontime_env *env)
+{
+	if (ml_of(p)->migrating == 0)
+		return false;
+
+	return __can_migrate(p, env);
 }
 
 static void move_task(struct task_struct *p, struct ontime_env *env)
 {
 	p->on_rq = TASK_ON_RQ_MIGRATING;
 	deactivate_task(env->src_rq, p, 0);
-	set_task_cpu(p, env->dst_cpu);
+	set_task_cpu(p, env->dst_rq->cpu);
 
 	activate_task(env->dst_rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
@@ -391,14 +301,11 @@ static int ontime_migration_cpu_stop(void *data)
 	struct ontime_env *env = data;
 	struct rq *src_rq, *dst_rq;
 	struct task_struct *p;
-	int src_cpu, dst_cpu;
 	int boost_migration;
 
 	/* Initialize environment data */
 	src_rq = env->src_rq;
-	dst_rq = env->dst_rq = cpu_rq(env->dst_cpu);
-	src_cpu = env->src_cpu = env->src_rq->cpu;
-	dst_cpu = env->dst_cpu;
+	dst_rq = env->dst_rq;
 	p = env->target_task;
 	boost_migration = env->boost_migration;
 
@@ -413,16 +320,17 @@ static int ontime_migration_cpu_stop(void *data)
 	/* Move task from source to destination */
 	double_lock_balance(src_rq, dst_rq);
 	if (move_specific_task(p, env)) {
-		trace_ems_ontime_migration(p, ontime_of(p)->avg.load_avg,
-				src_cpu, dst_cpu, boost_migration);
+		trace_ems_ontime_migration(p, ml_of(p)->avg.load_avg,
+				src_rq->cpu, dst_rq->cpu, boost_migration ? "boosted" : "not boosted");
 	}
 	double_unlock_balance(src_rq, dst_rq);
 
 out_unlock:
-	ontime_of(p)->migrating = 0;
+	ml_of(p)->migrating = 0;
 
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
+	dst_rq->ontime_boost_migration = 0;
 
 	raw_spin_unlock_irq(&src_rq->lock);
 	put_task_struct(p);
@@ -430,12 +338,12 @@ out_unlock:
 	return 0;
 }
 
-static void ontime_update_next_balance(int cpu, struct ontime_avg *oa)
+void ontime_update_next_balance(int cpu, struct ml_avg *avg)
 {
 	if (cpumask_test_cpu(cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
 		return;
 
-	if (oa->load_avg < get_upper_boundary(cpu))
+	if (avg->load_avg < get_upper_boundary(cpu))
 		return;
 
 	/*
@@ -445,293 +353,337 @@ static void ontime_update_next_balance(int cpu, struct ontime_avg *oa)
 	cpu_rq(smp_processor_id())->next_balance = jiffies;
 }
 
-extern u64 decay_load(u64 val, u64 n);
-static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
+static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 {
-	u32 c1, c2, c3 = d3;
+	int cpu = cpu_of(rq);
 
-	c1 = decay_load((u64)d1, periods);
-	c2 = LOAD_AVG_MAX - decay_load(LOAD_AVG_MAX, periods) - 1024;
+	if (is_busy_cpu(cpu)) {
+		env->flags |= EMS_PF_RUNNABLE_BUSY;
+		return true;
+	}
 
-	return c1 + c2 + c3;
+	return rq->nr_running > 1 &&
+		mlt_art_last_value(cpu) == SCHED_CAPACITY_SCALE;
 }
 
-/****************************************************************/
-/*			External APIs				*/
-/****************************************************************/
-void ontime_trace_task_info(struct task_struct *p)
+static struct rq *ontime_find_mulligan_rq(struct task_struct *target_p,
+					  struct ontime_env *env)
 {
-	trace_ems_ontime_load_avg_task(p, &ontime_of(p)->avg, ontime_of(p)->migrating);
+	struct rq *src_rq = env->src_rq, *dst_rq;
+	int dst_cpu;
+
+	/* Set flag to skip src_cpu when iterating candidates */
+	EMS_PF_SET(target_p, env->flags);
+
+	/* Find next cpu for this task */
+	dst_cpu = ems_select_task_rq_fair(target_p, cpu_of(src_rq), 0, 0, 0);
+
+	/* Clear flag */
+	EMS_PF_CLEAR(target_p, env->flags);
+
+	if (dst_cpu < 0 || cpu_of(src_rq) == dst_cpu)
+		return NULL;
+
+	dst_rq = cpu_rq(dst_cpu);
+
+	return dst_rq;
+}
+
+static int ontime_detach_task(struct task_struct *target_p,
+			      struct ontime_env *env)
+{
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
+	int dst_cpu = cpu_of(dst_rq);
+
+	/* Deactivate this task to migrate it */
+	deactivate_task(src_rq, target_p, 0);
+	set_task_cpu(target_p, dst_cpu);
+
+	/* Returning 1 means a task is detached. */
+	return 1;
+}
+
+static int ontime_attach_task(struct task_struct *target_p,
+			      const struct ontime_env *env)
+{
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
+	struct rq_flags rf;
+
+	rq_lock(dst_rq, &rf);
+	activate_task(dst_rq, target_p, 0);
+	check_preempt_curr(dst_rq, target_p, 0);
+	rq_unlock(dst_rq, &rf);
+
+	trace_ems_ontime_migration(target_p, ml_task_util_est(target_p),
+				cpu_of(src_rq), cpu_of(dst_rq), "mulligan");
+
+	/* Returning 1 means a task is attached. */
+	return 1;
+}
+
+static void ontime_mulligan(void)
+{
+	struct rq *src_rq = this_rq(), *dst_rq;
+	struct list_head *tasks = &src_rq->cfs_tasks;
+	struct task_struct *p, *target_p = NULL;
+	struct ontime_env local_env = { .src_rq = src_rq, .flags = EMS_PF_MULLIGAN };
+	unsigned long flags;
+	unsigned long min_util = ULONG_MAX, task_util;
+
+	if (!ontime_check_runnable(&local_env, src_rq))
+		return;
+
+	raw_spin_lock_irqsave(&src_rq->lock, flags);
+
+	list_for_each_entry_reverse(p, tasks, se.group_node) {
+		/* Current task cannot get mulligan */
+		if (&p->se == src_rq->cfs.curr)
+			continue;
+
+		task_util = ml_uclamp_task_util(p);
+
+		/*
+		 * If this cpu is determined as runnable busy, only tasks which
+		 * have utilization under 6.25% of capacity can get mulligan.
+		 */
+		if ((local_env.flags & EMS_PF_RUNNABLE_BUSY)
+		    && task_util >= capacity_orig_of(cpu_of(src_rq)) >> 4)
+			continue;
+
+		/* Find min util task */
+		if (task_util < min_util) {
+			target_p = p;
+			min_util = task_util;
+		}
+	}
+
+	/* No task is given a mulligan */
+	if (!target_p) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	dst_rq = ontime_find_mulligan_rq(target_p, &local_env);
+
+	/* No rq exists for the mulligan */
+	if (!dst_rq) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	/* Fill ontime_env and check whether the task can be migrated */
+	local_env.dst_rq = dst_rq;
+	local_env.target_task = target_p;
+	if (!__can_migrate(target_p, &local_env)) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	/* Finally, the task can be moved! */
+	ontime_detach_task(target_p, &local_env);
+
+	raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+
+	/* Let's give a second chance to the task */
+	ontime_attach_task(target_p, &local_env);
 }
 
 DEFINE_PER_CPU(struct cpu_stop_work, ontime_migration_work);
-static DEFINE_SPINLOCK(om_lock);
+
+static void ontime_heavy_migration(void)
+{
+	struct rq *rq = this_rq();
+	struct ontime_env *env = &per_cpu(ontime_env, rq->cpu);
+	struct task_struct *p;
+	int dst_cpu;
+	unsigned long flags;
+	struct ontime_cond *curr;
+	int boost_migration = 0;
+
+	/*
+	 * If this cpu belongs to last domain of ontime, no cpu is
+	 * faster than this cpu. Skip ontime migration for heavy task.
+	 */
+	if (cpumask_test_cpu(rq->cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
+		return;
+
+	curr = get_current_cond(rq->cpu);
+	if (!curr)
+		return;
+
+	/*
+	 * No need to traverse rq to find a heavy task
+	 * if this CPU utilization is under upper boundary
+	 */
+	if (ml_cpu_util(cpu_of(rq)) < curr->upper_boundary)
+		return;
+
+	raw_spin_lock_irqsave(&rq->lock, flags);
+
+	/*
+	 * Ontime migration is not performed when active balance is in progress.
+	 */
+	if (rq->active_balance) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/*
+	 * No need to migration if source cpu does not have cfs tasks.
+	 */
+	if (!rq->cfs.curr) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/*
+	 * Pick task to be migrated.
+	 * Return NULL if there is no heavy task in rq.
+	 */
+	p = pick_heavy_task(rq, &boost_migration);
+	if (!p) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/* Select destination cpu which the task will be moved */
+	dst_cpu = ems_select_task_rq_fair(p, rq->cpu, 0, 0, 0);
+	if (dst_cpu < 0 || rq->cpu == dst_cpu) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	ml_of(p)->migrating = 1;
+	get_task_struct(p);
+
+	/* Set environment data */
+	env->dst_rq = cpu_rq(dst_cpu);
+	env->src_rq = rq;
+	env->target_task = p;
+	env->boost_migration = boost_migration;
+
+	/* Prevent active balance to use stopper for migration */
+	rq->active_balance = 1;
+
+	cpu_rq(dst_cpu)->ontime_migrating = 1;
+	cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
+
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
+
+	/* Migrate task through stopper */
+	stop_one_cpu_nowait(rq->cpu, ontime_migration_cpu_stop, env,
+			&per_cpu(ontime_migration_work, rq->cpu));
+}
+
+/****************************************************************/
+/*		           	    External APIs				            */
+/****************************************************************/
+static bool skip_ontime;
 
 void ontime_migration(void)
 {
-	int cpu;
-
-	if (!spin_trylock(&om_lock))
+	if (skip_ontime)
 		return;
 
-	for_each_cpu(cpu, cpu_active_mask) {
-		unsigned long flags;
-		struct rq *rq = cpu_rq(cpu);
-		struct sched_entity *se;
-		struct task_struct *p;
-		struct ontime_env *env = &per_cpu(ontime_env, cpu);
-		struct cpumask fit_cpus;
-		int boost_migration = 0;
-		int dst_cpu;
-
-		/* Task in big cores don't be ontime migrated. */
-		if (cpumask_test_cpu(cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
-			break;
-
-		raw_spin_lock_irqsave(&rq->lock, flags);
-
-		/*
-		 * Ontime migration is not performed when active balance
-		 * is in progress.
-		 */
-		if (rq->active_balance) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/*
-		 * No need to migration if source cpu does not have cfs
-		 * tasks.
-		 */
-		if (!rq->cfs.curr) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/* Find task entity if entity is cfs_rq. */
-		se = rq->cfs.curr;
-		if (entity_is_cfs_rq(se)) {
-			struct cfs_rq *cfs_rq = se->my_q;
-
-			while (cfs_rq) {
-				se = cfs_rq->curr;
-				cfs_rq = se->my_q;
-			}
-		}
-
-		/*
-		 * Pick task to be migrated. Return NULL if there is no
-		 * heavy task in rq.
-		 */
-		p = ontime_pick_heavy_task(se, &boost_migration);
-		if (!p) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/* If fit_cpus is not searched, don't need to select dst_cpu */
-		if (ontime_select_fit_cpus(p, &fit_cpus)) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/*
-		 * If fit_cpus is smaller than current coregroup,
-		 * don't need to ontime migration.
-		 */
-		if (!is_faster_than(cpu, cpumask_first(&fit_cpus))) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/*
-		 * Select cpu to migrate the task to. Return negative number
-		 * if there is no idle cpu in sg.
-		 */
-		dst_cpu = ontime_select_target_cpu(p, &fit_cpus);
-		if (!cpu_selected(dst_cpu)) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		ontime_of(p)->migrating = 1;
-		get_task_struct(p);
-
-		/* Set environment data */
-		env->dst_cpu = dst_cpu;
-		env->src_rq = rq;
-		env->target_task = p;
-		env->boost_migration = boost_migration;
-
-		/* Prevent active balance to use stopper for migration */
-		rq->active_balance = 1;
-
-		cpu_rq(dst_cpu)->ontime_migrating = 1;
-
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
-
-		/* Migrate task through stopper */
-		stop_one_cpu_nowait(cpu, ontime_migration_cpu_stop, env,
-				&per_cpu(ontime_migration_work, cpu));
-	}
-
-	spin_unlock(&om_lock);
+	ontime_mulligan();
+	ontime_heavy_migration();
 }
 
-int ontime_task_wakeup(struct task_struct *p, int sync)
-{
-	struct cpumask fit_cpus;
-	int dst_cpu, src_cpu = task_cpu(p);
-
-	/* If this task is not allowed to ontime, do not ontime wakeup */
-	if (!schedtune_ontime_en(p))
-		return -1;
-
-	/* When wakeup task is on ontime migrating, do not ontime wakeup */
-	if (ontime_of(p)->migrating == 1)
-		return -1;
-
-	/* If fit_cpus is not searched, don't need to select dst_cpu */
-	if (ontime_select_fit_cpus(p, &fit_cpus))
-		return -1;
-
-	/* If fit_cpus is little coregroup, don't need to select dst_cpu */
-	if (cpumask_test_cpu(MIN_CAPACITY_CPU, &fit_cpus))
-		return -1;
-
-	/* If this cpu is fit and sync, wake up on this cpu */
-	if (sysctl_sched_sync_hint_enable && sync) {
-		int cpu = smp_processor_id();
-
-		if (cpumask_test_cpu(cpu, &p->cpus_allowed)
-				&& cpumask_test_cpu(cpu, &fit_cpus)) {
-			trace_ems_ontime_task_wakeup(p, src_cpu, cpu, "ontime-sync wakeup");
-			return cpu;
-		}
-	}
-
-	dst_cpu = ontime_select_target_cpu(p, &fit_cpus);
-	if (cpu_selected(dst_cpu)) {
-		trace_ems_ontime_task_wakeup(p, src_cpu, dst_cpu, "ontime wakeup");
-		return dst_cpu;
-	}
-
-	trace_ems_ontime_task_wakeup(p, src_cpu, dst_cpu, "busy target");
-	return -1;
-}
-
-int ontime_can_migration(struct task_struct *p, int dst_cpu)
+int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 {
 	int src_cpu = task_cpu(p);
 
-	if (!schedtune_ontime_en(p))
+	if (!support_ontime(p))
 		return true;
 
-	if (ontime_of(p)->migrating == 1) {
+	if (ml_of(p)->migrating == 1) {
 		trace_ems_ontime_check_migrate(p, dst_cpu, false, "on migrating");
 		return false;
 	}
 
-	if (cpumask_test_cpu(dst_cpu, cpu_coregroup_mask(src_cpu))) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "go to same");
-		return true;
-	}
-
-	if (is_faster_than(src_cpu, dst_cpu)) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "go to bigger");
-		return true;
-	}
-
 	/*
-	 * At this point, load balancer is trying to migrate task to smaller CPU.
+	 * Task is heavy enough but load balancer tries to migrate the task to
+	 * slower cpu, it does not allow migration.
 	 */
-	if (ontime_load_avg(p) < get_lower_boundary(src_cpu)) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "light task");
-		return true;
-	}
-
-	/*
-	 * When runqueue is overloaded, check whether cpu's util exceed coverage ratio.
-	 * If so, allow the task to be migrated.
-	 */
-	if (cpu_rq(src_cpu)->nr_running > 1) {
-		unsigned long cpu_util = cpu_util_wake(src_cpu, p);
-		unsigned long util = task_util(p);
-		unsigned long coverage_ratio = get_coverage_ratio(src_cpu);
-
-		if ((cpu_util * 100 >= capacity_orig_of(src_cpu) * coverage_ratio)
-				&& (cpu_util > util)) {
-			trace_ems_ontime_check_migrate(p, dst_cpu, true, "exceed coverage");
+	if (ml_task_load_avg(p) >= get_lower_boundary(src_cpu) &&
+	    check_migrate_slower(src_cpu, dst_cpu)) {
+		/*
+		 * However, only if the source cpu is overutilized, it allows
+		 * migration if the task is not very heavy.
+		 * (criteria : task util is under 75% of cpu util)
+		 */
+		if (cpu_overutilized(src_cpu) &&
+			ml_task_util_est(p) * 100 < (cpu_util(src_cpu) * 75)) {
+			trace_ems_ontime_check_migrate(p, dst_cpu, true, "src overutil");
 			return true;
 		}
+
+		trace_ems_ontime_check_migrate(p, dst_cpu, false, "migrate to slower");
+		return false;
 	}
 
-	trace_ems_ontime_check_migrate(p, dst_cpu, false, "heavy task");
-	return false;
+	trace_ems_ontime_check_migrate(p, dst_cpu, false, "normal migration");
+
+	return true;
 }
 
-/*
- * ontime_update_load_avg : load tracking for ontime-migration
- *
- * @sa : sched_avg to be updated
- * @delta : elapsed time since last update
- * @period_contrib : amount already accumulated against our next period
- * @scale_freq : scale vector of cpu frequency
- * @scale_cpu : scale vector of cpu capacity
- */
-void ontime_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa)
-{
-	struct ontime_avg *oa = &se_of(sa)->ontime.avg;
-	unsigned long scale_freq, scale_cpu;
-	u32 contrib = (u32)delta; /* p == 0 -> delta < 1024 */
-	u64 periods;
+u64 ems_ontime_enabled_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
 
-	scale_freq = arch_scale_freq_capacity(NULL, cpu);
-	scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
+	group_idx = st->idx;
+	if (group_idx >= BOOSTGROUPS_COUNT)
+		return (u64) ontime_enabled[CGROUP_ROOT];
 
-	delta += oa->period_contrib;
-	periods = delta / 1024; /* A period is 1024us (~1ms) */
-
-	if (periods) {
-		oa->load_sum = decay_load(oa->load_sum, periods);
-
-		delta %= 1024;
-		contrib = __accumulate_pelt_segments(periods,
-				1024 - oa->period_contrib, delta);
-	}
-	oa->period_contrib = delta;
-
-	if (weight) {
-		contrib = cap_scale(contrib, scale_freq);
-		oa->load_sum += contrib * scale_cpu;
-	}
-
-	if (!periods)
-		return;
-
-	oa->load_avg = div_u64(oa->load_sum, LOAD_AVG_MAX - 1024 + oa->period_contrib);
-	ontime_update_next_balance(cpu, oa);
+	return (u64) ontime_enabled[group_idx];
 }
 
-void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se)
+int ems_ontime_enabled_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= BOOSTGROUPS_COUNT) {
+		ontime_enabled[CGROUP_ROOT] = enabled;
+		return 0;
+	}
+
+	ontime_enabled[group_idx] = enabled;
+	return 0;
+}
+
+void ontime_trace_task_info(struct task_struct *p)
 {
-	struct ontime_entity *ontime;
-
-	if (entity_is_cfs_rq(se))
-		return;
-
-	ontime = &se->ontime;
-
-	ontime->avg.load_sum = ontime_of(parent)->avg.load_sum >> 1;
-	ontime->avg.load_avg = ontime_of(parent)->avg.load_avg >> 1;
-	ontime->avg.period_contrib = 1023;
-	ontime->migrating = 0;
-
-	trace_ems_ontime_new_entity_load(task_of(se), &ontime->avg);
+	trace_ems_ontime_load_avg_task(p, &ml_of(p)->avg, ml_of(p)->migrating);
 }
 
 /****************************************************************/
-/*				SYSFS				*/
+/*		  sysbusy state change notifier			*/
+/****************************************************************/
+static int ontime_sysbusy_notifier_call(struct notifier_block *nb,
+					unsigned long val, void *v)
+{
+	enum sysbusy_state state = *(enum sysbusy_state *)v;
+
+	if (val != SYSBUSY_STATE_CHANGE)
+		return NOTIFY_OK;
+
+	skip_ontime = (state > SYSBUSY_STATE1);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ontime_sysbusy_notifier = {
+	.notifier_call = ontime_sysbusy_notifier_call,
+};
+
+/****************************************************************/
+/*				             SYSFS			                	*/
 /****************************************************************/
 static struct kobject *ontime_kobj;
 
@@ -770,13 +722,10 @@ static ssize_t store_##_name(struct kobject *k, const char *buf, size_t count)	\
 
 ontime_show(upper_boundary);
 ontime_show(lower_boundary);
-ontime_show(coverage_ratio);
 ontime_store(upper_boundary, unsigned long, 1024);
 ontime_store(lower_boundary, unsigned long, 1024);
-ontime_store(coverage_ratio, int, 100);
 ontime_attr_rw(upper_boundary);
 ontime_attr_rw(lower_boundary);
-ontime_attr_rw(coverage_ratio);
 
 static ssize_t show(struct kobject *kobj, struct attribute *at, char *buf)
 {
@@ -793,6 +742,60 @@ static ssize_t store(struct kobject *kobj, struct attribute *at,
 	return oattr->store(kobj, buf, count);
 }
 
+static char *task_cgroup_simple_name[] = {
+    "root",
+    "fg",
+    "bg",
+    "ta",
+    "rt",
+    "sy",
+    "syb",
+    "n-h",
+    "c-d",
+};
+static ssize_t show_ontime_enabled(struct kobject *kobj,
+        struct kobj_attribute *attr, char *buf)
+{
+    int i, ret = 0;
+
+    for (i = 0; i < BOOSTGROUPS_COUNT; i++)
+        ret += snprintf(buf + ret, 40, "cgroup=%4s enabled=%d\n",
+                task_cgroup_simple_name[i],
+                ontime_enabled[i]);
+
+    ret += sprintf(buf + ret, "\n");
+    ret += sprintf(buf + ret, "usage:");
+    ret += sprintf(buf + ret, "   # echo <group> <enabled=0/1> > %s\n", "ontime_enabled");
+    ret += sprintf(buf + ret, "(group0/1/2/3/4=root/fg/bg/ta/rt)\n");
+
+    return ret;
+}
+
+static ssize_t store_ontime_enabled(struct kobject *kobj,
+        struct kobj_attribute *attr, const char *buf,
+        size_t count)
+{
+    int i, grp_idx, value, ret;
+
+    ret = sscanf(buf, "%d %d", &grp_idx, &value);
+    if (ret < 0)
+        return -EINVAL;
+
+    if (grp_idx < 0 || grp_idx > BOOSTGROUPS_COUNT)
+        return -EINVAL;
+
+    if (value < 0 || value > 1)
+        return -EINVAL;
+
+    ontime_enabled[i] = value;
+
+    return count;
+}
+
+static struct kobj_attribute ontime_enabled_attr =
+__ATTR(ontime_enabled, 0644, show_ontime_enabled, store_ontime_enabled);
+
+
 static const struct sysfs_ops ontime_sysfs_ops = {
 	.show	= show,
 	.store	= store,
@@ -801,7 +804,6 @@ static const struct sysfs_ops ontime_sysfs_ops = {
 static struct attribute *ontime_attrs[] = {
 	&upper_boundary_attr.attr,
 	&lower_boundary_attr.attr,
-	&coverage_ratio_attr.attr,
 	NULL
 };
 
@@ -820,6 +822,9 @@ static int __init ontime_sysfs_init(void)
 	ontime_kobj = kobject_create_and_add("ontime", ems_kobj);
 	if (!ontime_kobj)
 		goto out;
+
+	if (sysfs_create_file(ontime_kobj, &ontime_enabled_attr.attr))
+		pr_warn("%s: failed to create ontime enabled sysfs\n", __func__);
 
 	/* Add ontime sysfs node for each coregroup */
 	list_for_each_entry(curr, &cond_list, list) {
@@ -877,7 +882,7 @@ parse_ontime(struct device_node *dn, struct ontime_cond *cond, int cnt)
 		goto disable;
 	cond->coregroup = cnt;
 
-	capacity = get_cpu_max_capacity(cpumask_first(&cond->cpus));
+	capacity = capacity_max_of(cpumask_first(&cond->cpus));
 
 	/* If capacity of this coregroup is 0, disable ontime of this coregroup */
 	if (capacity == 0)
@@ -889,9 +894,6 @@ parse_ontime(struct device_node *dn, struct ontime_cond *cond, int cnt)
 
 	res |= of_property_read_s32(coregroup, "lower-boundary", &prop);
 	cond->lower_boundary = get_boundary(capacity, prop);
-
-	res |= of_property_read_u32(coregroup, "coverage-ratio", &prop);
-	cond->coverage_ratio = prop;
 
 	if (res)
 		goto disable;
@@ -918,6 +920,8 @@ static int __init init_ontime(void)
 	if (!dn)
 		return 0;
 
+	/* Explicitly assigned */
+	skip_ontime = false;
 
 	if (!cpumask_equal(cpu_possible_mask, cpu_all_mask))
 		return 0;
@@ -936,6 +940,8 @@ static int __init init_ontime(void)
 	}
 
 	ontime_sysfs_init();
+
+	sysbusy_register_notifier(&ontime_sysbusy_notifier);
 
 	of_node_put(dn);
 	return 0;

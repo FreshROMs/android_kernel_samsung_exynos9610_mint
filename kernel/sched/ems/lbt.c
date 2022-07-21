@@ -70,7 +70,7 @@ static inline int get_last_level(struct lbt_overutil *ou)
 /****************************************************************/
 /*			External APIs				*/
 /****************************************************************/
-bool lbt_overutilized(int cpu, int level)
+bool ems_lbt_overutilized(int cpu, int level)
 {
 	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);
 	bool overutilized;
@@ -78,16 +78,16 @@ bool lbt_overutilized(int cpu, int level)
 	if (!ou)
 		return false;
 
-	overutilized = (cpu_util(cpu) > ou[level].capacity) ? true : false;
+	overutilized = (ml_cpu_util(cpu) > ou[level].capacity) ? true : false;
 
 	if (overutilized)
-		trace_ems_lbt_overutilized(cpu, level, cpu_util(cpu),
+		trace_ems_lbt_overutilized(cpu, level, ml_cpu_util(cpu),
 				ou[level].capacity, overutilized);
 
 	return overutilized;
 }
 
-void update_lbt_overutil(int cpu, unsigned long capacity)
+void ems_lbt_update_overutil(int cpu, unsigned long capacity)
 {
 	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);
 	int level, last = get_last_level(ou);
@@ -163,7 +163,7 @@ static ssize_t store_overutil_ratio(struct kobject *kobj,
 
 		ou[level].ratio = ratio;
 		capacity = capacity_orig_of(cpu);
-		update_lbt_overutil(cpu, capacity);
+		ems_lbt_update_overutil(cpu, capacity);
 	}
 
 	return count;

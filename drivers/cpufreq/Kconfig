@@ -110,6 +110,15 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
+config CPU_FREQ_DEFAULT_GOV_AIGO
+	bool "energy_adaptive"
+	depends on SMP
+	select CPU_FREQ_GOV_AIGO
+	help
+	  Use the 'energy_adaptive' CPUFreq governor by default. If unsure,
+	  have a look at the help section of that governor. The fallback
+	  governor will be 'performance'.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -208,14 +217,18 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config FREQVAR_TUNE
-	bool "CPU frequency variant tuner"
-	depends on SCHED_EMS && CPU_FREQ_GOV_SCHEDUTIL
+config CPU_FREQ_GOV_AIGO
+	bool "'energy_adaptive' cpufreq policy governor"
+	depends on CPU_FREQ && SMP && SCHED_EMS
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	select FFSI
 	help
-	  This option provides the controller which tunes system performance
-	  as frequency variant.
+	  This governor makes decisions based on the utilization data provided
+	  by cpu activated time and the scheduler and infers them to learn based
+	  on given utilization data.
 
-	  Say N if unsure.
+	  If in doubt, say N.
 
 comment "CPU frequency scaling drivers"
 

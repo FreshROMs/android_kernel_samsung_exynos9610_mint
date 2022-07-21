@@ -91,41 +91,79 @@ static ssize_t store_global_boost(struct kobject *kobj,
 	return count;
 }
 
+static int task_boost;
+
+static ssize_t show_task_boost(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", task_boost);
+}
+
+static ssize_t store_task_boost(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf,
+		size_t count)
+{
+	int boost;
+
+	if (sscanf(buf, "%d", &boost) != 1)
+		return -EINVAL;
+
+	/* ignore if requested mode is out of range */
+	if (boost < 0 || boost >= 32768)
+		return -EINVAL;
+
+	task_boost = boost;
+
+	return count;
+}
+
 static struct kobj_attribute global_boost_attr =
 __ATTR(global_boost, 0644, show_global_boost, store_global_boost);
+static struct kobj_attribute task_boost_attr =
+__ATTR(task_boost, 0644, show_task_boost, store_task_boost);
 
-static int __init init_gb_sysfs(void)
+static int __init init_boost_sysfs(void)
 {
 	int ret;
 
 	ret = sysfs_create_file(ems_kobj, &global_boost_attr.attr);
 	if (ret)
-		pr_err("%s: faile to create sysfs file\n", __func__);
+		pr_err("%s: failed to create global boost sysfs file\n", __func__);
+
+	ret = sysfs_create_file(ems_kobj, &task_boost_attr.attr);
+	if (ret)
+		pr_err("%s: failed to create task boost sysfs file\n", __func__);
 
 	return 0;
 }
-late_initcall(init_gb_sysfs);
+late_initcall(init_boost_sysfs);
 
 /*
  * Returns the biggest value in the global boost list. In the current policy,
  * a value greater than 0 is unconditionally boosting. The size of the value
  * is meaningless.
  */
-int global_boosted(void)
+int ems_boot_boost(void)
 {
 	u64 now = ktime_to_us(ktime_get());
 
-	/* booting boost duration = 40s */
-	if (now < 40 * USEC_PER_SEC)
-		return 1;
+	/* init boost duration = 60s */
+	if (now < 60 * USEC_PER_SEC)
+		return EMS_INIT_BOOST;
 
+	/* booting boost duration = 120s */
+	if (now < 120 * USEC_PER_SEC)
+		return EMS_BOOT_BOOST;
+
+	return 0;
+}
+
+int ems_global_boost(void)
+{
 	return gb_qos_value() > 0;
 }
 
-int global_boosting(struct task_struct *p)
+int ems_task_boost(void)
 {
-	if (!global_boosted())
-		return -1;
-
-	return select_perf_cpu(p);
+	return task_boost;
 }

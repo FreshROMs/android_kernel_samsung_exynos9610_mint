@@ -1,5 +1,14 @@
-obj-y += core.o pcf.o global_boost.o lbt.o ontime.o energy.o init_util.o band.o
-obj-y += service.o
+obj-$(CONFIG_SCHED_EMS) += ems.o
 
-obj-$(CONFIG_SCHED_TUNE) += st_addon.o
-obj-$(CONFIG_FREQVAR_TUNE) += freqvar_tune.o
+ems-y += main.o
+ems-y += core.o
+ems-y += prefer.o
+ems-y += energy_table.o
+ems-y += multi_load.o
+ems-y += lbt.o
+ems-y += ontime.o
+ems-y += sysbusy.o
+ems-y += profile.o
+ems-$(CONFIG_CPU_FREQ_GOV_AIGO) += aigo.o
+ems-y += cpufreq.o
+ems-y += taskboost.o

@@ -463,12 +463,14 @@ void wake_up_q(struct wake_q_head *head)
 		/* Task can safely be re-inserted now: */
 		node = node->next;
 		task->wake_q.next = NULL;
+		task->wake_q_count = head->count;
 
 		/*
 		 * try_to_wake_up() implies a wmb() to pair with the queueing
 		 * in wake_q_add() so as not to miss wakeups.
 		 */
 		try_to_wake_up(task, TASK_NORMAL, 0, head->count);
+		task->wake_q_count = 0;
 		put_task_struct(task);
 	}
 }
@@ -1519,6 +1521,9 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_inc(rq, p);
+#ifdef CONFIG_SCHED_EMS
+	ems_enqueue_task(rq, p);
+#endif
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -1532,6 +1537,9 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 		psi_dequeue(p, flags & DEQUEUE_SLEEP);
 	}
 
+#ifdef CONFIG_SCHED_EMS
+	ems_dequeue_task(rq, p);
+#endif
 	uclamp_rq_dec(rq, p);
 	p->sched_class->dequeue_task(rq, p, flags);
 }
@@ -1652,7 +1660,10 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 
 #ifdef CONFIG_SMP
 
-static inline bool is_per_cpu_kthread(struct task_struct *p)
+#ifndef CONFIG_SCHED_EMS
+static
+#endif
+inline bool is_per_cpu_kthread(struct task_struct *p)
 {
 	if (!(p->flags & PF_KTHREAD))
 		return false;
@@ -2297,6 +2308,12 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 	const struct cpumask *nodemask = NULL;
 	enum { cpuset, possible, fail } state = cpuset;
 	int dest_cpu;
+
+#ifdef CONFIG_SCHED_EMS
+	dest_cpu = ems_select_fallback_rq(p);
+	if (dest_cpu >= 0)
+		return dest_cpu;
+#endif
 
 	/*
 	 * If the node that the CPU is on has been offlined, cpu_to_node()
@@ -3163,10 +3180,6 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 #endif
 
 	INIT_LIST_HEAD(&p->se.group_node);
-#ifdef CONFIG_SCHED_EMS
-	rcu_assign_pointer(p->band, NULL);
-	INIT_LIST_HEAD(&p->band_members);
-#endif
 	walt_init_new_task_load(p);
 
 #ifdef CONFIG_FAST_TRACK
@@ -3174,6 +3187,10 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 #endif
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	p->se.cfs_rq			= NULL;
+#endif
+
+#ifdef CONFIG_SCHED_EMS
+	ems_fork_init(p);
 #endif
 
 #ifdef CONFIG_SCHEDSTATS
@@ -3464,8 +3481,6 @@ void wake_up_new_task(struct task_struct *p)
 
 	raw_spin_lock_irqsave(&p->pi_lock, rf.flags);
 
-	newbie_join_band(p);
-
 	walt_init_new_task_load(p);
 
 	p->state = TASK_RUNNING;
@@ -3483,6 +3498,8 @@ void wake_up_new_task(struct task_struct *p)
 	rq = __task_rq_lock(p, &rf);
 	update_rq_clock(rq);
 	post_init_entity_util_avg(&p->se);
+
+	ems_wakeup_task(rq, p);
 
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	walt_mark_task_starting(p);
@@ -4100,7 +4117,10 @@ void scheduler_tick(void)
 #endif
 	rq_last_tick_reset(rq);
 
-	update_band(curr, -1);
+#ifdef CONFIG_SCHED_EMS
+	/* Exynos Mobile Scheduler tick */
+	ems_tick(rq);
+#endif
 }
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -7279,7 +7299,9 @@ void __init sched_init(void)
 
 	set_load_weight(&init_task);
 
-	alloc_bands();
+#ifdef CONFIG_SCHED_EMS
+	ems_init();
+#endif
 
 	/*
 	 * The boot idle thread does lazy MMU switching as well:

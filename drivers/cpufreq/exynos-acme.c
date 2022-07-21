@@ -938,7 +938,7 @@ static __init int init_table(struct exynos_cpufreq_domain *domain)
 	domain->freq_table[index].driver_data = index;
 	domain->freq_table[index].frequency = CPUFREQ_TABLE_END;
 
-	init_sched_energy_table(&domain->cpus, domain->table_size, table, volt_table,
+	ems_init_energy_table(&domain->cpus, domain->table_size, table, volt_table,
 				domain->max_freq, domain->min_freq);
 
 	kfree(volt_table);
@@ -1395,6 +1395,8 @@ static int __init exynos_cpufreq_init(void)
 
 		set_boot_qos(domain);
 	}
+
+	ems_set_energy_table_status(true);
 
 	pr_info("Initialized Exynos cpufreq driver\n");
 
