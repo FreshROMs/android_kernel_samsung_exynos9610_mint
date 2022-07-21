@@ -42,9 +42,6 @@ struct schedtune {
 	 * towards high performance CPUs */
 	int prefer_perf;
 
-	/* SchedTune util-est */
-	int util_est_en;
-
 #ifdef CONFIG_SCHED_EMS
 	/* Scheduling policy for given cgroup */
 	int sched_policy;
@@ -540,23 +537,6 @@ int schedtune_task_boost(struct task_struct *p)
 	return task_boost;
 }
 
-int schedtune_util_est_en(struct task_struct *p)
-{
-	struct schedtune *st;
-	int util_est_en;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get util_est value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	util_est_en = st->util_est_en;
-	rcu_read_unlock();
-
-	return util_est_en;
-}
-
 int schedtune_ontime_en(struct task_struct *p)
 {
 	struct schedtune *st;
@@ -607,24 +587,6 @@ int schedtune_prefer_perf(struct task_struct *p)
 	rcu_read_unlock();
 
 	return prefer_perf;
-}
-
-static u64
-util_est_en_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->util_est_en;
-}
-
-static int
-util_est_en_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 util_est_en)
-{
-	struct schedtune *st = css_st(css);
-	st->util_est_en = util_est_en;
-
-	return 0;
 }
 
 static u64
@@ -729,11 +691,6 @@ static struct cftype files[] = {
 		.write_u64 = sched_policy_write,
 	},
 #endif
-	{
-		.name = "util_est_en",
-		.read_u64 = util_est_en_read,
-		.write_u64 = util_est_en_write,
-	},
 	{
 		.name = "ontime_en",
 		.read_u64 = ontime_en_read,
