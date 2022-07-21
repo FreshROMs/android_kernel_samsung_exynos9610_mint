@@ -752,11 +752,6 @@ struct task_struct {
 	int victim_flag;
 #endif
 
-#ifdef CONFIG_SCHED_EMS
-	struct task_band *band;
-	struct list_head band_members;
-#endif
-
 #ifdef CONFIG_CGROUP_SCHED
 	struct task_group		*sched_task_group;
 #endif

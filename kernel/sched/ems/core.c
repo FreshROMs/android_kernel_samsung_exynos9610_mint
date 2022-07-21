@@ -277,13 +277,8 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	 * the utilization to determine which cpu the task will be assigned to.
 	 * Exclude new task.
 	 */
-	if (!(sd_flag & SD_BALANCE_FORK)) {
-		unsigned long old_util = task_util(p);
-
+	if (!(sd_flag & SD_BALANCE_FORK))
 		sync_entity_load_avg(&p->se);
-		/* update the band if a large amount of task util is decayed */
-		update_band(p, old_util);
-	}
 
 	target_cpu = select_service_cpu(p);
 	if (cpu_selected(target_cpu)) {
@@ -326,26 +321,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 3 : task band
-	 *
-	 * The tasks in a process are likely to interact, and its operations are
-	 * sequential and share resources. Therefore, if these tasks are packed and
-	 * and assign on a specific cpu or cluster, the latency for interaction
-	 * decreases and the reusability of the cache increases, thereby improving
-	 * performance.
-	 *
-	 * The "task band" is a function that groups tasks on a per-process basis
-	 * and assigns them to a specific cpu or cluster. If the attribute "band"
-	 * of schedtune.cgroup is set to '1', task band operate on this cgroup.
-	 */
-	target_cpu = band_play_cpu(p);
-	if (cpu_selected(target_cpu)) {
-		strcpy(state, "task band");
-		goto out;
-	}
-
-	/*
-	 * Priority 4 : global boosting
+	 * Priority 3 : global boosting
 	 *
 	 * Global boost is a function that preferentially assigns all tasks in the
 	 * system to the performance cpu. Unlike prefer-perf, which targets only
@@ -365,7 +341,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 5 : prefer-idle
+	 * Priority 4 : prefer-idle
 	 *
 	 * Prefer-idle is a function that operates on cgroup basis managed by
 	 * schedtune. When perfer-idle is set to 1, the tasks in the group are
@@ -381,7 +357,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 6 : energy cpu
+	 * Priority 5 : energy cpu
 	 *
 	 * A scheduling scheme based on cpu energy, find the least power consumption
 	 * cpu with energy table when assigning task.
@@ -393,7 +369,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 7 : proper cpu
+	 * Priority 6 : proper cpu
 	 *
 	 * If the task failed to find a cpu to assign from the above conditions,
 	 * it means that assigning task to any cpu does not have performance and

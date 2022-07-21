@@ -470,55 +470,6 @@ TRACE_EVENT(ems_cpu_active_ratio_util_stat,
 	TP_printk("cpu=%d part_util=%lu pelt_util=%lu", __entry->cpu, __entry->part_util, __entry->pelt_util)
 );
 
-TRACE_EVENT(ems_update_band,
-
-	TP_PROTO(int band_id, unsigned long band_util, int member_count, unsigned int playable_cpus),
-
-	TP_ARGS(band_id, band_util, member_count, playable_cpus),
-
-	TP_STRUCT__entry(
-		__field( int,		band_id			)
-		__field( unsigned long,	band_util		)
-		__field( int,		member_count		)
-		__field( unsigned int,	playable_cpus		)
-	),
-
-	TP_fast_assign(
-		__entry->band_id		= band_id;
-		__entry->band_util		= band_util;
-		__entry->member_count		= member_count;
-		__entry->playable_cpus		= playable_cpus;
-	),
-
-	TP_printk("band_id=%d band_util=%ld member_count=%d playable_cpus=%#x",
-			__entry->band_id, __entry->band_util, __entry->member_count,
-			__entry->playable_cpus)
-);
-
-TRACE_EVENT(ems_manage_band,
-
-	TP_PROTO(struct task_struct *p, int band_id, char *event),
-
-	TP_ARGS(p, band_id, event),
-
-	TP_STRUCT__entry(
-		__array( char,		comm,		TASK_COMM_LEN	)
-		__field( pid_t,		pid				)
-		__field( int,		band_id				)
-		__array( char,		event,		64		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid			= p->pid;
-		__entry->band_id		= band_id;
-		strncpy(__entry->event, event, 63);
-	),
-
-	TP_printk("comm=%s pid=%d band_id=%d event=%s",
-			__entry->comm, __entry->pid, __entry->band_id, __entry->event)
-);
-
 TRACE_EVENT(ems_prefer_perf_service,
 
 	TP_PROTO(struct task_struct *p, unsigned long util, int service_cpu, char *event),

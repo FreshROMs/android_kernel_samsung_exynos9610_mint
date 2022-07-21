@@ -21,21 +21,6 @@ struct gb_qos_request {
 	bool active;
 };
 
-#define LEAVE_BAND	0
-
-struct task_band {
-	int id;
-	pid_t tgid;
-	raw_spinlock_t lock;
-
-	struct list_head members;
-	int member_count;
-	struct cpumask playable_cpus;
-
-	unsigned long util;
-	unsigned long last_update_time;
-};
-
 struct rq;
 
 #ifdef CONFIG_SCHED_EMS
@@ -66,13 +51,6 @@ extern void update_lbt_overutil(int cpu, unsigned long capacity);
 
 /* global boost */
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
-
-/* task band */
-extern void sync_band(struct task_struct *p, bool join);
-extern void newbie_join_band(struct task_struct *newbie);
-extern int alloc_bands(void);
-extern void update_band(struct task_struct *p, long old_util);
-extern int band_playing(struct task_struct *p, int cpu);
 
 /* P.A.R.T */
 void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type);
@@ -115,17 +93,6 @@ static inline void update_lbt_overutil(int cpu, unsigned long capacity) { }
 
 static inline void gb_qos_update_request(struct gb_qos_request *req, u32 new_value) { }
 
-static inline void sync_band(struct task_struct *p, bool join) { }
-static inline void newbie_join_band(struct task_struct *newbie) { }
-static inline int alloc_bands(void)
-{
-	return 0;
-}
-static inline void update_band(struct task_struct *p, long old_util) { }
-static inline int band_playing(struct task_struct *p, int cpu)
-{
-	return 0;
-}
 static inline bool is_slowest_cpu(int cpu)
 {
 	return false;
