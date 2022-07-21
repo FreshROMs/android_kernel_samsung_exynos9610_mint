@@ -220,7 +220,7 @@ ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
 				}
 			} else {
 				/* 2. Find cpu that have to spare */
-				unsigned long new_util = task_util(p) + cpu_util_wake(i, p);
+				unsigned long new_util = task_util(p) + cpu_util_without(i, p);
 
 				if (new_util * 100 >= coverage_util)
 					continue;
@@ -655,7 +655,7 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 	 * If so, allow the task to be migrated.
 	 */
 	if (cpu_rq(src_cpu)->nr_running > 1) {
-		unsigned long cpu_util = cpu_util_wake(src_cpu, p);
+		unsigned long cpu_util = cpu_util_without(src_cpu, p);
 		unsigned long util = task_util(p);
 		unsigned long coverage_ratio = get_coverage_ratio(src_cpu);
 
