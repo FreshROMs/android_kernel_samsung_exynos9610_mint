@@ -115,8 +115,8 @@ int global_boosted(void)
 {
 	u64 now = ktime_to_us(ktime_get());
 
-	/* booting boost duration = 40s */
-	if (now < 40 * USEC_PER_SEC)
+	/* booting boost duration = 90s */
+	if (now < 90 * USEC_PER_SEC)
 		return 1;
 
 	return gb_qos_value() > 0;
