@@ -396,11 +396,13 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
-static inline int schedtune_adj_ta(struct task_struct *p)
+static inline int schedtune_adj_ta(struct task_struct *p, struct schedtune *st)
 {
-	struct schedtune *st;
 	char name_buf[NAME_MAX + 1];
 	int adj = p->signal->oom_score_adj;
+
+	if (!st)
+		return 0;
 
 	/* We only care about adj == 0 */
 	if (adj != 0)
@@ -410,7 +412,6 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 	if (p->flags & PF_KTHREAD)
 		return 0;
 
-	st = task_schedtune(p);
 	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
 	if (!strncmp(name_buf, "top-app", strlen("top-app"))) {
 		pr_debug("top app is %s with adj %i\n", p->comm, adj);
@@ -431,7 +432,7 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = max(st->boost, schedtune_adj_ta(p));
+	task_boost = max(st->boost, schedtune_adj_ta(p, st));
 	rcu_read_unlock();
 
 	return task_boost;
@@ -504,6 +505,25 @@ int schedtune_prefer_perf(struct task_struct *p)
 	rcu_read_unlock();
 
 	return prefer_perf;
+}
+
+int schedtune_ux_interaction(struct task_struct *p)
+{
+	struct schedtune *st;
+	int task_boost;
+	int prefer_high_cap;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get task boost value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	task_boost = schedtune_adj_ta(p, st);
+	prefer_high_cap = kpp_status(st->idx);
+	rcu_read_unlock();
+
+	return (task_boost == prefer_high_cap);
 }
 
 static u64
