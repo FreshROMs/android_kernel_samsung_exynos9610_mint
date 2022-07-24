@@ -544,6 +544,56 @@ TRACE_EVENT(ems_prefer_perf_service,
 	TP_printk("comm=%s pid=%d util=%lu service_cpu=%d event=%s",
 			__entry->comm, __entry->pid, __entry->util, __entry->service_cpu, __entry->event)
 );
+
+/*
+ * Tracepoint for frequency variant boost
+ */
+
+TRACE_EVENT(ems_freqvar_st_boost,
+
+	TP_PROTO(int cpu, int ratio),
+
+	TP_ARGS(cpu, ratio),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( int,		ratio			)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->ratio			= ratio;
+	),
+
+	TP_printk("cpu=%d ratio=%d", __entry->cpu, __entry->ratio)
+);
+TRACE_EVENT(ems_freqvar_boost,
+
+	TP_PROTO(int cpu, int ratio, unsigned long step_max_util,
+			unsigned long util, unsigned long boosted_util),
+
+	TP_ARGS(cpu, ratio, step_max_util, util, boosted_util),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( int,		ratio			)
+		__field( unsigned long,	step_max_util		)
+		__field( unsigned long,	util			)
+		__field( unsigned long,	boosted_util		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->ratio			= ratio;
+		__entry->step_max_util		= step_max_util;
+		__entry->util			= util;
+		__entry->boosted_util		= boosted_util;
+	),
+
+	TP_printk("cpu=%d ratio=%d step_max_util=%lu util=%lu boosted_util=%lu",
+		  __entry->cpu, __entry->ratio, __entry->step_max_util,
+		  __entry->util, __entry->boosted_util)
+);
 #endif /* _TRACE_EMS_H */
 
 /* This part must be outside protection */

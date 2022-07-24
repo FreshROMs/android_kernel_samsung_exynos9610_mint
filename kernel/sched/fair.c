@@ -34,6 +34,7 @@
 #include <linux/migrate.h>
 #include <linux/task_work.h>
 #include <linux/ems.h>
+#include <linux/ems_service.h>
 
 #include <trace/events/sched.h>
 
@@ -3012,11 +3013,6 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
 
 #define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
-#ifdef CONFIG_FREQVAR_TUNE
-extern unsigned long freqvar_boost_vector(int cpu, unsigned long util,
-						struct cfs_rq *cfs_rq);
-#endif
-
 /*
  * Accumulate the three separate parts of the sum; d1 the remainder
  * of the last (incomplete) period, d2 the span of full periods and d3
@@ -3047,11 +3043,7 @@ accumulate_sum(u64 delta, int cpu, struct sched_avg *sa,
 	u64 periods;
 
 	scale_freq = arch_scale_freq_capacity(NULL, cpu);
-#ifdef CONFIG_FREQVAR_TUNE
-	scale_cpu = freqvar_boost_vector(cpu, sa->util_avg, cfs_rq);
-#else
 	scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
-#endif
 
 	delta += sa->period_contrib;
 	periods = delta / 1024; /* A period is 1024us (~1ms) */
@@ -6750,7 +6742,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 struct reciprocal_value schedtune_spc_rdiv;
 
 long
-schedtune_margin(unsigned long signal, long boost)
+schedtune_margin(unsigned long capacity, unsigned long signal, long boost)
 {
 	long long margin = 0;
 
@@ -6759,11 +6751,11 @@ schedtune_margin(unsigned long signal, long boost)
 	 *
 	 * The Boost (B) value is used to compute a Margin (M) which is
 	 * proportional to the complement of the original Signal (S):
-	 *   M = B * (SCHED_CAPACITY_SCALE - S)
+	 *   M = B * (CAPACITY - S)
 	 * The obtained M could be used by the caller to "boost" S.
 	 */
 	if (boost >= 0) {
-		margin  = SCHED_CAPACITY_SCALE - signal;
+		margin  = capacity - signal;
 		margin *= boost;
 	} else
 		margin = -signal * boost;
@@ -6775,31 +6767,41 @@ schedtune_margin(unsigned long signal, long boost)
 	return margin;
 }
 
+extern DEFINE_PER_CPU(struct boost_groups, cpu_boost_groups);
+extern unsigned long freqvar_st_boost_vector(int cpu);
 static inline int
 schedtune_cpu_margin(unsigned long util, int cpu)
 {
-	int boost = schedtune_cpu_boost(cpu);
+	int fv_boost = 0, boost = schedtune_cpu_boost(cpu);
+	struct boost_groups *bg = &per_cpu(cpu_boost_groups, cpu);
+	unsigned long capacity;
 
 	if (boost == 0)
 		return 0;
 
-	return schedtune_margin(util, boost);
+	capacity = capacity_orig_of(cpu);
+
+	if (bg->group[STUNE_TOPAPP].tasks)
+		fv_boost = freqvar_st_boost_vector(cpu);
+
+	if (fv_boost > boost)
+		boost = fv_boost;
+
+	return schedtune_margin(capacity, util, boost);
 }
 
 static inline long
 schedtune_task_margin(struct task_struct *task)
 {
 	int boost = schedtune_task_boost(task);
-	unsigned long util;
-	long margin;
+	unsigned long util, capacity;
 
 	if (boost == 0)
 		return 0;
 
+	capacity = capacity_orig_of(task_cpu(task));
 	util = task_util_est(task);
-	margin = schedtune_margin(util, boost);
-
-	return margin;
+	return schedtune_margin(capacity, util, boost);
 }
 
 #else /* CONFIG_SCHED_TUNE */

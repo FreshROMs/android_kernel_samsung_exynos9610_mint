@@ -319,11 +319,11 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 }
 
 #ifdef CONFIG_FREQVAR_TUNE
-unsigned int freqvar_tipping_point(int cpu, unsigned int freq);
+unsigned long freqvar_boost_vector(int cpu, unsigned long util);
 #else
-static inline unsigned int freqvar_tipping_point(int cpu, unsigned int freq)
+static inline unsigned long freqvar_boost_vector(int cpu, unsigned long util)
 {
-	return  freq + (freq >> 2);
+	return util;
 }
 #endif
 
@@ -372,7 +372,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	RV_DECLARE(rv);
 #endif
 
-	freq = freqvar_tipping_point(policy->cpu, freq) * util / max;
+	freq = (freq + (freq >> 2)) * util / max;
 
 #ifdef CONFIG_SCHED_FFSI_GLUE
 	legacy_freq = freq;
@@ -439,6 +439,7 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
 	*util = boosted_cpu_util(cpu);
+	*util = freqvar_boost_vector(cpu, *util);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 

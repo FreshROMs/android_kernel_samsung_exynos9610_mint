@@ -72,6 +72,25 @@ unsigned int get_cpu_max_capacity(unsigned int cpu)
 	return table->states[table->nr_states - 1].cap;
 }
 
+unsigned long get_freq_cap(unsigned int cpu, unsigned long freq)
+{
+	struct energy_table *table = &per_cpu(energy_table, cpu);
+	struct energy_state *state = NULL;
+	int i;
+
+	for (i = 0; i < table->nr_states; i++) {
+		if (table->states[i].frequency >= freq) {
+			state = &table->states[i];
+			break;
+		}
+	}
+
+	if (!state)
+		return 0;
+
+	return state->cap;
+}
+
 /*
  * When choosing cpu considering energy efficiency, decide best cpu and
  * backup cpu according to policy, and then choose cpu which consumes the

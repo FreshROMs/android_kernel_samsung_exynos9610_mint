@@ -43,6 +43,7 @@ extern unsigned long cpu_util_wake(int cpu, struct task_struct *p);
 extern unsigned long task_util_est(struct task_struct *p);
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned int get_cpu_max_capacity(unsigned int cpu);
+extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 
 extern unsigned long boosted_task_util(struct task_struct *p);
 
@@ -52,3 +53,5 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 {
 	return container_of(se, struct task_struct, se);
 }
+
+extern unsigned long freqvar_st_boost_vector(int cpu);
