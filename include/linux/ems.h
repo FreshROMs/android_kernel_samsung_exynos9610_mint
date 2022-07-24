@@ -36,6 +36,8 @@ struct task_band {
 	unsigned long last_update_time;
 };
 
+struct rq;
+
 #ifdef CONFIG_SCHED_EMS
 extern struct kobject *ems_kobj;
 extern unsigned int get_cpu_max_capacity(unsigned int cpu);
@@ -71,6 +73,12 @@ extern void newbie_join_band(struct task_struct *newbie);
 extern int alloc_bands(void);
 extern void update_band(struct task_struct *p, long old_util);
 extern int band_playing(struct task_struct *p, int cpu);
+
+/* P.A.R.T */
+void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type);
+void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu);
+void set_part_period_start(struct rq *rq);
+extern void init_part(void);
 
 extern const struct cpumask *cpu_slowest_mask(void);
 extern const struct cpumask *cpu_fastest_mask(void);
@@ -122,6 +130,10 @@ static inline bool is_slowest_cpu(int cpu)
 {
 	return false;
 }
+/* P.A.R.T */
+static inline void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type) { }
+static inline void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu) { }
+static inline void set_part_period_start(struct rq *rq) { }
 #endif /* CONFIG_SCHED_EMS */
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL

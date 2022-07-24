@@ -392,6 +392,83 @@ TRACE_EVENT(ems_lbt_overutilized,
 		__entry->cpu, __entry->level, __entry->util,
 		__entry->capacity, __entry->overutilized)
 );
+TRACE_EVENT(ems_cpu_active_ratio_patten,
+
+	TP_PROTO(int cpu, int p_count, int p_avg, int p_stdev),
+
+	TP_ARGS(cpu, p_count, p_avg, p_stdev),
+
+	TP_STRUCT__entry(
+		__field( int,	cpu				)
+		__field( int,	p_count				)
+		__field( int,	p_avg				)
+		__field( int,	p_stdev				)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->p_count		= p_count;
+		__entry->p_avg			= p_avg;
+		__entry->p_stdev		= p_stdev;
+	),
+
+	TP_printk("cpu=%d p_count=%2d p_avg=%4d p_stdev=%4d",
+		__entry->cpu, __entry->p_count, __entry->p_avg, __entry->p_stdev)
+);
+
+TRACE_EVENT(ems_cpu_active_ratio,
+
+	TP_PROTO(int cpu, struct part *pa, char *event),
+
+	TP_ARGS(cpu, pa, event),
+
+	TP_STRUCT__entry(
+		__field( int,	cpu				)
+		__field( u64,	start				)
+		__field( int,	recent				)
+		__field( int,	last				)
+		__field( int,	avg				)
+		__field( int,	max				)
+		__field( int,	est				)
+		__array( char,	event,		64		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->start			= pa->period_start;
+		__entry->recent			= pa->active_ratio_recent;
+		__entry->last			= pa->hist[pa->hist_idx];
+		__entry->avg			= pa->active_ratio_avg;
+		__entry->max			= pa->active_ratio_max;
+		__entry->est			= pa->active_ratio_est;
+		strncpy(__entry->event, event, 63);
+	),
+
+	TP_printk("cpu=%d start=%llu recent=%4d last=%4d avg=%4d max=%4d est=%4d event=%s",
+		__entry->cpu, __entry->start, __entry->recent, __entry->last,
+		__entry->avg, __entry->max, __entry->est, __entry->event)
+);
+
+TRACE_EVENT(ems_cpu_active_ratio_util_stat,
+
+	TP_PROTO(int cpu, unsigned long part_util, unsigned long pelt_util),
+
+	TP_ARGS(cpu, part_util, pelt_util),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu					)
+		__field( unsigned long,	part_util				)
+		__field( unsigned long,	pelt_util				)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->part_util		= part_util;
+		__entry->pelt_util		= pelt_util;
+	),
+
+	TP_printk("cpu=%d part_util=%lu pelt_util=%lu", __entry->cpu, __entry->part_util, __entry->pelt_util)
+);
 
 TRACE_EVENT(ems_update_band,
 

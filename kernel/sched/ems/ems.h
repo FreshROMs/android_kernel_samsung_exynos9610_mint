@@ -46,6 +46,8 @@ extern unsigned int get_cpu_max_capacity(unsigned int cpu);
 
 extern unsigned long boosted_task_util(struct task_struct *p);
 
+extern void init_part(void);
+
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
 	return container_of(se, struct task_struct, se);
