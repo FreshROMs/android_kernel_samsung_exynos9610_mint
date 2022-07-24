@@ -41,6 +41,21 @@
 	} \
 }
 
+#define set_qos_dma_latency(req, pm_qos_class, value) { \
+    if(!value){ \
+		if (pm_qos_request_active(req)) {\
+			pr_booster("[Input Booster2] %s      pm_qos_dma_latency_update_request : %d\n", glGage, value); \
+			pm_qos_update_request(req, (value == 0) ? 100 : value); \
+		} else { \
+			pr_booster("[Input Booster2] %s      pm_qos_dma_latency_add_request : %d\n", glGage, value); \
+			pm_qos_add_request(req, pm_qos_class, (value == 0) ? 100 : value); \
+		} \
+	} else { \
+		pr_booster("[Input Booster2] %s      remove_qos_dma_latency\n", glGage); \
+		remove_qos(req); \
+	} \
+}
+
 #define remove_qos(req) { \
 	if (pm_qos_request_active(req)) \
 		pm_qos_remove_request(req); \
@@ -105,6 +120,7 @@ static struct kpp kpp_fg;
 	set_qos(&_this->kfc_qos, PM_QOS_CLUSTER0_FREQ_MIN/*PM_QOS_KFC_FREQ_MIN*/, _this->param[_this->index].kfc_freq);  \
 	set_qos(&_this->mif_qos, PM_QOS_BUS_THROUGHPUT, _this->param[_this->index].mif_freq);  \
 	set_qos(&_this->int_qos, PM_QOS_DEVICE_THROUGHPUT, _this->param[_this->index].int_freq);  \
+	set_qos_dma_latency(&_this->dms_latency_qos, PM_QOS_CPU_DMA_LATENCY, _this->param[_this->index].dma_latency);  \
 }
 #define REMOVE_BOOSTER  { \
 	int value = INPUT_BOOSTER_NULL; \
