@@ -199,8 +199,7 @@ struct cpu_env {
 	unsigned int exit_latency;
 };
 
-static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask,
-		unsigned long task_util)
+static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct task_struct *p)
 {
 	struct cpuidle_state *state = NULL;
 	unsigned long min_util = ULONG_MAX;
@@ -211,10 +210,12 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask,
 	/* Find energy efficient cpu in each coregroup. */
 	for_each_cpu_and(cpu, mask, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long util = cpu_util(cpu);
+		unsigned long new_util = cpu_util(cpu) + task_util_est(p);
+
+		new_util = max(new_util, boosted_task_util(p));
 
 		/* Skip over-capacity cpu */
-		if (util + task_util > capacity_orig)
+		if (new_util > capacity_orig)
 			continue;
 
 		/*
@@ -222,8 +223,8 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask,
 		 * Choosing a min util cpu is most likely to handle
 		 * wake-up task without increasing the frequecncy.
 		 */
-		if (util < min_util) {
-			min_util = util;
+		if (new_util < min_util) {
+			min_util = new_util;
 			min_util_cpu = cpu;
 			idle_idx = idle_get_state_idx(cpu_rq(cpu));
 		}
@@ -241,7 +242,6 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask,
 
 static int select_eco_cpu(struct eco_env *eenv)
 {
-	unsigned long task_util = task_util_est(eenv->p);
 	unsigned long best_util = ULONG_MAX;
 	unsigned int best_energy = UINT_MAX;
 	unsigned int prev_energy;
@@ -277,7 +277,7 @@ static int select_eco_cpu(struct eco_env *eenv)
 		 * Select the best target, which is expected to consume the
 		 * lowest energy among the min util cpu for each coregroup.
 		 */
-		find_min_util_cpu(&cenv, &mask, task_util);
+		find_min_util_cpu(&cenv, &mask, eenv->p);
 		if (cpu_selected(cenv.cpu)) {
 			unsigned int energy = calculate_energy(eenv->p, cenv.cpu);
 
