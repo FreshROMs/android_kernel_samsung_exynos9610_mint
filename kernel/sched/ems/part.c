@@ -38,7 +38,7 @@ char *part_policy_name[] = {
 };
 
 static __read_mostly unsigned int part_policy_idx = PART_POLICY_MAX_RECENT_LAST;
-static __read_mostly u64 period_size = 8 * NSEC_PER_MSEC;
+static __read_mostly u64 period_size = 6 * NSEC_PER_MSEC;
 static __read_mostly u64 period_hist_size = 10;
 static __read_mostly int high_patten_thres = 700;
 static __read_mostly int high_patten_stdev = 200;
@@ -46,7 +46,7 @@ static __read_mostly int low_patten_count = 3;
 static __read_mostly int low_patten_thres = 1024;
 static __read_mostly int low_patten_stdev = 200;
 
-static __read_mostly u64 boost_interval = 16 * NSEC_PER_MSEC;
+static __read_mostly u64 boost_interval = 12 * NSEC_PER_MSEC;
 
 /********************************************************/
 /*		  Helper funcition			*/
