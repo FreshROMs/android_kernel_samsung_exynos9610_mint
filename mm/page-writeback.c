@@ -72,7 +72,7 @@ static long ratelimit_pages = 32;
  * Start background writeback (via writeback threads) at this percentage
  */
 #ifdef CONFIG_LARGE_DIRTY_BUFFER
-int dirty_background_ratio = 5;
+int dirty_background_ratio = 10;
 #else
 int dirty_background_ratio;
 #endif
@@ -115,14 +115,14 @@ unsigned long vm_dirty_bytes = 50 * 1024 * 1024;
 /*
  * The interval between `kupdate'-style writebacks
  */
-unsigned int dirty_writeback_interval = 5 * 100; /* centiseconds */
+unsigned int dirty_writeback_interval = 30 * 100; /* centiseconds */
 
 EXPORT_SYMBOL_GPL(dirty_writeback_interval);
 
 /*
  * The longest time for which data is allowed to remain dirty
  */
-unsigned int dirty_expire_interval = 60 * 100; /* centiseconds */
+unsigned int dirty_expire_interval = 15 * 100; /* centiseconds */
 
 /*
  * Flag that makes the machine dump writes/reads and block dirtyings.
