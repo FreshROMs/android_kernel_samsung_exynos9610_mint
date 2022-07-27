@@ -216,6 +216,10 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
 
+		/* Skip non-preemptible CPUs */
+		if (!is_slowest_cpu(cpu) && !is_cpu_preemptible(p, -1, cpu, 0))
+			continue;
+
 		/*
 		 * Choose min util cpu within coregroup as candidates.
 		 * Choosing a min util cpu is most likely to handle
