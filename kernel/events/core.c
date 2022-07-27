@@ -465,7 +465,7 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
+int sysctl_perf_cpu_time_max_percent __read_mostly = 5;
 
 int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 				void __user *buffer, size_t *lenp,
