@@ -380,6 +380,7 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
+#define SYSTEMUI_THREAD_NAME "ndroid.systemui"
 static inline int schedtune_adj_ta(struct task_struct *p, struct schedtune *st)
 {
 	char name_buf[NAME_MAX + 1];
@@ -389,7 +390,7 @@ static inline int schedtune_adj_ta(struct task_struct *p, struct schedtune *st)
 		return 0;
 
 	/* We only care about adj == 0 */
-	if (adj != 0)
+	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
 	/* Don't touch kthreads */
