@@ -5,6 +5,7 @@
  * Park Bumgyu <bumgyu.park@samsung.com>
  */
 
+#include <linux/cpuidle.h>
 #include <trace/events/ems.h>
 
 #include "ems.h"
@@ -24,7 +25,7 @@ int select_perf_cpu(struct task_struct *p)
 	unsigned long best_wake_util = ULONG_MAX;
 	unsigned long best_active_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
-	int best_perf_cstate = INT_MAX;
+	unsigned int min_exit_latency = UINT_MAX;
 	int best_perf_cpu = -1;
 	int best_active_cpu = -1;
 	int backup_cpu = -1;
@@ -53,36 +54,34 @@ int select_perf_cpu(struct task_struct *p)
 		 * shallowest idle state for fast reactivity.
 		 */
 		if (idle_cpu(cpu)) {
-			int idle_idx = idle_get_state_idx(cpu_rq(cpu));
+			struct cpuidle_state *idle;
 
 			/* find biggest capacity cpu */
 			if (capacity_orig < best_perf_cap_orig)
 				continue;
 
-			/*
-			 * if we find a better-performing cpu, re-initialize
-			 * best_perf_util and best_perf_cstate
-			 */
-			if (capacity_orig > best_perf_cap_orig) {
-				best_perf_cap_orig = capacity_orig;
-				best_perf_util = wake_util;
-				best_perf_cstate = idle_idx;
+			idle = idle_get_state(cpu_rq(cpu));
+
+			if (!idle) {
 				best_perf_cpu = cpu;
 				continue;
 			}
 
 			/* find shallowest idle state cpu */
-			if (idle_idx > best_perf_cstate)
+			if (capacity_orig == best_perf_cap_orig &&
+				idle->exit_latency > min_exit_latency)
 				continue;
 
 			/* if same cstate, select lower util */
-			if (idle_idx == best_perf_cstate &&
+			if (capacity_orig == best_perf_cap_orig &&
+				idle->exit_latency == min_exit_latency &&
 				wake_util >= best_perf_util)
 				continue;
 
 			/* Keep track of best idle CPU */
+			best_perf_cap_orig = capacity_orig;
 			best_perf_util = wake_util;
-			best_perf_cstate = idle_idx;
+			min_exit_latency = idle->exit_latency;
 			best_perf_cpu = cpu;
 			continue;
 		}
