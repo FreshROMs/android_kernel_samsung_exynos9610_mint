@@ -192,6 +192,10 @@ bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync)
 #ifdef CONFIG_SCHED_TUNE
 	struct task_struct *curr = READ_ONCE(rq->curr);
 
+	/* allow sync wakeups for boosted tasks */
+	if (sync && schedtune_task_boost(p) > 0)
+		return true;
+
 	if (is_slowest_cpu(cpu) || !curr)
 		goto skip_ux;
 
