@@ -11,6 +11,7 @@
 
 #include "ems.h"
 #include "../sched.h"
+#include "../tune.h"
 
 /*
  * The compute capacity, power consumption at this compute capacity and
@@ -205,6 +206,7 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 	unsigned long min_util = ULONG_MAX;
 	int idle_idx = INT_MAX;
 	int min_util_cpu = -1;
+	bool boosted = schedtune_task_boost(p) > 0;
 	int cpu;
 
 	/* Find energy efficient cpu in each coregroup. */
@@ -216,8 +218,9 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
 
-		/* Skip non-preemptible CPUs */
-		if (!is_slowest_cpu(cpu) && !is_cpu_preemptible(p, -1, cpu, 0))
+		/* Skip non-preemptible CPUs for non-boosted tasks */
+		if (!boosted && !is_slowest_cpu(cpu) &&
+			!is_cpu_preemptible(p, -1, cpu, 0))
 			continue;
 
 		/*
