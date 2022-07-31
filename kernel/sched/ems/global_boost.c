@@ -122,10 +122,10 @@ int global_boosted(void)
 	return gb_qos_value() > 0;
 }
 
-int global_boosting(struct task_struct *p)
+int global_boosting(struct eco_env *eenv)
 {
 	if (!global_boosted())
 		return -1;
 
-	return select_perf_cpu(p);
+	return select_perf_cpu(eenv);
 }

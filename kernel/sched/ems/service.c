@@ -102,7 +102,7 @@ static struct prefer_perf *find_prefer_perf(int boost)
 }
 
 static int
-select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *prefer_cpus)
+select_prefer_cpu(struct eco_env *eenv, int coregroup_count, struct cpumask *prefer_cpus)
 {
 	struct cpumask mask;
 	int coregroup, cpu;
@@ -112,9 +112,6 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 	int best_active_cpu = -1;
 	int best_perf_cpu = -1;
 	int backup_cpu = -1;
-
-	unsigned long task_util = task_util_est(p);
-	unsigned long boosted_util = boosted_task_util(p);
 
 	rcu_read_lock();
 
@@ -128,7 +125,7 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 		    is_slowest_cpu(cpumask_first(&mask)))
 			continue;
 
-		for_each_cpu_and(cpu, &p->cpus_allowed, &mask) {
+		for_each_cpu_and(cpu, tsk_cpus_allowed(eenv->p), &mask) {
 			unsigned long spare_cap;
 			unsigned long capacity_curr;
 			unsigned long capacity_orig;
@@ -136,9 +133,9 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 			unsigned long new_util;
 
 			capacity_orig = capacity_orig_of(cpu);
-			wake_util = cpu_util_without(cpu, p);
-			new_util = wake_util + task_util;
-			new_util = max(new_util, boosted_util);
+			wake_util = cpu_util_without(cpu, eenv->p);
+			new_util = wake_util + eenv->task_util;
+			new_util = max(new_util, eenv->min_util);
 
 			/* Skip over-capacity cpu */
 			if (capacity_orig < new_util)
@@ -189,7 +186,7 @@ select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *pr
 	return best_perf_cpu;
 }
 
-int select_service_cpu(struct task_struct *p)
+int select_service_cpu(struct eco_env *eenv)
 {
 	struct prefer_perf *pp;
 	int boost, service_cpu;
@@ -198,7 +195,7 @@ int select_service_cpu(struct task_struct *p)
 	if (!prefer_perf_services)
 		return -1;
 
-	boost = schedtune_prefer_high_cap(p);
+	boost = eenv->prefer_high_cap;
 	if (boost <= 0)
 		return -1;
 
@@ -206,15 +203,15 @@ int select_service_cpu(struct task_struct *p)
 	if (!pp)
 		return -1;
 
-	if (p->prio <= 110) {
-		service_cpu = select_prefer_cpu(p, 1, pp->prefer_cpus);
+	if ((eenv->p)->prio <= 110) {
+		service_cpu = select_prefer_cpu(eenv, 1, pp->prefer_cpus);
 		strcpy(state, "high-prio task");
 	} else {
-		service_cpu = select_prefer_cpu(p, pp->coregroup_count, pp->prefer_cpus);
+		service_cpu = select_prefer_cpu(eenv, pp->coregroup_count, pp->prefer_cpus);
 		strcpy(state, "heavy task");
 	}
 
-	trace_ems_prefer_perf_service(p, -1, service_cpu, state);
+	trace_ems_prefer_perf_service(eenv->p, -1, service_cpu, state);
 	return service_cpu;
 }
 

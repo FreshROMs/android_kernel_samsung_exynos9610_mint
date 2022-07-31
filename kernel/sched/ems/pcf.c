@@ -17,7 +17,7 @@
  * capacity. Although the current algorithm may suffice, it is necessary to
  * examine a selection algorithm considering cache hot and migration cost.
  */
-int select_perf_cpu(struct task_struct *p)
+int select_perf_cpu(struct eco_env *eenv)
 {
 	int cpu;
 	unsigned long best_perf_cap_orig = 0;
@@ -32,12 +32,12 @@ int select_perf_cpu(struct task_struct *p)
 
 	rcu_read_lock();
 
-	for_each_cpu_and(cpu, &p->cpus_allowed, cpu_active_mask) {
+	for_each_cpu_and(cpu, tsk_cpus_allowed(eenv->p), cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long new_util, spare_cap, wake_util = cpu_util_without(cpu, p);
+		unsigned long new_util, spare_cap, wake_util = cpu_util_without(cpu, eenv->p);
 
-		new_util = wake_util + task_util_est(p);
-		new_util = max(new_util, boosted_task_util(p));
+		new_util = wake_util + eenv->task_util;
+		new_util = max(new_util, eenv->min_util);
 
 		/* Skip over-capacity cpu */
 		if (lbt_util_bring_overutilize(cpu, new_util))
@@ -123,7 +123,7 @@ int select_perf_cpu(struct task_struct *p)
 	if (!cpu_selected(best_active_cpu))
 		best_active_cpu = backup_cpu;
 
-	trace_ems_select_perf_cpu(p, best_perf_cpu, best_active_cpu);
+	trace_ems_select_perf_cpu(eenv->p, best_perf_cpu, best_active_cpu);
 
 	if (best_perf_cpu == -1)
 		return best_active_cpu;

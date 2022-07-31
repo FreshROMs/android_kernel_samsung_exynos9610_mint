@@ -21,12 +21,13 @@
  * If the prefger_perf of the group to which the task belongs is set, the task
  * is assigned to the performance cpu preferentially.
  */
-int prefer_perf_cpu(struct task_struct *p)
+inline
+int prefer_perf_cpu(struct eco_env *eenv)
 {
-	if (schedtune_prefer_perf(p) <= 0)
+	if (eenv->prefer_perf <= 0)
 		return -1;
 
-	return select_perf_cpu(p);
+	return select_perf_cpu(eenv);
 }
 
 /**********************************************************************
@@ -102,7 +103,7 @@ static bool mark_lowest_util_cpu(int cpu, unsigned long wake_util, unsigned long
 	return true;
 }
 
-static int select_idle_cpu(struct task_struct *p)
+static int select_idle_cpu(struct eco_env *eenv)
 {
 	unsigned long lowest_idle_util = ULONG_MAX;
 	unsigned long highest_spare_util = 0;
@@ -116,7 +117,7 @@ static int select_idle_cpu(struct task_struct *p)
 	int target_cpu = -1;
 	int cpu;
 	int i;
-	bool boosted = schedtune_task_boost(p) > 0;
+	bool boosted = (eenv->boost > 0);
 	char state[30] = "prev_cpu";
 
 	if (boosted)
@@ -126,18 +127,18 @@ static int select_idle_cpu(struct task_struct *p)
 		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
 			continue;
 
-		for_each_cpu_and(i, tsk_cpus_allowed(p), cpu_coregroup_mask(cpu)) {
+		for_each_cpu_and(i, tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)) {
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long new_util, wake_util;
 
-			wake_util = cpu_util_without(i, p);
-			new_util = wake_util + task_util_est(p);
-			new_util = max(new_util, boosted_task_util(p));
+			wake_util = cpu_util_without(i, eenv->p);
+			new_util = wake_util + eenv->task_util;
+			new_util = max(new_util, eenv->min_util);
 
 			if (lbt_util_bring_overutilize(cpu, new_util))
 				continue;
 
-			trace_ems_prefer_idle(p, task_cpu(p), i, capacity_orig, task_util_est(p),
+			trace_ems_prefer_idle(eenv->p, eenv->prev_cpu, i, capacity_orig, eenv->task_util,
 							new_util, idle_cpu(i));
 
 			/* Priority #1 : idle cpu with lowest util */
@@ -173,17 +174,18 @@ static int select_idle_cpu(struct task_struct *p)
 		}
 	}
 
-	target_cpu = !cpu_selected(target_cpu) ? task_cpu(p) : target_cpu;
+	target_cpu = !cpu_selected(target_cpu) ? eenv->prev_cpu : target_cpu;
 
-	trace_ems_select_idle_cpu(p, target_cpu, state);
+	trace_ems_select_idle_cpu(eenv->p, target_cpu, state);
 
 	return target_cpu;
 }
 
-int prefer_idle_cpu(struct task_struct *p)
+inline
+int prefer_idle_cpu(struct eco_env *eenv)
 {
-	if (schedtune_prefer_idle(p) <= 0)
+	if (eenv->prefer_idle <= 0)
 		return -1;
 
-	return select_idle_cpu(p);
+	return select_idle_cpu(eenv);
 }

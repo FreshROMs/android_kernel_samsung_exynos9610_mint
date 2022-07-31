@@ -92,16 +92,6 @@ unsigned long get_freq_cap(unsigned int cpu, unsigned long freq)
 	return state->cap;
 }
 
-/*
- * When choosing cpu considering energy efficiency, decide best cpu and
- * backup cpu according to policy, and then choose cpu which consumes the
- * least energy including prev cpu.
- */
-struct eco_env {
-	struct task_struct *p;
-	int prev_cpu;
-};
-
 static unsigned long normalized_util(unsigned long util, unsigned long capacity)
 {
 	if (util >= capacity)
@@ -200,19 +190,19 @@ struct cpu_env {
 	unsigned int exit_latency;
 };
 
-static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct task_struct *p)
+static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct eco_env *eenv)
 {
 	struct cpuidle_state *state = NULL;
 	unsigned long min_util = ULONG_MAX;
 	int idle_idx = INT_MAX;
 	int min_util_cpu = -1;
-	bool boosted = schedtune_task_boost(p) > 0;
+	bool boosted = (eenv->boost > 0);
 	int cpu;
 
 	/* Find energy efficient cpu in each coregroup. */
 	for_each_cpu_and(cpu, mask, cpu_active_mask) {
-		unsigned long new_util = cpu_util_without(cpu, p) + task_util_est(p);
-		new_util = max(new_util, boosted_task_util(p));
+		unsigned long new_util = cpu_util_without(cpu, eenv->p) + eenv->task_util;
+		new_util = max(new_util, eenv->min_util);
 
 		/* Skip over-capacity cpu */
 		if (lbt_util_bring_overutilize(cpu, new_util))
@@ -220,7 +210,7 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 
 		/* Skip non-preemptible CPUs for non-boosted tasks */
 		if (!boosted && !is_slowest_cpu(cpu) &&
-			!is_cpu_preemptible(p, -1, cpu, 0))
+			!is_cpu_preemptible(eenv->p, -1, cpu, 0))
 			continue;
 
 		/*
@@ -278,7 +268,7 @@ static int select_eco_cpu(struct eco_env *eenv)
 		 * Select the best target, which is expected to consume the
 		 * lowest energy among the min util cpu for each coregroup.
 		 */
-		find_min_util_cpu(&cenv, &mask, eenv->p);
+		find_min_util_cpu(&cenv, &mask, eenv);
 		if (cpu_selected(cenv.cpu)) {
 			unsigned int energy = calculate_energy(eenv->p, cenv.cpu);
 
@@ -337,14 +327,10 @@ energy_cpu_found:
 	return eco_cpu;
 }
 
-int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
+int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync)
 {
 	struct sched_domain *sd = NULL;
 	int cpu = smp_processor_id();
-	struct eco_env eenv = {
-		.p = p,
-		.prev_cpu = prev_cpu,
-	};
 
 	if (!sched_feat(ENERGY_AWARE))
 		return -1;
@@ -354,7 +340,7 @@ int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync
 	 * energy gain.
 	 */
 	rcu_read_lock();
-	sd = rcu_dereference_sched(cpu_rq(prev_cpu)->sd);
+	sd = rcu_dereference_sched(cpu_rq(eenv->prev_cpu)->sd);
 	if (!sd || sd->shared->overutilized) {
 		rcu_read_unlock();
 		return -1;
@@ -366,12 +352,12 @@ int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync
 	 * with 0 utilization, so let them be placed according to the normal
 	 * strategy.
 	 */
-	if (!task_util(p))
+	if (!task_util(eenv->p))
 		return -1;
 
 	if (sysctl_sched_sync_hint_enable && sync)
-		if (cpumask_test_cpu(cpu, &p->cpus_allowed) &&
-		    is_cpu_preemptible(p, prev_cpu, cpu, sync))
+		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(eenv->p)) &&
+		    is_cpu_preemptible(eenv->p, eenv->prev_cpu, cpu, sync))
 			return cpu;
 
 	/*
@@ -379,7 +365,7 @@ int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync
 	 * After selecting the best cpu according to strategy,
 	 * we choose a cpu that is energy efficient compared to prev cpu.
 	 */
-	return select_eco_cpu(&eenv);
+	return select_eco_cpu(eenv);
 }
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL

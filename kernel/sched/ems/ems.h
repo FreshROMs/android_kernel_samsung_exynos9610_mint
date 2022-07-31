@@ -18,21 +18,40 @@
 
 extern struct kobject *ems_kobj;
 
-extern int select_service_cpu(struct task_struct *p);
+/*
+ * When choosing cpu considering energy efficiency, decide best cpu and
+ * backup cpu according to policy, and then choose cpu which consumes the
+ * least energy including prev cpu.
+ */
+struct eco_env {
+    struct task_struct *p;
+    unsigned long task_util;
+    unsigned long min_util;
+
+    /* schedtune */
+    int boost;
+    int prefer_idle;
+    int prefer_perf;
+    int prefer_high_cap;
+
+    /* previous cpu */
+    int prev_cpu;
+};
+
+extern int select_service_cpu(struct eco_env *eenv);
 extern int ontime_task_wakeup(struct task_struct *p, int sync);
-extern int select_perf_cpu(struct task_struct *p);
-extern int global_boosting(struct task_struct *p);
+extern int select_perf_cpu(struct eco_env *eenv);
+extern int global_boosting(struct eco_env *eenv);
 extern int global_boosted(void);
-extern int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync);
+extern int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync);
 extern unsigned int calculate_energy(struct task_struct *p, int target_cpu);
 
 #ifdef CONFIG_SCHED_TUNE
-extern int prefer_perf_cpu(struct task_struct *p);
-extern int prefer_idle_cpu(struct task_struct *p);
-extern int group_balancing(struct task_struct *p);
+extern int prefer_perf_cpu(struct eco_env *eenv);
+extern int prefer_idle_cpu(struct eco_env *eenv);
 #else
-static inline int prefer_perf_cpu(struct task_struct *p) { return -1; }
-static inline int prefer_idle_cpu(struct task_struct *p) { return -1; }
+static inline int prefer_perf_cpu(struct eco_env *eenv) { return -1; }
+static inline int prefer_idle_cpu(struct eco_env *eenv) { return -1; }
 #endif
 
 extern bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync);
