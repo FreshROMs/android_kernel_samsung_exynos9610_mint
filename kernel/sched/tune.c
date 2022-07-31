@@ -497,25 +497,6 @@ int schedtune_prefer_high_cap(struct task_struct *p)
 	return prefer_high_cap;
 }
 
-int schedtune_ux_interaction(struct task_struct *p)
-{
-	struct schedtune *st;
-	int task_boost;
-	int prefer_high_cap;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get task boost value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	task_boost = schedtune_adj_ta(p, st);
-	prefer_high_cap = kpp_status(st->idx);
-	rcu_read_unlock();
-
-	return (task_boost == prefer_high_cap);
-}
-
 static u64
 ontime_en_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
