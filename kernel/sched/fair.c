@@ -8901,7 +8901,7 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 #ifdef CONFIG_SCHED_TUNE
 	if (smaller_cpu_capacity(env->dst_cpu, env->src_cpu) &&
-	    schedtune_prefer_perf(p))
+	    (schedtune_prefer_perf(p) || schedtune_prefer_high_cap(p)))
 		return 0;
 #endif
 
