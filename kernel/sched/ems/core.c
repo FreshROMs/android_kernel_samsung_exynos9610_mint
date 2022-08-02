@@ -322,8 +322,6 @@ static int select_proper_cpu(struct eco_env *eenv)
 	return cpu_selected(best_cpu) ? best_cpu : eenv->prev_cpu;
 }
 
-extern void sync_entity_load_avg(struct sched_entity *se);
-
 int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
 {
 	int target_cpu = -1;
@@ -341,14 +339,6 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 
 		.prev_cpu = prev_cpu,
 	};
-
-	/*
-	 * Since the utilization of a task is accumulated before sleep, it updates
-	 * the utilization to determine which cpu the task will be assigned to.
-	 * Exclude new task.
-	 */
-	if (!(sd_flag & SD_BALANCE_FORK))
-		sync_entity_load_avg(&p->se);
 
 	target_cpu = select_service_cpu(&eenv);
 	if (cpu_selected(target_cpu)) {

@@ -8056,6 +8056,14 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int target_cpu;
 
 	if (sched_feat(EXYNOS_MS)) {
+		/*
+		 * Since the utilization of a task is accumulated before sleep, it updates
+		 * the utilization to determine which cpu the task will be assigned to.
+		 * Exclude new task.
+		 */
+		if (!(sd_flag & SD_BALANCE_FORK))
+			sync_entity_load_avg(&p->se);
+
 		target_cpu = exynos_wakeup_balance(p, prev_cpu, sd_flag, sync);
 		if (target_cpu >= 0)
 			return target_cpu;
