@@ -23,15 +23,13 @@ struct mcs_spinlock {
 
 #ifndef arch_mcs_spin_lock_contended
 /*
- * Using smp_cond_load_acquire() provides the acquire semantics
- * required so that subsequent operations happen after the
- * lock is acquired. Additionally, some architectures such as
- * ARM64 would like to do spin-waiting instead of purely
- * spinning, and smp_cond_load_acquire() provides that behavior.
+ * Using smp_load_acquire() provides a memory barrier that ensures
+ * subsequent operations happen after the lock is acquired.
  */
 #define arch_mcs_spin_lock_contended(l)					\
 do {									\
-	smp_cond_load_acquire(l, VAL);					\
+	while (!(smp_load_acquire(l)))					\
+		cpu_relax();						\
 } while (0)
 #endif
 
