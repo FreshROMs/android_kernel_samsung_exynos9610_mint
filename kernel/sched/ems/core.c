@@ -215,20 +215,15 @@ skip_ux:
 static int select_proper_cpu(struct eco_env *eenv)
 {
 	int cpu;
-	unsigned long best_spare_util = 0;
-	unsigned long target_capacity = ULONG_MAX;
 	unsigned long best_active_util = ULONG_MAX;
 	unsigned long best_idle_util = ULONG_MAX;
 	int best_idle_cstate = INT_MAX;
+
 	int best_active_cpu = -1;
 	int best_idle_cpu = -1;
 	int best_cpu = -1;
 
-	bool boosted = (eenv->boost > 0);
 	bool prefer_idle = (eenv->prefer_idle > 0);
-
-	if (boosted)
-		target_capacity = 0;
 
 	for_each_cpu(cpu, cpu_active_mask) {
 		int i;
@@ -242,37 +237,25 @@ static int select_proper_cpu(struct eco_env *eenv)
 			continue;
 
 		for_each_cpu_and(i, tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)) {
-			unsigned long capacity_orig = capacity_orig_of(i);
-			unsigned long wake_util, new_util, spare_util;
-
-			/* Favor CPUs with smaller capacity for non latency sensitive tasks. */
-			if (!boosted &&
-				capacity_orig > target_capacity)
-				continue;
-
-			if (boosted &&
-				capacity_orig < target_capacity)
-				continue;
+			unsigned long wake_util, new_util;
 
 			wake_util = cpu_util_without(i, eenv->p);
 			new_util = wake_util + eenv->task_util;
 			new_util = max(new_util, eenv->min_util);
 
 			/* skip over-capacity cpu */
-			if (new_util >= capacity_orig)
+			if (new_util > capacity_orig_of(i))
 				continue;
 
 			if (idle_cpu(i)) {
 				int idle_idx = idle_get_state_idx(cpu_rq(i));
 
 				/* find shallowest idle state cpu */
-				if (capacity_orig == target_capacity &&
-					idle_idx > best_idle_cstate)
+				if (idle_idx > best_idle_cstate)
 					continue;
 
 				/* if same cstate, select lower util */
-				if (capacity_orig == target_capacity &&
-					idle_idx == best_idle_cstate &&
+				if (idle_idx == best_idle_cstate &&
 				    (best_idle_cpu == eenv->prev_cpu ||
 				    (i != eenv->prev_cpu &&
 				    new_util >= best_idle_util)))
@@ -295,22 +278,29 @@ static int select_proper_cpu(struct eco_env *eenv)
 			 * with smallest cpapacity or highest spare capacity
 			 * and the least utilization among cpus that fits the task.
 			 */
-			spare_util = capacity_orig - new_util;
-			if (capacity_orig == target_capacity &&
-				spare_util <= best_spare_util)
+			if (new_util > best_active_util)
 				continue;
 
 			best_active_util = new_util;
-			best_spare_util = spare_util;
 			best_active_cpu = i;
 		}
-	}
 
-	best_cpu = best_active_cpu;
+		/*
+		 * if it fails to find the best cpu in this coregroup, visit next
+		 * coregroup.
+		 */
+		if (cpu_selected(best_active_cpu))
+			best_cpu = best_active_cpu;
 
-	if (best_idle_cpu != -1) {
-		if (prefer_idle || !cpu_selected(best_active_cpu) || !is_cpu_preemptible(eenv->p, -1, best_active_cpu, 0))
-			best_cpu = best_idle_cpu;
+		if (cpu_selected(best_idle_cpu)) {
+			if (prefer_idle || !cpu_selected(best_cpu) ||
+				(!is_slowest_cpu(best_active_cpu) && !is_cpu_preemptible(eenv->p, -1, best_active_cpu, 0))) {
+				best_cpu = best_idle_cpu;
+			}
+		}
+
+		if (cpu_selected(best_cpu))
+			break;
 	}
 
 	trace_ems_select_proper_cpu(eenv->p, best_cpu,
@@ -336,7 +326,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		.boost = schedtune_task_boost(p),
 		.prefer_idle = schedtune_prefer_idle(p),
 		.prefer_perf = schedtune_prefer_perf(p),
-		.prefer_high_cap = schedtune_prefer_high_cap(p),
+		.prefer_high_cap = schedtune_prefer_high_cap(p, 0),
 
 		.prev_cpu = prev_cpu,
 	};

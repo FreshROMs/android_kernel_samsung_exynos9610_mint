@@ -194,9 +194,17 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 {
 	struct cpuidle_state *state = NULL;
 	unsigned long min_util = ULONG_MAX;
+	unsigned long min_wake_util = ULONG_MAX;
+	unsigned long min_active_util = ULONG_MAX;
 	int idle_idx = INT_MAX;
+	int best_idle_cstate = INT_MAX;
+
+	int best_idle_cpu = -1;
 	int min_util_cpu = -1;
-	bool boosted = (eenv->boost > 0);
+	int best_cpu = -1;
+
+	bool prefer_idle = (eenv->prefer_idle > 0);
+
 	int cpu;
 
 	/* Find energy efficient cpu in each coregroup. */
@@ -208,29 +216,59 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
 
-		/* Skip non-preemptible CPUs for non-boosted tasks */
-		if (!boosted && !is_slowest_cpu(cpu) &&
-			!is_cpu_preemptible(eenv->p, -1, cpu, 0))
+		if (idle_cpu(cpu)) {
+			int idle_cstate = idle_get_state_idx(cpu_rq(cpu));
+
+			/* find shallowest idle state cpu */
+			if (idle_cstate > best_idle_cstate)
+				continue;
+
+			/* if same cstate, select lower util */
+			if (idle_cstate == best_idle_cstate &&
+				(best_idle_cpu == eenv->prev_cpu ||
+				(cpu != eenv->prev_cpu &&
+				new_util >= min_wake_util)))
+				continue;
+
+			/* Keep track of best idle CPU */
+			best_idle_cstate = idle_cstate;
+			min_wake_util = new_util;
+			best_idle_cpu = cpu;
 			continue;
+		}
 
 		/*
 		 * Choose min util cpu within coregroup as candidates.
 		 * Choosing a min util cpu is most likely to handle
 		 * wake-up task without increasing the frequecncy.
 		 */
-		if (new_util < min_util) {
-			min_util = new_util;
+		if (new_util < min_active_util) {
+			min_active_util = new_util;
 			min_util_cpu = cpu;
-			idle_idx = idle_get_state_idx(cpu_rq(cpu));
 		}
 	}
 
-	if (cpu_selected(min_util_cpu))
-		state = idle_get_state(cpu_rq(min_util_cpu));
+	if (cpu_selected(min_util_cpu)) {
+		best_cpu = min_util_cpu;
+		min_util = min_active_util;
+	}
 
-	cenv->cpu = min_util_cpu;
-	cenv->util = !cpu_selected(min_util_cpu) ? min_util
-		: normalized_util(min_util, capacity_orig_of(min_util_cpu));
+	if (best_idle_cpu != -1) {
+		if (prefer_idle || !cpu_selected(best_cpu) ||
+			(!is_slowest_cpu(min_util_cpu) && !is_cpu_preemptible(eenv->p, -1, min_util_cpu, 0))) {
+			best_cpu = best_idle_cpu;
+			min_util = min_wake_util;
+		}
+	}
+
+	if (cpu_selected(best_cpu)) {
+		idle_idx = idle_get_state_idx(cpu_rq(best_cpu));
+		state = idle_get_state(cpu_rq(best_cpu));
+	}
+
+	cenv->cpu = best_cpu;
+	cenv->util = !cpu_selected(best_cpu) ? min_util
+		: normalized_util(min_util, capacity_orig_of(best_cpu));
 	cenv->idle_idx = idle_idx;
 	cenv->exit_latency = state ? state->exit_latency : UINT_MAX;
 }
