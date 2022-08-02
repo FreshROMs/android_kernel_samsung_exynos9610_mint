@@ -87,6 +87,22 @@ bool lbt_overutilized(int cpu, int level)
 	return overutilized;
 }
 
+bool lbt_util_overutilized(int cpu)
+{
+	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);
+	int last;
+
+	if (!ou)
+		return false;
+
+	last = get_last_level(ou);
+
+	if (cpu_util(cpu) > ou[last].capacity)
+		return true;
+
+	return false;
+}
+
 bool lbt_bring_overutilize(int cpu, struct task_struct *p)
 {
 	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);

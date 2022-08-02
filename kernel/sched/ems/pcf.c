@@ -125,8 +125,12 @@ int select_perf_cpu(struct eco_env *eenv)
 
 	trace_ems_select_perf_cpu(eenv->p, best_perf_cpu, best_active_cpu);
 
-	if (best_perf_cpu == -1)
-		return best_active_cpu;
+	if (!cpu_selected(best_perf_cpu))
+		best_perf_cpu = best_active_cpu;
+
+	/* Return the previous CPU if CPU is not overutilized */
+	if (!cpu_selected(best_perf_cpu) && !lbt_util_overutilized(eenv->prev_cpu))
+		return eenv->prev_cpu;
 
 	return best_perf_cpu;
 }

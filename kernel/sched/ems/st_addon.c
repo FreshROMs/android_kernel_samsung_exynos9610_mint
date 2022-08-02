@@ -174,7 +174,9 @@ static int select_idle_cpu(struct eco_env *eenv)
 		}
 	}
 
-	target_cpu = !cpu_selected(target_cpu) ? eenv->prev_cpu : target_cpu;
+	/* Return the previous CPU if CPU is not overutilized */
+	if (!cpu_selected(target_cpu) && !lbt_util_overutilized(eenv->prev_cpu))
+		target_cpu = eenv->prev_cpu;
 
 	trace_ems_select_idle_cpu(eenv->p, target_cpu, state);
 
