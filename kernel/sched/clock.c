@@ -388,7 +388,7 @@ void sched_clock_tick(void)
 	if (unlikely(!sched_clock_running))
 		return;
 
-	lockdep_assert_irqs_disabled();
+	WARN_ON_ONCE(!irqs_disabled());
 
 	scd = this_scd();
 	__scd_stamp(scd);

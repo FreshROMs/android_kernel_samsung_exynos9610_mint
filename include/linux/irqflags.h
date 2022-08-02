@@ -50,24 +50,6 @@ do {						\
 	crossrelease_hist_end(XHLOCK_SOFT);	\
 } while (0)
 # define INIT_TRACE_IRQFLAGS	.softirqs_enabled = 1,
-
-# define lockdep_hrtimer_enter(__hrtimer)		\
-({							\
-	bool __expires_hardirq = true;			\
-							\
-	if (!__hrtimer->is_hard) {			\
-		current->irq_config = 1;		\
-		__expires_hardirq = false;		\
-	}						\
-	__expires_hardirq;				\
-})
-
-# define lockdep_hrtimer_exit(__expires_hardirq)	\
-	do {						\
-		if (!__expires_hardirq)			\
-			current->irq_config = 0;	\
-	} while (0)
-
 #else
 # define trace_hardirqs_on()		do { } while (0)
 # define trace_hardirqs_off()		do { } while (0)
@@ -83,8 +65,6 @@ do {						\
 # define lockdep_softirq_enter()	do { } while (0)
 # define lockdep_softirq_exit()		do { } while (0)
 # define INIT_TRACE_IRQFLAGS
-# define lockdep_hrtimer_enter(__hrtimer)	false
-# define lockdep_hrtimer_exit(__context)	do { } while (0)
 #endif
 
 #if defined(CONFIG_IRQSOFF_TRACER) || \
