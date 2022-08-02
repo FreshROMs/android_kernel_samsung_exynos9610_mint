@@ -23,12 +23,15 @@ struct plist_head kpp_list[STUNE_GROUP_COUNT];
 
 static bool kpp_en;
 
-int kpp_status(int grp_idx)
+int kpp_status(int grp_idx, int ta_only)
 {
 	if (unlikely(!kpp_en))
 		return 0;
 
 	if (grp_idx >= STUNE_GROUP_COUNT)
+		return -EINVAL;
+
+	if (ta_only && grp_idx != STUNE_TOPAPP)
 		return -EINVAL;
 
 	if (plist_head_empty(&kpp_list[grp_idx]))
@@ -222,7 +225,7 @@ static ssize_t show_kpp(struct kobject *kobj,
 
 	/* shows the prefer_perf value of all schedtune groups */
 	for (i = 0; i < STUNE_GROUP_COUNT; i++)
-		ret += snprintf(buf + ret, 10, "%d ", kpp_status(i));
+		ret += snprintf(buf + ret, 10, "%d ", kpp_status(i, 0));
 
 	ret += snprintf(buf + ret, 10, "\n");
 

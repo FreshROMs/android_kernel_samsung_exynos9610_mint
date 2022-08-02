@@ -199,7 +199,8 @@ bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync)
 	if (is_slowest_cpu(cpu) || !curr)
 		goto skip_ux;
 
-	if (schedtune_prefer_high_cap(curr) > 0)
+	/* Check if 'curr' is a high-cap top-app task */
+	if (schedtune_prefer_high_cap(curr, 1) > 0)
 		return false;
 
 skip_ux:

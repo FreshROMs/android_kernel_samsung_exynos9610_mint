@@ -28,9 +28,9 @@ struct kpp {
 
 #ifdef CONFIG_SCHED_EMS
 /* prefer perf */
-extern int kpp_status(int grp_idx);
+extern int kpp_status(int grp_idx, int ta_only);
 extern void kpp_request(int grp_idx, struct kpp *req, int value);
 #else
-static inline int kpp_status(int grp_idx) { return 0; }
+static inline int kpp_status(int grp_idx, int ta_only) { return 0; }
 static inline void kpp_request(int grp_idx, struct kpp *req, int value) { }
 #endif
