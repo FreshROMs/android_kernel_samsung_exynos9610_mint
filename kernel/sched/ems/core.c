@@ -217,6 +217,7 @@ static int select_proper_cpu(struct eco_env *eenv)
 	int cpu;
 	unsigned long best_active_util = ULONG_MAX;
 	unsigned long best_idle_util = ULONG_MAX;
+	unsigned long target_capacity = ULONG_MAX;
 	int best_idle_cstate = INT_MAX;
 
 	int best_active_cpu = -1;
@@ -237,7 +238,15 @@ static int select_proper_cpu(struct eco_env *eenv)
 			continue;
 
 		for_each_cpu_and(i, tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)) {
+			unsigned long cpu_capacity = get_cpu_max_capacity(cpu);
 			unsigned long wake_util, new_util;
+
+			/*
+			 * Skip processing placement further if we are visiting
+			 * cpus with lower capacity than start cpu
+			 */
+			if (cpu_capacity < eenv->start_cpu_cap)
+				continue;
 
 			wake_util = cpu_util_without(i, eenv->p);
 			new_util = wake_util + eenv->task_util;
@@ -251,17 +260,20 @@ static int select_proper_cpu(struct eco_env *eenv)
 				int idle_idx = idle_get_state_idx(cpu_rq(i));
 
 				/* find shallowest idle state cpu */
-				if (idle_idx > best_idle_cstate)
+				if (cpu_capacity >= target_capacity &&
+				    idle_idx > best_idle_cstate)
 					continue;
 
 				/* if same cstate, select lower util */
-				if (idle_idx == best_idle_cstate &&
+				if (cpu_capacity >= target_capacity &&
+				    idle_idx == best_idle_cstate &&
 				    (best_idle_cpu == eenv->prev_cpu ||
 				    (i != eenv->prev_cpu &&
 				    new_util >= best_idle_util)))
 					continue;
 
 				/* Keep track of best idle CPU */
+				target_capacity = cpu_capacity;
 				best_idle_cstate = idle_idx;
 				best_idle_util = new_util;
 				best_idle_cpu = i;
@@ -278,9 +290,11 @@ static int select_proper_cpu(struct eco_env *eenv)
 			 * with smallest cpapacity or highest spare capacity
 			 * and the least utilization among cpus that fits the task.
 			 */
-			if (new_util > best_active_util)
+			if (cpu_capacity >= target_capacity &&
+				new_util > best_active_util)
 				continue;
 
+			target_capacity = cpu_capacity;
 			best_active_util = new_util;
 			best_active_cpu = i;
 		}
@@ -357,6 +371,9 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		.prefer_idle = schedtune_prefer_idle(p),
 		.prefer_perf = sched_prefer_perf,
 		.prefer_high_cap = schedtune_prefer_high_cap(p, 0),
+
+		.start_cpu = sched_start_cpu,
+		.start_cpu_cap = get_cpu_max_capacity(sched_start_cpu),
 
 		.prev_cpu = prev_cpu,
 	};

@@ -34,6 +34,10 @@ struct eco_env {
     int prefer_perf;
     int prefer_high_cap;
 
+    /* start cpu */
+    int start_cpu;
+    unsigned long start_cpu_cap;
+
     /* previous cpu */
     int prev_cpu;
 };

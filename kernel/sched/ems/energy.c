@@ -303,6 +303,13 @@ static int select_eco_cpu(struct eco_env *eenv)
 			continue;
 
 		/*
+		* Skip processing placement further if we are visiting
+		* cpus with lower capacity than start cpu
+		*/
+		if (get_cpu_max_capacity(cpumask_first(&mask)) < eenv->start_cpu_cap)
+			continue;
+
+		/*
 		 * Select the best target, which is expected to consume the
 		 * lowest energy among the min util cpu for each coregroup.
 		 */
