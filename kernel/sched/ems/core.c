@@ -313,24 +313,81 @@ static int select_proper_cpu(struct eco_env *eenv)
 	return cpu_selected(best_cpu) ? best_cpu : eenv->prev_cpu;
 }
 
+static
+int start_cpu(struct task_struct *p, unsigned long task_util, int prefer_perf) {
+	struct cpumask active_fast_mask;
+	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
+
+	/* Get all active fast CPUs */
+	cpumask_and(&active_fast_mask, cpu_fastest_mask(), cpu_active_mask);
+
+	/* Start with fast CPU if available, task is allowed to be placed, and matches criteria */
+	if (!cpumask_empty(&active_fast_mask) && cpumask_intersects(tsk_cpus_allowed(p), &active_fast_mask)) {
+		/* Return fast CPU if task is prefer_perf */
+		if (prefer_perf)
+			return cpumask_first(&active_fast_mask);
+
+		/* 
+		 * Check if task can be placed on big cluster and
+		 * fits slowest CPU. Return fast if overutil.
+		 */
+		if ((task_util * 100 >= get_cpu_max_capacity(start_cpu) * 61))
+			return cpumask_first(&active_fast_mask);
+	}
+
+	/* If task does not match criteria, return slowest CPU */
+	return start_cpu;
+}
+
 int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
 {
 	int target_cpu = -1;
 	char state[30] = "fail";
 
+	unsigned long sched_task_util = task_util_est(p);
+	int sched_prefer_perf = schedtune_prefer_perf(p);
+	int sched_start_cpu = start_cpu(p, sched_task_util, sched_prefer_perf);
+
 	struct eco_env eenv = {
 		.p = p,
-		.task_util = task_util_est(p),
+		.task_util = sched_task_util,
 		.min_util = boosted_task_util(p),
 
 		.boost = schedtune_task_boost(p),
 		.prefer_idle = schedtune_prefer_idle(p),
-		.prefer_perf = schedtune_prefer_perf(p),
+		.prefer_perf = sched_prefer_perf,
 		.prefer_high_cap = schedtune_prefer_high_cap(p, 0),
 
 		.prev_cpu = prev_cpu,
 	};
 
+	/* 
+	 * Priority 1: fast prev_cpu path
+	 *
+	 * Do not migrate task if prev_cpu is shallow idle, and has same capacity
+	 * as start_cpu. This is the highest priority to avoid scheduling from the
+	 * slow path if not needed.
+	 *
+	 */
+	if (cpu_active(prev_cpu) && idle_cpu(prev_cpu) &&
+		(eenv.start_cpu_cap == get_cpu_max_capacity(prev_cpu))) {
+		if (idle_get_state_idx(cpu_rq(prev_cpu)) <= 1) {
+			target_cpu = prev_cpu;
+			strcpy(state, "fast path");
+			goto out;
+		}
+	}
+
+	/*
+	 * Priority 2 : service task
+	 *
+	 * Service selection is a function that operates on cgroup basis managed by
+	 * schedtune. When perfer-high-cap is set to 1, the tasks in the group are
+	 * placed onto big cluster cpu.
+	 *
+	 * It has a high priority because it is a function that is turned on
+	 * temporarily in scenario requiring reactivity(touch, app laucning).
+	 */
 	target_cpu = select_service_cpu(&eenv);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "service");
@@ -338,7 +395,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 1 : ontime task
+	 * Priority 3 : ontime task
 	 *
 	 * If task which has more utilization than threshold wakes up, the task is
 	 * classified as "ontime task" and assigned to performance cpu. Conversely,
@@ -356,14 +413,11 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 2 : prefer-perf
+	 * Priority 4 : prefer-perf
 	 *
 	 * Prefer-perf is a function that operates on cgroup basis managed by
 	 * schedtune. When perfer-perf is set to 1, the tasks in the group are
 	 * preferentially assigned to the performance cpu.
-	 *
-	 * It has a high priority because it is a function that is turned on
-	 * temporarily in scenario requiring reactivity(touch, app laucning).
 	 */
 	target_cpu = prefer_perf_cpu(&eenv);
 	if (cpu_selected(target_cpu)) {
@@ -372,7 +426,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 3 : global boosting
+	 * Priority 5 : global boosting
 	 *
 	 * Global boost is a function that preferentially assigns all tasks in the
 	 * system to the performance cpu. Unlike prefer-perf, which targets only
@@ -392,7 +446,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 4 : prefer-idle
+	 * Priority 6 : prefer-idle
 	 *
 	 * Prefer-idle is a function that operates on cgroup basis managed by
 	 * schedtune. When perfer-idle is set to 1, the tasks in the group are
@@ -408,7 +462,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 5 : energy cpu
+	 * Priority 7 : energy cpu
 	 *
 	 * A scheduling scheme based on cpu energy, find the least power consumption
 	 * cpu with energy table when assigning task.
@@ -420,7 +474,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 6 : proper cpu
+	 * Priority 8 : proper cpu
 	 *
 	 * If the task failed to find a cpu to assign from the above conditions,
 	 * it means that assigning task to any cpu does not have performance and
