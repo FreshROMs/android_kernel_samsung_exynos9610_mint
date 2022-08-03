@@ -250,6 +250,7 @@ static int select_proper_cpu(struct eco_env *eenv)
 
 			wake_util = cpu_util_without(i, eenv->p);
 			new_util = wake_util + eenv->task_util;
+			new_util += cpu_rq(i)->rt.avg.util_avg;
 			new_util = max(new_util, eenv->min_util);
 
 			/* skip over-capacity cpu */
