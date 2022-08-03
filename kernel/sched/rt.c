@@ -2704,7 +2704,7 @@ static int find_idle_cpu(struct rt_env *renv)
 			cpu_load = frt_cpu_util_wake(cpu, renv->p) + renv->task_util;
 			cpu_load = max(cpu_load, renv->min_util);
 
-			if (cpu_load > capacity_orig_of(cpu))
+			if (cpu_load * 100 > capacity_orig_of(cpu) * 90)
 				continue;
 
 			if ((cpu_prio > max_prio)
@@ -2760,7 +2760,7 @@ static int find_recessive_cpu(struct rt_env *renv)
 			cpu_load = frt_cpu_util_wake(cpu, renv->p) + renv->task_util;
 			cpu_load = max(cpu_load, renv->min_util);
 
-			if (cpu_load > capacity_orig_of(cpu))
+			if (cpu_load * 100 > capacity_orig_of(cpu) * 90)
 				continue;
 
 			if (cpu_load < min_load ||
