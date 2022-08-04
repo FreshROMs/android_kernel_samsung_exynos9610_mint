@@ -24,6 +24,7 @@ int select_perf_cpu(struct eco_env *eenv)
 	unsigned long best_perf_util = ULONG_MAX;
 	unsigned long best_wake_util = ULONG_MAX;
 	unsigned long best_active_util = ULONG_MAX;
+	unsigned long best_active_cuml_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
 	unsigned int min_exit_latency = UINT_MAX;
 	int best_perf_cpu = -1;
@@ -34,7 +35,7 @@ int select_perf_cpu(struct eco_env *eenv)
 
 	for_each_cpu_and(cpu, tsk_cpus_allowed(eenv->p), cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long new_util, spare_cap, wake_util = cpu_util_without(cpu, eenv->p);
+		unsigned long new_util, new_util_cuml, spare_cap, wake_util = cpu_util_without(cpu, eenv->p);
 
 		new_util = wake_util + eenv->task_util;
 		new_util = max(new_util, eenv->min_util);
@@ -42,6 +43,10 @@ int select_perf_cpu(struct eco_env *eenv)
 		/* Skip over-capacity cpu */
 		if (lbt_util_bring_overutilize(cpu, new_util))
 			continue;
+
+		new_util_cuml = cpu_util(cpu) + eenv->min_util;
+		if (task_in_cum_window_demand(cpu_rq(cpu), eenv->p))
+			new_util_cuml -= eenv->task_util;
 
 		/*
 		 * A) Find best performance cpu.
@@ -109,12 +114,21 @@ int select_perf_cpu(struct eco_env *eenv)
 		
 		if (wake_util > best_wake_util)
 			continue;
-
 		if (new_util > best_active_util)
+			continue;
+
+		/*
+		 * If utilization is the same between CPUs,
+		 * break the ties with cumulative demand,
+		 * also prefer lower order cpu.
+		 */
+		if (new_util == best_active_util &&
+			new_util_cuml >= best_active_cuml_util)
 			continue;
 
 		best_wake_util = wake_util;
 		best_active_util = new_util;
+		best_active_cuml_util = new_util_cuml;
 		backup_cpu = cpu;
 	}
 

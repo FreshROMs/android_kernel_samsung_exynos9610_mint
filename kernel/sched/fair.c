@@ -8928,6 +8928,19 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 		env->flags |= LBF_SOME_PINNED;
 
+		if (energy_aware() && !sd_overutilized(env->sd) &&
+		    env->idle == CPU_NEWLY_IDLE) {
+			long util_cum_dst, util_cum_src;
+			unsigned long demand;
+
+			demand = task_util(p);
+			util_cum_dst = cpu_util(env->dst_cpu) + demand;
+			util_cum_src = cpu_util(env->src_cpu) - demand;
+
+			if (util_cum_dst > util_cum_src)
+				return 0;
+		}
+
 		/*
 		 * Remember if this task can be migrated to any other cpu in
 		 * our sched_group. We may want to revisit it if we couldn't

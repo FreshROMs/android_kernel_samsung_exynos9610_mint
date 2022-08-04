@@ -60,7 +60,7 @@ static bool mark_lowest_idle_util_cpu(int cpu, unsigned long new_util, unsigned 
 }
 
 static bool mark_highest_spare_cpu(int cpu, unsigned long new_util, unsigned long capacity_orig,
-			unsigned long *target_capacity, int *highest_spare_cpu, unsigned long *highest_spare_util, int boosted)
+			unsigned long *target_capacity, int *highest_spare_cpu, unsigned long *highest_spare_util, bool boosted)
 {
 	unsigned long spare_util;
 
@@ -87,8 +87,8 @@ static bool mark_highest_spare_cpu(int cpu, unsigned long new_util, unsigned lon
 	return true;
 }
 
-static bool mark_lowest_util_cpu(int cpu, unsigned long wake_util, unsigned long new_util,
-			int *lowest_util_cpu, unsigned long *lowest_wake_util, unsigned long *lowest_util)
+static bool mark_lowest_util_cpu(int cpu, unsigned long wake_util, unsigned long new_util, unsigned long new_util_cuml,
+			int *lowest_util_cpu, unsigned long *lowest_wake_util, unsigned long *lowest_util, unsigned long *lowest_util_cuml)
 {
 	if (wake_util > *lowest_wake_util)
 		return false;
@@ -96,8 +96,18 @@ static bool mark_lowest_util_cpu(int cpu, unsigned long wake_util, unsigned long
 	if (new_util > *lowest_util)
 		return false;
 
+	/*
+	 * If utilization is the same between CPUs,
+	 * break the ties with cumulative demand,
+	 * also prefer lower order cpu.
+	 */
+	if (new_util == *lowest_util &&
+		new_util_cuml >= *lowest_util_cuml)
+		return false;
+
 	*lowest_util = new_util;
 	*lowest_wake_util = wake_util;
+	*lowest_util_cuml = new_util_cuml;
 	*lowest_util_cpu = cpu;
 
 	return true;
@@ -108,6 +118,7 @@ static int select_idle_cpu(struct eco_env *eenv)
 	unsigned long lowest_idle_util = ULONG_MAX;
 	unsigned long highest_spare_util = 0;
 	unsigned long lowest_wake_util = ULONG_MAX;
+	unsigned long lowest_util_cuml = ULONG_MAX;
 	unsigned long lowest_util = ULONG_MAX;
 	unsigned long target_capacity = ULONG_MAX;
 	int lowest_idle_cstate = INT_MAX;
@@ -129,7 +140,7 @@ static int select_idle_cpu(struct eco_env *eenv)
 
 		for_each_cpu_and(i, tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)) {
 			unsigned long capacity_orig = capacity_orig_of(i);
-			unsigned long new_util, wake_util;
+			unsigned long new_util, wake_util, new_util_cuml;
 
 			wake_util = cpu_util_without(i, eenv->p);
 			new_util = wake_util + eenv->task_util;
@@ -137,6 +148,10 @@ static int select_idle_cpu(struct eco_env *eenv)
 
 			if (lbt_util_bring_overutilize(cpu, new_util))
 				continue;
+			
+			new_util_cuml = cpu_util(cpu) + eenv->min_util;
+			if (task_in_cum_window_demand(cpu_rq(cpu), eenv->p))
+				new_util_cuml -= eenv->task_util;
 
 			trace_ems_prefer_idle(eenv->p, eenv->prev_cpu, i, capacity_orig, eenv->task_util,
 							new_util, idle_cpu(i));
@@ -152,8 +167,8 @@ static int select_idle_cpu(struct eco_env *eenv)
 				continue;
 
 			/* Priority #3 : active cpu with lowest util */
-			mark_lowest_util_cpu(i, wake_util, new_util,
-				&lowest_util_cpu, &lowest_wake_util, &lowest_util);
+			mark_lowest_util_cpu(i, wake_util, new_util, new_util_cuml,
+				&lowest_util_cpu, &lowest_wake_util, &lowest_util, &lowest_util_cuml);
 		}
 
 		if (cpu_selected(lowest_idle_cpu)) {
