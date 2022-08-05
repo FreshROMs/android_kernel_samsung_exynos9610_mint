@@ -146,7 +146,7 @@ static int select_idle_cpu(struct eco_env *eenv)
 			new_util = wake_util + eenv->task_util;
 			new_util = max(new_util, eenv->min_util);
 
-			if (lbt_util_bring_overutilize(cpu, new_util))
+			if (new_util > capacity_orig)
 				continue;
 			
 			new_util_cuml = cpu_util(cpu) + eenv->min_util;

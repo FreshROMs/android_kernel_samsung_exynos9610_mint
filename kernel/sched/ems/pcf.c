@@ -41,7 +41,7 @@ int select_perf_cpu(struct eco_env *eenv)
 		new_util = max(new_util, eenv->min_util);
 
 		/* Skip over-capacity cpu */
-		if (lbt_util_bring_overutilize(cpu, new_util))
+		if (new_util > capacity_orig)
 			continue;
 
 		new_util_cuml = cpu_util(cpu) + eenv->min_util;

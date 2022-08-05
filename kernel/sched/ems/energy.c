@@ -213,7 +213,7 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 		new_util = max(new_util, eenv->min_util);
 
 		/* Skip over-capacity cpu */
-		if (lbt_util_bring_overutilize(cpu, new_util))
+		if (new_util > capacity_orig_of(cpu))
 			continue;
 
 		if (idle_cpu(cpu)) {
