@@ -76,7 +76,5 @@ static inline struct task_struct *task_of(struct sched_entity *se)
 }
 
 extern bool lbt_util_overutilized(int cpu);
-extern bool lbt_bring_overutilize(int cpu, struct task_struct *p);
-extern bool lbt_util_bring_overutilize(int cpu, unsigned long util);
 
 extern unsigned long freqvar_st_boost_vector(int cpu);
