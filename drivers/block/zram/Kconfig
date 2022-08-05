@@ -57,7 +57,7 @@ config ZRAM_ENTROPY
 config ZRAM_ENTROPY_THRESHOLD
 	int
 	depends on ZRAM && ZRAM_ENTROPY
-	default 100000
+	default 90000
 	help
 	  Pages with entropy above ZRAM_ENTROPY_THRESHOLD will be stored
 	  uncompressed. The default value was chosen as a result a lot of
