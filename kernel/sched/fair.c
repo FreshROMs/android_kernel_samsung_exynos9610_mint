@@ -3230,7 +3230,7 @@ __update_load_avg_se(u64 now, int cpu, struct cfs_rq *cfs_rq, struct sched_entit
 	if (___update_load_avg(now, cpu, &se->avg,
 			       se->on_rq * scale_load_down(se->load.weight),
 			       cfs_rq->curr == se, NULL, NULL)) {
-		if (entity_is_task(se))
+		if (entity_is_task(se) && schedtune_util_est_en(task_of(se)))
 			cfs_se_util_change(&se->avg);
 
 #ifdef UTIL_EST_DEBUG
@@ -3808,11 +3808,12 @@ static inline unsigned long task_util(struct task_struct *p)
 	return READ_ONCE(p->se.avg.util_avg);
 }
 
-static inline unsigned long _task_util_est(struct task_struct *p)
+inline unsigned long _task_util_est(struct task_struct *p)
 {
 	struct util_est ue = READ_ONCE(p->se.avg.util_est);
 
-	return max(ue.ewma, ue.enqueued);
+	return schedtune_util_est_en(p) ? max(ue.ewma, ue.enqueued)
+					: task_util(p);
 }
 
 inline unsigned long task_util_est(struct task_struct *p)
@@ -3822,7 +3823,8 @@ inline unsigned long task_util_est(struct task_struct *p)
 		return (p->ravg.demand /
 			(walt_ravg_window >> SCHED_CAPACITY_SHIFT));
 #endif
-	return max(READ_ONCE(p->se.avg.util_avg), _task_util_est(p));
+	return schedtune_util_est_en(p) ? max(READ_ONCE(p->se.avg.util_avg), _task_util_est(p))
+					: task_util(p);
 }
 
 static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
@@ -3878,6 +3880,9 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	 * yet completed an activation, e.g. being migrated.
 	 */
 	if (!task_sleep)
+		return;
+
+	if (!schedtune_util_est_en(p))
 		return;
 
 	/*
