@@ -122,6 +122,7 @@ int global_boosted(void)
 	return gb_qos_value() > 0;
 }
 
+inline
 int global_boosting(struct eco_env *eenv)
 {
 	if (!global_boosted())
