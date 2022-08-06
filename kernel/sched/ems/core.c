@@ -302,8 +302,8 @@ int start_cpu(struct task_struct *p, unsigned long task_util, int prefer_perf) {
 
 	/* Start with fast CPU if available, task is allowed to be placed, and matches criteria */
 	if (!cpumask_empty(&active_fast_mask) && cpumask_intersects(tsk_cpus_allowed(p), &active_fast_mask)) {
-		/* Return fast CPU if task is prefer_perf */
-		if (prefer_perf)
+		/* Return fast CPU if task is prefer_perf or global boosting */
+		if (prefer_perf || global_boosted())
 			return cpumask_first(&active_fast_mask);
 
 		/* 
