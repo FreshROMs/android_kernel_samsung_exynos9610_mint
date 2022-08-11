@@ -866,6 +866,7 @@ struct rq {
 	struct part pa;
 
 	bool ontime_migrating;
+	bool ontime_boost_migration;
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING

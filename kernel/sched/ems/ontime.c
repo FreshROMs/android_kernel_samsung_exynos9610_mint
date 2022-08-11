@@ -436,6 +436,7 @@ out_unlock:
 
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
+	dst_rq->ontime_boost_migration = 0;
 
 	raw_spin_unlock_irq(&src_rq->lock);
 	put_task_struct(p);
@@ -580,6 +581,7 @@ void ontime_migration(void)
 		rq->active_balance = 1;
 
 		cpu_rq(dst_cpu)->ontime_migrating = 1;
+		cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
 
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 
