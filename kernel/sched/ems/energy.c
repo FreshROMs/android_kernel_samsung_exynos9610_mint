@@ -212,6 +212,10 @@ static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct
 		unsigned long new_util = cpu_util_without(cpu, eenv->p) + eenv->task_util;
 		new_util = max(new_util, eenv->min_util);
 
+		/* Skip CPUs under boosted ontime migration if not UX task */
+		if (cpu_rq(cpu)->ontime_boost_migration)
+			continue;
+
 		/* Skip over-capacity cpu */
 		if (new_util > capacity_orig_of(cpu))
 			continue;

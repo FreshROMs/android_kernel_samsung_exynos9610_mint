@@ -135,6 +135,10 @@ select_prefer_cpu(struct eco_env *eenv, int coregroup_count, struct cpumask *pre
 			unsigned long wake_util;
 			unsigned long new_util;
 
+			/* Skip CPUs under boosted ontime migration if not UX task */
+			if (cpu_rq(cpu)->ontime_boost_migration)
+				continue;
+
 			capacity_orig = capacity_orig_of(cpu);
 			wake_util = cpu_util_without(cpu, eenv->p);
 			new_util = wake_util + eenv->task_util;

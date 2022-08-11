@@ -142,6 +142,10 @@ static int select_idle_cpu(struct eco_env *eenv)
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long new_util, wake_util, new_util_cuml;
 
+			/* Skip CPUs under boosted ontime migration if not UX task */
+			if (cpu_rq(i)->ontime_boost_migration)
+				continue;
+
 			wake_util = cpu_util_without(i, eenv->p);
 			new_util = wake_util + eenv->task_util;
 			new_util = max(new_util, eenv->min_util);

@@ -37,6 +37,10 @@ int select_perf_cpu(struct eco_env *eenv)
 		unsigned long capacity_orig = capacity_orig_of(cpu);
 		unsigned long new_util, new_util_cuml, spare_cap, wake_util = cpu_util_without(cpu, eenv->p);
 
+		/* Skip CPUs under boosted ontime migration if not UX task */
+		if (cpu_rq(cpu)->ontime_boost_migration)
+			continue;
+
 		new_util = wake_util + eenv->task_util;
 		new_util = max(new_util, eenv->min_util);
 
