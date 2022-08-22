@@ -10582,6 +10582,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	struct rq *busiest;
 	struct rq_flags rf;
 	struct cpumask *cpus = this_cpu_cpumask_var_ptr(load_balance_mask);
+	unsigned int sched_nr_migrate;
 
 	struct lb_env env = {
 		.sd		= sd,
@@ -10634,7 +10635,8 @@ redo:
 		 * still unbalanced. ld_moved simply stays zero, so it is
 		 * correctly treated as an imbalance.
 		 */
-		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
+		sched_nr_migrate = (cpumask_test_cpu(env.dst_cpu, cpu_perf_mask)) ? sysctl_sched_nr_migrate_big : sysctl_sched_nr_migrate_little;
+		env.loop_max  = min(sched_nr_migrate, busiest->nr_running);
 
 more_balance:
 		rq_lock_irqsave(busiest, &rf);

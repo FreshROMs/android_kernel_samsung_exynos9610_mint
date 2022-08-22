@@ -58,6 +58,8 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
  * Limited because this is done with IRQs disabled.
  */
 unsigned int __read_mostly sysctl_sched_nr_migrate = 24;
+unsigned int __read_mostly sysctl_sched_nr_migrate_little = 16;
+unsigned int __read_mostly sysctl_sched_nr_migrate_big = 20;
 
 /*
  * period over which we average the RT time consumption, measured
