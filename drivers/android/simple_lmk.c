@@ -225,9 +225,7 @@ static void scan_and_kill(void)
 
 	/* Kill the victims */
 	for (i = 0; i < nr_to_kill; i++) {
-		static const struct sched_param sched_max_prio = {
-			.sched_priority = MAX_RT_PRIO - 1
-		};
+		static const struct sched_param sched_zero_prio;
 		struct victim_info *victim = &victims[i];
 		struct task_struct *t, *vtsk = victim->tsk;
 
@@ -244,8 +242,8 @@ static void scan_and_kill(void)
 			set_tsk_thread_flag(t, TIF_MEMDIE);
 		rcu_read_unlock();
 
-		/* Elevate the victim to SCHED_RR with the highest RT priority */
-		sched_setscheduler_nocheck(vtsk, SCHED_RR, &sched_max_prio);
+		/* Elevate the victim to SCHED_RR with zero RT priority */
+		sched_setscheduler_nocheck(vtsk, SCHED_RR, &sched_zero_prio);
 
 		/* Only allow the victim to run on small CPUs */
 		set_cpus_allowed_ptr(vtsk, cpu_lp_mask);
