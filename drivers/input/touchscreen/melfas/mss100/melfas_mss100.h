@@ -427,7 +427,6 @@ struct mms_devicetree_data {
 	bool enable_settings_aot;
 	bool sync_reportrate_120;
 	bool no_vsync;
-	bool support_dex;
 
 	int max_x;
 	int max_y;
