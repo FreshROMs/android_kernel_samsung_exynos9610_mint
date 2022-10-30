@@ -15,13 +15,15 @@
 #include <uapi/linux/sched/types.h>
 
 /* The minimum number of pages to free per reclaim */
-#define MIN_FREE_PAGES (CONFIG_ANDROID_SIMPLE_LMK_MINFREE * SZ_1M / PAGE_SIZE)
+static unsigned short slmk_minfree __read_mostly = CONFIG_ANDROID_SIMPLE_LMK_MINFREE;
+#define MIN_FREE_PAGES (slmk_minfree * SZ_1M / PAGE_SIZE)
 
 /* Kill up to this many victims per reclaim */
 #define MAX_VICTIMS 1024
 
 /* Timeout in jiffies for each reclaim */
-#define RECLAIM_EXPIRES msecs_to_jiffies(CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC)
+static unsigned short slmk_timeout __read_mostly = CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC;
+#define RECLAIM_EXPIRES msecs_to_jiffies(slmk_timeout)
 
 struct victim_info {
 	struct task_struct *tsk;
@@ -330,6 +332,7 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 	static atomic_t init_done = ATOMIC_INIT(0);
 	struct task_struct *thread;
 	struct sched_param param = { .sched_priority = 7 };
+	struct sysinfo i;
 
 	if (!atomic_cmpxchg(&init_done, 0, 1)) {
 		thread = kthread_run_perf_critical(cpu_lp_mask, simple_lmk_reclaim_thread,
@@ -337,6 +340,15 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 		BUG_ON(IS_ERR(thread));
 		BUG_ON(vmpressure_notifier_register(&vmpressure_notif));
 		sched_setscheduler(thread, SCHED_FIFO, &param);
+	}
+
+	si_meminfo(&i);
+	if (i.totalram << (PAGE_SHIFT-10) > 4096ull * 1024) {
+	  slmk_minfree = 164;
+	  slmk_timeout = 150;
+	} else {
+	  slmk_minfree = 256;
+	  slmk_timeout = 100;
 	}
 
 	return 0;
