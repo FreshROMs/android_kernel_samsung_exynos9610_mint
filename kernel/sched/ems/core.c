@@ -351,13 +351,13 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	 * slow path if not needed.
 	 *
 	 */
-	if (cpumask_test_cpu(prev_cpu, tsk_cpus_allowed(p)) && cpu_active(prev_cpu) &&
-		idle_cpu(prev_cpu) && (eenv.start_cpu_cap == get_cpu_max_capacity(prev_cpu)) &&
-		!lbt_util_overutilized(prev_cpu)) {
-		if (idle_get_state_idx(cpu_rq(prev_cpu)) <= 1) {
-			target_cpu = prev_cpu;
-			strcpy(state, "fast path");
-			goto out;
+	if (cpu_active(prev_cpu) && idle_cpu(prev_cpu) && cpumask_test_cpu(prev_cpu, tsk_cpus_allowed(p))) {
+		if ((eenv.start_cpu_cap == get_cpu_max_capacity(prev_cpu)) && !lbt_util_overutilized(prev_cpu)) {
+			if (idle_get_state_idx(cpu_rq(prev_cpu)) <= 1) {
+				target_cpu = prev_cpu;
+				strcpy(state, "fast path");
+				goto out;
+			}
 		}
 	}
 
