@@ -6,6 +6,7 @@
  */
 
 #include <linux/ems.h>
+#include <linux/freezer.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ems.h>
@@ -211,7 +212,7 @@ static int select_proper_cpu(struct eco_env *eenv)
 			 * Skip processing placement further if we are visiting
 			 * cpus with lower capacity than start cpu
 			 */
-			if (cpu_capacity < eenv->start_cpu_cap)
+			if (!pm_freezing && (cpu_capacity < eenv->start_cpu_cap))
 				continue;
 
 			wake_util = cpu_util_without(i, eenv->p);
@@ -296,6 +297,10 @@ static
 int start_cpu(struct task_struct *p, unsigned long task_util, int prefer_perf) {
 	struct cpumask active_fast_mask;
 	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
+
+	// Avoid recommending fast CPUs during idle as these are inactive
+	if (pm_freezing)
+		return start_cpu;
 
 	/* Get all active fast CPUs */
 	cpumask_and(&active_fast_mask, cpu_fastest_mask(), cpu_active_mask);
