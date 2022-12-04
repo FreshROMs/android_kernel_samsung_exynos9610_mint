@@ -1,4 +1,4 @@
-name: Development Build (Galaxy A50)
+name: Stable Release Build (Galaxy A50)
 
 on:
   push:
