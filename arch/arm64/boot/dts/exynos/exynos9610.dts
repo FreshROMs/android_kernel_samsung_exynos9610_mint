@@ -391,8 +391,8 @@
 			part {
 				/* little cores */
 				coregroup0 {
-					active-ratio-limit = <53>;
-					active-ratio-boost = <52>;
+					active-ratio-limit = <40>;
+					active-ratio-boost = <38>;
 				};
 				/* big cores */
 				coregroup1 {
