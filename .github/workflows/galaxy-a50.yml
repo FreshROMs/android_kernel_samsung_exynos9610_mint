@@ -495,6 +495,6 @@ jobs:
         # The name of the tag
         tag_name: mainline-${{ github.run_number }}_a50dx
         prerelease: true
-        release_name: Galaxy A50 (beta-${{ github.run_number }})
+        release_name: Mint Stable
         body_path: "./tools/make/release/a50-release.md"
         asset_files: './release'
