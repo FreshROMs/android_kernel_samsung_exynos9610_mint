@@ -496,6 +496,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		goto err_dmabuf;
 	}
 
+	ret = dmabuf_trace_alloc(dmabuf);
+	if (ret)
+		goto err_file;
+
 	file->f_mode |= FMODE_LSEEK;
 	dmabuf->file = file;
 
@@ -506,10 +510,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	list_add(&dmabuf->list_node, &db_list.head);
 	mutex_unlock(&db_list.lock);
 
-	dmabuf_trace_alloc(dmabuf);
-
 	return dmabuf;
 
+err_file:
+	fput(file);
 err_dmabuf:
 	kfree(dmabuf->exp_name);
 err_expname:
