@@ -503,6 +503,7 @@ static void stop_lru_writeback(struct zram *zram)
 static void deinit_lru_writeback(struct zram *zram)
 {
 	unsigned long flags;
+	u8 *wb_table_tmp = zram->wb_table;
 
 	stop_lru_writeback(zram);
 	if (zram->chunk_bitmap) {
@@ -514,11 +515,9 @@ static void deinit_lru_writeback(struct zram *zram)
 		zram->blk_bitmap = NULL;
 	}
 	spin_lock_irqsave(&zram->wb_table_lock, flags);
-	if (zram->wb_table) {
-		kvfree(zram->wb_table);
-		zram->wb_table = NULL;
-	}
+	zram->wb_table = NULL;
 	spin_unlock_irqrestore(&zram->wb_table_lock, flags);
+	kvfree(wb_table_tmp);
 }
 #endif
 
