@@ -643,6 +643,12 @@ int fscrypt_get_encryption_info(struct inode *inode)
 		return res;
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
+	if (res == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		res = sizeof(ctx);
+	}
+#endif
 	if (res < 0) {
 		if (!fscrypt_dummy_context_enabled(inode) ||
 		    IS_ENCRYPTED(inode))
@@ -869,6 +875,12 @@ int fscrypt_get_encryption_key(struct inode *inode, struct fscrypt_key *key)
 //		return res;
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
+	if (res == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		res = sizeof(ctx);
+	}
+#endif
 	if (res < 0) {
 		return res;
 	} else if (res != sizeof(ctx)) {
@@ -929,6 +941,12 @@ int fscrypt_get_encryption_kek(struct inode *inode,
 //		return res;
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+#if defined(CONFIG_FSCRYPT_SDP) || defined(CONFIG_DDAR)
+	if (res == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		res = sizeof(ctx);
+	}
+#endif
 	if (res < 0) {
 		return res;
 	} else if (res != sizeof(ctx)) {
