@@ -85,6 +85,10 @@ int fscrypt_sdp_set_sdp_policy(struct inode *inode, int engine_id)
 	}
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	if (res == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		res = sizeof(ctx);
+	}
 	if (res != sizeof(ctx)) {
 		if (res >= 0)
 		DEK_LOGE("set_policy: failed to get fscrypt ctx (err:%d)\n", res);
@@ -195,6 +199,10 @@ int fscrypt_sdp_set_sensitive(struct inode *inode, int engine_id, struct fscrypt
 		DEK_LOGE("%s: Failed to get fscrypt ctx (err:%d)\n", __func__, rc);
 		return rc;
 	}
+	if (rc == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		rc = sizeof(ctx);
+	}
 
 	if (!is_dir) {
 		//run setsensitive with nonce from ctx
@@ -236,6 +244,10 @@ int fscrypt_sdp_set_protected(struct inode *inode, int engine_id)
 	}
 
 	rc = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	if (rc == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		rc = sizeof(ctx);
+	}
 	if (rc != sizeof(ctx)) {
 		DEK_LOGE("set_protected: failed to get fscrypt ctx (err:%d)\n", rc);
 		return -EINVAL;
@@ -346,6 +358,10 @@ int fscrypt_sdp_initialize(struct inode *inode, int engine_id, struct fscrypt_ke
 		return res;
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	if (res == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		res = sizeof(ctx);
+	}
 	if (res != sizeof(ctx)) {
 		if (res >= 0)
 			res = -EEXIST;
@@ -418,6 +434,10 @@ int fscrypt_sdp_add_chamber_directory(int engine_id, struct inode *inode)
 			   "%s: Failed to get fscrypt ctx (err:%d)\n", __func__, rc);
 		return rc;
 	}
+	if (rc == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		rc = sizeof(ctx);
+	}
 
 	if (!ci->ci_sdp_info) {
 		struct sdp_info *ci_sdp_info = fscrypt_sdp_alloc_sdp_info();
@@ -478,6 +498,10 @@ int fscrypt_sdp_remove_chamber_directory(struct inode *inode)
 		DEK_LOGE(KERN_ERR
 			   "%s: Failed to get fscrypt ctx (err:%d)\n", __func__, rc);
 		return rc;
+	}
+	if (rc == offsetof(struct fscrypt_context, knox_flags)) {
+		ctx.knox_flags = 0;
+		rc = sizeof(ctx);
 	}
 
 	if (!ci->ci_sdp_info)
@@ -1021,6 +1045,10 @@ inline int __fscrypt_sdp_thread_convert_sdp_key(void *arg)
 
 		if (ci && ci->ci_sdp_info) {
 			rc = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+			if (rc == offsetof(struct fscrypt_context, knox_flags)) {
+				ctx.knox_flags = 0;
+				rc = sizeof(ctx);
+			}
 			if (rc != sizeof(ctx)) {
 				if (rc > 0 )
 					rc = -EINVAL;
