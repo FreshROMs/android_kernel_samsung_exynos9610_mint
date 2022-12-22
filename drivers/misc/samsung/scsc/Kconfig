@@ -32,7 +32,7 @@ config SCSC_PCIE
 config SCSC_MXLOGGER
 	tristate "Samsung SCSC MXLOGGER"
 	depends on SCSC_CORE
-	default n
+	default y
 	---help---
 	   MXLOGGER provides FW level logging in DRAM
 
