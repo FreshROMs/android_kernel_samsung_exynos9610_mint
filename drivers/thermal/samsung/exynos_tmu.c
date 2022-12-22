@@ -217,6 +217,8 @@ static bool suspended;
 static DEFINE_MUTEX (thermal_suspend_lock);
 #endif
 static bool is_cpu_hotplugged_out;
+static int thermal_status_level[3];
+static bool update_thermal_status;
 
 /* Define thermal interrupt related workqueue */
 struct workqueue_struct *thermal_irq_wq = NULL;
@@ -813,6 +815,29 @@ static int exynos_get_temp(void *p, int *temp)
 	else
 		*temp = code_to_temp(data, data->tmu_read(data)) * MCELSIUS;
 
+	// Update thermal status
+	if (update_thermal_status) {
+		ktime_t diff;
+		ktime_t cur_time = ktime_get() / NSEC_PER_MSEC;
+
+		diff = cur_time - data->last_thermal_status_updated;
+
+		if (data->last_thermal_status_updated == 0 && *temp >= thermal_status_level[0]) {
+			data->last_thermal_status_updated = cur_time;
+		} else if (*temp >= thermal_status_level[2]) {
+			data->thermal_status[2] += diff;
+			data->last_thermal_status_updated = cur_time;
+		} else if (*temp >= thermal_status_level[1]) {
+			data->thermal_status[1] += diff;
+			data->last_thermal_status_updated = cur_time;
+		} else if (*temp >= thermal_status_level[0]) {
+			data->thermal_status[0] += diff;
+			data->last_thermal_status_updated = cur_time;
+		} else {
+			data->last_thermal_status_updated = 0;
+		}
+	}
+
 	mutex_unlock(&data->lock);
 
 #ifndef CONFIG_EXYNOS_ACPM_THERMAL
@@ -1257,6 +1282,12 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	} else
 		strncpy(data->tmu_name, tmu_name, THERMAL_NAME_LENGTH);
 
+	if (of_property_read_bool(pdev->dev.of_node, "thermal_status_level")) {
+		of_property_read_u32_array(pdev->dev.of_node, "thermal_status_level", (u32 *)&thermal_status_level,
+		(size_t)(ARRAY_SIZE(thermal_status_level)));
+		update_thermal_status = true;
+	}
+
 	if (of_property_read_string(pdev->dev.of_node, "sensing_mode", &temp))
 	        dev_err(&pdev->dev, "failed to get sensing_mode of thermel sensor\n");
 	else {
@@ -1513,6 +1544,60 @@ hotplug_in_temp_store(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
+static ssize_t thermal_status_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	ssize_t count = 0;
+	struct exynos_tmu_data *devnode;
+
+	count += snprintf(buf + count, PAGE_SIZE, "DOMAIN %10d %10d %10d\n",
+			thermal_status_level[0], thermal_status_level[1],
+			thermal_status_level[2]);
+	list_for_each_entry(devnode, &dtm_dev_list, node) {
+		exynos_report_trigger(devnode);
+		mutex_lock(&devnode->lock);
+		count += snprintf(buf + count, PAGE_SIZE, "%6s %10llu %10llu %10llu\n",
+				devnode->tmu_name, devnode->thermal_status[0],
+				devnode->thermal_status[1], devnode->thermal_status[2]);
+		devnode->thermal_status[0] = 0;
+		devnode->thermal_status[1] = 0;
+		devnode->thermal_status[2] = 0;
+		mutex_unlock(&devnode->lock);
+	}
+
+	return count;
+}
+
+#ifdef CONFIG_SEC_PM
+static ssize_t time_in_state_json_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+	struct exynos_tmu_data *devnode;
+	int i;
+
+	list_for_each_entry(devnode, &dtm_dev_list, node) {
+		mutex_lock(&devnode->lock);
+		for (i = 0; i < 3; i++) {
+			count += snprintf(buf + count, PAGE_SIZE,
+					"\"%s%d\":\"%llu\",",
+					devnode->tmu_name, i,
+					devnode->thermal_status[i] / MSEC_PER_SEC);
+			devnode->thermal_status[i] = 0;
+		}
+		mutex_unlock(&devnode->lock);
+	}
+
+	if(count > 0)
+		buf[--count] = '\0';
+
+	return count;
+}
+
+static struct kobj_attribute
+time_in_state_json_attr = __ATTR_RO_MODE(time_in_state_json, 0440);
+#endif /* CONFIG_SEC_PM */
+
 static DEVICE_ATTR(balance_offset, S_IWUSR | S_IRUGO, balance_offset_show,
 		balance_offset_store);
 
@@ -1523,6 +1608,8 @@ static DEVICE_ATTR(hotplug_out_temp, S_IWUSR | S_IRUGO, hotplug_out_temp_show,
 
 static DEVICE_ATTR(hotplug_in_temp, S_IWUSR | S_IRUGO, hotplug_in_temp_show,
 		hotplug_in_temp_store);
+
+static struct kobj_attribute thermal_status_attr = __ATTR(thermal_status, 0440, thermal_status_show, NULL);
 
 static struct attribute *exynos_tmu_attrs[] = {
 	&dev_attr_balance_offset.attr,
@@ -1748,6 +1835,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	struct workqueue_attrs attr;
 	unsigned int ctrl;
 	int ret;
+	struct kobject *kobj;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
 					GFP_KERNEL);
@@ -1858,6 +1946,11 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 #endif
 		cpuhp_setup_state_nocalls(CPUHP_EXYNOS_BOOST_CTRL_POST, "dtm_boost_cb",
 				exynos_tmu_boost_callback, exynos_tmu_boost_callback);
+		kobj = kobject_create_and_add("exynos-thermal", kernel_kobj);
+		sysfs_create_file(kobj, &thermal_status_attr.attr);
+#ifdef CONFIG_SEC_PM
+		sysfs_create_file(kobj, &time_in_state_json_attr.attr);
+#endif
 	}
 
 	if (data->hotplug_enable)
