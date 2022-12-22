@@ -11,11 +11,19 @@
 #include <linux/wakelock.h>
 #endif
 #include <linux/string.h>
+#include <linux/delay.h>
 
 #include "scsc_wlbtd.h"
 
 #define MAX_TIMEOUT		30000 /* in milisecounds */
 #define WRITE_FILE_TIMEOUT	1000 /* in milisecounds */
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+#define CHIPSET_LOGGING_TIMEOUT	1000 /* in milisecounds */
+#define MAX_SIZE_NETLINK_PAYLOAD (7 * 1024) /* 7KB size limit in a netlink message */
+#define FLAGS_MMAP BIT(2)
+#define FLAGS_START_FILE BIT(1)
+#define FLAGS_MORE_DATA BIT(0)
+#endif
 #define MAX_RSP_STRING_SIZE	128
 #define PROP_VALUE_MAX		92
 
@@ -24,6 +32,10 @@ static DECLARE_COMPLETION(event_done);
 static DECLARE_COMPLETION(fw_sable_done);
 static DECLARE_COMPLETION(fw_panic_done);
 static DECLARE_COMPLETION(write_file_done);
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+static DECLARE_COMPLETION(chipset_logging_done);
+static DEFINE_MUTEX(chipset_logging_lock);
+#endif
 static DEFINE_MUTEX(write_file_lock);
 
 static DEFINE_MUTEX(build_type_lock);
@@ -294,6 +306,26 @@ error_complete:
 	return ret_code;
 }
 
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+static int msg_from_wlbtd_chipset_logging_cb(struct sk_buff *skb, struct genl_info *info)
+{
+	int ret_code = 0;
+
+	if (!info || !info->attrs[ATTR_STR] ||
+			(nla_len(info->attrs[ATTR_STR]) > MAX_RSP_STRING_SIZE)) {
+		SCSC_TAG_ERR(WLBTD, "error in fetching info\n");
+		ret_code = -EINVAL;
+		goto error_complete;
+	}
+
+	SCSC_TAG_INFO(WLBTD, "%s\n", (char *)nla_data(info->attrs[ATTR_STR]));
+
+error_complete:
+	complete(&chipset_logging_done);
+	return ret_code;
+}
+#endif
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 /**
  * Here you can define some constraints for the attributes so Linux will
@@ -360,7 +392,17 @@ const struct genl_ops scsc_ops[] = {
 		.doit = msg_from_wlbtd_write_file_cb,
 		.dumpit = NULL,
 	},
-
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+		{
+			.cmd = EVENT_CHIPSET_LOGGING,
+			.flags = 0,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+			.policy = policy_write_file,
+#endif
+			.doit = msg_from_wlbtd_chipset_logging_cb,
+			.dumpit = NULL,
+		},
+#endif
 };
 
 /* The netlink family */
@@ -548,6 +590,179 @@ error:
 	return -1;
 }
 EXPORT_SYMBOL(wlbtd_write_file);
+
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+int chipset_logging_send_msg_to_netlink(const char *file_content, int length, u8 flags)
+{
+	struct sk_buff *skb;
+	void *msg;
+	int rc = 0;
+
+	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb) {
+		SCSC_TAG_ERR(WLBTD, "Failed to construct message\n");
+		return -1;
+	}
+
+	SCSC_TAG_DEBUG(WLBTD, "create message\n");
+	msg = genlmsg_put(skb,
+			0,		// PID is whatever
+			0,		// Sequence number (don't care)
+			&scsc_nlfamily,	// Pointer to family struct
+			0,		// Flags
+			EVENT_CHIPSET_LOGGING// Generic netlink command
+			);
+	if (!msg) {
+		SCSC_TAG_ERR(WLBTD, "Failed to create message\n");
+		goto error;
+	}
+
+	SCSC_TAG_DEBUG(WLBTD, "add values to msg\n");
+
+	rc = nla_put_u8(skb, ATTR_INT8, flags);
+	if (rc) {
+		SCSC_TAG_ERR(WLBTD, "nla_put_u8 failed. rc = %d\n", rc);
+		genlmsg_cancel(skb, msg);
+		goto error;
+	}
+
+	rc = nla_put_u32(skb, ATTR_INT, length);
+	if (rc) {
+		SCSC_TAG_ERR(WLBTD, "nla_put_u32 failed. rc = %d\n", rc);
+		genlmsg_cancel(skb, msg);
+		goto error;
+	}
+
+	if (file_content) {
+	rc = nla_put(skb, ATTR_CONTENT, length, file_content);
+		if (rc) {
+			SCSC_TAG_ERR(WLBTD, "nla_put failed. rc = %d\n", rc);
+			genlmsg_cancel(skb, msg);
+			goto error;
+		}
+	}
+
+	genlmsg_end(skb, msg);
+
+	SCSC_TAG_DEBUG(WLBTD, "finalize & send msg\n");
+	/* genlmsg_multicast_allns() frees skb */
+	rc = genlmsg_multicast_allns(&scsc_nlfamily, skb, 0, 0, GFP_KERNEL);
+
+	if (rc) {
+		if (rc == -EINVAL) {
+			SCSC_TAG_ERR(WLBTD, "invalid multicast group, rc = %d\n", rc);
+			goto error;
+		} else {
+			if (rc == -ESRCH)
+				/* If no one registered to scsc_mcgrp (e.g. in case
+			 	* wlbtd is not running) genlmsg_multicast_allns
+			 	* returns -ESRCH. Ignore and return.
+			 	*/
+				SCSC_TAG_WARNING(WLBTD, "WLBTD not running ?\n");
+
+			SCSC_TAG_ERR(WLBTD, "Failed to send message. rc = %d\n", rc);
+			return -1;
+		}
+	}
+	SCSC_TAG_DEBUG(WLBTD, "Message sent successfully rc = %d\n", rc);
+	return 0;
+
+error:
+	/* free skb */
+	nlmsg_free(skb);
+	return -1;
+}
+
+int __wlbtd_chipset_logging_mmap(const char *file_content, size_t bytes)
+{
+	u8 flags = FLAGS_MMAP;
+	int ret;
+
+	ret = chipset_logging_send_msg_to_netlink(NULL, bytes, flags);
+	if (ret != 0)
+		return ret;
+	return 0;
+}
+
+int __wlbtd_chipset_logging_netlink(const char *file_content, size_t bytes)
+{
+	int ret = 0;
+	u8 flags = FLAGS_START_FILE;
+
+	while (bytes > MAX_SIZE_NETLINK_PAYLOAD) {
+		flags |= FLAGS_MORE_DATA;
+		ret = chipset_logging_send_msg_to_netlink(file_content, MAX_SIZE_NETLINK_PAYLOAD, flags);
+		if (ret != 0) {
+			goto done;
+		}
+		bytes = bytes - MAX_SIZE_NETLINK_PAYLOAD;
+		file_content = file_content + MAX_SIZE_NETLINK_PAYLOAD;
+		flags = FLAGS_MORE_DATA;
+		msleep(10);
+		SCSC_TAG_DEBUG(WLBTD, "Bytes remaining = %d\n", bytes);
+	}
+
+	if (bytes != 0) {
+		flags &= 0xFE;
+		ret = chipset_logging_send_msg_to_netlink(file_content, bytes, flags);
+		if (ret != 0) {
+			goto done;
+		}
+	}
+done:
+	return ret;
+
+}
+
+int wlbtd_chipset_logging(const char *file_content, size_t bytes, bool over_mmap)
+{
+	unsigned long completion_jiffies = 0;
+	unsigned long start_time = 0;
+	unsigned long max_timeout_jiffies = msecs_to_jiffies(CHIPSET_LOGGING_TIMEOUT);
+	int ret = 0;
+	unsigned long delay_in_ms = 0;
+
+	SCSC_TAG_DEBUG(WLBTD, "start wlbtd chipset logging, bytes = %d over %s\n",
+		       bytes, over_mmap ? "MMAP" : "NETLINK");
+
+	mutex_lock(&chipset_logging_lock);
+	wake_lock(&wlbtd_wakelock);
+
+	start_time = jiffies;
+
+	if (over_mmap == true)
+		ret = __wlbtd_chipset_logging_mmap(file_content, bytes);
+	else
+		ret = __wlbtd_chipset_logging_netlink(file_content, bytes);
+	if (ret)
+		goto done;
+
+	SCSC_TAG_INFO(WLBTD, "waiting for completion from wlbtd\n");
+
+	/* wait for wlbtd to finish */
+	completion_jiffies = wait_for_completion_timeout(&chipset_logging_done,
+						max_timeout_jiffies);
+
+	if (completion_jiffies == 0)
+		SCSC_TAG_ERR(WLBTD, "wait for completion timed out !\n");
+	else {
+		completion_jiffies = jiffies;
+		delay_in_ms = jiffies_to_msecs(completion_jiffies - start_time);
+		SCSC_TAG_INFO(WLBTD, "written in %dms\n", delay_in_ms);
+	}
+
+	/* reinit so completion can be re-used */
+	reinit_completion(&chipset_logging_done);
+
+	SCSC_TAG_DEBUG(WLBTD, "end wlbtd chipset logging\n");
+
+done:
+	wake_unlock(&wlbtd_wakelock);
+	mutex_unlock(&chipset_logging_lock);
+	return ret;
+}
+EXPORT_SYMBOL(wlbtd_chipset_logging);
+#endif
 
 int call_wlbtd_sable(u8 trigger_code, u16 reason_code)
 {
@@ -783,6 +998,9 @@ int scsc_wlbtd_init(void)
 	init_completion(&fw_sable_done);
 	init_completion(&fw_panic_done);
 	init_completion(&write_file_done);
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+	init_completion(&chipset_logging_done);
+#endif
 
 	/* register the family so that wlbtd can bind */
 	r = genl_register_family(&scsc_nlfamily);

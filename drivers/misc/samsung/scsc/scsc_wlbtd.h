@@ -43,6 +43,9 @@ enum events {
 	EVENT_SYSTEM_PROPERTY,
 	EVENT_WRITE_FILE,
 	EVENT_SABLE,
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+	EVENT_CHIPSET_LOGGING,
+#endif
 	/* This must be last! */
 	__EVENT_MAX,
 };
@@ -82,6 +85,9 @@ int scsc_wlbtd_init(void);
 int scsc_wlbtd_deinit(void);
 int call_wlbtd(const char *script_path);
 int wlbtd_write_file(const char *path, const char *content);
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+int wlbtd_chipset_logging(const char *content, size_t bytes, bool over_mmap);
+#endif
 int call_wlbtd_sable(u8 trigger_code, u16 reason_code);
 void scsc_wlbtd_wait_for_sable_logging(void);
 int scsc_wlbtd_get_and_print_build_type(void);

@@ -24,6 +24,7 @@
 #include <linux/jiffies.h>
 
 #include "mxmgmt_transport_format.h"
+#include <scsc/scsc_log_collector.h>
 
 /**
  * ___________________________________________________________________
@@ -218,6 +219,10 @@ int mxlogger_unregister_observer(struct mxlogger *mxlogger, char *name);
 int mxlogger_register_global_observer(char *name);
 int mxlogger_unregister_global_observer(char *name);
 bool mxlogger_set_enabled_status(bool enable);
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+size_t mxlogger_dump_fw_buf(struct mxlogger *mxlogger, enum scsc_log_chunk_type fw_buffer, void *buf, size_t size);
+size_t mxlogger_get_fw_buf_size(struct mxlogger *mxlogger, enum scsc_log_chunk_type fw_buffer);
+#endif
 
 #define MEM_LAYOUT_CHECK()	\
 ({				\

@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/notifier.h>
 #include "scsc_mifram.h"
+#include "scsc_log_collector.h"
 
 #define SCSC_PANIC_CODE_FW 0
 #define SCSC_PANIC_CODE_HOST 1
@@ -360,6 +361,11 @@ int scsc_service_set_affinity_cpu(struct scsc_service *service, u8 cpu);
 
 /* Return the panic record */
 int scsc_service_get_panic_record(struct scsc_service *service, u8 *dst, u16 max_size);
+
+#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
+size_t scsc_service_mxlogger_buff_size(struct scsc_service *service, enum scsc_log_chunk_type fw_buffer);
+size_t scsc_service_collect_buffer(struct scsc_service *service, enum scsc_log_chunk_type fw_buffer, void *buffer, size_t size);
+#endif
 
 /* MXLOGGER API */
 /* If there is no service/mxman associated, register the observer as global (will affect all the mx instanes)*/
