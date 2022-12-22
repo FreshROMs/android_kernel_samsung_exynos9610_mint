@@ -2017,6 +2017,13 @@ ssize_t sec_bat_store_attrs(
 					sec_bat_aging_check(battery);
 				}
 				sec_bat_check_battery_health(battery);
+
+				if ((prev_battery_cycle - battery->batt_cycle) >= 9000) {
+					value.intval = 0;
+					psy_do_property(battery->pdata->fuelgauge_name, set,
+									POWER_SUPPLY_PROP_ENERGY_NOW, value);
+					dev_info(battery->dev, "%s: change the concept of battery protection mode.\n", __func__);
+				}
 			}
 			ret = count;
 		}
