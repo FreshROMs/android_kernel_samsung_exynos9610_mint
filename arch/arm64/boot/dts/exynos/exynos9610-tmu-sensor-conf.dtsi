@@ -22,3 +22,4 @@ samsung,tmu_default_temp_offset = <50>;
 samsung,tmu_default_trip_temp = <115>;
 samsung,tmu_cal_type = <TYPE_ONE_POINT_TRIMMING>;
 samsung,tmu_sensor_type = <TEM1002X>;
+thermal_status_level = <80000 85000 90000>;
