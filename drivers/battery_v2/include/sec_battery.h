@@ -516,6 +516,7 @@ struct sec_battery_info {
 	bool full_by_condition;
 
 	int batt_full_capacity;
+	bool usb_slow_chg;
 
 	bool block_water_event;
 };
