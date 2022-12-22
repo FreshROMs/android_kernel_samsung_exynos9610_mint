@@ -69,10 +69,6 @@ int gpex_clock_get_clock(int level)
 {
 	return clk_info.table[level].clock;
 }
-u64 gpex_clock_get_time(int level)
-{
-	return clk_info.table[level].time;
-}
 u64 gpex_clock_get_time_busy(int level)
 {
 	return clk_info.table[level].time_busy;
@@ -582,9 +578,4 @@ int gpex_clock_get_voltage(int clk)
 		/* TODO: print error msg */
 		return -EINVAL;
 	}
-}
-
-void gpex_clock_set_user_min_lock_input(int clock)
-{
-	clk_info.user_min_lock_input = clock;
 }

@@ -21,7 +21,18 @@
 #ifndef _GPEXBE_NOTIFIER_H_
 #define _GPEXBE_NOTIFIER_H_
 
+/**
+ * gpexbe_notifier_init() - initializes notifier module
+ *
+ * Notifier module creates and registers pmqos and thermal notifiers
+ *
+ * Return: 0 on successs
+ */
 int gpexbe_notifier_init(void);
+
+/**
+ * gpexbe_notifier_term() - terminates notifier module
+ */
 void gpexbe_notifier_term(void);
 
 #endif /* _GPEXBE_NOTIFIER_H_ */

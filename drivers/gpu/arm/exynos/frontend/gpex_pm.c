@@ -213,8 +213,7 @@ static void gpu_poweroff_delay_recovery_callback(struct work_struct *data)
 	pm_runtime_set_autosuspend_delay(pm.dev, pm.runtime_pm_delay_time);
 	device_unlock(pm.dev);
 
-	gpex_clock_set_user_min_lock_input(0);
-	gpex_clock_lock_clock(GPU_CLOCK_MIN_UNLOCK, SYSFS_LOCK, 0);
+	gpex_clock_lock_clock(GPU_CLOCK_MIN_UNLOCK, MM_LOCK, 0);
 	GPU_LOG(MALI_EXYNOS_DEBUG, "gpu poweroff delay recovery done & clock min unlock\n");
 
 	gpex_clboost_set_state(CLBOOST_ENABLE);

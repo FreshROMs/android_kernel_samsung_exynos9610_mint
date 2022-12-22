@@ -22,11 +22,6 @@
 #include <gpex_clock.h>
 
 struct clk;
-_Bool __clk_is_enabled(struct clk *clk)
-{
-	return 1;
-}
-EXPORT_SYMBOL(__clk_is_enabled);
 
 int gpex_clock_init(struct device **dev)
 {

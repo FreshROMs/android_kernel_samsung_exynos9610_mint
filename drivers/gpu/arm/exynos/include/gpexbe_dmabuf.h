@@ -22,4 +22,13 @@
 
 struct dma_buf;
 
+/**
+ * gpexbe_dmabuf_is_cached() - check if a buffer is cpu cached
+ * @dmabuf: pointer to dma_buf buffer
+ *
+ * Used by LEGACY_COMPAT option to check if a buffer is cached
+ * before trying to sync it
+ *
+ * Return: true if cached
+ */
 bool gpexbe_dmabuf_is_cached(struct dma_buf *dmabuf);

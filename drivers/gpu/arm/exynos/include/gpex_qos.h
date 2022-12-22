@@ -24,14 +24,15 @@
 #include <linux/device.h>
 
 /**
- * typedef enum gpex_qos_flag - flags used as input to gpex_qos_set
+ * enum gpex_qos_flag - flags used as input to gpex_qos_set
+ * @QOS_MIN : affect min lock
+ * @QOS_MAX : affect max lock
+ * @QOS_LITTLE : affect little cpu cluster
+ * @QOS_MIDDLE : affect middle cpu cluster
+ * @QOS_BIG : affect big cpu cluster
+ * @QOS_MIF : affect mif
  *
- * @QOS_MIN
- * @QOS_MAX
- * @QOS_LITTLE
- * @QOS_MIDDLE
- * @QOS_BIG
- * @QOS_MIF
+ * These flags are used to set which IP to affect and how to affect the said IP for QOS requests.
  */
 typedef enum {
 	QOS_MIN = 1 << 0,
@@ -83,7 +84,7 @@ int gpex_qos_unset(gpex_qos_flag flags);
 /**
  * gpex_qos_set_from_clock() - set PMQOS depending on given gpu clock
  *
- * @ clk: gpu clock to get the values for PMQOS
+ * @clk: gpu clock to get the values for PMQOS
  *
  * Set memory min clock, cpu min clock etc depending on the given gpu clock.
  * The target PMQOS clocks are derived frome a lookup table with gpu clock as the
@@ -102,6 +103,8 @@ int gpex_qos_set_from_clock(int clk);
  * Determine whether the GPU should hold high priority in BTS MO depending on the given
  * @gpu_clock. The minimum frequency at which BTS MO for GPU is set in devicetree as
  * "gpu_mo_min_clock"
+ *
+ * Return: 0 on success
  */
 int gpex_qos_set_bts_mo(int gpu_clock);
 

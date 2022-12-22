@@ -23,13 +23,52 @@
 
 #include <linux/device.h>
 
+/**
+ * gpexbe_llc_coherency_reg_map() - map LLC and coherency related register
+ *
+ * These registers need to be mapped before they can be accessed.
+ */
 void gpexbe_llc_coherency_reg_map(void);
+
+/**
+ * gpexbe_llc_coherency_reg_unmap() - unmap LLC related register
+ */
 void gpexbe_llc_coherency_reg_unmap(void);
+
+/**
+ * gpexbe_llc_coherency_set_coherency_feature() - set coherency mode to ACE-LITE
+ */
 void gpexbe_llc_coherency_set_coherency_feature(void);
+
+/**
+ * gpexbe_llc_coherency_set_aruser() - set LLC read hint to a predetermined value (internal)
+ */
 void gpexbe_llc_coherency_set_aruser(void);
+
+/**
+ * gpexbe_llc_coherency_set_awuser() - set LLC write hint to a predetermined value (internal)
+ */
 void gpexbe_llc_coherency_set_awuser(void);
+
+/**
+ * gpexbe_llc_coherency_init() - initializes llc coherency module
+ * @dev: mali device struct
+ *
+ * Return: 0 on successs
+ */
 int gpexbe_llc_coherency_init(struct device **dev);
+
+/**
+ * gpexbe_llc_coherency_term() - terminates llc coherency module
+ */
 void gpexbe_llc_coherency_term(void);
+
+/**
+ * gpexbe_llc_coherency_set_ways() - set amount of LLC the GPU will use
+ * @ways: amount of LLC to use (1 way == 512 KB) upto 16 (total 8MB)
+ *
+ * Return: 0 on successs
+ */
 int gpexbe_llc_coherency_set_ways(int ways);
 
 #endif /* _GPEXBE_LLC_COHERENCY_H_ */

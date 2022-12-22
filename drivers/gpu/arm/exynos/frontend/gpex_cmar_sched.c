@@ -51,7 +51,7 @@ int gpex_cmar_sched_set_forced_sched(int mode)
 	return 0;
 }
 
-int gpex_cmar_sched_set_cpu(int min, int max, struct cpumask *mask)
+static int gpex_cmar_sched_set_cpu(int min, int max, struct cpumask *mask)
 {
 	int index = 0;
 

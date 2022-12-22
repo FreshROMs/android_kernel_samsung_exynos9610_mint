@@ -23,9 +23,19 @@
 
 #include <linux/device.h>
 
+/**
+ * gpexbe_devicetree_get_int() - get int value from dt stored by var field
+ * @var: field name
+ * Return: int value stored in devicetree
+ */
 #define gpexbe_devicetree_get_int(var)                                                             \
 	gpexbe_devicetree_get_int_internal(offsetof(gpu_dt, var), #var)
 
+/**
+ * gpexbe_devicetree_get_str() - get string value from dt stored by var field
+ * @var: field name
+ * Return: string value stored in devicetree
+ */
 #define gpexbe_devicetree_get_str(var)                                                             \
 	gpexbe_devicetree_get_str_internal(offsetof(gpu_dt, var), #var)
 
@@ -122,12 +132,51 @@ typedef struct _dt_info {
 	uint32_t gpu_weight_table_idx_1;
 } gpu_dt;
 
+/**
+ * gpexbe_devicetree_get_int_internal() - internal function used by gpexbe_devicetree_get_int
+ * @offset: offset of field that need to be returned
+ * @str: unused
+ * Return: int value stored in devicetree
+ */
 int gpexbe_devicetree_get_int_internal(size_t offset, const char *str);
+
+/**
+ * gpexbe_devicetree_get_str_internal() - internal function used by gpexbe_devicetree_get_str
+ * @offset: offset of field that need to be returned
+ * @str: unused
+ * Return: string value stored in devicetree
+ */
 char *gpexbe_devicetree_get_str_internal(size_t offset, const char *str);
+
+/**
+ * gpexbe_devicetree_get_clock_table() - get gpu clock table array containing pmqos info
+ * Return: pmqos table
+ */
 dt_clock_item *gpexbe_devicetree_get_clock_table(void);
+
+/**
+ * gpexbe_devicetree_get_clqos_table() - get gpu clock table array containing clqos info
+ * Return: clqos table
+ */
 dt_clqos_item *gpexbe_devicetree_get_clqos_table(void);
+
+/**
+ * gpexbe_devicetree_get_gpu_dt() - get the structure containing all mali related dt info
+ * Return: pointer to gpu_dt struct
+ */
 gpu_dt *gpexbe_devicetree_get_gpu_dt(void);
+
+/**
+ * gpexbe_devicetree_init() - initializes gpexbe_devicetree module
+ * @dev: mali device struct
+ *
+ * Return: 0 on success
+ */
 int gpexbe_devicetree_init(struct device *dev);
+
+/**
+ * gpexbe_devicetree_term() - terminates gpexbe_devicetree module
+ */
 void gpexbe_devicetree_term(void);
 
 #endif /* _GPEXBE_DEVICETREE_H_ */

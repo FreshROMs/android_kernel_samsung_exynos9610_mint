@@ -21,23 +21,11 @@
 #ifndef _MALI_EXYNOS_IFPO_H_
 #define _MALI_EXYNOS_IFPO_H_
 
-/**
- * enum ifpo_mode - describes IFPO enable or disable state
- *
- * @IFPO_DISABLED
- * @IFPO_ENABLED
- */
 typedef enum ifpo_mode {
 	IFPO_DISABLED = 0,
 	IFPO_ENABLED,
 } ifpo_mode;
 
-/**
- * enum ifpo_mode - describes GPU power up or down state as set by IFPO
- *
- * @IFPO_POWER_DOWN
- * @IFPO_POWER_UP
- */
 typedef enum ifpo_state {
 	IFPO_POWER_DOWN = 0,
 	IFPO_POWER_UP,
@@ -78,9 +66,15 @@ int gpex_ifpo_power_down(void);
 /**
  * gpex_ifpo_get_status() - get current GPU power state as controlled by IFPO
  *
- * Return: IFPO power state of enum type ifpo_status
+ * Return: IFPO power state of enum type ifpo_status (gpu powered up or down)
  */
 ifpo_status gpex_ifpo_get_status(void);
+
+/**
+ * gpex_ifpo_get_mode() - get current IFPO mode (enabled or disabled)
+ *
+ * Return: IFPO mode (enabled or disabled)
+ */
 ifpo_mode gpex_ifpo_get_mode(void);
 
 #endif /* _MALI_EXYNOS_IFPO_H_ */

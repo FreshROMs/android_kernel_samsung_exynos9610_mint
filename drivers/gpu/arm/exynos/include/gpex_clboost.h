@@ -26,9 +26,33 @@ typedef enum clboost_state {
 	CLBOOST_ENABLE,
 } clboost_state;
 
+/**
+ * gpex_clboost_check_activation_condition() - check if clboost should be activated
+ *
+ * Return: 1 if clboost need to be activated. 0 otherwise.
+ */
 int gpex_clboost_check_activation_condition(void);
+
+/**
+ * gpex_clboost_set_state() - set clboost feature to be on or off.
+ * @state: CLBOOST_DISABLE or CLBOOST_ENABLE
+ *
+ * This function DOES NOT force enable clboost.
+ * If clboost is set to CLBOOST_ENABLE by this function, it means clboost will be activated
+ * when the right conditions are met (checked by gpex_clboost_check_activation_condition function)
+ */
 void gpex_clboost_set_state(clboost_state state);
+
+/**
+ * gpex_clboost_init() - initializes gpex_clboost module
+ *
+ * Return: 0 on success
+ */
 int gpex_clboost_init(void);
+
+/**
+ * gpex_clboost_term() - terminates gpex_clboost module
+ */
 void gpex_clboost_term(void);
 
 #endif /* _GPEX_CLBOOST_H_ */

@@ -23,7 +23,19 @@
 
 struct platform_context;
 
+/**
+ * gpex_cmar_boost_set_flag() - request cmar boost action
+ * @pctx: platform_context struct
+ * @request: CMAR_BOOST_SET_RT or CMAR_BOOST_SET_DEFAULT
+ *
+ * Return: 0 on success
+ */
 int gpex_cmar_boost_set_flag(struct platform_context *pctx, int request);
+
+/**
+ * gpex_cmar_boost_set_thread_priority() - set thread priority using the last cmar boost request given
+ * @pctx: platform_context struct
+ */
 void gpex_cmar_boost_set_thread_priority(struct platform_context *pctx);
 
 #endif /* _GPEX_CMAR_BOOST_H_ */

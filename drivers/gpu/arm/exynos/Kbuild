@@ -94,6 +94,12 @@ else
 	mali_kbase-y += $(FRONTEND_DIR)/dummy/gpex_tsg_dummy$(TSG_VERSION).o
 endif
 
+ifeq ($(TSG_VERSION), _v3)
+mali_kbase-y += $(FRONTEND_DIR)/gpex_cmar_sched.o
+else
+mali_kbase-y += $(FRONTEND_DIR)/dummy/gpex_cmar_sched_dummy.o
+endif
+
 ifneq (,$(filter y m,$(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)))
 	mali_kbase-y += $(BACKEND_DIR)/gpexbe_smc.o
 else
@@ -237,8 +243,12 @@ else
 endif
 
 mali_kbase-y += $(FRONTEND_DIR)/gpex_cmar_boost.o
-mali_kbase-y += $(FRONTEND_DIR)/gpex_cmar_sched.o
+
 mali_kbase-$(CONFIG_MALI_SEC_G3D_PEAK_NOTI) += $(WA_DIR)/gpexwa_peak_notify.o
 mali_kbase-$(CONFIG_MALI_EXYNOS_INTERACTIVE_BOOST) += $(WA_DIR)/gpexwa_interactive_boost.o
 
-mali_kbase-$(CONFIG_MALI_EXYNOS_DEBUG_FAULT_DUMP) += $(COMMON_DIR)/gpex_debug.o
+ifeq ($(CONFIG_MALI_EXYNOS_DEBUG_FAULT_DUMP), y)
+	mali_kbase-y += $(COMMON_DIR)/gpex_debug.o
+else
+	mali_kbase-y += $(COMMON_DIR)/dummy/gpex_debug_dummy.o
+endif

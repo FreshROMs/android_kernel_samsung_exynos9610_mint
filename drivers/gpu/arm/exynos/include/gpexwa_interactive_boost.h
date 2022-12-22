@@ -22,8 +22,25 @@
 #define _GPEXWA_INTERACTIVE_BOOST_H_
 
 #if IS_ENABLED(CONFIG_MALI_EXYNOS_INTERACTIVE_BOOST)
+
+/**
+ * gpexwa_interactive_boost_set() - boost gpu performance if needed in interactive scenarios for given duration
+ * @duration: duration to boost in msec
+ *
+ * Return: 0 on success
+ */
 int gpexwa_interactive_boost_set(int duration);
+
+/**
+ * gpexwa_interactive_boost_init() - initializes gpexwa_interactive_boost module
+ *
+ * Return: 0 on success
+ */
 int gpexwa_interactive_boost_init(void);
+
+/**
+ * gpexwa_interactive_boost_term() - terminates gpexwa_interactive_boost module
+ */
 void gpexwa_interactive_boost_term(void);
 #else
 #define gpexwa_interactive_boost_set(...) 0

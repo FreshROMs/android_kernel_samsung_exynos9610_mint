@@ -80,7 +80,7 @@ void gpex_dvfs_start(void);
 void gpex_dvfs_stop(void);
 
 /**
- * gpex_dvfs_set_polling_spped() - set polling speed for dvfs callback period
+ * gpex_dvfs_set_polling_speed() - set polling speed for dvfs callback period
  */
 int gpex_dvfs_set_polling_speed(int polling_speed);
 
@@ -90,12 +90,38 @@ int gpex_dvfs_set_polling_speed(int polling_speed);
 /**
  * gpex_dvfs_get_status() - check if DVFS is enabled.
  *
- * Returns: 0 if DVFS is diabled. 1 if DVFS is enabled.
+ * Returns: 0 if DVFS is disabled. 1 if DVFS is enabled.
  */
 int gpex_dvfs_get_status(void);
+
+/**
+ * gpex_dvfs_get_governor_type() - get the current dvfs governor type
+ *
+ * G3D_DVFS_GOVERNOR_DEFAULT = 0,
+ * G3D_DVFS_GOVERNOR_INTERACTIVE,
+ * G3D_DVFS_GOVERNOR_JOINT,
+ * G3D_DVFS_GOVERNOR_STATIC,
+ * G3D_DVFS_GOVERNOR_BOOSTER,
+ * G3D_DVFS_GOVERNOR_DYNAMIC,
+ *
+ * Returns: gpu_governor_type
+ */
 int gpex_dvfs_get_governor_type(void);
+
+/**
+ * gpex_dvfs_get_utilization() - get the current gpu utilization
+ *
+ * Returns: gpu utilization between 0 and 100
+ */
 int gpex_dvfs_get_utilization(void);
+
+/**
+ * gpex_dvfs_get_polling_speed() - get the dvfs polling speed in msec
+ *
+ * Returns: dvfs polling speed.
+ */
 int gpex_dvfs_get_polling_speed(void);
+
 /******************
  * LOCKS & MUTEXES
  ******************/

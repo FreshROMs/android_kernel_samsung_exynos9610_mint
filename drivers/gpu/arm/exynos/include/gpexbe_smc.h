@@ -21,20 +21,51 @@
 #ifndef _GPEXBE_SMC_H_
 #define _GPEXBE_SMC_H_
 
+/**
+ * gpexbe_smc_protection_enable() - enter secure mode using exynos_smc
+ *
+ * Used by gpexbe_secure module
+ *
+ * Return: 0 on success
+ */
 int gpexbe_smc_protection_enable(void);
+
+/**
+ * gpexbe_smc_protection_disable() - exit secure mode using exynos_smc
+ *
+ * Used by gpexbe_secure module
+ *
+ * Return: 0 on success
+ */
 int gpexbe_smc_protection_disable(void);
 
 /**
  * gpexbe_smc_notify_power_on() - Notify smc whenever GPU is powered on
+ *
+ * Needed by some SOC (used if MALI_EXYNOS_SECURE_SMC_NOTIFY_GPU is enabled)
+ *
  */
 void gpexbe_smc_notify_power_on(void);
 
 /**
  * gpexbe_smc_notify_power_off() - Notify smc whenever GPU is powered off
+ *
+ * Needed by some SOC (used if MALI_EXYNOS_SECURE_SMC_NOTIFY_GPU is enabled)
  */
 void gpexbe_smc_notify_power_off(void);
 
+/**
+ * gpexbe_smc_init() - initializes gpexbe_smc backend module
+ *
+ * Return: 0 on success
+ */
 int gpexbe_smc_init(void);
+
+/**
+ * gpexbe_smc_term() - terminates gpexbe_smc backend module
+ *
+ * Return: 0 on success
+ */
 void gpexbe_smc_term(void);
 
 #endif

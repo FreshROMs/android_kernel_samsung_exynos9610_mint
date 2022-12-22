@@ -25,12 +25,15 @@
 #include <linux/device.h>
 #include <linux/sysfs.h>
 
+#define CTX_NAME_SIZE 32
+
 struct kbase_device;
 
 /* per process context (pointed by kctx) */
 struct platform_context {
 	int cmar_boost;
 	pid_t pid;
+	char name[CTX_NAME_SIZE];
 };
 
 typedef struct ifpo_info *ifpo_info_ptr;
@@ -81,7 +84,6 @@ struct exynos_context {
 	llc_coh_info_ptr llc_coh_info;
 	smc_info_ptr smc_info;
 };
-
 
 #ifndef GPEX_STATIC
 #if IS_ENABLED(CONFIG_MALI_EXYNOS_UNIT_TESTS)
@@ -188,24 +190,116 @@ typedef ssize_t (*sysfs_device_read_func)(struct device *, struct device_attribu
 typedef ssize_t (*sysfs_device_write_func)(struct device *, struct device_attribute *, const char *,
 					   size_t);
 
+/**
+ * gpex_utils_get_debug_level() - get the current debug log output level
+ *
+ * Return: current debug log output level
+ *
+ * MALI_EXYNOS_DEBUG,
+ * MALI_EXYNOS_INFO,
+ * MALI_EXYNOS_WARNING,
+ * MALI_EXYNOS_ERROR,
+ */
 int gpex_utils_get_debug_level(void);
+
+/**
+ * gpex_utils_get_device() - get the pointer to Mali device struct
+ *
+ * Return: pointer to Mali device struct
+ */
 struct device *gpex_utils_get_device(void);
+
+/**
+ * gpex_utils_get_kbase_device() - get the pointer to kbase_device struct
+ *
+ * Return: pointer to kbase_device struct
+ */
 struct kbase_device *gpex_utils_get_kbase_device(void);
+
+/**
+ * gpex_utils_get_exynos_context() - get the pointer to exynos_context struct
+ *
+ * exynos_context struct contains pointers to internal structs of each gpex modules
+ * This is useful for debugging a ramdump using T32 to look into the state of gpex
+ * modules.
+ *
+ * Return: pointer to exynos_context struct
+ */
 struct exynos_context *gpex_utils_get_exynos_context(void);
 
+/**
+ * gpex_utils_init() - initializes gpex_utils module
+ *
+ * Return: 0 on success
+ */
 int gpex_utils_init(struct device **dev);
+
+/**
+ * gpex_utils_term() - terminates gpex_utils module
+ */
 void gpex_utils_term(void);
 
+/**
+ * gpex_utils_sysfs_device_file_add() - add a sysfs node to "to create" list
+ * @name: name of the sysfs node
+ * @read_func: function to be called on sysfs node read
+ * @write_func: function to be called on sysfs node write
+ *
+ * sysfs node is not actually created by this function.
+ * This function adds the sysfs node that need to be created into a list,
+ * and the actual node is created in batch when gpex_utils_sysfs_device_files_create is called
+ *
+ * for sysfs node that need to be created in /sys/devices/platform/<addr>.mali
+ * 
+ * Return: 0 on success
+ */
 int gpex_utils_sysfs_device_file_add(char *name, sysfs_device_read_func read_func,
 				     sysfs_device_write_func write_func);
 
+/**
+ * gpex_utils_sysfs_device_file_add() - add a sysfs node to "to create" list
+ * @name: name of the sysfs node
+ * @read_func: function to be called on sysfs node read
+ * @write_func: function to be called on sysfs node write
+ *
+ * sysfs node is not actually created by this function.
+ * This function adds the sysfs node that need to be created into a list,
+ * and the actual node is created in batch when gpex_utils_sysfs_device_files_create is called
+ *
+ * for sysfs node that need to be created in /sys/devices/platform/<addr>.mali
+ * 
+ * Return: 0 on success
+ */
 int gpex_utils_sysfs_kobject_file_add(char *name, sysfs_kobject_read_func read_func,
 				      sysfs_kobject_write_func write_func);
 
-/* Only meant to be used once by gpex_platform module */
+/**
+ * gpex_utils_sysfs_kobject_files_create() - batch create sysfs files in /sys/kernel/gpu
+ *
+ * This function is meant to called once after adding all the sysfs node information using
+ * gpex_utils_sysfs_kobject_file_add
+ *
+ * Return: 0 on success
+ */
 int gpex_utils_sysfs_kobject_files_create(void);
+
+/**
+ * gpex_utils_sysfs_device_files_create() - batch create sysfs files in /sys/devices/platform
+ *
+ * This function is meant to called once after adding all the sysfs node information using
+ * gpex_utils_sysfs_device_file_add
+ *
+ * Return: 0 on success
+ */
 int gpex_utils_sysfs_device_files_create(void);
 
+/**
+ * gpex_utils_sysfs_endbuf() - helper function to snip the end of sysfs node if over page size (4k)
+ * @buf: sysfs buffer to write to
+ * @len: length of string already written to buf before calling this function
+ *
+ * Return: length of the string in buf
+ */
 static inline ssize_t gpex_utils_sysfs_endbuf(char *buf, ssize_t len)
 {
 	if (len < PAGE_SIZE - 1) {
@@ -219,6 +313,15 @@ static inline ssize_t gpex_utils_sysfs_endbuf(char *buf, ssize_t len)
 	return len;
 }
 
+/**
+ * gpex_utils_sysfs_set_gpu_model_callback() - register gpu model read function for gpu_model sysfs
+ * @show_gpu_model_fn: sysfs read function for gpu_model sysfs node
+ *
+ * gpu_model sysfs uses read function that is implmented in mali_kbase exynos.
+ * Instead of duplicating the function in this LSI integration layer, this function is used
+ * by mali_kbase to register its own gpu_model read function to be used by integration layer's
+ * gpu_model sysfs.
+ */
 void gpex_utils_sysfs_set_gpu_model_callback(sysfs_device_read_func show_gpu_model_fn);
 
 #endif /* _MALI_EXYNOS_UTILS_H_ */

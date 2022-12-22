@@ -23,8 +23,27 @@
 
 #include <linux/device.h>
 
+/**
+ * gpexbe_bts_init() - initializes BTS MO backend module
+ *
+ * Return: 0 on success
+ */
 int gpexbe_bts_init(void);
+
+/**
+ * gpexbe_bts_term() - terminates BTS MO backend module
+ */
 void gpexbe_bts_term(void);
+
+/**
+ * gpexbe_bts_set_bts_mo() - set BTS MO to given value
+ * @val: currently only accepts 1 or 0 (enable/disable)
+ *
+ * For now, BTS MO can only be enabled or disabled to predetermined values set
+ * in devicetree.
+ *
+ * Return: 0 on success
+ */
 int gpexbe_bts_set_bts_mo(int val);
 
 #endif /* _MALI_EXYNOS_BTS_BACKEND_H_ */

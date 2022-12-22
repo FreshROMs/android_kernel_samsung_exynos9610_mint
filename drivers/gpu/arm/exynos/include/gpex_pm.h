@@ -30,7 +30,16 @@ enum {
 	GPEX_PM_STATE_END
 };
 
+/**
+ * gpex_pm_init() - initializes gpex_pm module
+ *
+ * Return: 0 on success
+ */
 int gpex_pm_init(void);
+
+/**
+ * gpex_pm_term() - terminates gpex_pm module
+ */
 void gpex_pm_term(void);
 
 /**
@@ -82,12 +91,67 @@ int gpex_pm_get_state(int *state);
 /***************************
  * RTPM helper functions
  **************************/
+
+/**
+ * gpex_pm_power_on() - does work needed when gpu is powered on
+ * @dev: mali device struct
+ *
+ * called by mali_kbase through power_on_callback function. (when gpu have job to do)
+ * calls pm_runtime_get_sync and starts dvfs if dvfs is not active.
+ */
 int gpex_pm_power_on(struct device *dev);
+
+/**
+ * gpex_pm_power_autosuspend() - does work needed when preparing for autosuspend (not actual suspend)
+ * @dev: mali device struct
+ *
+ * called by mali_kbase through power_off_callback function (when gpu have not job to do)
+ * calls pm_runtime_put_autosuspend.
+ */
 void gpex_pm_power_autosuspend(struct device *dev);
+
+/**
+ * gpex_pm_suspend() - does work needed when preparing for gpu suspend
+ * @dev: mali device struct
+ *
+ * called by mali_kbase through power_suspend_callback (when gpu is going to suspend mode)
+ * resets QOS requests to get ready for suspend and then calls pm_runtime_suspend
+ */
 void gpex_pm_suspend(struct device *dev);
+
+/**
+ * gpex_pm_runtime_init() - initializes runtime pm for Mali
+ * @dev: mali device struct
+ *
+ * called by mali_kbase through power_runtime_init_callback
+ *
+ * Return: 0 on success
+ */
 int gpex_pm_runtime_init(struct device *dev);
+
+/**
+ * gpex_pm_runtime_term() - terminates runtime pm for Mali
+ */
 void gpex_pm_runtime_term(struct device *dev);
+
+/**
+ * gpex_pm_runtime_off_prepare() - prepare for Mali runtime pm power off
+ * @dev: mali device struct
+ *
+ * stops mali dvfs and resets QOS requests to prepare for Mali runtime power off
+ * called by mali_kbase through power_runtime_off_callback
+ */
 void gpex_pm_runtime_off_prepare(struct device *dev);
+
+/**
+ * gpex_pm_runtime_on_prepare() - prepare for Mali runtime pm power on
+ * @dev: mali device struct
+ *
+ * for now prepare for Mali runtime power on by running SOC specific workarounds if needed
+ * called by mali_kbase through power_runtime_on_callback
+ *
+ * Return: 0 on success
+ */
 int gpex_pm_runtime_on_prepare(struct device *dev);
 
 #endif /* _MALI_EXYNOS_PM_H_ */

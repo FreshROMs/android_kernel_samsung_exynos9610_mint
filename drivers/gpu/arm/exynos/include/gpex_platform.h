@@ -24,7 +24,19 @@
 #include <linux/device.h>
 #include <linux/types.h>
 
+/**
+ * gpex_platform_init() - initializes gpex_platform which initializes all other modules
+ *
+ * This function is called when mali driver is first loaded and it initializes all other
+ * mali integration layer modules (gpex, gpexbe and gpexwa) that are enabled on the system.
+ *
+ * Return: 0 on success
+ */
 int gpex_platform_init(struct device **dev);
+
+/**
+ * gpex_platform_term() - terminates gpex_platform
+ */
 void gpex_platform_term(void);
 
 #endif /* _MALI_EXYNOS_PLATFORM_H_ */

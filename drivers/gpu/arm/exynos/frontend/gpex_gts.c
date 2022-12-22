@@ -21,6 +21,7 @@
 #include <gpex_clock.h>
 #include <gpex_tsg.h>
 #include <gpex_gts.h>
+#include <gpex_utils.h>
 #include <gpexbe_utilization.h>
 #include <gpexbe_devicetree.h>
 

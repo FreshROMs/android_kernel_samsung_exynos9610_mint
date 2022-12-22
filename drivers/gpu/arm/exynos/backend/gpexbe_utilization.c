@@ -124,17 +124,29 @@ int gpexbe_utilization_get_fragment_job_time(void)
 
 int gpexbe_utilization_get_compute_job_cnt(void)
 {
-	return atomic_read(&util_info.cnt_compute_jobs);
+	int ret = atomic_read(&util_info.cnt_compute_jobs);
+
+	atomic_set(&util_info.cnt_compute_jobs, 0);
+
+	return ret;
 }
 
 int gpexbe_utilization_get_vertex_job_cnt(void)
 {
-	return atomic_read(&util_info.cnt_vertex_jobs);
+	int ret = atomic_read(&util_info.cnt_vertex_jobs);
+
+	atomic_set(&util_info.cnt_vertex_jobs, 0);
+
+	return ret;
 }
 
 int gpexbe_utilization_get_fragment_job_cnt(void)
 {
-	return atomic_read(&util_info.cnt_fragment_jobs);
+	int ret = atomic_read(&util_info.cnt_fragment_jobs);
+
+	atomic_set(&util_info.cnt_fragment_jobs, 0);
+
+	return ret;
 }
 
 int gpexbe_utilization_get_utilization(void)

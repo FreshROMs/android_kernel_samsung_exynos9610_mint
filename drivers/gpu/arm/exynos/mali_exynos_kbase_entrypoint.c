@@ -39,7 +39,6 @@
 #include <gpexbe_llc_coherency.h>
 #include <gpexbe_utilization.h>
 #include <gpexbe_pm.h>
-#include <gpexbe_power_cycle_wa.h>
 #include <gpexbe_secure.h>
 #include <gpexbe_dmabuf.h>
 #include <gpexwa_interactive_boost.h>
@@ -408,20 +407,21 @@ bool mali_exynos_dmabuf_is_cached(struct dma_buf *dmabuf)
 
 void mali_exynos_debug_print_info(struct kbase_device *kbdev)
 {
-	static ktime_t current_time = 0;
-	static ktime_t prev_time = 0;
-	uint64_t diff;
+	static ktime_t current_time;
+	static ktime_t prev_time;
+	s64 diff;
 
 	current_time = ktime_get_boottime();
 
-	diff = current_time - prev_time;
+	diff = ktime_to_ns(ktime_sub(current_time, prev_time));
 
-#define ONESEC 1000000000
+#define ONESEC_IN_NS (1000 * 1000 * 1000)
+#define INTERVAL_IN_SEC 10
 
-	if (diff > (uint64_t)ONESEC * 10) {
+	if (diff > (s64)ONESEC_IN_NS * INTERVAL_IN_SEC) {
 		prev_time = current_time;
 
-		kbasep_ktrace_dump(kbdev);
+		KBASE_KTRACE_DUMP(kbdev);
 
 		gpex_debug_dump_hist(HIST_CLOCK);
 		gpex_debug_dump_hist(HIST_BTS);
@@ -448,9 +448,13 @@ static void mali_exynos_kbase_entrypoint_term(struct kbase_device *kbdev)
 static int mali_exynos_kbase_context_init(struct kbase_context *kctx)
 {
 	struct platform_context *pctx = kcalloc(1, sizeof(struct platform_context), GFP_KERNEL);
+	char current_name[sizeof(current->comm)];
 
 	pctx->cmar_boost = CMAR_BOOST_DEFAULT;
 	pctx->pid = kctx->pid;
+
+	get_task_comm(current_name, current);
+	strncpy((char *)(&pctx->name), current_name, sizeof(current->comm));
 
 	kctx->platform_data = pctx;
 

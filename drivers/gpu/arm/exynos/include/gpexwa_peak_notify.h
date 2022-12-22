@@ -20,6 +20,12 @@
 #define _GPEXWA_PEAK_NOTIFY_H_
 
 #if IS_ENABLED(CONFIG_MALI_SEC_G3D_PEAK_NOTI)
+/**
+ * gpexwa_peak_notify_update() - notify gpu peak state if required
+ *
+ * This function only does work when gpu peak state need to be notified.
+ * Otherwise it does no work.
+ */
 void gpexwa_peak_notify_update(void);
 #else
 #define gpexwa_peak_notify_update(...) (void)0
