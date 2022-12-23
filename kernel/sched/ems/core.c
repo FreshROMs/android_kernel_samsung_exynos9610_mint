@@ -166,8 +166,7 @@ bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync)
 	if (is_slowest_cpu(cpu) || !curr)
 		goto skip_ux;
 
-	/* Check if 'curr' is a high-cap top-app task */
-	if (schedtune_prefer_high_cap(curr, 1) > 0)
+	if (schedtune_prefer_high_cap(curr) > 0)
 		return false;
 
 skip_ux:
@@ -340,7 +339,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		.boost = schedtune_task_boost(p),
 		.prefer_idle = schedtune_prefer_idle(p),
 		.prefer_perf = sched_prefer_perf,
-		.prefer_high_cap = schedtune_prefer_high_cap(p, 0),
+		.prefer_high_cap = schedtune_prefer_high_cap(p),
 
 		.start_cpu = sched_start_cpu,
 		.start_cpu_cap = get_cpu_max_capacity(sched_start_cpu),

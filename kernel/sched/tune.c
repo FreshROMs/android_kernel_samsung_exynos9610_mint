@@ -498,7 +498,7 @@ int schedtune_prefer_perf(struct task_struct *p)
 	return prefer_perf;
 }
 
-int schedtune_prefer_high_cap(struct task_struct *p, int ta_only)
+int schedtune_prefer_high_cap(struct task_struct *p)
 {
 	struct schedtune *st;
 	int prefer_high_cap;
@@ -509,7 +509,7 @@ int schedtune_prefer_high_cap(struct task_struct *p, int ta_only)
 	/* Get prefer_high_cap value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	prefer_high_cap = max(st->prefer_high_cap, kpp_status(st->idx, ta_only));
+	prefer_high_cap = max(st->prefer_high_cap, kpp_status(st->idx));
 	rcu_read_unlock();
 
 	return prefer_high_cap;

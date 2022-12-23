@@ -291,7 +291,7 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 	struct task_struct *p;
 	unsigned int max_util_avg = 0;
 	int task_count = 0;
-	int boosted = !!global_boosted() || !!schedtune_prefer_high_cap(task_of(se), 0);
+	int boosted = !!global_boosted() || !!schedtune_prefer_high_cap(task_of(se));
 
 	/*
 	 * Since current task does not exist in entity list of cfs_rq,
