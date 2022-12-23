@@ -275,19 +275,16 @@ build_dtbo() {
 }
 
 set_file_name() {
+ZIP_ONEUI_VERSION=""
+
+if [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
+	ZIP_ONEUI_VERSION="$((${BUILD_ANDROID_PLATFORM} - 8))"
+fi
+
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
-	ZIP_ONEUI_VERSION=""
 
 	if [[ ${BUILD_KERNEL_BRANCH} == *"android-"* ]]; then
 		BUILD_KERNEL_BRANCH='mainline'
-	fi
-
-	if [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
-		if [[ "${BUILD_ANDROID_PLATFORM}" == "11" ]]; then
-			ZIP_ONEUI_VERSION="3"
-		elif [[ "${BUILD_ANDROID_PLATFORM}" == "12" ]]; then
-			ZIP_ONEUI_VERSION="4"
-		fi
 	fi
 
 	if [[ ${BUILD_KERNEL_PERMISSIVE} == 'true' ]]; then
@@ -317,9 +314,9 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 	fi
 else
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-		FILE_OUTPUT=Mint-${BUILD_DATE}_${FILE_KERNEL_CODE}-${BUILD_DEVICE_NAME^}_UB.zip
+		FILE_OUTPUT=Mint-${BUILD_DATE}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}_UB.zip
 	else
-		FILE_OUTPUT=Mint-${BUILD_DATE}_${FILE_KERNEL_CODE}-NoRoot_${BUILD_DEVICE_NAME^}_UB.zip
+		FILE_OUTPUT=Mint-${BUILD_DATE}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}_UB.zip
 	fi
 
 	BUILD_KERNEL_BRANCH='user'
