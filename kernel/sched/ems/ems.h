@@ -30,6 +30,7 @@ struct eco_env {
 
     /* schedtune */
     int boost;
+    int task_on_top;
     int prefer_idle;
     int prefer_perf;
     int prefer_high_cap;

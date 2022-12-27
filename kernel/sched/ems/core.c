@@ -337,6 +337,7 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		.min_util = boosted_task_util(p),
 
 		.boost = schedtune_task_boost(p),
+		.task_on_top = schedtune_task_on_top(p),
 		.prefer_idle = schedtune_prefer_idle(p),
 		.prefer_perf = sched_prefer_perf,
 		.prefer_high_cap = schedtune_prefer_high_cap(p),
