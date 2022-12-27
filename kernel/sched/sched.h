@@ -70,6 +70,10 @@ extern void cpu_load_update_active(struct rq *this_rq);
 static inline void cpu_load_update_active(struct rq *this_rq) { }
 #endif
 
+#ifdef CONFIG_SCHED_EMS
+extern bool is_app(struct task_struct *p);
+#endif
+
 /*
  * Helpers for converting nanosecond timing to jiffy resolution
  */

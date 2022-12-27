@@ -412,6 +412,63 @@ static inline int schedtune_adj_ta(struct schedtune *st, struct task_struct *p)
 	return 0;
 }
 
+#ifdef CONFIG_SCHED_EMS
+inline int is_top_app(struct schedtune *st) {
+	return (st->idx == STUNE_TOPAPP);
+}
+
+int schedtune_task_top_app(struct task_struct *p)
+{
+	struct schedtune *st;
+	int top_app;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Don't touch kthreads */
+	if (p->flags & PF_KTHREAD)
+		return 0;
+
+	/* Return if task is not an app */
+	if (!is_app(p))
+		return 0;
+
+	/* Get task boost value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	top_app = is_top_app(st);
+	rcu_read_unlock();
+
+	return top_app;
+}
+
+int schedtune_task_on_top(struct task_struct *p)
+{
+	int adj = p->signal->oom_score_adj;
+	struct schedtune *st;
+	int on_top;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Don't touch kthreads */
+	if (p->flags & PF_KTHREAD)
+		return 0;
+
+	/* Return if task is not an app */
+	if (!is_app(p))
+		return 0;
+
+	/* Get task boost value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+	on_top = is_top_app(st) && (adj == 0);
+	rcu_read_unlock();
+
+	return on_top;
+}
+#endif
+
 int schedtune_task_boost(struct task_struct *p)
 {
 	struct schedtune *st;
