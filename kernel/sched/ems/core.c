@@ -166,6 +166,15 @@ bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync)
 	if (is_slowest_cpu(cpu) || !curr)
 		goto skip_ux;
 
+	/* Allow preemption if not top-app */
+	if (!schedtune_task_top_app(curr))
+		goto skip_ux;
+
+	/* Always avoid preempting the app in front of user */
+	if (p != curr && schedtune_task_on_top(curr))
+		return false;
+
+	/* Check if 'curr' is a high-cap top-app task */
 	if (schedtune_prefer_high_cap(curr) > 0)
 		return false;
 
