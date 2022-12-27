@@ -199,7 +199,7 @@ int select_service_cpu(struct eco_env *eenv)
 	if (!prefer_perf_services)
 		return -1;
 
-	boost = eenv->prefer_high_cap;
+	boost = max(eenv->prefer_high_cap, eenv->task_on_top);
 	if (boost <= 0)
 		return -1;
 
