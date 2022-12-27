@@ -3557,6 +3557,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 static int sd_probe(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
+	struct scsi_host_template *sht = sdp->host->hostt;
 	struct scsi_disk *sdkp;
 	struct gendisk *gd;
 	int index;
@@ -3626,11 +3627,7 @@ static int sd_probe(struct device *dev)
 					     SD_UFS_TIMEOUT);
 	}
 
-#ifdef CONFIG_SCSI_UFSHCD
-	if (!sdp->host->by_ufs) {
-#else
-	if (1) { /* apply to all SCSI devices on non-UFS system */
-#endif
+	if (strncmp(sht->name, "ufshcd", 6)) {
 		struct request_queue *q = sdp->request_queue;
 
 		/* decrease max # of requests to 32. The goal of this tuning is
