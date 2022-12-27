@@ -389,24 +389,22 @@ int schedtune_cpu_boost(int cpu)
 }
 
 #define SYSTEMUI_THREAD_NAME "ndroid.systemui"
-static inline int schedtune_adj_ta(struct task_struct *p, struct schedtune *st)
+static inline int schedtune_adj_ta(struct schedtune *st, struct task_struct *p)
 {
-	char name_buf[NAME_MAX + 1];
 	int adj = p->signal->oom_score_adj;
 
 	if (!st)
-		return 0;
-
-	/* We only care about adj == 0 */
-	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
 	/* Don't touch kthreads */
 	if (p->flags & PF_KTHREAD)
 		return 0;
 
-	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
-	if (!strncmp(name_buf, "top-app", strlen("top-app"))) {
+	/* We only care about adj == 0 */
+	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
+		return 0;
+
+	if (st->idx == STUNE_TOPAPP) {
 		pr_debug("top app is %s with adj %i\n", p->comm, adj);
 		return 1;
 	}
@@ -425,7 +423,7 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = max(st->boost, schedtune_adj_ta(p, st));
+	task_boost = max(st->boost, schedtune_adj_ta(st, p));
 	rcu_read_unlock();
 
 	return task_boost;
