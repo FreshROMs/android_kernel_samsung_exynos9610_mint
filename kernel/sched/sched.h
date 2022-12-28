@@ -932,8 +932,6 @@ struct rq {
 #endif /* CONFIG_SCHED_WALT */
 
 #ifdef CONFIG_SCHED_EMS
-	struct part pa;
-
 	bool ontime_migrating;
 	bool ontime_boost_migration;
 #endif

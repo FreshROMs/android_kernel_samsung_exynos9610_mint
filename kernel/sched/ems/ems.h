@@ -126,5 +126,3 @@ extern unsigned long freqvar_st_boost_vector(int cpu);
 
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
-
-extern void init_part(void);
