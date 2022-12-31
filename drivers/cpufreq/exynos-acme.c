@@ -1396,6 +1396,8 @@ static int __init exynos_cpufreq_init(void)
 		set_boot_qos(domain);
 	}
 
+	set_energy_table_status(true);
+
 	pr_info("Initialized Exynos cpufreq driver\n");
 
 	return ret;

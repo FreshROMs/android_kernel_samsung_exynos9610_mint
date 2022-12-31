@@ -51,6 +51,10 @@ extern int exynos_need_active_balance(enum cpu_idle_type idle,
 extern int
 exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int sync);
 
+extern bool energy_initialized;
+extern void set_energy_table_status(bool status);
+extern bool get_energy_table_status(void);
+
 /* ontime migration */
 extern void ontime_migration(void);
 extern int ontime_can_migration(struct task_struct *p, int cpu);

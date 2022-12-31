@@ -347,6 +347,12 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		goto out;
 	}
 
+	target_cpu = select_best_cpu(p, prev_cpu, sd_flag, sync);
+	if (cpu_selected(target_cpu)) {
+		strcpy(state, "best");
+		goto out;
+	}
+
 	/*
 	 * Priority 5 : prefer-idle
 	 *
