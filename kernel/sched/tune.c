@@ -48,6 +48,11 @@ struct schedtune {
 	/* Hint to group tasks by process */
 	int band;
 
+#ifdef CONFIG_SCHED_EMS
+	/* Scheduling policy for given cgroup */
+	int sched_policy;
+#endif
+
 	/* SchedTune ontime migration */
 	int ontime_en;
 };
@@ -82,6 +87,7 @@ root_schedtune = {
 	.prefer_idle = 0,
 	.prefer_perf = 0,
 	.band = 0,
+	.sched_policy = 0,
 };
 
 /*
@@ -510,6 +516,68 @@ int schedtune_task_on_top(struct task_struct *p)
 
 	return schedtune_task_top_app(p);
 }
+
+int schedtune_task_sched_policy(struct task_struct *p)
+{
+	struct schedtune *st;
+	int sched_policy;
+
+	if (unlikely(!schedtune_initialized))
+		return 0;
+
+	/* Get sched_policy value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+
+	if (!st) {
+		sched_policy = 0;
+		goto out;
+	}
+
+	sched_policy = st->sched_policy;
+
+out:
+	rcu_read_unlock();
+
+	return sched_policy;
+}
+
+char *ems_sched_policy_name[] = {
+    "SCHED_POLICY_EFF",
+    "SCHED_POLICY_EFF_TINY",
+    "SCHED_POLICY_ENERGY",
+    "SCHED_POLICY_EFF_ENERGY",
+    "SCHED_POLICY_SEMI_PERF",
+    "SCHED_POLICY_PERF",
+    "SCHED_POLICY_UNKNOWN"
+};
+
+static int
+sched_policy_read(struct seq_file *sf, void *v)
+{
+	struct cgroup_subsys_state *css = seq_css(sf);
+	struct schedtune *st = css_st(css);
+
+	seq_printf(sf, "%u. %s\n", st->sched_policy,
+		ems_sched_policy_name[st->sched_policy]);
+	
+	return 0;
+}
+
+static int
+sched_policy_write(struct cgroup_subsys_state *css, struct cftype *cft,
+	    u64 sched_policy)
+{
+	struct schedtune *st = css_st(css);
+
+	if (sched_policy < 0 || sched_policy >= 6) {
+		st->sched_policy = 0;
+		return -EINVAL;
+	}
+
+	st->sched_policy = sched_policy;
+	return 0;
+}
 #endif
 
 int schedtune_task_boost(struct task_struct *p)
@@ -729,6 +797,13 @@ static struct cftype files[] = {
 		.read_u64 = prefer_perf_read,
 		.write_u64 = prefer_perf_write,
 	},
+#ifdef CONFIG_SCHED_EMS
+	{
+		.name = "ems_sched_policy",
+		.seq_show = sched_policy_read,
+		.write_u64 = sched_policy_write,
+	},
+#endif
 	{
 		.name = "band",
 		.read_u64 = band_read,
@@ -798,6 +873,22 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	/* Initialize per CPUs boost group support */
 	st->idx = idx;
+
+#ifdef CONFIG_SCHED_EMS
+	switch (idx) {
+	case STUNE_BACKGROUND:
+		st->sched_policy = 1;
+		break;
+	case STUNE_TOPAPP:
+	case STUNE_RT:
+		st->sched_policy = 4;
+		break;
+	default:
+		st->sched_policy = 0;
+		break;
+	}
+#endif
+
 	if (schedtune_boostgroup_init(st))
 		goto release;
 

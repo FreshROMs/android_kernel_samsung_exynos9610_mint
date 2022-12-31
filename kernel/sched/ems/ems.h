@@ -18,6 +18,15 @@
 
 extern struct kobject *ems_kobj;
 
+/* task scheduling policy */
+# define SCHED_POLICY_EFF 0 // foreground
+# define SCHED_POLICY_EFF_TINY 1 // background
+# define SCHED_POLICY_ENERGY 2
+# define SCHED_POLICY_SEMI_PERF 3 // top-app/rt/camera-daemon
+# define SCHED_POLICY_PERF 4 // prefer-perf/on-top/nnapi-hal
+# define SCHED_POLICY_PROPER 5 // overutil case
+# define SCHED_POLICY_UNKNOWN 6
+
 extern int select_service_cpu(struct task_struct *p);
 extern int ontime_task_wakeup(struct task_struct *p, int sync);
 extern int select_perf_cpu(struct task_struct *p);
