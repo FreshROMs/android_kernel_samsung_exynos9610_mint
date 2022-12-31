@@ -459,10 +459,34 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 }
 
 #ifdef CONFIG_SCHED_EMS
-int schedtune_task_top_app(struct task_struct *p)
+int schedtune_task_group_idx(struct task_struct *p)
 {
 	struct schedtune *st;
-	int top_app;
+	int idx;
+
+	if (unlikely(!schedtune_initialized))
+		return -1;
+
+	/* Get task group value */
+	rcu_read_lock();
+	st = task_schedtune(p);
+
+	if (!st) {
+		idx = 0;
+		goto out;
+	}
+
+	idx = st->idx;
+	
+out:
+	rcu_read_unlock();
+
+	return idx;
+}
+
+int schedtune_task_top_app(struct task_struct *p)
+{
+	int task_group_idx;
 
 	if (unlikely(!schedtune_initialized))
 		return 0;
@@ -475,13 +499,8 @@ int schedtune_task_top_app(struct task_struct *p)
 	if (!is_app(p))
 		return 0;
 
-	/* Get task boost value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	top_app = (st->idx == STUNE_TOPAPP);
-	rcu_read_unlock();
-
-	return top_app;
+	task_group_idx = schedtune_task_group_idx(p);
+	return (task_group_idx == STUNE_TOPAPP);
 }
 
 int schedtune_task_on_top(struct task_struct *p)
