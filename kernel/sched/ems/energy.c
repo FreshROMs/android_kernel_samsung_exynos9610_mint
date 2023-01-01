@@ -37,6 +37,24 @@ struct energy_table {
 };
 DEFINE_PER_CPU(struct energy_table, energy_table);
 
+struct cpumask slowest_mask;
+struct cpumask fastest_mask;
+
+const struct cpumask *cpu_slowest_mask(void)
+{
+	return &slowest_mask;
+}
+
+const struct cpumask *cpu_fastest_mask(void)
+{
+	return &fastest_mask;
+}
+
+inline bool is_slowest_cpu(int cpu)
+{
+	return cpumask_test_cpu(cpu, cpu_slowest_mask());
+}
+
 /* check the status of energy table */
 bool energy_initialized;
 
@@ -558,6 +576,39 @@ static struct notifier_block sched_cpufreq_policy_notifier = {
 	.notifier_call = sched_cpufreq_policy_callback,
 };
 
+static void cpumask_speed_init(void)
+{
+	int cpu;
+	unsigned long min_cap = ULONG_MAX, max_cap = 0;
+
+	cpumask_clear(&slowest_mask);
+	cpumask_clear(&fastest_mask);
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		unsigned long cap;
+
+		cap = get_cpu_max_capacity(cpu);
+		if (cap < min_cap)
+			min_cap = cap;
+		if (cap > max_cap)
+			max_cap = cap;
+	}
+
+	for_each_cpu(cpu, cpu_possible_mask) {
+		unsigned long cap;
+
+		cap = get_cpu_max_capacity(cpu);
+		if (cap == min_cap) {
+			pr_info("cpu%d is_min_cap=%d\n", cpu, 1);
+			cpumask_set_cpu(cpu, &slowest_mask);
+		}
+		if (cap == max_cap) {
+			pr_info("cpu%d is_min_cap=%d\n", cpu, 0);
+			cpumask_set_cpu(cpu, &fastest_mask);
+		}
+	}
+}
+
 /*
  * Whenever frequency domain is registered, and energy table corresponding to
  * the domain is created. Because cpu in the same frequency domain has the same
@@ -661,6 +712,7 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	}
 
 	topology_update();
+	cpumask_speed_init();
 }
 
 static ssize_t show_energy_weight(struct kobject *kobj,
