@@ -45,9 +45,6 @@ struct schedtune {
 	/* SchedTune util-est */
 	int util_est_en;
 
-	/* Hint to group tasks by process */
-	int band;
-
 #ifdef CONFIG_SCHED_EMS
 	/* Scheduling policy for given cgroup */
 	int sched_policy;
@@ -86,52 +83,15 @@ root_schedtune = {
 	.boost	= 0,
 	.prefer_idle = 0,
 	.prefer_perf = 0,
-	.band = 0,
+#ifdef CONFIG_SCHED_EMS
 	.sched_policy = 0,
+#endif
 };
-
-/*
- * Maximum number of boost groups to support
- * When per-task boosting is used we still allow only limited number of
- * boost groups for two main reasons:
- * 1. on a real system we usually have only few classes of workloads which
- *    make sense to boost with different values (e.g. background vs foreground
- *    tasks, interactive vs low-priority tasks)
- * 2. a limited number allows for a simpler and more memory/time efficient
- *    implementation especially for the computation of the per-CPU boost
- *    value
- */
-#define BOOSTGROUPS_COUNT 6
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
 	&root_schedtune,
 	NULL,
-};
-
-/* SchedTune boost groups
- * Keep track of all the boost groups which impact on CPU, for example when a
- * CPU has two RUNNABLE tasks belonging to two different boost groups and thus
- * likely with different boost values.
- * Since on each system we expect only a limited number of boost groups, here
- * we use a simple array to keep track of the metrics required to compute the
- * maximum per-CPU boosting value.
- */
-struct boost_groups {
-	/* Maximum boost value for all RUNNABLE tasks on a CPU */
-	bool idle;
-	int boost_max;
-	u64 boost_ts;
-	struct {
-		/* The boost for tasks on that boost group */
-		int boost;
-		/* Count of RUNNABLE tasks on that boost group */
-		unsigned tasks;
-		/* Timestamp of boost activation */
-		u64 ts;
-	} group[BOOSTGROUPS_COUNT];
-	/* CPU's boost group locking */
-	raw_spinlock_t lock;
 };
 
 /* Boost groups affecting each CPU in the system */
@@ -387,15 +347,6 @@ void schedtune_cancel_attach(struct cgroup_taskset *tset)
 	WARN(1, "SchedTune cancel attach not implemented");
 }
 
-static void schedtune_attach(struct cgroup_taskset *tset)
-{
-	struct task_struct *task;
-	struct cgroup_subsys_state *css;
-
-	cgroup_taskset_for_each(task, css, tset)
-		sync_band(task, css_st(css)->band);
-}
-
 /*
  * NOTE: This function must be called while holding the lock on the CPU RQ
  */
@@ -544,11 +495,10 @@ out:
 
 char *ems_sched_policy_name[] = {
     "SCHED_POLICY_EFF",
-    "SCHED_POLICY_EFF_TINY",
     "SCHED_POLICY_ENERGY",
-    "SCHED_POLICY_EFF_ENERGY",
     "SCHED_POLICY_SEMI_PERF",
     "SCHED_POLICY_PERF",
+    "SCHED_POLICY_MIN_UTIL",
     "SCHED_POLICY_UNKNOWN"
 };
 
@@ -570,7 +520,7 @@ sched_policy_write(struct cgroup_subsys_state *css, struct cftype *cft,
 {
 	struct schedtune *st = css_st(css);
 
-	if (sched_policy < 0 || sched_policy >= 6) {
+	if (sched_policy < 0 || sched_policy >= 5) {
 		st->sched_policy = 0;
 		return -EINVAL;
 	}
@@ -703,24 +653,6 @@ ontime_en_write(struct cgroup_subsys_state *css, struct cftype *cft,
 }
 
 static u64
-band_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->band;
-}
-
-static int
-band_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 band)
-{
-	struct schedtune *st = css_st(css);
-	st->band = band;
-
-	return 0;
-}
-
-static u64
 prefer_idle_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
 	struct schedtune *st = css_st(css);
@@ -805,11 +737,6 @@ static struct cftype files[] = {
 	},
 #endif
 	{
-		.name = "band",
-		.read_u64 = band_read,
-		.write_u64 = band_write,
-	},
-	{
 		.name = "util_est_en",
 		.read_u64 = util_est_en_read,
 		.write_u64 = util_est_en_write,
@@ -877,14 +804,14 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 #ifdef CONFIG_SCHED_EMS
 	switch (idx) {
 	case STUNE_BACKGROUND:
-		st->sched_policy = 1;
+		st->sched_policy = 1; // SCHED_POLICY_ENERGY
 		break;
 	case STUNE_TOPAPP:
 	case STUNE_RT:
-		st->sched_policy = 4;
+		st->sched_policy = 2; // SCHED_POLICY_SEMI_PERF
 		break;
 	default:
-		st->sched_policy = 0;
+		st->sched_policy = 0; // SCHED_POLICY_EFF
 		break;
 	}
 #endif
@@ -924,7 +851,6 @@ struct cgroup_subsys schedtune_cgrp_subsys = {
 	.css_free	= schedtune_css_free,
 	.can_attach     = schedtune_can_attach,
 	.cancel_attach  = schedtune_cancel_attach,
-	.attach		= schedtune_attach,
 	.legacy_cftypes	= files,
 	.early_init	= 1,
 };

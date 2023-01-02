@@ -721,12 +721,12 @@ TRACE_EVENT(sched_fluid_stat,
 		__entry->load_avg		= avg->load_avg;
 		__entry->util_avg		= avg->util_avg;
 	),
-	TP_printk("frt: comm=%s pid=%d assigned to #%d from #%d load_avg=%lu util_avg=%lu "
-			"by %s.",
+	TP_printk("frt: comm=%s pid=%d src_cpu=%d tgt_cpu=%d load_avg=%lu util_avg=%lu "
+			"state=%s",
 		  __entry->targettsk,
 		  __entry->pid,
-		  __entry->bestcpu,
 		  __entry->prevcpu,
+		  __entry->bestcpu,
 		  __entry->load_avg,
 		  __entry->util_avg,
 		  __entry->selectby)

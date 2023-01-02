@@ -115,17 +115,20 @@ int global_boosted(void)
 {
 	u64 now = ktime_to_us(ktime_get());
 
-	/* booting boost duration = 40s */
-	if (now < 40 * USEC_PER_SEC)
+	/* booting boost duration = 120s */
+	if (now < 120 * USEC_PER_SEC)
 		return 1;
 
 	return gb_qos_value() > 0;
 }
 
-int global_boosting(struct task_struct *p)
+int global_boosted_boot(void)
 {
-	if (!global_boosted())
-		return -1;
+	u64 now = ktime_to_us(ktime_get());
 
-	return select_perf_cpu(p);
+	/* booting boost duration = 60s */
+	if (now < 60 * USEC_PER_SEC)
+		return 1;
+
+	return 0;
 }

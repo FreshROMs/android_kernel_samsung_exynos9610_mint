@@ -15,67 +15,52 @@
 #include <linux/sched.h>
 #include <linux/tracepoint.h>
 
+struct tp_env;
+
 /*
- * Tracepoint for selecting eco cpu
+ * Tracepoint for wakeup balance
  */
-TRACE_EVENT(ems_select_eco_cpu,
+TRACE_EVENT(ems_select_fit_cpus,
 
-	TP_PROTO(struct task_struct *p, int eco_cpu, int prev_cpu, int best_cpu,
-		unsigned int prev_energy, unsigned int best_energy),
+	TP_PROTO(struct task_struct *p, int wake,
+		unsigned int fit_cpus, unsigned int cpus_allowed, unsigned int ontime_fit_cpus, unsigned int prefer_cpus,
+		unsigned int overutil_cpus, unsigned int non_preemptible_cpus, unsigned int busy_cpus),
 
-	TP_ARGS(p, eco_cpu, prev_cpu, best_cpu, prev_energy, best_energy),
+	TP_ARGS(p, wake, fit_cpus, cpus_allowed, ontime_fit_cpus, prefer_cpus,
+				overutil_cpus, non_preemptible_cpus, busy_cpus),
 
 	TP_STRUCT__entry(
 		__array(	char,		comm,	TASK_COMM_LEN	)
 		__field(	pid_t,		pid			)
-		__field(	int,		eco_cpu			)
-		__field(	int,		prev_cpu		)
-		__field(	int,		best_cpu		)
-		__field(	unsigned int,	prev_energy		)
-		__field(	unsigned int,	best_energy		)
+		__field(	int,		src_cpu			)
+		__field(	int,		wake			)
+		__field(	unsigned int,	fit_cpus		)
+		__field(	unsigned int,	cpus_allowed		)
+		__field(	unsigned int,	ontime_fit_cpus		)
+		__field(	unsigned int,	prefer_cpus		)
+		__field(	unsigned int,	overutil_cpus		)
+		__field(	unsigned int,	non_preemptible_cpus		)
+		__field(	unsigned int,	busy_cpus		)
 	),
 
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->eco_cpu	= eco_cpu;
-		__entry->prev_cpu	= prev_cpu;
-		__entry->best_cpu	= best_cpu;
-		__entry->prev_energy	= prev_energy;
-		__entry->best_energy	= best_energy;
+		__entry->pid			= p->pid;
+		__entry->src_cpu		= task_cpu(p);
+		__entry->wake			= wake;
+		__entry->fit_cpus		= fit_cpus;
+		__entry->cpus_allowed		= cpus_allowed;
+		__entry->ontime_fit_cpus	= ontime_fit_cpus;
+		__entry->prefer_cpus	= prefer_cpus;
+		__entry->overutil_cpus		= overutil_cpus;
+		__entry->non_preemptible_cpus		= non_preemptible_cpus;
+		__entry->busy_cpus		= busy_cpus;
 	),
 
-	TP_printk("comm=%s pid=%d eco_cpu=%d prev_cpu=%d best_cpu=%d "
-		  "prev_energy=%u best_energy=%u",
-		__entry->comm, __entry->pid, __entry->eco_cpu, __entry->prev_cpu,
-		__entry->best_cpu, __entry->prev_energy, __entry->best_energy)
-);
-
-/*
- * Tracepoint for proper cpu selection
- */
-TRACE_EVENT(ems_select_proper_cpu,
-
-	TP_PROTO(struct task_struct *p, int best_cpu, unsigned long min_util),
-
-	TP_ARGS(p, best_cpu, min_util),
-
-	TP_STRUCT__entry(
-		__array(	char,		comm,	TASK_COMM_LEN	)
-		__field(	pid_t,		pid			)
-		__field(	int,		best_cpu		)
-		__field(	unsigned long,	min_util		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->best_cpu	= best_cpu;
-		__entry->min_util	= min_util;
-	),
-
-	TP_printk("comm=%s pid=%d best_cpu=%d min_util=%lu",
-		  __entry->comm, __entry->pid, __entry->best_cpu, __entry->min_util)
+	TP_printk("comm=%s pid=%d src_cpu=%d wake=%d fit_cpus=%#x cpus_allowed=%#x ontime_fit_cpus=%#x prefer_cpus=%#x overutil_cpus=%#x non_preemptible_cpus=%#x busy_cpus=%#x",
+		  __entry->comm, __entry->pid, __entry->src_cpu,  __entry->wake,
+		  __entry->fit_cpus, __entry->cpus_allowed, __entry->ontime_fit_cpus, __entry->prefer_cpus,
+		  __entry->overutil_cpus, __entry->non_preemptible_cpus, __entry->busy_cpus)
 );
 
 /*
@@ -83,14 +68,15 @@ TRACE_EVENT(ems_select_proper_cpu,
  */
 TRACE_EVENT(ems_wakeup_balance,
 
-	TP_PROTO(struct task_struct *p, int target_cpu, char *state),
+	TP_PROTO(struct task_struct *p, int target_cpu, int wake, char *state),
 
-	TP_ARGS(p, target_cpu, state),
+	TP_ARGS(p, target_cpu, wake, state),
 
 	TP_STRUCT__entry(
 		__array(	char,		comm,	TASK_COMM_LEN	)
 		__field(	pid_t,		pid			)
 		__field(	int,		target_cpu		)
+		__field(	int,		wake		)
 		__array(	char,		state,		30	)
 	),
 
@@ -98,38 +84,12 @@ TRACE_EVENT(ems_wakeup_balance,
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
 		__entry->pid		= p->pid;
 		__entry->target_cpu	= target_cpu;
+		__entry->wake	= wake;
 		memcpy(__entry->state, state, 30);
 	),
 
-	TP_printk("comm=%s pid=%d target_cpu=%d state=%s",
-		  __entry->comm, __entry->pid, __entry->target_cpu, __entry->state)
-);
-
-/*
- * Tracepoint for performance cpu finder
- */
-TRACE_EVENT(ems_select_perf_cpu,
-
-	TP_PROTO(struct task_struct *p, int best_cpu, int backup_cpu),
-
-	TP_ARGS(p, best_cpu, backup_cpu),
-
-	TP_STRUCT__entry(
-		__array(	char,		comm,	TASK_COMM_LEN	)
-		__field(	pid_t,		pid			)
-		__field(	int,		best_cpu		)
-		__field(	int,		backup_cpu		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->best_cpu	= best_cpu;
-		__entry->backup_cpu	= backup_cpu;
-	),
-
-	TP_printk("comm=%s pid=%d best_cpu=%d backup_cpu=%d",
-		  __entry->comm, __entry->pid, __entry->best_cpu, __entry->backup_cpu)
+	TP_printk("comm=%s pid=%d target_cpu=%d wake=%d state=%s",
+		  __entry->comm, __entry->pid, __entry->target_cpu, __entry->wake, __entry->state)
 );
 
 /*
@@ -152,68 +112,6 @@ TRACE_EVENT(ems_global_boost,
 	),
 
 	TP_printk("name=%s global_boost=%d", __entry->name, __entry->boost)
-);
-
-/*
- * Tracepoint for prefer idle
- */
-TRACE_EVENT(ems_prefer_idle,
-
-	TP_PROTO(struct task_struct *p, int orig_cpu, int target_cpu,
-		unsigned long capacity_orig, unsigned long task_util,
-		unsigned long new_util, int idle),
-
-	TP_ARGS(p, orig_cpu, target_cpu, capacity_orig, task_util, new_util, idle),
-
-	TP_STRUCT__entry(
-		__array(	char,		comm,	TASK_COMM_LEN	)
-		__field(	pid_t,		pid			)
-		__field(	int,		orig_cpu		)
-		__field(	int,		target_cpu		)
-		__field(	unsigned long,	capacity_orig		)
-		__field(	unsigned long,	task_util		)
-		__field(	unsigned long,	new_util		)
-		__field(	int,		idle			)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->orig_cpu	= orig_cpu;
-		__entry->target_cpu	= target_cpu;
-		__entry->capacity_orig	= capacity_orig;
-		__entry->task_util	= task_util;
-		__entry->new_util	= new_util;
-		__entry->idle		= idle;
-	),
-
-	TP_printk("comm=%s pid=%d orig_cpu=%d target_cpu=%d cap_org=%lu task_util=%lu new_util=%lu idle=%d",
-		__entry->comm, __entry->pid, __entry->orig_cpu, __entry->target_cpu,
-		__entry->capacity_orig, __entry->task_util, __entry->new_util, __entry->idle)
-);
-
-TRACE_EVENT(ems_select_idle_cpu,
-
-	TP_PROTO(struct task_struct *p, int cpu, char *state),
-
-	TP_ARGS(p, cpu, state),
-
-	TP_STRUCT__entry(
-		__array(	char,		comm,	TASK_COMM_LEN	)
-		__field(	pid_t,		pid			)
-		__field(	int,		cpu			)
-		__array(	char,		state,		30	)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->cpu		= cpu;
-		memcpy(__entry->state, state, 30);
-	),
-
-	TP_printk("comm=%s pid=%d target_cpu=%d state=%s",
-		  __entry->comm, __entry->pid, __entry->cpu, __entry->state)
 );
 
 /*
@@ -339,33 +237,6 @@ TRACE_EVENT(ems_ontime_check_migrate,
 		__entry->migrate, __entry->label)
 );
 
-TRACE_EVENT(ems_ontime_task_wakeup,
-
-	TP_PROTO(struct task_struct *tsk, int src_cpu, int dst_cpu, char *label),
-
-	TP_ARGS(tsk, src_cpu, dst_cpu, label),
-
-	TP_STRUCT__entry(
-		__array( char,		comm,	TASK_COMM_LEN	)
-		__field( pid_t,		pid			)
-		__field( int,		src_cpu			)
-		__field( int,		dst_cpu			)
-		__array( char,		label,	64		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-		__entry->pid			= tsk->pid;
-		__entry->src_cpu		= src_cpu;
-		__entry->dst_cpu		= dst_cpu;
-		strncpy(__entry->label, label, 63);
-	),
-
-	TP_printk("comm=%s pid=%d src_cpu=%d dst_cpu=%d reason=%s",
-		__entry->comm, __entry->pid, __entry->src_cpu,
-		__entry->dst_cpu, __entry->label)
-);
-
 TRACE_EVENT(ems_lbt_overutilized,
 
 	TP_PROTO(int cpu, int level, unsigned long util, unsigned long capacity, bool overutilized),
@@ -392,80 +263,132 @@ TRACE_EVENT(ems_lbt_overutilized,
 		__entry->cpu, __entry->level, __entry->util,
 		__entry->capacity, __entry->overutilized)
 );
+TRACE_EVENT(ems_cpu_active_ratio_patten,
 
-TRACE_EVENT(ems_update_band,
+	TP_PROTO(int cpu, int p_count, int p_avg, int p_stdev),
 
-	TP_PROTO(int band_id, unsigned long band_util, int member_count, unsigned int playable_cpus),
-
-	TP_ARGS(band_id, band_util, member_count, playable_cpus),
+	TP_ARGS(cpu, p_count, p_avg, p_stdev),
 
 	TP_STRUCT__entry(
-		__field( int,		band_id			)
-		__field( unsigned long,	band_util		)
-		__field( int,		member_count		)
-		__field( unsigned int,	playable_cpus		)
+		__field( int,	cpu				)
+		__field( int,	p_count				)
+		__field( int,	p_avg				)
+		__field( int,	p_stdev				)
 	),
 
 	TP_fast_assign(
-		__entry->band_id		= band_id;
-		__entry->band_util		= band_util;
-		__entry->member_count		= member_count;
-		__entry->playable_cpus		= playable_cpus;
+		__entry->cpu			= cpu;
+		__entry->p_count		= p_count;
+		__entry->p_avg			= p_avg;
+		__entry->p_stdev		= p_stdev;
 	),
 
-	TP_printk("band_id=%d band_util=%ld member_count=%d playable_cpus=%#x",
-			__entry->band_id, __entry->band_util, __entry->member_count,
-			__entry->playable_cpus)
+	TP_printk("cpu=%d p_count=%2d p_avg=%4d p_stdev=%4d",
+		__entry->cpu, __entry->p_count, __entry->p_avg, __entry->p_stdev)
 );
 
-TRACE_EVENT(ems_manage_band,
+TRACE_EVENT(ems_cpu_active_ratio,
 
-	TP_PROTO(struct task_struct *p, int band_id, char *event),
+	TP_PROTO(int cpu, struct part *pa, char *event),
 
-	TP_ARGS(p, band_id, event),
+	TP_ARGS(cpu, pa, event),
 
 	TP_STRUCT__entry(
-		__array( char,		comm,		TASK_COMM_LEN	)
-		__field( pid_t,		pid				)
-		__field( int,		band_id				)
-		__array( char,		event,		64		)
+		__field( int,	cpu				)
+		__field( u64,	start				)
+		__field( int,	recent				)
+		__field( int,	last				)
+		__field( int,	avg				)
+		__field( int,	max				)
+		__field( int,	est				)
+		__array( char,	event,		64		)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid			= p->pid;
-		__entry->band_id		= band_id;
+		__entry->cpu			= cpu;
+		__entry->start			= pa->period_start;
+		__entry->recent			= pa->active_ratio_recent;
+		__entry->last			= pa->hist[pa->hist_idx];
+		__entry->avg			= pa->active_ratio_avg;
+		__entry->max			= pa->active_ratio_max;
+		__entry->est			= pa->active_ratio_est;
 		strncpy(__entry->event, event, 63);
 	),
 
-	TP_printk("comm=%s pid=%d band_id=%d event=%s",
-			__entry->comm, __entry->pid, __entry->band_id, __entry->event)
+	TP_printk("cpu=%d start=%llu recent=%4d last=%4d avg=%4d max=%4d est=%4d event=%s",
+		__entry->cpu, __entry->start, __entry->recent, __entry->last,
+		__entry->avg, __entry->max, __entry->est, __entry->event)
 );
 
-TRACE_EVENT(ems_prefer_perf_service,
+TRACE_EVENT(ems_cpu_active_ratio_util_stat,
 
-	TP_PROTO(struct task_struct *p, unsigned long util, int service_cpu, char *event),
+	TP_PROTO(int cpu, unsigned long part_util, unsigned long pelt_util),
 
-	TP_ARGS(p, util, service_cpu, event),
+	TP_ARGS(cpu, part_util, pelt_util),
 
 	TP_STRUCT__entry(
-		__array( char,		comm,		TASK_COMM_LEN	)
-		__field( pid_t,		pid				)
-		__field( unsigned long,	util				)
-		__field( int,		service_cpu			)
-		__array( char,		event,		64		)
+		__field( int,		cpu					)
+		__field( unsigned long,	part_util				)
+		__field( unsigned long,	pelt_util				)
 	),
 
 	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid			= p->pid;
+		__entry->cpu			= cpu;
+		__entry->part_util		= part_util;
+		__entry->pelt_util		= pelt_util;
+	),
+
+	TP_printk("cpu=%d part_util=%lu pelt_util=%lu", __entry->cpu, __entry->part_util, __entry->pelt_util)
+);
+
+/*
+ * Tracepoint for frequency variant boost
+ */
+
+TRACE_EVENT(ems_freqvar_st_boost,
+
+	TP_PROTO(int cpu, int ratio),
+
+	TP_ARGS(cpu, ratio),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( int,		ratio			)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->ratio			= ratio;
+	),
+
+	TP_printk("cpu=%d ratio=%d", __entry->cpu, __entry->ratio)
+);
+TRACE_EVENT(ems_freqvar_boost,
+
+	TP_PROTO(int cpu, int ratio, unsigned long step_max_util,
+			unsigned long util, unsigned long boosted_util),
+
+	TP_ARGS(cpu, ratio, step_max_util, util, boosted_util),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( int,		ratio			)
+		__field( unsigned long,	step_max_util		)
+		__field( unsigned long,	util			)
+		__field( unsigned long,	boosted_util		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu			= cpu;
+		__entry->ratio			= ratio;
+		__entry->step_max_util		= step_max_util;
 		__entry->util			= util;
-		__entry->service_cpu		= service_cpu;
-		strncpy(__entry->event, event, 63);
+		__entry->boosted_util		= boosted_util;
 	),
 
-	TP_printk("comm=%s pid=%d util=%lu service_cpu=%d event=%s",
-			__entry->comm, __entry->pid, __entry->util, __entry->service_cpu, __entry->event)
+	TP_printk("cpu=%d ratio=%d step_max_util=%lu util=%lu boosted_util=%lu",
+		  __entry->cpu, __entry->ratio, __entry->step_max_util,
+		  __entry->util, __entry->boosted_util)
 );
 #endif /* _TRACE_EMS_H */
 

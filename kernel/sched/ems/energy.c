@@ -6,6 +6,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/cpuidle.h>
 #include <trace/events/ems.h>
 
 #include "../sched.h"
@@ -73,7 +74,7 @@ inline unsigned int get_cpu_mips(unsigned int cpu)
 	return per_cpu(energy_table, cpu).mips;
 }
 
-unsigned int get_cpu_max_capacity(unsigned int cpu)
+unsigned int capacity_max_of(unsigned int cpu)
 {
 	struct energy_table *table = &per_cpu(energy_table, cpu);
 
@@ -103,6 +104,15 @@ unsigned long get_freq_cap(unsigned int cpu, unsigned long freq)
 	return state->cap;
 }
 
+static unsigned long normalized_util(unsigned long util, unsigned long capacity)
+{
+	if (util >= capacity)
+		return SCHED_CAPACITY_SCALE;
+
+	return util << SCHED_CAPACITY_SHIFT / capacity;
+}
+
+#if 0
 unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 {
 	unsigned long util[NR_CPUS] = {0, };
@@ -177,7 +187,93 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 			}
 
 			/* normalize cpu utilization */
-			util_sum += (util[i] << SCHED_CAPACITY_SHIFT) / capacity;
+			util_sum += normalized_util(util[i], capacity);
+		}
+
+		/*
+		 * 4. compute active energy
+		 */
+		total_energy += util_sum * table->states[cap_idx].power;
+	}
+
+	return total_energy;
+}
+#endif
+
+unsigned int calculate_energy(struct tp_env *env, int target_cpu)
+{
+	unsigned long util[NR_CPUS] = {0, };
+	unsigned int total_energy = 0;
+	int cpu;
+
+	if (!get_energy_table_status())
+		return UINT_MAX;
+
+	/*
+	 * 0. Calculate utilization of the entire active cpu when task
+	 *    is assigned to target cpu.
+	 */
+	for_each_cpu(cpu, cpu_active_mask) {
+		util[cpu] = env->cpu_stat[cpu].util_wo;
+
+		if (unlikely(cpu == target_cpu))
+			util[cpu] += env->task_util;
+	}
+
+	for_each_cpu(cpu, cpu_active_mask) {
+		struct energy_table *table;
+		unsigned long max_util = 0, util_sum = 0;
+		unsigned long capacity;
+		int i, cap_idx;
+
+		/* Compute coregroup energy with only one cpu per coregroup */
+		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
+			continue;
+
+		/*
+		 * 1. The cpu in the coregroup has same capacity and the
+		 *    capacity depends on the cpu that has the biggest
+		 *    utilization. Find biggest utilization in the coregroup
+		 *    to know what capacity the cpu will have.
+		 */
+		for_each_cpu(i, cpu_coregroup_mask(cpu))
+			max_util = max(max_util, util[i]);
+
+		/*
+		 * 2. Find the capacity according to biggest utilization in
+		 *    coregroup.
+		 */
+		table = &per_cpu(energy_table, cpu);
+		cap_idx = table->nr_states - 1;
+		for (i = 0; i < table->nr_states; i++) {
+			if (table->states[i].cap >= max_util) {
+				capacity = table->states[i].cap;
+				cap_idx = i;
+				break;
+			}
+		}
+
+		/*
+		 * 3. Get the utilization sum of coregroup. Since cpu
+		 *    utilization of CFS reflects the performance of cpu,
+		 *    normalize the utilization to calculate the amount of
+		 *    cpu usuage that excludes cpu performance.
+		 */
+		for_each_cpu(i, cpu_coregroup_mask(cpu)) {
+			if (i == env->src_cpu)
+				util[i] -= min_t(unsigned long, util[i], env->task_util);
+
+			if (i == target_cpu)
+				util[i] += env->task_util;
+
+			/* utilization with task exceeds max capacity of cpu */
+			if (util[i] >= capacity) {
+				util_sum += SCHED_CAPACITY_SCALE;
+				continue;
+			}
+
+			/* normalize cpu utilization */
+			util_sum += normalized_util(util[i], capacity);
 		}
 
 		/*
@@ -189,154 +285,10 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 	return total_energy;
 }
 
-static int find_min_util_cpu(struct cpumask *mask, unsigned long task_util)
-{
-	unsigned long min_util = ULONG_MAX;
-	int min_util_cpu = -1;
-	int cpu;
-
-	/* Find energy efficient cpu in each coregroup. */
-	for_each_cpu_and(cpu, mask, cpu_active_mask) {
-		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long util = cpu_util(cpu);
-
-		/* Skip over-capacity cpu */
-		if (util + task_util >= capacity_orig)
-			continue;
-
-		/*
-		 * Choose min util cpu within coregroup as candidates.
-		 * Choosing a min util cpu is most likely to handle
-		 * wake-up task without increasing the frequecncy.
-		 */
-		if (util < min_util) {
-			min_util = util;
-			min_util_cpu = cpu;
-		}
-	}
-
-	return min_util_cpu;
-}
-
-struct eco_env {
-	struct task_struct *p;
-	int prev_cpu;
-};
-
-static int select_eco_cpu(struct eco_env *eenv)
-{
-	unsigned long task_util = task_util_est(eenv->p);
-	unsigned int best_energy = UINT_MAX;
-	unsigned int prev_energy;
-	int eco_cpu = eenv->prev_cpu;
-	int cpu, best_cpu = -1;
-
-	/*
-	 * It is meaningless to find an energy cpu when the energy table is
-	 * not created or has not been created yet.
-	 */
-	if (!per_cpu(energy_table, eenv->prev_cpu).nr_states)
-		return eenv->prev_cpu;
-
-	for_each_cpu(cpu, cpu_active_mask) {
-		struct cpumask mask;
-		int energy_cpu;
-
-		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
-			continue;
-
-		cpumask_and(&mask, cpu_coregroup_mask(cpu), tsk_cpus_allowed(eenv->p));
-		/*
-		 * Checking prev cpu is meaningless, because the energy of prev cpu
-		 * will be compared to best cpu at last
-		 */
-		cpumask_clear_cpu(eenv->prev_cpu, &mask);
-		if (cpumask_empty(&mask))
-			continue;
-
-		/*
-		 * Select the best target, which is expected to consume the
-		 * lowest energy among the min util cpu for each coregroup.
-		 */
-		energy_cpu = find_min_util_cpu(&mask, task_util);
-		if (cpu_selected(energy_cpu)) {
-			unsigned int energy = calculate_energy(eenv->p, energy_cpu);
-
-			if (energy < best_energy) {
-				best_energy = energy;
-				best_cpu = energy_cpu;
-			}
-		}
-	}
-
-	if (!cpu_selected(best_cpu))
-		return -1;
-
-	/*
-	 * Compare prev cpu to best cpu to determine whether keeping the task
-	 * on PREV CPU and sending the task to BEST CPU is beneficial for
-	 * energy.
-	 * An energy saving is considered meaningful if it reduces the energy
-	 * consumption of PREV CPU candidate by at least ~1.56%.
-	 */
-	prev_energy = calculate_energy(eenv->p, eenv->prev_cpu);
-	if (prev_energy - (prev_energy >> 6) > best_energy)
-		eco_cpu = best_cpu;
-
-	trace_ems_select_eco_cpu(eenv->p, eco_cpu, eenv->prev_cpu, best_cpu,
-			prev_energy, best_energy);
-
-	return eco_cpu;
-}
-
-int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
-{
-	struct sched_domain *sd = NULL;
-	int cpu = smp_processor_id();
-	struct eco_env eenv = {
-		.p = p,
-		.prev_cpu = prev_cpu,
-	};
-
-	if (!sched_feat(ENERGY_AWARE))
-		return -1;
-
-	/*
-	 * Energy-aware wakeup placement on overutilized cpu is hard to get
-	 * energy gain.
-	 */
-	rcu_read_lock();
-	sd = rcu_dereference_sched(cpu_rq(prev_cpu)->sd);
-	if (!sd || sd->shared->overutilized) {
-		rcu_read_unlock();
-		return -1;
-	}
-	rcu_read_unlock();
-
-	/*
-	 * We cannot do energy-aware wakeup placement sensibly for tasks
-	 * with 0 utilization, so let them be placed according to the normal
-	 * strategy.
-	 */
-	if (!task_util(p))
-		return -1;
-
-	if (sysctl_sched_sync_hint_enable && sync)
-		if (cpumask_test_cpu(cpu, &p->cpus_allowed))
-			return cpu;
-
-	/*
-	 * Find eco-friendly target.
-	 * After selecting the best cpu according to strategy,
-	 * we choose a cpu that is energy efficient compared to prev cpu.
-	 */
-	return select_eco_cpu(&eenv);
-}
-
 static int c_weight[NR_CPUS];
 static int e_weight[NR_CPUS];
-static int tiny_task_level = 10;
 
+#if 0
 unsigned int calculate_efficiency(struct task_struct *p, int target_cpu)
 {
 	unsigned long util[NR_CPUS] = {0, };
@@ -393,17 +345,7 @@ unsigned int calculate_efficiency(struct task_struct *p, int target_cpu)
 	target_util = cpu_util(target_cpu);
 
 	if (target_cpu != task_cpu(p))
-		target_util += task_util(p);
-
-	if (sched_feat(UTIL_EST)) {
-		struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-		unsigned int target_util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
-
-		if (target_cpu != task_cpu(p))
-			target_util += task_util_est(p);
-
-		target_util = max_t(unsigned long, target_util, target_util_est);
-	}
+		target_util += task_util_est(p);
 
 cal_eff:
 	ratio = (target_util << SCHED_CAPACITY_SHIFT) / capacity;
@@ -413,66 +355,73 @@ cal_eff:
 
 	return eff;
 }
+#endif
 
-static int select_eff_cpu(struct eco_env *eenv)
+unsigned int calculate_efficiency(struct tp_env *env, int target_cpu)
 {
-	unsigned int best_energy = UINT_MAX;
-	int cpu, best_cpu = -1;
+	unsigned long util[NR_CPUS] = {0, };
+	unsigned int energy, eff;
+	unsigned int cap_idx;
+	struct energy_table *table;
+	unsigned long capacity = SCHED_CAPACITY_SCALE;
+	unsigned long max_util = 0, target_util;
+	unsigned long ratio;
+	int cpu, i;
+
+	if (!get_energy_table_status())
+		return UINT_MAX;
 
 	/*
-	 * It is meaningless to find an energy cpu when the energy table is
-	 * not created or has not been created yet.
+	 * 0. Calculate utilization of the entire active cpu when task
+	 *    is assigned to target cpu.
 	 */
-	if (!per_cpu(energy_table, eenv->prev_cpu).nr_states)
-		return find_min_util_cpu(cpu_coregroup_mask(4), eenv->p);
+	for_each_cpu(cpu, cpu_coregroup_mask(target_cpu)) {
+		if (likely(cpumask_test_cpu(cpu, cpu_active_mask)))
+			util[cpu] = env->cpu_stat[cpu].util_wo;
+		else
+			util[cpu] = cpu_util_without(cpu, env->p);
 
-	if (ml_task_util_est(eenv->p) <= tiny_task_level)
-		return find_min_util_cpu(cpu_coregroup_mask(4), eenv->p);
+		if (unlikely(cpu == target_cpu))
+			util[cpu] += env->task_util;
 
-	for_each_cpu(cpu, cpu_active_mask) {
-		unsigned int energy;
+		/*
+		 * 1. The cpu in the coregroup has same capacity and the
+		 *    capacity depends on the cpu that has the biggest
+		 *    utilization. Find biggest utilization in the coregroup
+		 *    to know what capacity the cpu will have.
+		 */
+		max_util = max(max_util, util[cpu]);
+	}
 
-		if (!cpumask_test_cpu(cpu, tsk_cpus_allowed(eenv->p)))
-			continue;
-
-		energy = calculate_efficiency(eenv->p, cpu);
-		if (energy < best_energy) {
-			best_energy = energy;
-			best_cpu = cpu;
+	/*
+	 * 2. Find the capacity according to biggest utilization in
+	 *    coregroup.
+	 */
+	table = &per_cpu(energy_table, target_cpu);
+	cap_idx = table->nr_states - 1;
+	for (i = 0; i < table->nr_states; i++) {
+		if (table->states[i].cap >= max_util) {
+			capacity = table->states[i].cap;
+			cap_idx = i;
+			break;
 		}
 	}
 
-	return best_cpu;
+	if (util[target_cpu] >= capacity) {
+		target_util = SCHED_CAPACITY_SCALE;
+		goto cal_eff;
+	}
+
+	target_util = env->cpu_stat[target_cpu].util_with;
+
+cal_eff:
+	ratio = normalized_util(target_util, capacity);
+	energy = ratio * table->states[cap_idx].power;
+
+	eff = ((energy * e_weight[target_cpu]) << 10) / (capacity * c_weight[target_cpu]);
+
+	return eff;
 }
-
-int select_best_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
-{
-	int cpu = smp_processor_id();
-	struct eco_env eenv = {
-		.p = p,
-		.prev_cpu = prev_cpu,
-	};
-
-	if (!sched_feat(ENERGY_AWARE))
-		return -1;
-
-	/*
-	 * We cannot do energy-aware wakeup placement sensibly for tasks
-	 * with 0 utilization, so let them be placed according to the normal
-	 * strategy.
-	 */
-	if (sysctl_sched_sync_hint_enable && sync)
-		if (cpumask_test_cpu(cpu, &p->cpus_allowed))
-			return cpu;
-
-	/*
-	 * Find eco-friendly target.
-	 * After selecting the best cpu according to strategy,
-	 * we choose a cpu that is energy efficient compared to prev cpu.
-	 */
-	return select_eff_cpu(&eenv);
-}
-
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL
 static void
@@ -587,7 +536,7 @@ static void cpumask_speed_init(void)
 	for_each_cpu(cpu, cpu_possible_mask) {
 		unsigned long cap;
 
-		cap = get_cpu_max_capacity(cpu);
+		cap = capacity_max_of(cpu);
 		if (cap < min_cap)
 			min_cap = cap;
 		if (cap > max_cap)
@@ -597,7 +546,7 @@ static void cpumask_speed_init(void)
 	for_each_cpu(cpu, cpu_possible_mask) {
 		unsigned long cap;
 
-		cap = get_cpu_max_capacity(cpu);
+		cap = capacity_max_of(cpu);
 		if (cap == min_cap) {
 			pr_info("cpu%d is_min_cap=%d\n", cpu, 1);
 			cpumask_set_cpu(cpu, &slowest_mask);

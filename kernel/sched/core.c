@@ -1524,6 +1524,8 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_inc(rq, p);
+	update_cpu_active_ratio(rq, p, EMS_PART_ENQUEUE);
+
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -1538,6 +1540,8 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_dec(rq, p);
+	update_cpu_active_ratio(rq, p, EMS_PART_DEQUEUE);
+
 	p->sched_class->dequeue_task(rq, p, flags);
 }
 
@@ -3168,10 +3172,6 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 #endif
 
 	INIT_LIST_HEAD(&p->se.group_node);
-#ifdef CONFIG_SCHED_EMS
-	rcu_assign_pointer(p->band, NULL);
-	INIT_LIST_HEAD(&p->band_members);
-#endif
 	walt_init_new_task_load(p);
 
 #ifdef CONFIG_FAST_TRACK
@@ -3469,8 +3469,6 @@ void wake_up_new_task(struct task_struct *p)
 
 	raw_spin_lock_irqsave(&p->pi_lock, rf.flags);
 
-	newbie_join_band(p);
-
 	walt_init_new_task_load(p);
 
 	p->state = TASK_RUNNING;
@@ -3488,6 +3486,8 @@ void wake_up_new_task(struct task_struct *p)
 	rq = __task_rq_lock(p, &rf);
 	update_rq_clock(rq);
 	post_init_entity_util_avg(&p->se);
+
+	update_cpu_active_ratio(rq, p, EMS_PART_WAKEUP_NEW);
 
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	walt_mark_task_starting(p);
@@ -4087,6 +4087,8 @@ void scheduler_tick(void)
 
 	rq_lock(rq, &rf);
 
+	set_part_period_start(rq);
+
 	walt_set_window_start(rq, &rf);
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
 			walt_ktime_clock(), 0);
@@ -4104,8 +4106,6 @@ void scheduler_tick(void)
 	trigger_load_balance(rq);
 #endif
 	rq_last_tick_reset(rq);
-
-	update_band(curr, -1);
 }
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -7244,7 +7244,7 @@ void __init sched_init(void)
 
 	set_load_weight(&init_task);
 
-	alloc_bands();
+	init_part();
 
 	/*
 	 * The boot idle thread does lazy MMU switching as well:

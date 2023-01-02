@@ -111,112 +111,53 @@ static struct prefer_perf *find_prefer_perf(int boost)
 	return NULL;
 }
 
-static int
-select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *prefer_cpus)
+static
+void mark_prefer_cpu(struct tp_env *env, struct cpumask *mask, int coregroup_count, struct cpumask *prefer_cpus)
 {
-	struct cpumask mask;
-	int coregroup, cpu;
-	unsigned long max_spare_cap = 0;
-	int best_perf_cstate = INT_MAX;
-	int best_perf_cpu = -1;
-	int backup_cpu = -1;
+	struct cpumask prefer;
+	int coregroup;
 
-	rcu_read_lock();
+	for (coregroup = 0; coregroup < coregroup_count; coregroup++)
+		cpumask_copy(&prefer, &prefer_cpus[coregroup]);
 
-	for (coregroup = 0; coregroup < coregroup_count; coregroup++) {
-		cpumask_and(&mask, &prefer_cpus[coregroup], cpu_active_mask);
-		if (cpumask_empty(&mask))
-			continue;
+	if (!cpumask_empty(&prefer)) {
+		cpumask_and(&prefer, &prefer, tsk_cpus_allowed(env->p));
+		cpumask_and(&prefer, &prefer, cpu_active_mask);
 
-		for_each_cpu_and(cpu, &p->cpus_allowed, &mask) {
-			unsigned long capacity_orig;
-			unsigned long wake_util_with;
-			unsigned long wake_util_without;
-
-			if (cpu >= nr_cpu_ids)
-				break;
-
-			if (idle_cpu(cpu)) {
-				int idle_idx = idle_get_state_idx(cpu_rq(cpu));
-
-				/* find shallowest idle state cpu */
-				if (idle_idx >= best_perf_cstate)
-					continue;
-
-				/* Keep track of best idle CPU */
-				best_perf_cstate = idle_idx;
-				best_perf_cpu = cpu;
-				continue;
-			}
-
-			capacity_orig = capacity_orig_of(cpu);
-			wake_util_without = cpu_util_wake(cpu, p);
-
-			/* In case of over-capacity */
-			wake_util_with = wake_util_without + task_util_est(p);
-			if (capacity_orig < wake_util_with)
-				continue;
-
-			if ((capacity_orig - wake_util_without) < max_spare_cap)
-				continue;
-
-			max_spare_cap = capacity_orig - wake_util_without;
-			backup_cpu = cpu;
-		}
-
-		if (cpu_selected(best_perf_cpu))
-			break;
+		cpumask_and(mask, mask, &prefer);
 	}
-
-	rcu_read_unlock();
-
-	if (best_perf_cpu == -1)
-		return backup_cpu;
-
-	return best_perf_cpu;
 }
 
-int select_service_cpu(struct task_struct *p)
+void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 {
 	struct prefer_perf *pp;
-	int boost, service_cpu;
 	unsigned long util;
-	char state[30];
+	int idx;
+
+	cpumask_copy(mask, cpu_active_mask);
 
 	if (!prefer_perf_services)
-		return -1;
+		return;
 
-	boost = schedtune_prefer_perf(p);
-	if (boost <= 0)
-		return -1;
+	idx = env->cgroup_idx;
+	if (idx <= 0)
+		return;
 
-	pp = find_prefer_perf(boost);
+	pp = find_prefer_perf(idx);
 	if (!pp)
-		return -1;
+		return;
 
-	util = task_util_est(p);
+	util = env->min_util;
 	if (pp->light_coregroup_count > 0 && util <= pp->light_threshold) {
-		service_cpu = select_prefer_cpu(p, pp->light_coregroup_count,
-							pp->light_prefer_cpus);
-		if (cpu_selected(service_cpu)) {
-			strcpy(state, "light task");
-			goto out;
-		}
+		mark_prefer_cpu(env, mask, pp->light_coregroup_count, pp->light_prefer_cpus);
+		return;
 	} else if (pp->heavy_coregroup_count > 0 && util >= pp->heavy_threshold) {
-		service_cpu = select_prefer_cpu(p, pp->heavy_coregroup_count,
-							pp->heavy_prefer_cpus);
-		if (cpu_selected(service_cpu)) {
-			strcpy(state, "heavy task");
-			goto out;
-		}
+		mark_prefer_cpu(env, mask, pp->heavy_coregroup_count, pp->heavy_prefer_cpus);
+		return;
+	} else if (env->prefer_perf || env->on_top) {
+		mark_prefer_cpu(env, mask, pp->coregroup_count, pp->prefer_cpus);
+		return;
 	}
-
-	service_cpu = select_prefer_cpu(p, pp->coregroup_count, pp->prefer_cpus);
-	strcpy(state, "normal task");
-
-out:
-	trace_ems_prefer_perf_service(p, util, service_cpu, state);
-	return service_cpu;
 }
 
 static void __init build_prefer_cpus(void)
