@@ -54,6 +54,7 @@ struct tp_env {
     int prefer_idle;
     int prefer_perf;
 
+    struct cpumask cpus_allowed;
     struct cpumask fit_cpus;
 
     unsigned long task_util;
@@ -68,7 +69,7 @@ struct tp_env {
         unsigned int cap_max;
         unsigned long cap_orig;
         unsigned long cap_curr;
-        
+
         int idle;
         int exit_latency;
     } cpu_stat[NR_CPUS];

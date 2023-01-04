@@ -399,7 +399,7 @@ freqvar_rate_limit *freqvar_rate_limit_alloc(struct cpufreq_policy *policy)
 	if (!rate_limit->down_table)
 		goto fail_alloc;
 
-	rate_limit->st_table= kzalloc(sizeof(struct freqvar_table)
+	rate_limit->st_table = kzalloc(sizeof(struct freqvar_table)
 					* (size + 1), GFP_KERNEL);
 	if (!rate_limit->st_table)
 		goto fail_alloc;
