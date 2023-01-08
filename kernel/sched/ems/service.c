@@ -147,7 +147,7 @@ void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	if (!pp)
 		return;
 
-	util = env->min_util;
+	util = env->task_util;
 	if (pp->light_coregroup_count > 0 && util <= pp->light_threshold) {
 		mark_prefer_cpu(env, mask, pp->light_coregroup_count, pp->light_prefer_cpus);
 		return;

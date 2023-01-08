@@ -26,51 +26,6 @@ prev_cpu_advantage(unsigned long *cpu_util, unsigned long task_util)
 }
 
 static
-int find_min_util_with_cpu(struct tp_env *env)
-{
-	int i, min_util_with_cpu = INVALID_CPU;
-	unsigned long util_with, min_util_with = ULONG_MAX;
-
-	for_each_cpu(i, cpu_active_mask) {
-		int cpu;
-
-		/* visit each coregroup only once */
-		if (i != cpumask_first(cpu_coregroup_mask(i)))
-			continue;
-
-		/* skip if task cannot be assigned to coregroup */
-		if (!cpumask_intersects(&env->fit_cpus, cpu_coregroup_mask(i)))
-			continue;
-
-		for_each_cpu_and(cpu, cpu_coregroup_mask(i), &env->fit_cpus) {
-
-			/*
-			* Skip processing placement further if we are visiting
-			* cpus with lower capacity than start cpu
-			*/
-			if (pm_freezing || env->cpu_stat[cpu].idle)
-				goto skip_cap;
-
-			if (env->cpu_stat[cpu].cap_max < env->start_cpu.cap_max)
-				continue;
-
-skip_cap:
-			util_with = env->cpu_stat[cpu].util_with;
-			if (util_with < min_util_with) {
-				min_util_with = util_with;
-				min_util_with_cpu = cpu;
-			}
-		}
-
-		/* Traverse next coregroup if no best cpu is found */
-		if (min_util_with_cpu >= 0)
-			break;
-	}
-
-	return min_util_with_cpu;
-}
-
-static
 int find_min_util_cpu(struct tp_env *env, const struct cpumask *mask, bool among_idle)
 {
 	int cpu, min_cpu = INVALID_CPU;
@@ -108,6 +63,38 @@ skip_cap:
 	}
 
 	return min_cpu;
+}
+
+static
+int find_min_util_with_cpu(struct tp_env *env)
+{
+	int cpu, min_cpu = INVALID_CPU, min_idle_cpu = INVALID_CPU;
+
+	for_each_cpu(cpu, cpu_active_mask) {
+		struct cpumask mask;
+
+		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
+			continue;
+
+		cpumask_and(&mask, cpu_coregroup_mask(cpu), &env->fit_cpus);
+		if (cpumask_empty(&mask))
+			continue;
+
+		/* find idle cpu from slowest coregroup for task performance */
+		if (env->idle_cpu_count && is_slowest_cpu(cpumask_first(cpu_coregroup_mask(cpu)))) {
+			min_idle_cpu = find_min_util_cpu(env, &mask, true);
+			if (min_idle_cpu >= 0)
+				break;
+		}
+
+		min_cpu = find_min_util_cpu(env, &mask, false);
+
+		/* Traverse next coregroup if no best cpu is found */
+		if (min_cpu >= 0)
+			break;
+	}
+
+	return (min_idle_cpu >= 0) ? min_idle_cpu : min_cpu;
 }
 
 /******************************************************************************
@@ -304,14 +291,11 @@ int find_max_spare_cpu(struct tp_env *env, bool among_idle)
 		 * break the ties with cumulative demand,
 		 * also prefer lower order cpu.
 		 */
-		if (!env->cpu_stat[cpu].idle) {
-			if (spare_cap == max_spare_cap &&
-				env->cpu_stat[cpu].util_cuml >= min_cuml_util)
-				continue;
+		if (spare_cap == max_spare_cap &&
+			env->cpu_stat[cpu].util_cuml > min_cuml_util)
+			continue;
 
-			min_cuml_util = env->cpu_stat[cpu].util_cuml;
-		}
-
+		min_cuml_util = env->cpu_stat[cpu].util_cuml;
 		max_spare_cap = spare_cap;
 		best_cpu = cpu;
 	}

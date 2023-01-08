@@ -44,10 +44,12 @@ extern bool get_energy_table_status(void);
 
 /* ontime migration */
 extern void ontime_migration(void);
-extern int ontime_can_migration(struct task_struct *p, int cpu);
 extern void ontime_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa);
 extern void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se);
 extern void ontime_trace_task_info(struct task_struct *p);
+
+/* ems migration */
+extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
 
 /* load balance trigger */
 extern bool lbt_overutilized(int cpu, int level);
@@ -95,6 +97,7 @@ static inline bool lbt_overutilized(int cpu, int level)
 }
 static inline void update_lbt_overutil(int cpu, unsigned long capacity) { }
 
+static inline int global_boosted(void) { return 0; }
 static inline void gb_qos_update_request(struct gb_qos_request *req, u32 new_value) { }
 
 static inline bool is_slowest_cpu(int cpu)

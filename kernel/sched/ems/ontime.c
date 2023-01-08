@@ -37,8 +37,6 @@ struct ontime_cond {
 
 	unsigned long		upper_boundary;
 	unsigned long		lower_boundary;
-	/* Ratio at which ontime util can be covered within capacity */
-	int			coverage_ratio;
 
 	int			coregroup;
 	struct cpumask		cpus;
@@ -112,19 +110,20 @@ static unsigned long get_lower_boundary(int cpu)
 		return 0;
 }
 
-static unsigned long get_coverage_ratio(int cpu)
-{
-	struct ontime_cond *curr = get_current_cond(cpu);
-
-	if (curr)
-		return curr->coverage_ratio;
-	else
-		return 0;
-}
-
 static bool is_faster_than(int src, int dst)
 {
 	if (capacity_max_of(src) < capacity_max_of(dst))
+		return true;
+	else
+		return false;
+}
+
+static inline int check_migrate_slower(int src, int dst)
+{
+	if (cpumask_test_cpu(src, cpu_coregroup_mask(dst)))
+		return false;
+
+	if (capacity_max_of(src) > capacity_max_of(dst))
 		return true;
 	else
 		return false;
@@ -365,6 +364,7 @@ out_unlock:
 
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
+	dst_rq->ontime_boost_migration = 0;
 
 	raw_spin_unlock_irq(&src_rq->lock);
 	put_task_struct(p);
@@ -490,6 +490,7 @@ void ontime_migration(void)
 		rq->active_balance = 1;
 
 		cpu_rq(dst_cpu)->ontime_migrating = 1;
+		cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
 
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 
@@ -503,6 +504,7 @@ void ontime_migration(void)
 
 int ontime_can_migration(struct task_struct *p, int dst_cpu)
 {
+	unsigned long src_util;
 	int src_cpu = task_cpu(p);
 
 	if (!schedtune_ontime_en(p))
@@ -513,42 +515,31 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 		return false;
 	}
 
-	if (cpumask_test_cpu(dst_cpu, cpu_coregroup_mask(src_cpu))) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "go to same");
-		return true;
-	}
-
-	if (is_faster_than(src_cpu, dst_cpu)) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "go to bigger");
-		return true;
-	}
-
 	/*
-	 * At this point, load balancer is trying to migrate task to smaller CPU.
+	 * Task is heavy enough but load balancer tries to migrate the task to
+	 * slower cpu, it does not allow migration.
 	 */
-	if (ontime_load_avg(p) < get_lower_boundary(src_cpu)) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, true, "light task");
-		return true;
-	}
-
-	/*
-	 * When runqueue is overloaded, check whether cpu's util exceed coverage ratio.
-	 * If so, allow the task to be migrated.
-	 */
-	if (cpu_rq(src_cpu)->nr_running > 1) {
-		unsigned long cpu_util = cpu_util_without(src_cpu, p);
-		unsigned long util = task_util(p);
-		unsigned long coverage_ratio = get_coverage_ratio(src_cpu);
-
-		if ((cpu_util * 100 >= capacity_orig_of(src_cpu) * coverage_ratio)
-				&& (cpu_util > util)) {
-			trace_ems_ontime_check_migrate(p, dst_cpu, true, "exceed coverage");
+	if (ontime_load_avg(p) >= get_lower_boundary(src_cpu) &&
+	    check_migrate_slower(src_cpu, dst_cpu)) {
+		/*
+		 * However, only if the source cpu is overutilized, it allows
+		 * migration if the task is not very heavy.
+		 * (criteria : task util is under 75% of cpu util)
+		 */
+		src_util = cpu_util(src_cpu);
+		if (cpu_overutilized(capacity_orig_of(src_cpu), src_util) &&
+			task_util_est(p) * 100 < (src_util * 75)) {
+			trace_ems_ontime_check_migrate(p, dst_cpu, true, "src overutil");
 			return true;
 		}
+
+		trace_ems_ontime_check_migrate(p, dst_cpu, false, "migrate to slower");
+		return false;
 	}
 
-	trace_ems_ontime_check_migrate(p, dst_cpu, false, "heavy task");
-	return false;
+	trace_ems_ontime_check_migrate(p, dst_cpu, false, "normal migration");
+
+	return true;
 }
 
 /*
@@ -651,13 +642,10 @@ static ssize_t store_##_name(struct kobject *k, const char *buf, size_t count)	\
 
 ontime_show(upper_boundary);
 ontime_show(lower_boundary);
-ontime_show(coverage_ratio);
 ontime_store(upper_boundary, unsigned long, 1024);
 ontime_store(lower_boundary, unsigned long, 1024);
-ontime_store(coverage_ratio, int, 100);
 ontime_attr_rw(upper_boundary);
 ontime_attr_rw(lower_boundary);
-ontime_attr_rw(coverage_ratio);
 
 static ssize_t show(struct kobject *kobj, struct attribute *at, char *buf)
 {
@@ -682,7 +670,6 @@ static const struct sysfs_ops ontime_sysfs_ops = {
 static struct attribute *ontime_attrs[] = {
 	&upper_boundary_attr.attr,
 	&lower_boundary_attr.attr,
-	&coverage_ratio_attr.attr,
 	NULL
 };
 
@@ -770,9 +757,6 @@ parse_ontime(struct device_node *dn, struct ontime_cond *cond, int cnt)
 
 	res |= of_property_read_s32(coregroup, "lower-boundary", &prop);
 	cond->lower_boundary = get_boundary(capacity, prop);
-
-	res |= of_property_read_u32(coregroup, "coverage-ratio", &prop);
-	cond->coverage_ratio = prop;
 
 	if (res)
 		goto disable;

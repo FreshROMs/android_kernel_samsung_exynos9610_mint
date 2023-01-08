@@ -24,10 +24,10 @@ TRACE_EVENT(ems_select_fit_cpus,
 
 	TP_PROTO(struct task_struct *p, int wake,
 		unsigned int fit_cpus, unsigned int cpus_allowed, unsigned int ontime_fit_cpus, unsigned int prefer_cpus,
-		unsigned int overutil_cpus, unsigned int non_preemptible_cpus, unsigned int busy_cpus, unsigned int free_cpus),
+		unsigned int overutil_cpus, unsigned int busy_cpus, unsigned int migration_cpus, unsigned int non_preemptible_cpus, unsigned int free_cpus),
 
 	TP_ARGS(p, wake, fit_cpus, cpus_allowed, ontime_fit_cpus, prefer_cpus,
-				overutil_cpus, non_preemptible_cpus, busy_cpus, free_cpus),
+				overutil_cpus, busy_cpus, migration_cpus, non_preemptible_cpus, free_cpus),
 
 	TP_STRUCT__entry(
 		__array(	char,		comm,	TASK_COMM_LEN	)
@@ -39,8 +39,9 @@ TRACE_EVENT(ems_select_fit_cpus,
 		__field(	unsigned int,	ontime_fit_cpus		)
 		__field(	unsigned int,	prefer_cpus		)
 		__field(	unsigned int,	overutil_cpus		)
-		__field(	unsigned int,	non_preemptible_cpus		)
 		__field(	unsigned int,	busy_cpus		)
+		__field(	unsigned int,	migration_cpus		)
+		__field(	unsigned int,	non_preemptible_cpus		)
 		__field(	unsigned int,	free_cpus		)
 	),
 
@@ -54,15 +55,16 @@ TRACE_EVENT(ems_select_fit_cpus,
 		__entry->ontime_fit_cpus	= ontime_fit_cpus;
 		__entry->prefer_cpus	= prefer_cpus;
 		__entry->overutil_cpus		= overutil_cpus;
-		__entry->non_preemptible_cpus		= non_preemptible_cpus;
 		__entry->busy_cpus		= busy_cpus;
+		__entry->migration_cpus		= migration_cpus;
+		__entry->non_preemptible_cpus		= non_preemptible_cpus;
 		__entry->free_cpus		= free_cpus;
 	),
 
-	TP_printk("comm=%s pid=%d src_cpu=%d wake=%d fit_cpus=%#x cpus_allowed=%#x ontime_fit_cpus=%#x prefer_cpus=%#x overutil_cpus=%#x non_preemptible_cpus=%#x busy_cpus=%#x free_cpus=%#x",
+	TP_printk("comm=%s pid=%d src_cpu=%d wake=%d fit_cpus=%#x cpus_allowed=%#x ontime_fit_cpus=%#x prefer_cpus=%#x overutil_cpus=%#x busy_cpus=%#x migration_cpus=%#x non_preemptible_cpus=%#x free_cpus=%#x",
 		  __entry->comm, __entry->pid, __entry->src_cpu,  __entry->wake,
 		  __entry->fit_cpus, __entry->cpus_allowed, __entry->ontime_fit_cpus, __entry->prefer_cpus,
-		  __entry->overutil_cpus, __entry->non_preemptible_cpus, __entry->busy_cpus, __entry->free_cpus)
+		  __entry->overutil_cpus, __entry->busy_cpus, __entry->migration_cpus, __entry->non_preemptible_cpus, __entry->free_cpus)
 );
 
 /*

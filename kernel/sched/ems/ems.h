@@ -49,7 +49,6 @@ struct tp_env {
     int sync;
     int wake;
 
-    int boost;
     int on_top;
     int prefer_idle;
     int prefer_perf;
@@ -93,6 +92,16 @@ struct task_struct *task_of(struct sched_entity *se)
 
 extern int global_boosted(void);
 extern int global_boosted_boot(void);
+
+#ifdef CONFIG_SCHED_EMS
+extern int ontime_can_migration(struct task_struct *p, int cpu);
+#else
+static inline int ontime_can_migration(struct task_struct *p, int cpu)
+{
+    return 1;
+}
+#endif
+
 
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);

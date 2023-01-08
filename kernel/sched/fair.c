@@ -3818,8 +3818,7 @@ inline unsigned long task_util_est(struct task_struct *p)
 		return (p->ravg.demand /
 			(walt_ravg_window >> SCHED_CAPACITY_SHIFT));
 #endif
-	return schedtune_util_est_en(p) ? max(READ_ONCE(p->se.avg.util_avg), _task_util_est(p))
-					: task_util(p);
+	return max(READ_ONCE(p->se.avg.util_avg), _task_util_est(p));
 }
 
 static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
@@ -8854,11 +8853,6 @@ static inline int migrate_degrades_locality(struct task_struct *p,
 }
 #endif
 
-static inline bool smaller_cpu_capacity(int cpu, int ref)
-{
-	return capacity_orig_of(cpu) < capacity_orig_of(ref);
-}
-
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
  */
@@ -8871,20 +8865,14 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 
 	/*
 	 * We do not migrate tasks that are:
-	 * 0) cannot be migrated to smaller capacity cpu due to schedtune.prefer_perf, or
+	 * 0) cannot be migrated due to ems requirement
 	 * 1) throttled_lb_pair, or
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
 	 * 3) running (obviously), or
 	 * 4) are cache-hot on their current CPU.
 	 */
-	if (!ontime_can_migration(p, env->dst_cpu))
+	if (!ems_can_migrate_task(p, env->dst_cpu))
 		return 0;
-
-#ifdef CONFIG_SCHED_TUNE
-	if (smaller_cpu_capacity(env->dst_cpu, env->src_cpu) &&
-	    schedtune_prefer_perf(p))
-		return 0;
-#endif
 
 	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
 		return 0;

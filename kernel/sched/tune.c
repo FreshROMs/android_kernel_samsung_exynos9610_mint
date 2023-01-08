@@ -391,6 +391,7 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
+#define SYSTEMUI_THREAD_NAME "ndroid.systemui"
 static inline int schedtune_adj_ta(struct task_struct *p)
 {
 	struct schedtune *st;
@@ -398,7 +399,7 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 	int adj = p->signal->oom_score_adj;
 
 	/* We only care about adj == 0 */
-	if (adj != 0)
+	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
 	/* Don't touch kthreads */
@@ -462,7 +463,7 @@ int schedtune_task_top_app(struct task_struct *p)
 
 int schedtune_task_on_top(struct task_struct *p)
 {
-	if (p->signal->oom_score_adj != 0)
+	if (p->signal->oom_score_adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
 	return schedtune_task_top_app(p);
@@ -806,7 +807,7 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 	case STUNE_BACKGROUND:
 		st->sched_policy = 1; // SCHED_POLICY_ENERGY
 		break;
-	case STUNE_TOPAPP:
+	// case STUNE_TOPAPP:
 	case STUNE_RT:
 		st->sched_policy = 2; // SCHED_POLICY_SEMI_PERF
 		break;

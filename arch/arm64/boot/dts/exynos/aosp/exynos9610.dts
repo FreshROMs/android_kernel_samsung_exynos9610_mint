@@ -347,14 +347,12 @@
 				/* little cores */
 				coregroup0 {
 					lower-boundary = <0>;
-					upper-boundary = <56>;
-					coverage-ratio = <90>;
+					upper-boundary = <60>;
 				};
 				/* big cores */
 				coregroup1 {
 					lower-boundary = <20>;
 					upper-boundary = <100>;
-					coverage-ratio = <75>;
 				};
 			};
 
@@ -377,13 +375,11 @@
 			frt {
 				/* little cores */
 				coregroup0 {
-					coverage-ratio = <30>;
-					active-ratio = <25>;
+					active-ratio = <20>;
 				};
 				/* big cores */
 				coregroup1 {
-					coverage-ratio = <15>;
-					active-ratio = <5>;
+					active-ratio = <10>;
 				};
 			};
 

@@ -30,7 +30,8 @@ inline unsigned long _task_util_est(struct task_struct *p)
 {
 	struct util_est ue = READ_ONCE(p->se.avg.util_est);
 
-	return max(ue.ewma, ue.enqueued);
+	return schedtune_util_est_en(p) ? max(ue.ewma, ue.enqueued)
+					: task_util(p);
 }
 
 unsigned long cpu_util_without(int cpu, struct task_struct *p)
@@ -186,13 +187,33 @@ skip_ux:
 	return true;
 }
 
+int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
+{
+	int src_cpu = task_cpu(p);
+
+	/* avoid migration if cpu is underutilized */
+	if (cpu_active(src_cpu) && is_slowest_cpu(src_cpu) &&
+		!cpu_overutilized(capacity_orig_of(src_cpu), cpu_util(src_cpu)))
+		return 0;
+
+	/* avoid migration if not ontime */
+	if (!ontime_can_migration(p, dst_cpu))
+		return 0;
+
+	/* avoid migrating on-top and prefer-perf task to slow cpus */
+	if (is_slowest_cpu(dst_cpu) && (schedtune_task_on_top(p) || schedtune_prefer_perf(p)))
+		return 0;
+
+	return 1;
+}
+
 static
 void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 {
 	int cpu;
 	unsigned long util = env->task_util;
 
-	/* Check if task is misfit - causes all CPUs to be over capacity */
+	/* check if task is misfit - causes all CPUs to be over capacity */
 	if (util > (SCHED_CAPACITY_SCALE * MISFIT_TASK_UTIL_RATIO / 100))
 		goto misfit;
 
@@ -275,6 +296,31 @@ static void find_busy_cpus(struct tp_env *env, struct cpumask *mask)
 }
 
 static
+void find_migration_cpus(struct tp_env *env, struct cpumask *mask)
+{
+	int cpu;
+
+	/* skip if waking under min util policy */
+	if (env->wake && env->sched_policy == SCHED_POLICY_MIN_UTIL)
+		return;
+
+	/*
+	 * It looks for busy cpu to exclude from selection. If cpu is under
+	 * boosted ontime migration, it is defined as migration cpu.
+	 *
+	 * migration_cpus = cpu with boosted ontime migration
+	 */
+	for_each_cpu(cpu, &env->cpus_allowed) {
+		/* only avoid migration to fast cpus */
+		if (is_slowest_cpu(cpu))
+			continue;
+
+		if (cpu_rq(cpu)->ontime_boost_migration)
+			cpumask_set_cpu(cpu, mask);
+	}
+}
+
+static
 void find_non_preemptible_cpus(struct tp_env *env, struct cpumask *mask)
 {
 	int cpu;
@@ -288,10 +334,8 @@ void find_non_preemptible_cpus(struct tp_env *env, struct cpumask *mask)
 		return;
 
 	for_each_cpu(cpu, &env->cpus_allowed) {
-		if (cpu == env->src_cpu || is_cpu_preemptible(env, cpu))
-			continue;
-
-		cpumask_set_cpu(cpu, mask);
+		if (!is_cpu_preemptible(env, cpu))
+			cpumask_set_cpu(cpu, mask);
 	}
 
 	/* if all cpus are non-preemptible, allow preemption */
@@ -303,7 +347,7 @@ static
 int find_fit_cpus(struct tp_env *env)
 {
 	struct cpumask fit_cpus;
-	struct cpumask overcap_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, non_preemptible_cpus, free_cpus;
+	struct cpumask overcap_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, migration_cpus, non_preemptible_cpus, free_cpus;
 	int non_overcap_cpu;
 	int cpu = smp_processor_id();
 
@@ -314,6 +358,7 @@ int find_fit_cpus(struct tp_env *env)
 	cpumask_clear(&ontime_fit_cpus);
 	cpumask_clear(&prefer_cpus);
 	cpumask_clear(&busy_cpus);
+	cpumask_clear(&migration_cpus);
 	cpumask_clear(&non_preemptible_cpus);
 	cpumask_clear(&free_cpus);
 
@@ -323,12 +368,14 @@ int find_fit_cpus(struct tp_env *env)
 	 * - ontime_fit_cpus : ontime fit cpus
 	 * - prefer_cpus : prefer cpu
 	 * - busy_cpus : busy cpu for migrating tasks
+	 * - migration_cpus : cpu under boosted ontime migration
 	 * - non_preemptible_cpus : non preemptible cpu
 	 */
 	find_overcap_cpus(env, &overcap_cpus);
 	ontime_select_fit_cpus(env->p, &ontime_fit_cpus);
 	prefer_cpu_get(env, &prefer_cpus);
 	find_busy_cpus(env, &busy_cpus);
+	find_migration_cpus(env, &migration_cpus);
 	find_non_preemptible_cpus(env, &non_preemptible_cpus);
 
 	/*
@@ -357,28 +404,34 @@ int find_fit_cpus(struct tp_env *env)
 	if (cpumask_weight(&fit_cpus) <= 1)
 		goto out;
 
+	/* Exclude cpus under boosted ontime migration from fit_cpus */
+	cpumask_andnot(&fit_cpus, &fit_cpus, &migration_cpus);
+	if (cpumask_weight(&fit_cpus) <= 1)
+		goto out;
+
 	/* Exclude non-preemptible cpus from fit_cpus */
 	cpumask_andnot(&fit_cpus, &fit_cpus, &non_preemptible_cpus);
 	if (cpumask_weight(&fit_cpus) <= 1)
 		goto out;
 
-	if (env->on_top) {
+	/* Ensure heavy on-top task is running on fast cpu */
+	if (env->on_top && !is_slowest_cpu(env->start_cpu.cpu)) {
 		if (cpumask_intersects(&fit_cpus, cpu_fastest_mask())) {
 			cpumask_and(&fit_cpus, &fit_cpus, cpu_fastest_mask());
 			goto out;
 		}
 	}
 
-	/* Handle sync flag */
-	if (sysctl_sched_sync_hint_enable && env->sync) {
+	/* Handle sync flag if waker cpu is preemptible */
+	if (sysctl_sched_sync_hint_enable &&
+		env->sync && (env->on_top || env->prefer_perf || is_cpu_preemptible(env, cpu))) {
 		/*
 		 * On 4.14, energy and efficiency calculations fail on waking tasks.
 		 * Unless task is placed using perf or min util logic,
 		 * wake task on the cpu the selection is running if it is preemptible.
 		 */
 		if (env->sched_policy < SCHED_POLICY_SEMI_PERF &&
-			cpumask_test_cpu(cpu, &env->cpus_allowed) &&
-			is_cpu_preemptible(env, cpu)) {
+			cpumask_test_cpu(cpu, &env->cpus_allowed)) {
 
 			cpumask_clear(&fit_cpus);
 			cpumask_set_cpu(cpu, &fit_cpus);
@@ -419,8 +472,9 @@ out:
 		*(unsigned int *)cpumask_bits(&ontime_fit_cpus),
 		*(unsigned int *)cpumask_bits(&prefer_cpus),
 		*(unsigned int *)cpumask_bits(&overcap_cpus),
-		*(unsigned int *)cpumask_bits(&non_preemptible_cpus),
 		*(unsigned int *)cpumask_bits(&busy_cpus),
+		*(unsigned int *)cpumask_bits(&migration_cpus),
+		*(unsigned int *)cpumask_bits(&non_preemptible_cpus),
 		*(unsigned int *)cpumask_bits(&free_cpus));
 
 	return cpumask_weight(&env->fit_cpus);
@@ -472,7 +526,6 @@ void sched_policy_get(struct tp_env *env)
 {
 	struct task_struct *p = env->p;
 	int policy = schedtune_task_sched_policy(p);
-	int src_cpu = env->src_cpu;
 
 	/* 
 	 * Mint additions - scheduling policy changes
@@ -517,12 +570,6 @@ void sched_policy_get(struct tp_env *env)
 	/* Return policy at this point if scheduling on perf logic */
 	if (policy >= SCHED_POLICY_SEMI_PERF) {
 		env->sched_policy = policy;
-		return;
-	}
-
-	/* Return min util policy if src_cpu is overutil */
-	if (cpu_overutilized(capacity_orig_of(src_cpu), cpu_util(src_cpu)) && cpu_rq(src_cpu)->nr_running) {
-		env->sched_policy = SCHED_POLICY_MIN_UTIL;
 		return;
 	}
 
@@ -601,7 +648,7 @@ void select_start_cpu(struct tp_env *env) {
 		 * Check if task can be placed on big cluster and
 		 * fits slowest CPU. Return fast if overutil.
 		 */
-		if (task_util_est(env->p) * 100 >= capacity_max_of(src_cpu) * 61) {
+		if (task_util_est(env->p) * 100 >= capacity_max_of(src_cpu) * 60) {
 			start_cpu = cpumask_first(&active_fast_mask);
 			goto done;
 		}
@@ -720,7 +767,6 @@ int exynos_select_task_rq(struct task_struct *p, int prev_cpu, int sd_flag, int 
 		.cgroup_idx = schedtune_task_group_idx(p),
 		.src_cpu = prev_cpu,
 
-		.boost = schedtune_task_boost(p),
 		.on_top = schedtune_task_on_top(p),
 		.prefer_idle = schedtune_prefer_idle(p),
 		.prefer_perf = schedtune_prefer_perf(p),
