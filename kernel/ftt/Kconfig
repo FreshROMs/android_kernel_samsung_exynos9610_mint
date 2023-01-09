@@ -1,6 +1,6 @@
 config FAST_TRACK
     bool "ftt feature"
-    default y
+    default n
     help
       This option enables ftt feature, which is to reduce vruntime
       and modify some preemption policy.
