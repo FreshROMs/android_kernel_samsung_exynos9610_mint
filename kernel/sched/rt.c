@@ -2541,6 +2541,10 @@ static int find_victim_rt_rq(struct task_struct *task, const struct cpumask *sg_
 	for_each_cpu_and(i, sg_cpus, rttsk_cpus_allowed(task)) {
 		struct task_struct *victim = cpu_rq(i)->curr;
 
+		/* avoid ems boosted task */
+		if (victim->pid && ems_task_boost() == victim->pid)
+			continue;
+
 		if (victim->nr_cpus_allowed < 2)
 			continue;
 
@@ -2700,24 +2704,42 @@ static int find_recessive_cpu(struct rt_env *env)
 	return best_cpu;
 }
 
-static void get_ready_env(struct rt_env *env) {
+static void set_prefer_perf(struct rt_env *env)
+{
+	/* ems task boost */
+	if (env->p->pid && ems_task_boost() == env->p->pid) {
+		env->prefer_perf = 1;
+		return;
+	}
+
+	/* prefer perf cpu for on-top and heavy top-app tasks */
+	if (schedtune_task_top_app(env->p)) {
+		/* on-top task */
+		if ((env->p)->signal->oom_score_adj == 0) {
+			env->prefer_perf = 1;
+			return;
+		}
+
+		/* heavy task */
+		if (env->task_util * 100 >= capacity_max_of(0) * 60) {
+			env->prefer_perf = 1;
+			return;
+		}
+	}
+
+	env->prefer_perf = schedtune_prefer_perf(env->p);
+}
+
+static void get_ready_env(struct rt_env *env)
+{
 	struct task_struct *task = env->p;
 
 	unsigned long task_util = rttsk_task_util(task);
 	env->task_util = task_util;
 	env->min_util = frt_boosted_task_util(env->p);
-	env->prefer_perf = schedtune_prefer_perf(task);
 
-	/* prefer perf cpu for on-top and heavy top-app tasks */
-	if (schedtune_task_top_app(env->p)) {
-		/* on-top task */
-		if (task->signal->oom_score_adj == 0)
-			env->prefer_perf = 1;
-
-		/* heavy task */
-		if (task_util * 100 >= capacity_max_of(0) * 60)
-			env->prefer_perf = 1;
-	}
+	/* set prefer perf status */
+	set_prefer_perf(env);
 }
 
 static int find_lowest_rq_fluid(struct task_struct *task)

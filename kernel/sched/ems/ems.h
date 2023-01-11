@@ -67,7 +67,6 @@ struct tp_env {
 
         unsigned int cap_max;
         unsigned long cap_orig;
-        unsigned long cap_curr;
 
         int idle;
         int exit_latency;

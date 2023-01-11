@@ -56,6 +56,7 @@ extern bool lbt_overutilized(int cpu, int level);
 extern void update_lbt_overutil(int cpu, unsigned long capacity);
 
 /* global boost */
+extern int ems_task_boost(void);
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
 
 /* P.A.R.T */

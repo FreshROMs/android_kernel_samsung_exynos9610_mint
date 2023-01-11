@@ -8342,6 +8342,13 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 
 	find_matching_se(&se, &pse);
 	update_curr(cfs_rq_of(se));
+
+	if (p->pid && ems_task_boost() == p->pid)
+		goto preempt;
+
+	if (schedtune_task_on_top(p))
+		goto preempt;
+
 	BUG_ON(!pse);
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		/*

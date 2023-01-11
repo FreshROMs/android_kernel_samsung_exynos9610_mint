@@ -420,26 +420,18 @@ static inline int schedtune_adj_ta(struct task_struct *p)
 int schedtune_task_group_idx(struct task_struct *p)
 {
 	struct schedtune *st;
-	int idx;
+	int group_idx;
 
 	if (unlikely(!schedtune_initialized))
-		return -1;
+		return 0;
 
-	/* Get task group value */
+	/* Get task cgroup idx */
 	rcu_read_lock();
 	st = task_schedtune(p);
-
-	if (!st) {
-		idx = 0;
-		goto out;
-	}
-
-	idx = st->idx;
-	
-out:
+	group_idx = st->idx;
 	rcu_read_unlock();
 
-	return idx;
+	return group_idx;
 }
 
 int schedtune_task_top_app(struct task_struct *p)

@@ -162,6 +162,10 @@ static bool is_cpu_preemptible(struct tp_env *env, int cpu)
 	struct task_struct *curr = READ_ONCE(rq->curr);
 	int curr_adj;
 
+	/* Don't preempt EMS boosted task */
+	if (curr->pid && ems_task_boost() == curr->pid)
+		return false;
+
 	if (is_slowest_cpu(cpu) || !curr)
 		goto skip_ux;
 
@@ -325,8 +329,8 @@ void find_non_preemptible_cpus(struct tp_env *env, struct cpumask *mask)
 {
 	int cpu;
 
-	/* Allow preemption if task is the 'on-top' task */
-	if (env->on_top)
+	/* Allow preemption if task is the 'on-top' or task_boost task */
+	if (env->on_top || (env->p->pid && ems_task_boost() == env->p->pid))
 		return;
 
 	/* Allow preemption if task is sync and 'prefer-perf' task */
@@ -415,7 +419,7 @@ int find_fit_cpus(struct tp_env *env)
 		goto out;
 
 	/* Ensure heavy on-top task is running on fast cpu */
-	if (env->on_top && !is_slowest_cpu(env->start_cpu.cpu)) {
+	if ((env->on_top && !is_slowest_cpu(env->start_cpu.cpu)) || (env->p->pid && ems_task_boost() == env->p->pid)) {
 		if (cpumask_intersects(&fit_cpus, cpu_fastest_mask())) {
 			cpumask_and(&fit_cpus, &fit_cpus, cpu_fastest_mask());
 			goto out;
@@ -501,7 +505,6 @@ void take_util_snapshot(struct tp_env *env)
 
 		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
 		env->cpu_stat[cpu].cap_orig = capacity_orig_of(cpu);
-		env->cpu_stat[cpu].cap_curr = capacity_curr_of(cpu);
 
 		env->cpu_stat[cpu].util_wo = cpu_util;
 		env->cpu_stat[cpu].util_with = new_util;
@@ -533,28 +536,27 @@ void sched_policy_get(struct tp_env *env)
 	 * Adapt to current schedtune setting for tasks with
 	 * a. 'on-top' status - SCHED_POLICY_PERF
 	 * b. global boost on boot - SCHED_POLICY_PERF
-	 * c. 'prefer-perf' status - SCHED_POLICY_SEMI_PERF
-	 * d. global boosted scenario - SCHED_POLICY_SEMI_PERF
+	 * c. task boost - SCHED_POLICY_SEMI_PERF
+	 * d. 'prefer-perf' status - SCHED_POLICY_SEMI_PERF
+	 * e. global boosted scenario - SCHED_POLICY_SEMI_PERF
 	 *
 	 */
-	if (env->on_top) {
-		env->sched_policy = SCHED_POLICY_PERF;
-		return;
+	if (env->on_top || global_boosted_boot()) {
+		policy = SCHED_POLICY_PERF;
+		goto out;
 	}
 
-	if (global_boosted_boot()) {
-		env->sched_policy =  SCHED_POLICY_PERF;
-		return;
+	if (policy >= SCHED_POLICY_PERF)
+		goto out;
+
+	if (env->p->pid && ems_task_boost() == env->p->pid) {
+		policy = SCHED_POLICY_SEMI_PERF;
+		goto out;
 	}
 
-	if (env->prefer_perf && policy < SCHED_POLICY_SEMI_PERF) {
-		env->sched_policy = SCHED_POLICY_SEMI_PERF;
-		return;
-	}
-
-	if (global_boosted() && policy < SCHED_POLICY_SEMI_PERF) {
-		env->sched_policy = SCHED_POLICY_SEMI_PERF;
-		return;
+	if (env->prefer_perf || global_boosted()) {
+		policy = SCHED_POLICY_SEMI_PERF;
+		goto out;
 	}
 
 	/*
@@ -567,11 +569,8 @@ void sched_policy_get(struct tp_env *env)
 	if (p->flags & PF_WQ_WORKER)
 		policy = SCHED_POLICY_ENERGY;
 
-	/* Return policy at this point if scheduling on perf logic */
-	if (policy >= SCHED_POLICY_SEMI_PERF) {
-		env->sched_policy = policy;
-		return;
-	}
+	if (policy >= SCHED_POLICY_SEMI_PERF)
+		goto out;
 
 	if (policy == SCHED_POLICY_EFF &&
 		env->task_util <= SCHED_CAPACITY_SCALE >> 6)
@@ -582,11 +581,10 @@ void sched_policy_get(struct tp_env *env)
 	 * fail when task has no utilization. Place task
 	 * using min util strategy if this is the case.
 	 */
-	if (policy == SCHED_POLICY_ENERGY && !task_util(env->p)) {
-		env->sched_policy = SCHED_POLICY_MIN_UTIL;
-		return;
-	}
+	if (policy == SCHED_POLICY_ENERGY && !task_util(env->p))
+		policy = SCHED_POLICY_MIN_UTIL;
 
+out:
 	env->sched_policy = policy;
 }
 
@@ -624,34 +622,28 @@ bool fast_path_eligible(struct tp_env *env)
 static
 void select_start_cpu(struct tp_env *env) {
 	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
+	int prefer_perf = max(env->prefer_perf, env->on_top);
 	struct cpumask active_fast_mask;
 
-	int prefer_perf = max(env->prefer_perf, env->on_top);
-	int src_cpu = env->src_cpu;
-
-	// Avoid recommending fast CPUs during idle as these are inactive
+	/* Avoid recommending fast CPUs during idle as these are inactive */
 	if (pm_freezing)
+		goto done;
+
+	/* Don't select CPU if task is not allowed to be placed on fast CPUs */
+	if (!cpumask_intersects(tsk_cpus_allowed(env->p), cpu_fastest_mask()))
 		goto done;
 
 	/* Get all active fast CPUs */
 	cpumask_and(&active_fast_mask, cpu_fastest_mask(), cpu_active_mask);
 
-	/* Start with fast CPU if available, task is allowed to be placed, and matches criteria */
-	if (!cpumask_empty(&active_fast_mask) && cpumask_intersects(tsk_cpus_allowed(env->p), &active_fast_mask)) {
-		/* Return fast CPU if task is prefer_perf or global boosting */
-		if (prefer_perf || global_boosted()) {
-			start_cpu = cpumask_first(&active_fast_mask);
-			goto done;
-		}
+	/* Don't select CPU if fast CPUs are unavailable */
+	if (cpumask_empty(&active_fast_mask))
+		goto done;
 
-		/* 
-		 * Check if task can be placed on big cluster and
-		 * fits slowest CPU. Return fast if overutil.
-		 */
-		if (task_util_est(env->p) * 100 >= capacity_max_of(src_cpu) * 60) {
-			start_cpu = cpumask_first(&active_fast_mask);
-			goto done;
-		}
+	/* Return fast CPU if task is prefer_perf or global boosting */
+	if (prefer_perf || global_boosted()) {
+		start_cpu = cpumask_first(&active_fast_mask);
+		goto done;
 	}
 
 done:
