@@ -208,15 +208,6 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config FREQVAR_TUNE
-	bool "CPU frequency variant tuner"
-	depends on SCHED_EMS && CPU_FREQ_GOV_SCHEDUTIL
-	help
-	  This option provides the controller which tunes system performance
-	  as frequency variant.
-
-	  Say N if unsure.
-
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT

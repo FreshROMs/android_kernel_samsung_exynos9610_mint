@@ -7,6 +7,7 @@
 
 #include <linux/cpuidle.h>
 #include <linux/ems.h>
+#include <linux/ems_service.h>
 #include <linux/freezer.h>
 
 #include "ems.h"
@@ -140,7 +141,7 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 
 		/* This domain is top and dst_cpu is bigger than src_cpu*/
 		if (!lb_sd_parent(sd) && src_cap < dst_cap)
-			if (lbt_overutilized(src_cpu, level) || global_boosted())
+			if (lbt_overutilized(src_cpu, level) || ems_global_boost() || ems_boot_boost())
 				return 1;
 	}
 
@@ -162,12 +163,12 @@ static bool is_cpu_preemptible(struct tp_env *env, int cpu)
 	struct task_struct *curr = READ_ONCE(rq->curr);
 	int curr_adj;
 
+	if (is_slowest_cpu(cpu) || !curr)
+		goto skip_ux;
+
 	/* Don't preempt EMS boosted task */
 	if (curr->pid && ems_task_boost() == curr->pid)
 		return false;
-
-	if (is_slowest_cpu(cpu) || !curr)
-		goto skip_ux;
 
 	curr_adj = curr->signal->oom_score_adj;
 
@@ -189,26 +190,6 @@ skip_ux:
 		return false;
 
 	return true;
-}
-
-int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
-{
-	int src_cpu = task_cpu(p);
-
-	/* avoid migration if cpu is underutilized */
-	if (cpu_active(src_cpu) && is_slowest_cpu(src_cpu) &&
-		!cpu_overutilized(capacity_orig_of(src_cpu), cpu_util(src_cpu)))
-		return 0;
-
-	/* avoid migration if not ontime */
-	if (!ontime_can_migration(p, dst_cpu))
-		return 0;
-
-	/* avoid migrating on-top and prefer-perf task to slow cpus */
-	if (is_slowest_cpu(dst_cpu) && (schedtune_task_on_top(p) || schedtune_prefer_perf(p)))
-		return 0;
-
-	return 1;
 }
 
 static
@@ -354,6 +335,14 @@ int find_fit_cpus(struct tp_env *env)
 	struct cpumask overcap_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, migration_cpus, non_preemptible_cpus, free_cpus;
 	int non_overcap_cpu;
 	int cpu = smp_processor_id();
+
+	if (EMS_PF_GET(env->p) & EMS_PF_RUNNABLE_BUSY) {
+		cpu = find_min_load_cpu(env);
+		if (cpu >= 0) {
+			cpumask_set_cpu(cpu, &env->fit_cpus);
+			goto out;
+		}
+	}
 
 	/* clear masks */
 	cpumask_clear(&env->fit_cpus);
@@ -541,7 +530,12 @@ void sched_policy_get(struct tp_env *env)
 	 * e. global boosted scenario - SCHED_POLICY_SEMI_PERF
 	 *
 	 */
-	if (env->on_top || global_boosted_boot()) {
+	if (env->on_top || ems_boot_boost() == EMS_INIT_BOOST) {
+		policy = SCHED_POLICY_PERF;
+		goto out;
+	}
+
+	if (ems_global_boost() && env->cgroup_idx == STUNE_TOPAPP) {
 		policy = SCHED_POLICY_PERF;
 		goto out;
 	}
@@ -554,7 +548,7 @@ void sched_policy_get(struct tp_env *env)
 		goto out;
 	}
 
-	if (env->prefer_perf || global_boosted()) {
+	if (env->prefer_perf || (ems_global_boost() && env->cgroup_idx == STUNE_FOREGROUND) || ems_boot_boost() == EMS_BOOT_BOOST) {
 		policy = SCHED_POLICY_SEMI_PERF;
 		goto out;
 	}
@@ -641,7 +635,7 @@ void select_start_cpu(struct tp_env *env) {
 		goto done;
 
 	/* Return fast CPU if task is prefer_perf or global boosting */
-	if (prefer_perf || global_boosted()) {
+	if (prefer_perf || ems_global_boost() || ems_boot_boost()) {
 		start_cpu = cpumask_first(&active_fast_mask);
 		goto done;
 	}
@@ -750,7 +744,7 @@ void get_ready_env(struct tp_env *env)
 }
 
 extern void sync_entity_load_avg(struct sched_entity *se);
-int exynos_select_task_rq(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake)
+int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake)
 {
 	int target_cpu = INVALID_CPU;
 	char state[30] = "fail";
@@ -816,6 +810,43 @@ out:
 	trace_ems_wakeup_balance(p, target_cpu, wake, state);
 found_best_cpu:
 	return target_cpu;
+}
+
+int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
+{
+	int src_cpu = task_cpu(p);
+
+	/* avoid migration if cpu is underutilized */
+	if (cpu_active(src_cpu) && is_slowest_cpu(src_cpu) &&
+		!cpu_overutilized(capacity_orig_of(src_cpu), cpu_util(src_cpu)))
+		return 0;
+
+	/* avoid migration if not ontime */
+	if (!ontime_can_migration(p, dst_cpu))
+		return 0;
+
+	/* avoid migrating on-top and prefer-perf task to slow cpus */
+	if (is_slowest_cpu(dst_cpu) && (schedtune_task_on_top(p) || schedtune_prefer_perf(p)))
+		return 0;
+
+	return 1;
+}
+
+void ems_tick(void)
+{
+	// profile_sched_data();
+
+	// mlt_update(cpu_of(rq));
+
+	// stt_update(rq, NULL);
+
+	// frt_update_available_cpus(rq);
+
+	// monitor_sysbusy();
+	// somac_tasks();
+
+	ontime_migration();
+	// ecs_update();
 }
 
 struct kobject *ems_kobj;

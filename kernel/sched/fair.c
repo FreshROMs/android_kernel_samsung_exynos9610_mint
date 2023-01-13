@@ -8031,7 +8031,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int target_cpu;
 
 	if (sched_feat(EXYNOS_MS)) {
-		target_cpu = exynos_select_task_rq(p, prev_cpu, sd_flag, sync, 1);
+		target_cpu = ems_select_task_rq_fair(p, prev_cpu, sd_flag, sync, 1);
 		if (target_cpu >= 0)
 			return target_cpu;
 	}
@@ -11603,8 +11603,6 @@ static __latent_entropy void run_rebalance_domains(struct softirq_action *h)
 #else
 	rebalance_domains(this_rq, idle);
 #endif
-
-	ontime_migration();
 }
 
 /*

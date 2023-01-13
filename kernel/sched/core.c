@@ -4098,6 +4098,11 @@ void scheduler_tick(void)
 	trigger_load_balance(rq);
 #endif
 	rq_last_tick_reset(rq);
+
+#ifdef CONFIG_SCHED_EMS
+	/* Exynos Mobile Scheduler tick */
+	ems_tick();
+#endif
 }
 
 #ifdef CONFIG_NO_HZ_FULL

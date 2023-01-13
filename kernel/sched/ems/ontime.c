@@ -51,11 +51,10 @@ LIST_HEAD(cond_list);
 /* Structure of ontime migration environment */
 struct ontime_env {
 	struct rq		*dst_rq;
-	int			dst_cpu;
 	struct rq		*src_rq;
-	int			src_cpu;
 	struct task_struct	*target_task;
 	int			boost_migration;
+	u64			flags;
 };
 DEFINE_PER_CPU(struct ontime_env, ontime_env);
 
@@ -204,6 +203,13 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 masking:
 	cpumask_and(&mask, &mask, cpu_active_mask);
 done:
+	/*
+	 * Check if the task is given a mulligan.
+	 * If so, remove src_cpu from candidate.
+	 */
+	if (EMS_PF_GET(p) & EMS_PF_MULLIGAN)
+		cpumask_clear_cpu(src_cpu, &mask);
+
 	cpumask_clear(fit_cpus);
 	cpumask_copy(fit_cpus, &mask);
 }
@@ -271,40 +277,48 @@ next_entity:
 	return heaviest_task;
 }
 
-static bool can_migrate(struct task_struct *p, struct ontime_env *env)
+static bool __can_migrate(struct task_struct *p, struct ontime_env *env)
 {
-	struct rq *src_rq = env->src_rq;
-	int src_cpu = env->src_cpu;
-
-	if (ontime_of(p)->migrating == 0)
-		return false;
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
 
 	if (p->exit_state)
+		return false;
+
+	if (!cpu_active(dst_rq->cpu))
 		return false;
 
 	if (unlikely(src_rq != task_rq(p)))
 		return false;
 
-	if (unlikely(src_cpu != smp_processor_id()))
+	if (unlikely(src_rq->cpu != smp_processor_id()))
 		return false;
 
 	if (src_rq->nr_running <= 1)
 		return false;
 
-	if (!cpumask_test_cpu(env->dst_cpu, tsk_cpus_allowed(p)))
+	if (!cpumask_test_cpu(dst_rq->cpu, tsk_cpus_allowed(p)))
 		return false;
 
-	if (task_running(env->src_rq, p))
+	if (task_running(src_rq, p))
 		return false;
 
 	return true;
+}
+
+static
+bool can_migrate(struct task_struct *p, struct ontime_env *env)
+{
+	if (ontime_of(p)->migrating == 0)
+		return false;
+
+	return __can_migrate(p, env);
 }
 
 static void move_task(struct task_struct *p, struct ontime_env *env)
 {
 	p->on_rq = TASK_ON_RQ_MIGRATING;
 	deactivate_task(env->src_rq, p, 0);
-	set_task_cpu(p, env->dst_cpu);
+	set_task_cpu(p, env->dst_rq->cpu);
 
 	activate_task(env->dst_rq, p, 0);
 	p->on_rq = TASK_ON_RQ_QUEUED;
@@ -332,14 +346,11 @@ static int ontime_migration_cpu_stop(void *data)
 	struct ontime_env *env = data;
 	struct rq *src_rq, *dst_rq;
 	struct task_struct *p;
-	int src_cpu, dst_cpu;
 	int boost_migration;
 
 	/* Initialize environment data */
 	src_rq = env->src_rq;
-	dst_rq = env->dst_rq = cpu_rq(env->dst_cpu);
-	src_cpu = env->src_cpu = env->src_rq->cpu;
-	dst_cpu = env->dst_cpu;
+	dst_rq = env->dst_rq;
 	p = env->target_task;
 	boost_migration = env->boost_migration;
 
@@ -355,7 +366,7 @@ static int ontime_migration_cpu_stop(void *data)
 	double_lock_balance(src_rq, dst_rq);
 	if (move_specific_task(p, env)) {
 		trace_ems_ontime_migration(p, ontime_of(p)->avg.load_avg,
-				src_cpu, dst_cpu, boost_migration);
+				src_rq->cpu, dst_rq->cpu, boost_migration ? "boosted" : "not boosted");
 	}
 	double_unlock_balance(src_rq, dst_rq);
 
@@ -406,100 +417,248 @@ void ontime_trace_task_info(struct task_struct *p)
 	trace_ems_ontime_load_avg_task(p, &ontime_of(p)->avg, ontime_of(p)->migrating);
 }
 
-DEFINE_PER_CPU(struct cpu_stop_work, ontime_migration_work);
-static DEFINE_SPINLOCK(om_lock);
-
-void ontime_migration(void)
+static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 {
-	int cpu;
+	int cpu = cpu_of(rq);
+	int nr_running = rq->nr_running;
+	int limit = is_slowest_cpu(cpu) ? 30 : 40;
+	unsigned long util = cpu_util(cpu);
+	struct task_struct *curr = READ_ONCE(rq->curr);
 
-	if (!spin_trylock(&om_lock))
-		return;
-
-	for_each_cpu(cpu, cpu_active_mask) {
-		unsigned long flags;
-		struct rq *rq = cpu_rq(cpu);
-		struct sched_entity *se;
-		struct task_struct *p;
-		struct ontime_env *env = &per_cpu(ontime_env, cpu);
-		int boost_migration = 0;
-		int dst_cpu;
-
-		/* Task in big cores don't be ontime migrated. */
-		if (cpumask_test_cpu(cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
-			break;
-
-		raw_spin_lock_irqsave(&rq->lock, flags);
-
-		/*
-		 * Ontime migration is not performed when active balance
-		 * is in progress.
-		 */
-		if (rq->active_balance) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/*
-		 * No need to migration if source cpu does not have cfs
-		 * tasks.
-		 */
-		if (!rq->cfs.curr) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/* Find task entity if entity is cfs_rq. */
-		se = rq->cfs.curr;
-		if (entity_is_cfs_rq(se)) {
-			struct cfs_rq *cfs_rq = se->my_q;
-
-			while (cfs_rq) {
-				se = cfs_rq->curr;
-				cfs_rq = se->my_q;
-			}
-		}
-
-		/*
-		 * Pick task to be migrated. Return NULL if there is no
-		 * heavy task in rq.
-		 */
-		p = ontime_pick_heavy_task(se, &boost_migration);
-		if (!p) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		/* Select destination cpu which the task will be moved */
-		dst_cpu = exynos_select_task_rq(p, cpu, 0, 0, 0);
-		if (dst_cpu < 0 || cpu == dst_cpu) {
-			raw_spin_unlock_irqrestore(&rq->lock, flags);
-			continue;
-		}
-
-		ontime_of(p)->migrating = 1;
-		get_task_struct(p);
-
-		/* Set environment data */
-		env->dst_cpu = dst_cpu;
-		env->src_rq = rq;
-		env->target_task = p;
-		env->boost_migration = boost_migration;
-
-		/* Prevent active balance to use stopper for migration */
-		rq->active_balance = 1;
-
-		cpu_rq(dst_cpu)->ontime_migrating = 1;
-		cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
-
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
-
-		/* Migrate task through stopper */
-		stop_one_cpu_nowait(cpu, ontime_migration_cpu_stop, env,
-				&per_cpu(ontime_migration_work, cpu));
+	if (cpu_overutilized(capacity_orig_of(cpu), util) && nr_running > 1) {
+		env->flags |= EMS_PF_RUNNABLE_BUSY;
+		return true;
 	}
 
+	return nr_running > 1 &&
+		(curr && task_util(curr) * 100 >= util * limit);
+}
+
+static struct rq *ontime_find_mulligan_rq(struct task_struct *target_p,
+					  struct ontime_env *env)
+{
+	struct rq *src_rq = env->src_rq, *dst_rq;
+	int dst_cpu;
+
+	/* Set flag to skip src_cpu when iterating candidates */
+	EMS_PF_SET(target_p, env->flags);
+
+	/* Find next cpu for this task */
+	dst_cpu = ems_select_task_rq_fair(target_p, cpu_of(src_rq), 0, 0, 0);
+
+	/* Clear flag */
+	EMS_PF_CLEAR(target_p, env->flags);
+
+	if (dst_cpu < 0 || cpu_of(src_rq) == dst_cpu)
+		return NULL;
+
+	dst_rq = cpu_rq(dst_cpu);
+
+	return dst_rq;
+}
+
+static int ontime_detach_task(struct task_struct *target_p,
+			      struct ontime_env *env)
+{
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
+	int dst_cpu = cpu_of(dst_rq);
+
+	/* Deactivate this task to migrate it */
+	deactivate_task(src_rq, target_p, 0);
+	set_task_cpu(target_p, dst_cpu);
+
+	/* Returning 1 means a task is detached. */
+	return 1;
+}
+
+static int ontime_attach_task(struct task_struct *target_p,
+			      const struct ontime_env *env)
+{
+	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
+	struct rq_flags rf;
+
+	rq_lock(dst_rq, &rf);
+	activate_task(dst_rq, target_p, 0);
+	check_preempt_curr(dst_rq, target_p, 0);
+	rq_unlock(dst_rq, &rf);
+
+	trace_ems_ontime_migration(target_p, task_util_est(target_p),
+				cpu_of(src_rq), cpu_of(dst_rq), "mulligan");
+
+	/* Returning 1 means a task is attached. */
+	return 1;
+}
+
+static void ontime_mulligan(void)
+{
+	struct rq *src_rq = this_rq(), *dst_rq;
+	struct list_head *tasks = &src_rq->cfs_tasks;
+	struct task_struct *p, *target_p = NULL;
+	struct ontime_env local_env = { .src_rq = src_rq, .flags = EMS_PF_MULLIGAN };
+	unsigned long flags;
+	unsigned long min_util = ULONG_MAX, task_util;
+
+	if (!ontime_check_runnable(&local_env, src_rq))
+		return;
+
+	raw_spin_lock_irqsave(&src_rq->lock, flags);
+
+	list_for_each_entry_reverse(p, tasks, se.group_node) {
+		/* Current task cannot get mulligan */
+		if (&p->se == src_rq->cfs.curr)
+			continue;
+
+		task_util = task_util_est(p);
+
+		/*
+		 * If this cpu is determined as runnable busy, only tasks which
+		 * have utilization under 6.25% of capacity can get mulligan.
+		 */
+		if ((local_env.flags & EMS_PF_RUNNABLE_BUSY)
+		    && task_util >= capacity_orig_of(cpu_of(src_rq)) >> 4)
+			continue;
+
+		/* Find min util task */
+		if (task_util < min_util) {
+			target_p = p;
+			min_util = task_util;
+		}
+	}
+
+	/* No task is given a mulligan */
+	if (!target_p) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	dst_rq = ontime_find_mulligan_rq(target_p, &local_env);
+
+	/* No rq exists for the mulligan */
+	if (!dst_rq) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	/* Fill ontime_env and check whether the task can be migrated */
+	local_env.dst_rq = dst_rq;
+	local_env.target_task = target_p;
+	if (!__can_migrate(target_p, &local_env)) {
+		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+		return;
+	}
+
+	/* Finally, the task can be moved! */
+	ontime_detach_task(target_p, &local_env);
+
+	raw_spin_unlock_irqrestore(&src_rq->lock, flags);
+
+	/* Let's give a second chance to the task */
+	ontime_attach_task(target_p, &local_env);
+}
+
+DEFINE_PER_CPU(struct cpu_stop_work, ontime_migration_work);
+// static DEFINE_SPINLOCK(om_lock);
+
+static void ontime_heavy_migration(void)
+{
+	struct rq *rq = this_rq();
+	struct sched_entity *se;
+	struct ontime_env *env = &per_cpu(ontime_env, rq->cpu);
+	struct task_struct *p;
+	int dst_cpu;
+	struct ontime_cond *curr = get_current_cond(rq->cpu);
+	unsigned long flags;
+	int boost_migration = 0;
+
+	/*
+	 * If this cpu belongs to last domain of ontime, no cpu is
+	 * faster than this cpu. Skip ontime migration for heavy task.
+	 */
+	if (cpumask_test_cpu(rq->cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
+		return;
+
+#if 0
+	if (!spin_trylock(&om_lock))
+		return;
+#endif
+
+	/*
+	 * No need to traverse rq to find a heavy task
+	 * if this CPU utilization is under upper boundary
+	 */
+	if (curr && cpu_util(cpu_of(rq)) < curr->upper_boundary)
+		return;
+
+	raw_spin_lock_irqsave(&rq->lock, flags);
+
+	/*
+	 * Ontime migration is not performed when active balance is in progress.
+	 */
+	if (rq->active_balance) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/*
+	 * No need to migration if source cpu does not have cfs tasks.
+	 */
+	if (!rq->cfs.curr) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/* Find task entity if entity is cfs_rq. */
+	se = rq->cfs.curr;
+	if (entity_is_cfs_rq(se)) {
+		struct cfs_rq *cfs_rq = se->my_q;
+
+		while (cfs_rq) {
+			se = cfs_rq->curr;
+			cfs_rq = se->my_q;
+		}
+	}
+
+	/*
+	 * Pick task to be migrated.
+	 * Return NULL if there is no heavy task in rq.
+	 */
+	p = ontime_pick_heavy_task(se, &boost_migration);
+	if (!p) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	/* Select destination cpu which the task will be moved */
+	dst_cpu = ems_select_task_rq_fair(p, rq->cpu, 0, 0, 0);
+	if (dst_cpu < 0 || rq->cpu == dst_cpu) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return;
+	}
+
+	ontime_of(p)->migrating = 1;
+	get_task_struct(p);
+
+	/* Set environment data */
+	env->dst_rq = cpu_rq(dst_cpu);
+	env->src_rq = rq;
+	env->target_task = p;
+	env->boost_migration = boost_migration;
+
+	/* Prevent active balance to use stopper for migration */
+	rq->active_balance = 1;
+
+	cpu_rq(dst_cpu)->ontime_migrating = 1;
+	cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
+
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
+
+	/* Migrate task through stopper */
+	stop_one_cpu_nowait(rq->cpu, ontime_migration_cpu_stop, env,
+			&per_cpu(ontime_migration_work, rq->cpu));
+
+#if 0
 	spin_unlock(&om_lock);
+#endif
 }
 
 int ontime_can_migration(struct task_struct *p, int dst_cpu)
@@ -600,6 +759,17 @@ void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se)
 	ontime->migrating = 0;
 
 	trace_ems_ontime_new_entity_load(task_of(se), &ontime->avg);
+}
+
+void ontime_migration(void)
+{
+	/*
+	if (skip_ontime)
+		return;
+	*/
+
+	ontime_mulligan();
+	ontime_heavy_migration();
 }
 
 /****************************************************************/

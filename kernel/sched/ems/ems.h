@@ -33,6 +33,14 @@ extern struct kobject *ems_kobj;
 #define SCHED_POLICY_MIN_UTIL 4 // overutil case
 #define SCHED_POLICY_UNKNOWN 5
 
+/* support flag-handling for EMS */
+#define EMS_PF_GET(task)        (task->ems_flags)
+#define EMS_PF_SET(task, value)     (task->ems_flags |= (value))
+#define EMS_PF_CLEAR(task, value)   (task->ems_flags &= ~(value))
+
+#define EMS_PF_MULLIGAN         0x00000001  /* I'm given a mulligan */
+#define EMS_PF_RUNNABLE_BUSY        0x00000002  /* Picked from runnable busy cpu */
+
 /* structure for task placement environment */
 struct tp_env {
     struct task_struct *p;
@@ -89,8 +97,7 @@ struct task_struct *task_of(struct sched_entity *se)
     return container_of(se, struct task_struct, se);
 }
 
-extern int global_boosted(void);
-extern int global_boosted_boot(void);
+extern void ontime_migration(void);
 
 #ifdef CONFIG_SCHED_EMS
 extern int ontime_can_migration(struct task_struct *p, int cpu);
@@ -100,7 +107,6 @@ static inline int ontime_can_migration(struct task_struct *p, int cpu)
     return 1;
 }
 #endif
-
 
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
@@ -113,6 +119,7 @@ extern unsigned int calculate_efficiency(struct task_struct *p, int target_cpu);
 extern unsigned int calculate_energy(struct tp_env *env, int target_cpu);
 extern unsigned int calculate_efficiency(struct tp_env *env, int target_cpu);
 
+extern int find_min_load_cpu(struct tp_env *env);
 extern int find_best_cpu(struct tp_env *env);
 
 extern unsigned int capacity_max_of(unsigned int cpu);

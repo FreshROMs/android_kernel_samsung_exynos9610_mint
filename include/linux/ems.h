@@ -33,15 +33,15 @@ extern int exynos_need_active_balance(enum cpu_idle_type idle,
 				struct sched_domain *sd, int src_cpu, int dst_cpu);
 
 /* wakeup balance */
-extern int
-exynos_select_task_rq(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake);
+extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake);
+
+extern void ems_tick(void);
 
 extern bool energy_initialized;
 extern void set_energy_table_status(bool status);
 extern bool get_energy_table_status(void);
 
 /* ontime migration */
-extern void ontime_migration(void);
 extern void ontime_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa);
 extern void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se);
 extern void ontime_trace_task_info(struct task_struct *p);
@@ -53,8 +53,13 @@ extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
 extern bool lbt_overutilized(int cpu, int level);
 extern void update_lbt_overutil(int cpu, unsigned long capacity);
 
-/* global boost */
+/* ems boost */
+#define EMS_INIT_BOOST 1
+#define EMS_BOOT_BOOST 2
+
 extern int ems_task_boost(void);
+extern int ems_boot_boost(void);
+extern int ems_global_boost(void);
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
 
 extern const struct cpumask *cpu_slowest_mask(void);
@@ -70,7 +75,7 @@ static inline int exynos_need_active_balance(enum cpu_idle_type idle,
 }
 
 static inline int
-exynos_select_task_rq(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake)
+ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake)
 {
 	return -1;
 }
@@ -90,7 +95,9 @@ static inline bool lbt_overutilized(int cpu, int level)
 }
 static inline void update_lbt_overutil(int cpu, unsigned long capacity) { }
 
-static inline int global_boosted(void) { return 0; }
+static inline int ems_boot_boost(void) { return 0; }
+static inline int ems_global_boost(void) { return 0; }
+static inline int ems_task_boost(void) { return 0; }
 static inline void gb_qos_update_request(struct gb_qos_request *req, u32 new_value) { }
 
 static inline bool is_slowest_cpu(int cpu)

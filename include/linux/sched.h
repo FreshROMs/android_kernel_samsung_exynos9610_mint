@@ -779,6 +779,9 @@ struct task_struct {
 #ifdef CONFIG_SCHED_USE_FLUID_RT
 	int victim_flag;
 #endif
+#ifdef CONFIG_SCHED_EMS
+	u64 ems_flags;
+#endif
 
 #ifdef CONFIG_CGROUP_SCHED
 	struct task_group		*sched_task_group;

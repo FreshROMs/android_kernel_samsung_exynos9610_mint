@@ -25,6 +25,22 @@ prev_cpu_advantage(unsigned long *cpu_util, unsigned long task_util)
 	*cpu_util = max(util, (long) 0);
 }
 
+int find_min_load_cpu(struct tp_env *env)
+{
+	int cpu, min_load_cpu = -1;
+	unsigned long load, min_load = ULONG_MAX;
+
+	for_each_cpu(cpu, &env->cpus_allowed) {
+		load = env->cpu_stat[cpu].util;
+		if (load < min_load) {
+			min_load = load;
+			min_load_cpu = cpu;
+		}
+	}
+
+	return min_load_cpu;
+}
+
 static
 int find_min_util_cpu(struct tp_env *env, const struct cpumask *mask, bool among_idle)
 {

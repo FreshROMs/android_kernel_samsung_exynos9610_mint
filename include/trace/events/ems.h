@@ -124,9 +124,9 @@ TRACE_EVENT(ems_global_boost,
 TRACE_EVENT(ems_ontime_migration,
 
 	TP_PROTO(struct task_struct *p, unsigned long load,
-		int src_cpu, int dst_cpu, int boost_migration),
+		int src_cpu, int dst_cpu, char *reason),
 
-	TP_ARGS(p, load, src_cpu, dst_cpu, boost_migration),
+	TP_ARGS(p, load, src_cpu, dst_cpu, reason),
 
 	TP_STRUCT__entry(
 		__array(	char,		comm,	TASK_COMM_LEN	)
@@ -134,7 +134,7 @@ TRACE_EVENT(ems_ontime_migration,
 		__field(	unsigned long,	load			)
 		__field(	int,		src_cpu			)
 		__field(	int,		dst_cpu			)
-		__field(	int,		bm			)
+		__array( char,		reason,	16		)
 	),
 
 	TP_fast_assign(
@@ -143,12 +143,12 @@ TRACE_EVENT(ems_ontime_migration,
 		__entry->load		= load;
 		__entry->src_cpu	= src_cpu;
 		__entry->dst_cpu	= dst_cpu;
-		__entry->bm		= boost_migration;
+		strncpy(__entry->reason, reason, 15);
 	),
 
-	TP_printk("comm=%s pid=%d ontime_load_avg=%lu src_cpu=%d dst_cpu=%d boost_migration=%d",
+	TP_printk("comm=%s pid=%d ontime_load_avg=%lu src_cpu=%d dst_cpu=%d reason=%s",
 		__entry->comm, __entry->pid, __entry->load,
-		__entry->src_cpu, __entry->dst_cpu, __entry->bm)
+		__entry->src_cpu, __entry->dst_cpu, __entry->reason)
 );
 
 /*
