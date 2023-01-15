@@ -34,8 +34,6 @@ struct gb_qos_request {
 	bool active;
 };
 
-struct rq;
-
 #ifdef CONFIG_SCHED_EMS
 extern struct kobject *ems_kobj;
 extern unsigned int capacity_max_of(unsigned int cpu);
@@ -56,6 +54,7 @@ extern void ems_idle_enter(int cpu, int *state);
 extern void ems_fork_init(struct task_struct *p);
 extern void ems_post_init_entity_util_avg(struct sched_entity *se);
 extern int ems_check_preempt_wakeup(struct task_struct *p);
+extern void ems_init(void);
 
 extern int ems_task_top_app(struct task_struct *p);
 extern int ems_task_on_top(struct task_struct *p);
@@ -84,12 +83,6 @@ extern int ems_task_boost(void);
 extern int ems_boot_boost(void);
 extern int ems_global_boost(void);
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
-
-/* P.A.R.T */
-void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type);
-void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu);
-void set_part_period_start(struct rq *rq);
-extern void init_part(void);
 
 extern const struct cpumask *cpu_slowest_mask(void);
 extern const struct cpumask *cpu_fastest_mask(void);

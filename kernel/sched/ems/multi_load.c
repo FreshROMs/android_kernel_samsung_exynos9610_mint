@@ -259,7 +259,7 @@ void ntu_apply(struct sched_entity *se)
 	int cpu = cpu_of(cfs_rq->rq);
 	unsigned long cap_org = capacity_orig_of(cpu);
 	long cap = (long)(cap_org - cfs_rq->avg.util_avg) / 2;
-	int ratio = 25;
+	int ratio = ems_ntu_ratio(task_of(se));
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -277,5 +277,658 @@ void ntu_apply(struct sched_entity *se)
 		 * this is where we should do it.
 		 */
 		sa->util_sum = (u32)(sa->util_avg * LOAD_AVG_MAX);
+	}
+}
+
+/******************************************************************************
+ *                             Multi load tracking                            *
+ ******************************************************************************/
+enum {
+	MLT_POLICY_RECENT = 0,
+	MLT_POLICY_MAX,
+	MLT_POLICY_MAX_RECENT_MAX,
+	MLT_POLICY_LAST,
+	MLT_POLICY_MAX_RECENT_LAST,
+	MLT_POLICY_MAX_RECENT_AVG,
+	MLT_POLICY_INVALID,
+};
+
+char *mlt_policy_name[] = {
+	"RECENT",
+	"MAX",
+	"MAX_RECENT_MAX",
+	"LAST",
+	"MAX_RECENT_LAST",
+	"MAX_RECENT_AVG",
+	"INVALID"
+};
+
+static __read_mostly unsigned int mlt_policy_idx = MLT_POLICY_MAX_RECENT_LAST;
+static __read_mostly int high_patten_thres = 700;
+static __read_mostly int high_patten_stdev = 200;
+static __read_mostly int low_patten_count = 3;
+static __read_mostly int low_patten_thres = 1024;
+static __read_mostly int low_patten_stdev = 200;
+
+static __read_mostly u64 boost_interval = 12 * NSEC_PER_MSEC;
+
+/********************************************************/
+/*		  Helper funcition			*/
+/********************************************************/
+
+static inline void mlt_move_next_period(struct mlt *mlt)
+{
+	mlt->cur_period = (mlt->cur_period + 1) % MLT_PERIOD_COUNT;
+}
+
+static inline
+void calc_active_ratio_hist(struct mlt *mlt)
+{
+	int idx;
+	int sum = 0, max = 0;
+	int p_avg = 0, p_stdev = 0, p_count = 0;
+	int patten, diff;
+
+	/* Calculate basic statistics of P.A.R.T */
+	for (idx = 0; idx < MLT_PERIOD_COUNT; idx++) {
+		sum += mlt->period[idx];
+		max = max(max, mlt->period[idx]);
+	}
+
+	mlt->active_ratio_avg = sum / MLT_PERIOD_COUNT;
+	mlt->active_ratio_max = max;
+	mlt->active_ratio_est = 0;
+	mlt->active_ratio_stdev = 0;
+
+	/* Calculate stdev for patten recognition */
+	for (idx = 0; idx < MLT_PERIOD_COUNT; idx += 2) {
+		patten = mlt->period[idx] + mlt->period[idx + 1];
+		if (patten == 0)
+			continue;
+
+		p_avg += patten;
+		p_count++;
+	}
+
+	if (p_count <= 1) {
+		p_avg = 0;
+		p_stdev = 0;
+		goto out;
+	}
+
+	p_avg /= p_count;
+
+	for (idx = 0; idx < MLT_PERIOD_COUNT; idx += 2) {
+		patten = mlt->period[idx] + mlt->period[idx + 1];
+		if (patten == 0)
+			continue;
+
+		diff = patten - p_avg;
+		p_stdev += diff * diff;
+	}
+
+	p_stdev /= p_count - 1;
+	p_stdev = int_sqrt(p_stdev);
+
+out:
+	mlt->active_ratio_stdev = p_stdev;
+	if (p_count >= low_patten_count &&
+			p_avg <= low_patten_thres &&
+			p_stdev <= low_patten_stdev)
+		mlt->active_ratio_est = p_avg / 2;
+
+	trace_ems_cpu_active_ratio_patten(cpu_of(container_of(mlt, struct rq, mlt)),
+			p_count, p_avg, p_stdev);
+}
+
+static void __mlt_update_hist(struct mlt *mlt)
+{
+	/*
+	 * Reflect recent active ratio in the history.
+	 */
+	mlt_move_next_period(mlt);
+	mlt->period[mlt->cur_period] = mlt->active_ratio_recent;
+}
+
+static void mlt_update_full_hist(struct mlt *mlt, unsigned int count)
+{
+
+	/*
+	 * Reflect recent active ratio in the history.
+	 */
+	__mlt_update_hist(mlt);
+
+	/*
+	 * If count is positive, there are empty/full periods.
+	 * These will be reflected in the history.
+	 */
+	while (count--) {
+		mlt_move_next_period(mlt);
+		mlt->period[mlt->cur_period] = SCHED_CAPACITY_SCALE;
+	}
+
+	/*
+	 * Calculate avg/max active ratio through entire history.
+	 */
+	calc_active_ratio_hist(mlt);
+}
+
+static void mlt_update_hist(struct mlt *mlt, unsigned int count)
+{
+
+	/*
+	 * Reflect recent active ratio in the history.
+	 */
+	__mlt_update_hist(mlt);
+
+	/*
+	 * If count is positive, there are empty/full periods.
+	 * These will be reflected in the history.
+	 */
+	while (count--) {
+		mlt_move_next_period(mlt);
+		mlt->period[mlt->cur_period] = 0;
+	}
+
+	/*
+	 * Calculate avg/max active ratio through entire history.
+	 */
+	calc_active_ratio_hist(mlt);
+}
+
+static void
+mlt_update(int cpu, struct mlt *mlt, u64 now, int boost)
+{
+	u64 elapsed = now - mlt->period_start;
+	unsigned int period_count = 0;
+
+	if (boost) {
+		mlt->last_boost_time = now;
+		return;
+	}
+
+	if (mlt->last_boost_time &&
+	    now > mlt->last_boost_time + boost_interval)
+		mlt->last_boost_time = 0;
+
+	if (mlt->running) {
+		/*
+		 * If 'mlt->running' is true, it means that the rq is active
+		 * from last_update until now.
+		 */
+		u64 contributer, remainder;
+
+		/*
+		 * If now is in recent period, contributer is from last_updated to now.
+		 * Otherwise, it is from last_updated to period_end
+		 * and remaining active time will be reflected in the next step.
+		 */
+		contributer = min(now, mlt->period_start + MLT_PERIOD_SIZE);
+		mlt->active_sum += contributer - mlt->last_updated;
+		mlt->active_ratio_recent =
+			div64_u64(mlt->active_sum << SCHED_CAPACITY_SHIFT, MLT_PERIOD_SIZE);
+
+		/*
+		 * If now has passed recent period, calculate full periods and reflect they.
+		 */
+		period_count = div64_u64_rem(elapsed, MLT_PERIOD_SIZE, &remainder);
+		if (period_count) {
+			mlt_update_full_hist(mlt, period_count - 1);
+			mlt->active_sum = remainder;
+			mlt->active_ratio_recent =
+				div64_u64(mlt->active_sum << SCHED_CAPACITY_SHIFT, MLT_PERIOD_SIZE);
+		}
+	} else {
+		/*
+		 * If 'mlt->running' is false, it means that the rq is idle
+		 * from last_update until now.
+		 */
+
+		/*
+		 * If now has passed recent period, calculate empty periods and reflect they.
+		 */
+		period_count = div64_u64(elapsed, MLT_PERIOD_SIZE);
+		if (period_count) {
+			mlt_update_hist(mlt, period_count - 1);
+			mlt->active_ratio_recent = 0;
+			mlt->active_sum = 0;
+		}
+	}
+
+	mlt->period_start += MLT_PERIOD_SIZE * period_count;
+	mlt->last_updated = now;
+}
+
+static int
+mlt_can_update_art(struct mlt *mlt)
+{
+	if (unlikely(mlt->period_start == 0))
+		return 0;
+
+	return 1;
+}
+
+/********************************************************/
+/*			External APIs			*/
+/********************************************************/
+void mlt_enqueue_task(struct rq *rq) {
+	struct mlt *mlt = &rq->mlt;
+	int cpu = cpu_of(rq);
+	u64 now = sched_clock_cpu(0);
+
+	if (!mlt_can_update_art(mlt))
+		return;
+
+	/*
+	 * This type is called when the rq is switched from idle to running.
+	 * In this time, Update the active ratio for the idle interval
+	 * and change the state to running.
+	 */
+	mlt_update(cpu, mlt, now, 0);
+
+	if (rq->nr_running == 0) {
+		mlt->running = true;
+		trace_ems_cpu_active_ratio(cpu, mlt, "enqueue");
+	}
+}
+
+void mlt_dequeue_task(struct rq *rq) {
+	struct mlt *mlt = &rq->mlt;
+	int cpu = cpu_of(rq);
+	u64 now = sched_clock_cpu(0);
+
+	if (!mlt_can_update_art(mlt))
+		return;
+
+	/*
+	 * This type is called when the rq is switched from running to idle.
+	 * In this time, Update the active ratio for the running interval
+	 * and change the state to not-running.
+	 */
+	mlt_update(cpu, mlt, now, 0);
+
+	if (rq->nr_running == 1) {
+		mlt->running = false;
+		trace_ems_cpu_active_ratio(cpu, mlt, "dequeue");
+	}
+}
+
+void mlt_wakeup_task(struct rq *rq) {
+	struct mlt *mlt = &rq->mlt;
+	int cpu = cpu_of(rq);
+	u64 now = sched_clock_cpu(0);
+
+	if (!mlt_can_update_art(mlt))
+		return;
+
+	mlt_update(cpu, mlt, now, 1);
+	trace_ems_cpu_active_ratio(cpu, mlt, "new task");
+}
+
+static
+void mlt_update_recent(struct rq *rq) {
+	struct mlt *mlt = &rq->mlt;
+	int cpu = cpu_of(rq);
+	u64 now = sched_clock_cpu(0);
+
+	if (!mlt_can_update_art(mlt))
+		return;
+
+	/*
+	 * This type is called to update the active ratio during rq is running.
+	 */
+	mlt_update(cpu, mlt, now, 0);
+	trace_ems_cpu_active_ratio(cpu, mlt, "update");
+}
+
+void mlt_set_period_start(struct rq *rq)
+{
+	struct mlt *mlt = &rq->mlt;
+	u64 now;
+
+	if (likely(mlt->period_start))
+		return;
+
+	now = sched_clock_cpu(0);
+	mlt->period_start = now;
+	mlt->last_updated = now;
+}
+
+int mlt_art_last_value(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	struct mlt *mlt = &rq->mlt;
+
+	return mlt->period[mlt->cur_period];
+}
+
+void mlt_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	struct mlt *mlt = &rq->mlt;
+	unsigned long pelt_max = *max;
+	unsigned long pelt_util = *util;
+	int util_ratio = *util * SCHED_CAPACITY_SCALE / *max;
+	int demand = 0;
+
+	if (unlikely(mlt->period_start == 0))
+		return;
+
+	if (mlt->last_boost_time && util_ratio < mlt->active_ratio_boost) {
+		*max = SCHED_CAPACITY_SCALE;
+		*util = mlt->active_ratio_boost;
+		return;
+	}
+
+	if (util_ratio > mlt->active_ratio_limit)
+		return;
+
+	if (!mlt->running &&
+			(mlt->active_ratio_avg < high_patten_thres ||
+			 mlt->active_ratio_stdev > high_patten_stdev)) {
+		*util = 0;
+		*max = SCHED_CAPACITY_SCALE;
+		return;
+	}
+
+	mlt_update_recent(rq);
+
+	switch (mlt_policy_idx) {
+	case MLT_POLICY_RECENT:
+		demand = mlt->active_ratio_recent;
+		break;
+	case MLT_POLICY_MAX:
+		demand = mlt->active_ratio_max;
+		break;
+	case MLT_POLICY_MAX_RECENT_MAX:
+		demand = max(mlt->active_ratio_recent, mlt->active_ratio_max);
+		break;
+	case MLT_POLICY_LAST:
+		demand = mlt->period[mlt->cur_period];
+		break;
+	case MLT_POLICY_MAX_RECENT_LAST:
+		demand = max(mlt->active_ratio_recent, mlt->period[mlt->cur_period]);
+		break;
+	case MLT_POLICY_MAX_RECENT_AVG:
+		demand = max(mlt->active_ratio_recent, mlt->active_ratio_avg);
+		break;
+	}
+
+	*util = max(demand, mlt->active_ratio_est);
+	*util = min_t(unsigned long, *util, (unsigned long)mlt->active_ratio_limit);
+	*max = SCHED_CAPACITY_SCALE;
+
+	if (util_ratio > *util) {
+		*util = pelt_util;
+		*max = pelt_max;
+	}
+
+	trace_ems_cpu_active_ratio_util_stat(cpu, *util, (unsigned long)util_ratio);
+}
+
+/********************************************************/
+/*			  SYSFS				*/
+/********************************************************/
+static ssize_t show_mlt_policy(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+        return sprintf(buf, "%u. %s\n", mlt_policy_idx,
+			mlt_policy_name[mlt_policy_idx]);
+}
+
+static ssize_t store_mlt_policy(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf,
+		size_t count)
+{
+	long input;
+
+	if (!sscanf(buf, "%ld", &input))
+		return -EINVAL;
+
+	if (input >= MLT_POLICY_INVALID || input < 0)
+		return -EINVAL;
+
+	mlt_policy_idx = input;
+
+	return count;
+}
+
+static ssize_t show_mlt_policy_list(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	int i;
+
+	for (i = 0; i < MLT_POLICY_INVALID ; i++)
+		len += sprintf(buf + len, "%u. %s\n", i, mlt_policy_name[i]);
+
+	return len;
+}
+
+static ssize_t show_active_ratio_limit(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct mlt *mlt;
+	int cpu, len = 0;
+
+	for_each_possible_cpu(cpu) {
+		mlt = &cpu_rq(cpu)->mlt;
+		len += sprintf(buf + len, "cpu%d ratio:%3d\n",
+				cpu, mlt->active_ratio_limit);
+	}
+
+	return len;
+}
+
+static ssize_t store_active_ratio_limit(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct mlt *mlt;
+	int cpu, ratio, i;
+
+	if (sscanf(buf, "%d %d", &cpu, &ratio) != 2)
+		return -EINVAL;
+
+	/* Check cpu is possible */
+	if (!cpumask_test_cpu(cpu, cpu_possible_mask))
+		return -EINVAL;
+
+	/* Check ratio isn't outrage */
+	if (ratio < 0 || ratio > SCHED_CAPACITY_SCALE)
+		return -EINVAL;
+
+	for_each_cpu(i, cpu_coregroup_mask(cpu)) {
+		mlt = &cpu_rq(i)->mlt;
+		mlt->active_ratio_limit = ratio;
+	}
+
+	return count;
+}
+
+static ssize_t show_active_ratio_boost(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct mlt *mlt;
+	int cpu, len = 0;
+
+	for_each_possible_cpu(cpu) {
+		mlt = &cpu_rq(cpu)->mlt;
+		len += sprintf(buf + len, "cpu%d ratio:%3d\n",
+				cpu, mlt->active_ratio_boost);
+	}
+
+	return len;
+}
+
+static ssize_t store_active_ratio_boost(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf,
+		size_t count)
+{
+	struct mlt *mlt;
+	int cpu, ratio, i;
+
+	if (sscanf(buf, "%d %d", &cpu, &ratio) != 2)
+		return -EINVAL;
+
+	/* Check cpu is possible */
+	if (!cpumask_test_cpu(cpu, cpu_possible_mask))
+		return -EINVAL;
+
+	/* Check ratio isn't outrage */
+	if (ratio < 0 || ratio > SCHED_CAPACITY_SCALE)
+		return -EINVAL;
+
+	for_each_cpu(i, cpu_coregroup_mask(cpu)) {
+		mlt = &cpu_rq(i)->mlt;
+		mlt->active_ratio_boost = ratio;
+	}
+
+	return count;
+}
+
+#define show_node_function(_name)					\
+static ssize_t show_##_name(struct kobject *kobj,			\
+		struct kobj_attribute *attr, char *buf)			\
+{									\
+	return sprintf(buf, "%d\n", _name);				\
+}
+
+#define store_node_function(_name, _max)				\
+static ssize_t store_##_name(struct kobject *kobj,			\
+		struct kobj_attribute *attr, const char *buf,		\
+		size_t count)						\
+{									\
+	unsigned int input;						\
+									\
+	if (!sscanf(buf, "%u", &input))					\
+		return -EINVAL;						\
+									\
+	if (input > _max)						\
+		return -EINVAL;						\
+									\
+	_name = input;							\
+									\
+	return count;							\
+}
+
+show_node_function(high_patten_thres);
+store_node_function(high_patten_thres, SCHED_CAPACITY_SCALE);
+show_node_function(high_patten_stdev);
+store_node_function(high_patten_stdev, SCHED_CAPACITY_SCALE);
+show_node_function(low_patten_count);
+store_node_function(low_patten_count, (MLT_PERIOD_SIZE / 2));
+show_node_function(low_patten_thres);
+store_node_function(low_patten_thres, (SCHED_CAPACITY_SCALE * 2));
+show_node_function(low_patten_stdev);
+store_node_function(low_patten_stdev, SCHED_CAPACITY_SCALE);
+
+static struct kobj_attribute _policy =
+__ATTR(policy, 0644, show_mlt_policy, store_mlt_policy);
+static struct kobj_attribute _policy_list =
+__ATTR(policy_list, 0444, show_mlt_policy_list, NULL);
+static struct kobj_attribute _high_patten_thres =
+__ATTR(high_patten_thres, 0644, show_high_patten_thres, store_high_patten_thres);
+static struct kobj_attribute _high_patten_stdev =
+__ATTR(high_patten_stdev, 0644, show_high_patten_stdev, store_high_patten_stdev);
+static struct kobj_attribute _low_patten_count =
+__ATTR(low_patten_count, 0644, show_low_patten_count, store_low_patten_count);
+static struct kobj_attribute _low_patten_thres =
+__ATTR(low_patten_thres, 0644, show_low_patten_thres, store_low_patten_thres);
+static struct kobj_attribute _low_patten_stdev =
+__ATTR(low_patten_stdev, 0644, show_low_patten_stdev, store_low_patten_stdev);
+static struct kobj_attribute _active_ratio_limit =
+__ATTR(active_ratio_limit, 0644, show_active_ratio_limit, store_active_ratio_limit);
+static struct kobj_attribute _active_ratio_boost =
+__ATTR(active_ratio_boost, 0644, show_active_ratio_boost, store_active_ratio_boost);
+
+static struct attribute *attrs[] = {
+	&_policy.attr,
+	&_policy_list.attr,
+	&_high_patten_thres.attr,
+	&_high_patten_stdev.attr,
+	&_low_patten_count.attr,
+	&_low_patten_thres.attr,
+	&_low_patten_stdev.attr,
+	&_active_ratio_limit.attr,
+	&_active_ratio_boost.attr,
+	NULL,
+};
+
+static const struct attribute_group attr_group = {
+	.attrs = attrs,
+};
+
+static int __init init_part_sysfs(void)
+{
+	struct kobject *kobj;
+
+	kobj = kobject_create_and_add("part", ems_kobj);
+	if (!kobj)
+		return -EINVAL;
+
+	if (sysfs_create_group(kobj, &attr_group))
+		return -EINVAL;
+
+	return 0;
+}
+late_initcall(init_part_sysfs);
+
+static int __init parse_part(void)
+{
+	struct device_node *dn, *coregroup;
+	char name[15];
+	int cpu, cnt = 0, limit = -1, boost = -1;
+
+	dn = of_find_node_by_path("/cpus/ems/part");
+	if (!dn)
+		return 0;
+
+	for_each_possible_cpu(cpu) {
+		struct mlt *mlt = &cpu_rq(cpu)->mlt;
+
+		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
+			goto skip_parse;
+
+		limit = -1;
+		boost = -1;
+
+		snprintf(name, sizeof(name), "coregroup%d", cnt++);
+		coregroup = of_get_child_by_name(dn, name);
+		if (!coregroup)
+			continue;
+
+		of_property_read_s32(coregroup, "active-ratio-limit", &limit);
+		of_property_read_s32(coregroup, "active-ratio-boost", &boost);
+
+skip_parse:
+		if (limit >= 0)
+			mlt->active_ratio_limit = SCHED_CAPACITY_SCALE * limit / 100;
+
+		if (boost >= 0)
+			mlt->active_ratio_boost = SCHED_CAPACITY_SCALE * boost / 100;
+	}
+
+	return 0;
+}
+core_initcall(parse_part);
+
+void __init mlt_init(void)
+{
+	int cpu, idx;
+
+	for_each_possible_cpu(cpu) {
+		struct mlt *mlt = &cpu_rq(cpu)->mlt;
+
+		/* Set by default value */
+		mlt->running = false;
+		mlt->active_sum = 0;
+		mlt->active_ratio_recent = 0;
+		mlt->cur_period = 0;
+		for (idx = 0; idx < MLT_HIST_SIZE_MAX; idx++)
+			mlt->period[idx] = 0;
+
+		mlt->period_start = 0;
+		mlt->last_updated = 0;
 	}
 }

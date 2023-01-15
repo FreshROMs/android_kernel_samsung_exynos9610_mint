@@ -1868,14 +1868,18 @@ u64 cpu_uclamp_boost_read_u64_wrapper(struct cgroup_subsys_state *css,
 
 #ifdef CONFIG_SCHED_EMS
 int cpu_ems_sched_policy_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 boost);
+                              struct cftype *cftype, u64 policy);
 int cpu_ems_sched_policy_read_u64_wrapper(struct seq_file *sf, void *v);
 int cpu_ems_ontime_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 boost);
+                              struct cftype *cftype, u64 ontime_enabled);
 u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft);
+int cpu_ems_ntu_ratio_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 ntu_ratio);
+u64 cpu_ems_ntu_ratio_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft);
 int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 boost);
+                              struct cftype *cftype, u64 tex_enabled);
 u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft);
 #endif
@@ -2061,6 +2065,12 @@ static struct cftype files[] = {
 		.write_u64 = cpu_ems_ontime_enabled_write_u64_wrapper,
 	},
 	{
+		.name = "ems.ntu_ratio",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = cpu_ems_ntu_ratio_read_u64_wrapper,
+		.write_u64 = cpu_ems_ntu_ratio_write_u64_wrapper,
+	},
+	{
 		.name = "ems.tex_enabled",
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_u64 = cpu_ems_tex_enabled_read_u64_wrapper,
@@ -2095,6 +2105,7 @@ struct ucl_param {
 
 	u64  ems_sched_policy;
 	u64  ems_ontime_enabled;
+	u64  ems_ntu_ratio;
 	u64  ems_tex_enabled;
 };
 
@@ -2105,15 +2116,19 @@ static void uclamp_set(struct kernfs_open_file *of,
 	struct cpuset *cs = css_cs(of_css(of));
 	const char *cs_name = cs->css.cgroup->kn->name;
 
+#ifdef CONFIG_SCHED_EMS
+	/* ALWAYS set a default NTU ratio for EMS */
+	cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL, 25);
+#endif
+
 	static struct ucl_param tgts[] = {
-		{"top-app",    	     	"10",  "100",  0, 1, 0, 1, 1},
-		{"foreground", 	     	"10",   "80",  0, 1, 0, 1, 0},
-		{"background", 	     	"20",  "100",  0, 0, 1, 0, 0},
-		{"system-background", 	 "0",   "50",  0, 0, 1, 0, 0},
-		{"camera-daemon",	    "10",  "100",  1, 1, 2, 0, 0},
-		{"nnapi-hal",	         "1",  "100",  0, 1, 2, 0, 0},
-		{"display",		        "20",  "100",  1, 1, 2, 0, 0},
-		{"restricted",		     "0",   "40",  0, 0, 1, 0, 0},
+		{"top-app",    	     	 "20",  "max",  0, 1, 0, 1, 25, 1},
+		{"foreground", 	     	 "10",   "80",  0, 1, 0, 1, 25, 0},
+		{"background", 	     	  "0",   "50",  0, 0, 1, 0, 25, 0},
+		{"system-background", 	  "0",   "60",  0, 0, 1, 0, 25, 0},
+		{"camera-daemon",	     "20",  "max",  1, 1, 2, 0, 25, 0},
+		{"moderate",	         "20",  "max",  0, 1, 2, 0, 25, 0},
+		{"restricted",		      "0",   "20",  0, 0, 1, 0, 25, 0},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
@@ -2134,6 +2149,8 @@ static void uclamp_set(struct kernfs_open_file *of,
 				tgt.ems_sched_policy);
 			cpu_ems_ontime_enabled_write_u64_wrapper(&cs->css, NULL,
 				tgt.ems_ontime_enabled);
+			cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL,
+				tgt.ems_ntu_ratio);
 			cpu_ems_tex_enabled_write_u64_wrapper(&cs->css, NULL,
 				tgt.ems_tex_enabled);
 #endif

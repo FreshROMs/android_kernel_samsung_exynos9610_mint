@@ -6,7 +6,6 @@ ems-y += prefer.o
 ems-y += cpu_select.o
 ems-y += energy_table.o
 ems-y += multi_load.o
-ems-y += part.o
 ems-y += lbt.o
 ems-y += ontime.o
 ems-y += freqboost.o

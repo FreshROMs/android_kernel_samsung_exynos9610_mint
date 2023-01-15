@@ -368,22 +368,18 @@ struct util_est {
 #define UTIL_EST_WEIGHT_SHIFT		2
 };
 
+#define MLT_HIST_SIZE_MAX	20
 
-#define EMS_PART_ENQUEUE	0x1
-#define EMS_PART_DEQUEUE	0x2
-#define EMS_PART_UPDATE		0x4
-#define EMS_PART_WAKEUP_NEW	0x8
-
-struct part {
+struct mlt {
 	bool	running;
 
 	u64	period_start;
 	u64	last_updated;
 	u64	active_sum;
 
-#define PART_HIST_SIZE_MAX	20
-	int	hist_idx;
-	int	hist[PART_HIST_SIZE_MAX];
+	int	cur_period;
+	int	period[MLT_HIST_SIZE_MAX];
+
 	int	active_ratio_recent;
 	int	active_ratio_avg;
 	int	active_ratio_max;

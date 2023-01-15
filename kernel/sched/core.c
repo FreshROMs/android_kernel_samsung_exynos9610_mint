@@ -1524,12 +1524,10 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_inc(rq, p);
-	update_cpu_active_ratio(rq, p, EMS_PART_ENQUEUE);
-
-	p->sched_class->enqueue_task(rq, p, flags);
 #ifdef CONFIG_SCHED_EMS
 	ems_enqueue_task(rq, p);
 #endif
+	p->sched_class->enqueue_task(rq, p, flags);
 }
 
 static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
@@ -1546,8 +1544,6 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 	ems_dequeue_task(rq, p);
 #endif
 	uclamp_rq_dec(rq, p);
-	update_cpu_active_ratio(rq, p, EMS_PART_DEQUEUE);
-
 	p->sched_class->dequeue_task(rq, p, flags);
 }
 
@@ -3503,7 +3499,7 @@ void wake_up_new_task(struct task_struct *p)
 	update_rq_clock(rq);
 	post_init_entity_util_avg(&p->se);
 
-	update_cpu_active_ratio(rq, p, EMS_PART_WAKEUP_NEW);
+	ems_wakeup_task(rq, p);
 
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	walt_mark_task_starting(p);
@@ -4102,8 +4098,6 @@ void scheduler_tick(void)
 	sched_clock_tick();
 
 	rq_lock(rq, &rf);
-
-	set_part_period_start(rq);
 
 	walt_set_window_start(rq, &rf);
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
@@ -7269,7 +7263,9 @@ void __init sched_init(void)
 
 	set_load_weight(&init_task);
 
-	init_part();
+#ifdef CONFIG_SCHED_EMS
+	ems_init();
+#endif
 
 	/*
 	 * The boot idle thread does lazy MMU switching as well:
@@ -8014,6 +8010,27 @@ static u64 cpu_ems_ontime_enabled_read_u64(struct cgroup_subsys_state *css,
 	return (u64) tg->ontime_enabled;
 }
 
+static int cpu_ems_ntu_ratio_write_u64(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 ntu_ratio)
+{
+	struct task_group *tg;
+
+	if (ntu_ratio < 0 || ntu_ratio > 100)
+		return -EINVAL;
+
+	tg = css_tg(css);
+	tg->ntu_ratio = (unsigned int) ntu_ratio;
+
+	return 0;
+}
+
+static u64 cpu_ems_ntu_ratio_read_u64(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	struct task_group *tg = css_tg(css);
+
+	return (u64) tg->ntu_ratio;
+}
 
 static int cpu_ems_tex_enabled_write_u64(struct cgroup_subsys_state *css,
                               struct cftype *cftype, u64 tex_enabled)
@@ -8095,9 +8112,9 @@ int cpu_ems_sched_policy_read_u64_wrapper(struct seq_file *sf, void *v)
 }
 
 int cpu_ems_ontime_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 boost)
+                              struct cftype *cftype, u64 ontime_enabled)
 {
-	return cpu_ems_ontime_enabled_write_u64(css, cftype, boost);
+	return cpu_ems_ontime_enabled_write_u64(css, cftype, ontime_enabled);
 }
 u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft)
@@ -8105,10 +8122,21 @@ u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
 	return cpu_ems_ontime_enabled_read_u64(css, cft);
 }
 
-int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 boost)
+int cpu_ems_ntu_ratio_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 ntu_ratio)
 {
-	return cpu_ems_tex_enabled_write_u64(css, cftype, boost);
+	return cpu_ems_ntu_ratio_write_u64(css, cftype, ntu_ratio);
+}
+u64 cpu_ems_ntu_ratio_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	return cpu_ems_ntu_ratio_read_u64(css, cft);
+}
+
+int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 tex_enabled)
+{
+	return cpu_ems_tex_enabled_write_u64(css, cftype, tex_enabled);
 }
 u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft)

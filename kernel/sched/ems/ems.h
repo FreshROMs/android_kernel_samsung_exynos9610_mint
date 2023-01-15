@@ -129,20 +129,9 @@ extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 #define entity_is_cfs_rq(se)    (se->my_q)
 #define entity_is_task(se)  (!se->my_q)
 
-extern void mlt_update(int cpu);
-extern void mlt_idle_enter(int cpu, int cstate);
-extern void mlt_idle_exit(int cpu);
-extern void mlt_task_switch(int cpu, struct task_struct *next, int state);
-extern int mlt_cur_period(int cpu);
-extern int mlt_prev_period(int period);
-extern int mlt_period_with_delta(int idx, int delta);
-extern int mlt_art_value(int cpu, int idx);
 extern int mlt_art_last_value(int cpu);
-extern int mlt_art_cgroup_value(int cpu, int idx, int cgroup);
-extern int mlt_cst_value(int cpu, int idx, int cstate);
-extern int mlt_init(void);
+extern void mlt_init(void);
 extern void ntu_apply(struct sched_entity *se);
-extern void ntu_init(struct kobject *ems_kobj);
 extern unsigned long ml_task_util(struct task_struct *p);
 extern unsigned long ml_task_util_est(struct task_struct *p);
 extern unsigned long ml_task_load_avg(struct task_struct *p);
@@ -154,14 +143,7 @@ extern unsigned long ml_runnable_load_avg(int cpu);
 extern inline unsigned long ml_uclamp_task_util(struct task_struct *p);
 
 #define MLT_PERIOD_SIZE     (4 * NSEC_PER_MSEC)
-#define MLT_PERIOD_COUNT    40
-
-/* Active Ratio Tracking */
-enum {
-    CLKOFF = 0,
-    PWROFF,
-    CSTATE_MAX,
-};
+#define MLT_PERIOD_COUNT    10
 
 /* efficiency cpu selection */
 extern int find_best_cpu(struct tp_env *env);

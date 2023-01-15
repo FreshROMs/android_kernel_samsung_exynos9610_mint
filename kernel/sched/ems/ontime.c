@@ -389,7 +389,7 @@ static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 		return true;
 	}
 
-#if 0
+#if 1
 	return rq->nr_running > 1 &&
 		mlt_art_last_value(cpu) == SCHED_CAPACITY_SCALE;
 #else

@@ -293,11 +293,12 @@ TRACE_EVENT(ems_cpu_active_ratio_patten,
 		__entry->cpu, __entry->p_count, __entry->p_avg, __entry->p_stdev)
 );
 
+
 TRACE_EVENT(ems_cpu_active_ratio,
 
-	TP_PROTO(int cpu, struct part *pa, char *event),
+	TP_PROTO(int cpu, struct mlt *mlt, char *event),
 
-	TP_ARGS(cpu, pa, event),
+	TP_ARGS(cpu, mlt, event),
 
 	TP_STRUCT__entry(
 		__field( int,	cpu				)
@@ -312,12 +313,12 @@ TRACE_EVENT(ems_cpu_active_ratio,
 
 	TP_fast_assign(
 		__entry->cpu			= cpu;
-		__entry->start			= pa->period_start;
-		__entry->recent			= pa->active_ratio_recent;
-		__entry->last			= pa->hist[pa->hist_idx];
-		__entry->avg			= pa->active_ratio_avg;
-		__entry->max			= pa->active_ratio_max;
-		__entry->est			= pa->active_ratio_est;
+		__entry->start			= mlt->period_start;
+		__entry->recent			= mlt->active_ratio_recent;
+		__entry->last			= mlt->period[mlt->cur_period];
+		__entry->avg			= mlt->active_ratio_avg;
+		__entry->max			= mlt->active_ratio_max;
+		__entry->est			= mlt->active_ratio_est;
 		strncpy(__entry->event, event, 63);
 	),
 

@@ -331,6 +331,8 @@ void ems_idle_enter(int cpu, int *state)
 
 void ems_tick(struct rq *rq)
 {
+	mlt_set_period_start(rq);
+
 	// profile_sched_data();
 
 	// mlt_update(cpu_of(rq));
@@ -348,6 +350,8 @@ void ems_tick(struct rq *rq)
 
 void ems_enqueue_task(struct rq *rq, struct task_struct *p)
 {
+	mlt_enqueue_task(rq);
+
 	// stt_enqueue_task(rq, p);
 
 	// tex_enqueue_task(p, cpu_of(rq));
@@ -357,11 +361,18 @@ void ems_enqueue_task(struct rq *rq, struct task_struct *p)
 
 void ems_dequeue_task(struct rq *rq, struct task_struct *p)
 {
+	mlt_dequeue_task(rq);
+
 	// stt_dequeue_task(rq, p);
 
 	// tex_dequeue_task(p, cpu_of(rq));
 
 	// freqboost_dequeue_task(p, cpu_of(rq), flags);
+}
+
+void ems_wakeup_task(struct rq *rq, struct task_struct *p)
+{
+	mlt_wakeup_task(rq);
 }
 
 void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
@@ -456,3 +467,7 @@ static int __init init_sysfs(void)
 	return 0;
 }
 core_initcall(init_sysfs);
+
+void __init ems_init(void) {
+	mlt_init();
+}
