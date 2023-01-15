@@ -34,6 +34,8 @@ struct gb_qos_request {
 	bool active;
 };
 
+struct rq;
+
 #ifdef CONFIG_SCHED_EMS
 extern struct kobject *ems_kobj;
 extern unsigned int capacity_max_of(unsigned int cpu);
@@ -83,6 +85,12 @@ extern int ems_boot_boost(void);
 extern int ems_global_boost(void);
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
 
+/* P.A.R.T */
+void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type);
+void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu);
+void set_part_period_start(struct rq *rq);
+extern void init_part(void);
+
 extern const struct cpumask *cpu_slowest_mask(void);
 extern const struct cpumask *cpu_fastest_mask(void);
 extern inline bool is_slowest_cpu(int cpu);
@@ -125,6 +133,10 @@ static inline bool is_slowest_cpu(int cpu)
 {
 	return false;
 }
+/* P.A.R.T */
+static inline void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type) { }
+static inline void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu) { }
+static inline void set_part_period_start(struct rq *rq) { }
 #endif /* CONFIG_SCHED_EMS */
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL

@@ -260,3 +260,4 @@ extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 
 extern unsigned long capacity_curr_of(int cpu);
+extern void init_part(void);

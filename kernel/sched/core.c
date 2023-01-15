@@ -1524,6 +1524,8 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	uclamp_rq_inc(rq, p);
+	update_cpu_active_ratio(rq, p, EMS_PART_ENQUEUE);
+
 	p->sched_class->enqueue_task(rq, p, flags);
 #ifdef CONFIG_SCHED_EMS
 	ems_enqueue_task(rq, p);
@@ -1544,6 +1546,8 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 	ems_dequeue_task(rq, p);
 #endif
 	uclamp_rq_dec(rq, p);
+	update_cpu_active_ratio(rq, p, EMS_PART_DEQUEUE);
+
 	p->sched_class->dequeue_task(rq, p, flags);
 }
 
@@ -3499,6 +3503,8 @@ void wake_up_new_task(struct task_struct *p)
 	update_rq_clock(rq);
 	post_init_entity_util_avg(&p->se);
 
+	update_cpu_active_ratio(rq, p, EMS_PART_WAKEUP_NEW);
+
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	walt_mark_task_starting(p);
 
@@ -4096,6 +4102,8 @@ void scheduler_tick(void)
 	sched_clock_tick();
 
 	rq_lock(rq, &rf);
+
+	set_part_period_start(rq);
 
 	walt_set_window_start(rq, &rf);
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
@@ -7260,6 +7268,8 @@ void __init sched_init(void)
 	}
 
 	set_load_weight(&init_task);
+
+	init_part();
 
 	/*
 	 * The boot idle thread does lazy MMU switching as well:

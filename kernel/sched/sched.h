@@ -976,6 +976,7 @@ struct rq {
 
 #ifdef CONFIG_SCHED_EMS
 	struct mlt ml;
+	struct part pa;
 
 	bool ontime_migrating;
 	bool ontime_boost_migration;

@@ -17,6 +17,7 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/slab.h>
 #include <linux/cpu_pm.h>
+#include <linux/ems.h>
 
 #include <trace/events/power.h>
 
@@ -376,7 +377,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	RV_DECLARE(rv);
 #endif
 
-	freq = (freq + (freq >> 2)) * util / max;
+	freq = freq * util / max;
 
 #ifdef CONFIG_SCHED_FFSI_GLUE
 	legacy_freq = freq;
@@ -447,11 +448,15 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 
 	*util = boosted_cpu_util(cpu);
 	*util = freqvar_boost_vector(cpu, *util);
+	*util = *util + (*util >> 2);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 
 #ifdef CONFIG_UCLAMP_TASK
    	*util = uclamp_util_with(rq, *util, NULL);
+#endif	
+#ifdef CONFIG_SCHED_EMS
+	part_cpu_active_ratio(util, max, cpu);
 #endif
 }
 
