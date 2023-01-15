@@ -2116,20 +2116,21 @@ static void uclamp_set(struct kernfs_open_file *of,
 	struct cpuset *cs = css_cs(of_css(of));
 	const char *cs_name = cs->css.cgroup->kn->name;
 
+	static struct ucl_param tgts[] = {
+		/* cgroup                 min    max    b  l   e-p e-o e-n  e-t */
+		{"top-app",    	     	 "20",  "max",  0, 1,   0, 1,  25,   1},
+		{"foreground", 	     	 "10",   "80",  0, 0,   0, 1,  25,   0},
+		{"background", 	     	  "0",   "50",  0, 0,   1, 0,  25,   0},
+		{"system-background", 	  "0",   "60",  0, 0,   1, 0,  25,   0},
+		{"camera-daemon",	     "20",  "max",  1, 1,   2, 0,  25,   0},
+		{"moderate",	         "20",  "max",  0, 0,   0, 0,  25,   0},
+		{"restricted",		      "0",   "20",  0, 0,   1, 0,  25,   0},
+	};
+
 #ifdef CONFIG_SCHED_EMS
 	/* ALWAYS set a default NTU ratio for EMS */
 	cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL, (u64) 25);
 #endif
-
-	static struct ucl_param tgts[] = {
-		{"top-app",    	     	 "20",  "max",  0, 1, 0, 1, 25, 1},
-		{"foreground", 	     	 "10",   "80",  0, 1, 0, 1, 25, 0},
-		{"background", 	     	  "0",   "50",  0, 0, 1, 0, 25, 0},
-		{"system-background", 	  "0",   "60",  0, 0, 1, 0, 25, 0},
-		{"camera-daemon",	     "20",  "max",  1, 1, 2, 0, 25, 0},
-		{"moderate",	         "20",  "max",  0, 1, 2, 0, 25, 0},
-		{"restricted",		      "0",   "20",  0, 0, 1, 0, 25, 0},
-	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
 		struct ucl_param tgt = tgts[i];
