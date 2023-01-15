@@ -2118,7 +2118,7 @@ static void uclamp_set(struct kernfs_open_file *of,
 
 #ifdef CONFIG_SCHED_EMS
 	/* ALWAYS set a default NTU ratio for EMS */
-	cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL, 25);
+	cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL, (u64) 25);
 #endif
 
 	static struct ucl_param tgts[] = {
