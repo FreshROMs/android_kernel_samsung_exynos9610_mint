@@ -177,7 +177,7 @@ int find_best_eff_cpu(struct tp_env *env)
 {
 	int best_cpu = INVALID_CPU;
 
-	if (env->idle_cpu_count > 0 && env->prefer_idle)
+	if (env->idle_cpu_count > 0 && env->latency_sensitive)
 		best_cpu = __find_best_eff_cpu(env, true);
 
 	if (!cpu_selected(best_cpu))
@@ -296,7 +296,7 @@ int find_max_spare_cpu(struct tp_env *env, bool among_idle)
 		if (among_idle && !env->cpu_stat[cpu].idle)
 			continue;
 
-		curr_cap = env->cpu_stat[cpu].cap_orig;
+		curr_cap = env->cpu_stat[cpu].cap_curr;
 		spare_cap = curr_cap - env->cpu_stat[cpu].util_with;
 
 		if (max_spare_cap >= spare_cap)
@@ -324,7 +324,7 @@ int find_best_perf_cpu(struct tp_env *env)
 {
 	int best_cpu = INVALID_CPU;
 
-	if (env->idle_cpu_count > 0 && env->prefer_idle)
+	if (env->idle_cpu_count > 0 && env->latency_sensitive)
 		best_cpu = find_max_spare_cpu(env, true);
 
 	if (!cpu_selected(best_cpu))
@@ -379,7 +379,7 @@ int find_semi_perf_cpu(struct tp_env *env)
 		}
 	}
 
-	if (!env->prefer_idle && max_spare_cap_cpu_ls >= 0)
+	if (!env->latency_sensitive && max_spare_cap_cpu_ls >= 0)
 		return max_spare_cap_cpu_ls;
 
 	return best_idle_cpu >= 0 ? best_idle_cpu : max_spare_cap_cpu_ls;

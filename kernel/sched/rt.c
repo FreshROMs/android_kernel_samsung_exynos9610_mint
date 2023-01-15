@@ -49,6 +49,13 @@ unsigned int frt_disable_cpufreq;
 extern long schedtune_margin(unsigned long capacity, unsigned long signal, long boost);
 static inline u64 frt_boosted_task_util(struct task_struct *p)
 {
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+	unsigned long util = rttsk_task_util(p);
+	unsigned long util_min = uclamp_eff_value(p, UCLAMP_MIN);
+	unsigned long util_max = uclamp_eff_value(p, UCLAMP_MAX);
+
+	return clamp(util, util_min, util_max);
+#else
 	int boost = schedtune_task_boost(p);
 	unsigned long util = rttsk_task_util(p);
 	unsigned long capacity;
@@ -58,6 +65,7 @@ static inline u64 frt_boosted_task_util(struct task_struct *p)
 
 	capacity = capacity_orig_of(task_cpu(p));
 	return util + schedtune_margin(capacity, util, boost);
+#endif
 }
 
 extern unsigned long cpu_util(int cpu);
@@ -1949,6 +1957,7 @@ out:
 	else
 		trace_sched_fluid_stat(p, &p->rt.avg, cpu, "SLOW_ASSIGED");
 #endif
+	EMS_CPU(p) = cpu;
 	return cpu;
 }
 
@@ -2615,6 +2624,9 @@ static int find_idle_cpu(struct rt_env *env)
 			if (env->prefer_perf && is_slowest_cpu(cpu))
 				continue;
 
+			if (best_cpu && env->min_util < capacity_orig_of(cpu))
+				continue;
+
 			if (!idle_cpu(cpu))
 				continue;
 
@@ -2623,7 +2635,6 @@ static int find_idle_cpu(struct rt_env *env)
 				continue;
 
 			cpu_load = frt_cpu_util_with(env, cpu);
-			cpu_load = max(cpu_load, env->min_util);
 
 			if (cpu_load * 100 >= capacity_orig_of(cpu) * 90)
 				continue;
@@ -2679,8 +2690,10 @@ static int find_recessive_cpu(struct rt_env *env)
 			if (env->prefer_perf && is_slowest_cpu(cpu))
 				continue;
 
+			if (best_cpu && env->min_util < capacity_orig_of(cpu))
+				continue;
+
 			cpu_load = frt_cpu_util_with(env, cpu);
-			cpu_load = max(cpu_load, env->min_util);
 
 			if (cpu_load * 100 >= capacity_orig_of(cpu) * 90)
 				continue;
@@ -2704,6 +2717,7 @@ static int find_recessive_cpu(struct rt_env *env)
 	return best_cpu;
 }
 
+#define HEAVY_TASK_UTIL_RATIO   (40)
 static void set_prefer_perf(struct rt_env *env)
 {
 	/* ems task boost */
@@ -2713,7 +2727,7 @@ static void set_prefer_perf(struct rt_env *env)
 	}
 
 	/* prefer perf cpu for on-top and heavy top-app tasks */
-	if (schedtune_task_top_app(env->p)) {
+	if (ems_task_top_app(env->p)) {
 		/* on-top task */
 		if ((env->p)->signal->oom_score_adj == 0) {
 			env->prefer_perf = 1;
@@ -2721,13 +2735,13 @@ static void set_prefer_perf(struct rt_env *env)
 		}
 
 		/* heavy task */
-		if (env->task_util * 100 >= capacity_max_of(0) * 60) {
+		if (env->task_util > (SCHED_CAPACITY_SCALE * HEAVY_TASK_UTIL_RATIO / 100)) {
 			env->prefer_perf = 1;
 			return;
 		}
 	}
 
-	env->prefer_perf = schedtune_prefer_perf(env->p);
+	env->prefer_perf = ems_task_boosted(env->p);
 }
 
 static void get_ready_env(struct rt_env *env)

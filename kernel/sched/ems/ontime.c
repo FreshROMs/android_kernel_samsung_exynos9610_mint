@@ -24,13 +24,6 @@
 #define MIN_CAPACITY_CPU	0
 #define MAX_CAPACITY_CPU	(NR_CPUS - 1)
 
-#define ontime_of(p)		(&p->se.ontime)
-
-#define cap_scale(v, s)		((v)*(s) >> SCHED_CAPACITY_SHIFT)
-
-#define entity_is_cfs_rq(se)	(se->my_q)
-#define entity_is_task(se)	(!se->my_q)
-
 /* Structure of ontime migration condition */
 struct ontime_cond {
 	bool			enabled;
@@ -57,25 +50,6 @@ struct ontime_env {
 	u64			flags;
 };
 DEFINE_PER_CPU(struct ontime_env, ontime_env);
-
-static inline struct sched_entity *se_of(struct sched_avg *sa)
-{
-	return container_of(sa, struct sched_entity, avg);
-}
-
-extern long schedtune_margin(unsigned long capacity, unsigned long signal, long boost);
-static inline unsigned long ontime_load_avg(struct task_struct *p)
-{
-	int boost = schedtune_task_boost(p);
-	unsigned long load_avg = ontime_of(p)->avg.load_avg;
-	unsigned long capacity;
-
-	if (boost == 0)
-		return load_avg;
-
-	capacity = capacity_orig_of(task_cpu(p));
-	return load_avg + schedtune_margin(capacity, load_avg, boost);
-}
 
 struct ontime_cond *get_current_cond(int cpu)
 {
@@ -134,7 +108,7 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	struct ontime_cond *curr;
 	struct cpumask mask;
 	int src_cpu = task_cpu(p);
-	unsigned long load_avg = ontime_load_avg(p);
+	unsigned long load_avg = ml_task_load_avg(p);
 
 	cpumask_clear(&mask);
 	cpumask_copy(&mask, cpu_active_mask);
@@ -148,7 +122,7 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	 * migration or task is currently migrating, it can be assigned to all
 	 * active cpus without specifying fit cpus.
 	 */
-	if (!schedtune_ontime_en(p) || ontime_of(p)->migrating)
+	if (!ems_ontime_enabled(p) || ml_of(p)->migrating)
 		goto done;
 
 	/*
@@ -223,7 +197,7 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 	unsigned int max_util_avg = 0;
 	unsigned int util_avg = 0;
 	int task_count = 0;
-	int boosted = !!schedtune_task_on_top(p) || !!schedtune_prefer_perf(p);
+	int boosted = !!ems_task_on_top(p) || !!ems_task_boosted(p);
 
 	/*
 	 * Since current task does not exist in entity list of cfs_rq,
@@ -234,8 +208,8 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 		*boost_migration = 1;
 		return p;
 	}
-	if (schedtune_ontime_en(p)) {
-		util_avg = ontime_load_avg(p);
+	if (ems_ontime_enabled(p)) {
+		util_avg = ml_task_load_avg(p);
 		if (util_avg >= get_upper_boundary(task_cpu(p))) {
 			heaviest_task = p;
 			max_util_avg = util_avg;
@@ -250,16 +224,16 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 			goto next_entity;
 
 		p = task_of(se);
-		if (schedtune_task_on_top(p) || schedtune_prefer_perf(p)) {
+		if (!!ems_task_on_top(p) || !!ems_task_boosted(p)) {
 			heaviest_task = p;
 			*boost_migration = 1;
 			break;
 		}
 
-		if (!schedtune_ontime_en(p))
+		if (!ems_ontime_enabled(p))
 			goto next_entity;
 
-		util_avg = ontime_load_avg(p);
+		util_avg = ml_task_load_avg(p);
 		if (util_avg < get_upper_boundary(task_cpu(p)))
 			goto next_entity;
 
@@ -308,7 +282,7 @@ static bool __can_migrate(struct task_struct *p, struct ontime_env *env)
 static
 bool can_migrate(struct task_struct *p, struct ontime_env *env)
 {
-	if (ontime_of(p)->migrating == 0)
+	if (ml_of(p)->migrating == 0)
 		return false;
 
 	return __can_migrate(p, env);
@@ -365,13 +339,13 @@ static int ontime_migration_cpu_stop(void *data)
 	/* Move task from source to destination */
 	double_lock_balance(src_rq, dst_rq);
 	if (move_specific_task(p, env)) {
-		trace_ems_ontime_migration(p, ontime_of(p)->avg.load_avg,
+		trace_ems_ontime_migration(p, ml_of(p)->avg.load_avg,
 				src_rq->cpu, dst_rq->cpu, boost_migration ? "boosted" : "not boosted");
 	}
 	double_unlock_balance(src_rq, dst_rq);
 
 out_unlock:
-	ontime_of(p)->migrating = 0;
+	ml_of(p)->migrating = 0;
 
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
@@ -383,12 +357,12 @@ out_unlock:
 	return 0;
 }
 
-static void ontime_update_next_balance(int cpu, struct ontime_avg *oa)
+void ontime_update_next_balance(int cpu, struct ml_avg *avg)
 {
 	if (cpumask_test_cpu(cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
 		return;
 
-	if (oa->load_avg < get_upper_boundary(cpu))
+	if (avg->load_avg < get_upper_boundary(cpu))
 		return;
 
 	/*
@@ -398,40 +372,29 @@ static void ontime_update_next_balance(int cpu, struct ontime_avg *oa)
 	cpu_rq(smp_processor_id())->next_balance = jiffies;
 }
 
-extern u64 decay_load(u64 val, u64 n);
-static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
-{
-	u32 c1, c2, c3 = d3;
-
-	c1 = decay_load((u64)d1, periods);
-	c2 = LOAD_AVG_MAX - decay_load(LOAD_AVG_MAX, periods) - 1024;
-
-	return c1 + c2 + c3;
-}
-
 /****************************************************************/
 /*			External APIs				*/
 /****************************************************************/
 void ontime_trace_task_info(struct task_struct *p)
 {
-	trace_ems_ontime_load_avg_task(p, &ontime_of(p)->avg, ontime_of(p)->migrating);
+	trace_ems_ontime_load_avg_task(p, &ml_of(p)->avg, ml_of(p)->migrating);
 }
 
 static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 {
 	int cpu = cpu_of(rq);
-	int nr_running = rq->nr_running;
-	int limit = is_slowest_cpu(cpu) ? 30 : 40;
-	unsigned long util = cpu_util(cpu);
-	struct task_struct *curr = READ_ONCE(rq->curr);
 
-	if (cpu_overutilized(capacity_orig_of(cpu), util) && nr_running > 1) {
+	if (is_busy_cpu(cpu)) {
 		env->flags |= EMS_PF_RUNNABLE_BUSY;
 		return true;
 	}
 
-	return nr_running > 1 &&
-		(curr && task_util(curr) * 100 >= util * limit);
+#if 0
+	return rq->nr_running > 1 &&
+		mlt_art_last_value(cpu) == SCHED_CAPACITY_SCALE;
+#else
+	return rq->nr_running > 1 && cpu_overutilized(cpu);
+#endif
 }
 
 static struct rq *ontime_find_mulligan_rq(struct task_struct *target_p,
@@ -508,7 +471,7 @@ static void ontime_mulligan(void)
 		if (&p->se == src_rq->cfs.curr)
 			continue;
 
-		task_util = task_util_est(p);
+		task_util = ml_uclamp_task_util(p);
 
 		/*
 		 * If this cpu is determined as runnable busy, only tasks which
@@ -635,7 +598,7 @@ static void ontime_heavy_migration(void)
 		return;
 	}
 
-	ontime_of(p)->migrating = 1;
+	ml_of(p)->migrating = 1;
 	get_task_struct(p);
 
 	/* Set environment data */
@@ -661,15 +624,14 @@ static void ontime_heavy_migration(void)
 #endif
 }
 
-int ontime_can_migration(struct task_struct *p, int dst_cpu)
+int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 {
-	unsigned long src_util;
 	int src_cpu = task_cpu(p);
 
-	if (!schedtune_ontime_en(p))
+	if (!ems_ontime_enabled(p))
 		return true;
 
-	if (ontime_of(p)->migrating == 1) {
+	if (ml_of(p)->migrating == 1) {
 		trace_ems_ontime_check_migrate(p, dst_cpu, false, "on migrating");
 		return false;
 	}
@@ -678,16 +640,15 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 	 * Task is heavy enough but load balancer tries to migrate the task to
 	 * slower cpu, it does not allow migration.
 	 */
-	if (ontime_load_avg(p) >= get_lower_boundary(src_cpu) &&
+	if (ml_task_load_avg(p) >= get_lower_boundary(src_cpu) &&
 	    check_migrate_slower(src_cpu, dst_cpu)) {
 		/*
 		 * However, only if the source cpu is overutilized, it allows
 		 * migration if the task is not very heavy.
 		 * (criteria : task util is under 75% of cpu util)
 		 */
-		src_util = cpu_util(src_cpu);
-		if (cpu_overutilized(capacity_orig_of(src_cpu), src_util) &&
-			task_util_est(p) * 100 < (src_util * 75)) {
+		if (cpu_overutilized(src_cpu) &&
+			task_util_est(p) * 100 < (cpu_util(src_cpu) * 75)) {
 			trace_ems_ontime_check_migrate(p, dst_cpu, true, "src overutil");
 			return true;
 		}
@@ -699,66 +660,6 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 	trace_ems_ontime_check_migrate(p, dst_cpu, false, "normal migration");
 
 	return true;
-}
-
-/*
- * ontime_update_load_avg : load tracking for ontime-migration
- *
- * @sa : sched_avg to be updated
- * @delta : elapsed time since last update
- * @period_contrib : amount already accumulated against our next period
- * @scale_freq : scale vector of cpu frequency
- * @scale_cpu : scale vector of cpu capacity
- */
-void ontime_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa)
-{
-	struct ontime_avg *oa = &se_of(sa)->ontime.avg;
-	unsigned long scale_freq, scale_cpu;
-	u32 contrib = (u32)delta; /* p == 0 -> delta < 1024 */
-	u64 periods;
-
-	scale_freq = arch_scale_freq_capacity(NULL, cpu);
-	scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
-
-	delta += oa->period_contrib;
-	periods = delta / 1024; /* A period is 1024us (~1ms) */
-
-	if (periods) {
-		oa->load_sum = decay_load(oa->load_sum, periods);
-
-		delta %= 1024;
-		contrib = __accumulate_pelt_segments(periods,
-				1024 - oa->period_contrib, delta);
-	}
-	oa->period_contrib = delta;
-
-	if (weight) {
-		contrib = cap_scale(contrib, scale_freq);
-		oa->load_sum += contrib * scale_cpu;
-	}
-
-	if (!periods)
-		return;
-
-	oa->load_avg = div_u64(oa->load_sum, LOAD_AVG_MAX - 1024 + oa->period_contrib);
-	ontime_update_next_balance(cpu, oa);
-}
-
-void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se)
-{
-	struct ontime_entity *ontime;
-
-	if (entity_is_cfs_rq(se))
-		return;
-
-	ontime = &se->ontime;
-
-	ontime->avg.load_sum = ontime_of(parent)->avg.load_sum >> 1;
-	ontime->avg.load_avg = ontime_of(parent)->avg.load_avg >> 1;
-	ontime->avg.period_contrib = 1023;
-	ontime->migrating = 0;
-
-	trace_ems_ontime_new_entity_load(task_of(se), &ontime->avg);
 }
 
 void ontime_migration(void)

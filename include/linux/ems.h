@@ -15,6 +15,19 @@
 #include <linux/sched/idle.h>
 #include <linux/sched/topology.h>
 
+enum task_cgroup {
+    CGROUP_ROOT,
+    CGROUP_FOREGROUND,
+    CGROUP_BACKGROUND,
+    CGROUP_TOPAPP,
+    CGROUP_RT,
+    CGROUP_SYSTEM,
+    CGROUP_SYSTEM_BACKGROUND,
+    CGROUP_NNAPI_HAL,
+    CGROUP_CAMERA_DAEMON,
+    CGROUP_COUNT,
+};
+
 struct gb_qos_request {
 	struct plist_node node;
 	char *name;
@@ -32,22 +45,30 @@ extern void exynos_init_entity_util_avg(struct sched_entity *se);
 extern int exynos_need_active_balance(enum cpu_idle_type idle,
 				struct sched_domain *sd, int src_cpu, int dst_cpu);
 
-/* wakeup balance */
+/* ems api */
 extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake);
+extern int ems_select_fallback_rq(struct task_struct *p);
+extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
+extern void ems_idle_exit(int cpu, int state);
+extern void ems_idle_enter(int cpu, int *state);
+extern void ems_fork_init(struct task_struct *p);
+extern void ems_post_init_entity_util_avg(struct sched_entity *se);
+extern int ems_check_preempt_wakeup(struct task_struct *p);
 
-extern void ems_tick(void);
+extern int ems_task_top_app(struct task_struct *p);
+extern int ems_task_on_top(struct task_struct *p);
+extern int ems_task_boosted(struct task_struct *p);
 
 extern bool energy_initialized;
 extern void set_energy_table_status(bool status);
 extern bool get_energy_table_status(void);
 
 /* ontime migration */
-extern void ontime_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa);
-extern void ontime_new_entity_load(struct task_struct *parent, struct sched_entity *se);
-extern void ontime_trace_task_info(struct task_struct *p);
+extern void ml_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa);
+extern void ml_new_entity_load(struct task_struct *parent, struct sched_entity *se);
 
-/* ems migration */
-extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
+/* ontime migration */
+extern void ontime_trace_task_info(struct task_struct *p);
 
 /* load balance trigger */
 extern bool lbt_overutilized(int cpu, int level);

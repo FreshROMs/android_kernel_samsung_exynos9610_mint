@@ -1866,6 +1866,20 @@ int cpu_uclamp_boost_write_u64_wrapper(struct cgroup_subsys_state *css,
 u64 cpu_uclamp_boost_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft);
 
+#ifdef CONFIG_SCHED_EMS
+int cpu_ems_sched_policy_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 boost);
+int cpu_ems_sched_policy_read_u64_wrapper(struct seq_file *sf, void *v);
+int cpu_ems_ontime_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 boost);
+u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft);
+int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 boost);
+u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft);
+#endif
+
 #if !defined(CONFIG_SCHED_TUNE)
 static u64 st_boost_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft)
@@ -2033,6 +2047,26 @@ static struct cftype files[] = {
 		.read_u64 = cpu_uclamp_boost_read_u64_wrapper,
 		.write_u64 = cpu_uclamp_boost_write_u64_wrapper,
 	},
+#ifdef CONFIG_SCHED_EMS
+	{
+		.name = "ems.sched_policy",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.seq_show = cpu_ems_sched_policy_read_u64_wrapper,
+		.write_u64 = cpu_ems_sched_policy_write_u64_wrapper,
+	},
+	{
+		.name = "ems.ontime_enabled",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = cpu_ems_ontime_enabled_read_u64_wrapper,
+		.write_u64 = cpu_ems_ontime_enabled_write_u64_wrapper,
+	},
+	{
+		.name = "ems.tex_enabled",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = cpu_ems_tex_enabled_read_u64_wrapper,
+		.write_u64 = cpu_ems_tex_enabled_write_u64_wrapper,
+	},
+#endif
 
 #if !defined(CONFIG_SCHED_TUNE)
 	{
@@ -2056,8 +2090,12 @@ struct ucl_param {
 	char *name;
 	char uclamp_min[3];
 	char uclamp_max[3];
-	u64  uclamp_latency_sensitive;
 	u64  uclamp_boosted;
+	u64  uclamp_latency_sensitive;
+
+	u64  ems_sched_policy;
+	u64  ems_ontime_enabled;
+	u64  ems_tex_enabled;
 };
 
 static void uclamp_set(struct kernfs_open_file *of,
@@ -2068,11 +2106,14 @@ static void uclamp_set(struct kernfs_open_file *of,
 	const char *cs_name = cs->css.cgroup->kn->name;
 
 	static struct ucl_param tgts[] = {
-		{"top-app",    	     	"10", "100", 1, 1},
-		{"foreground", 	     	"0",  "50",  1, 1},
-		{"background", 	     	"20", "100", 0, 0},
-		{"system-background", 	"0",  "40",  0, 0},
-		{"camera-daemon",	"50", "100", 1, 1},
+		{"top-app",    	     	"10",  "100",  0, 1, 0, 1, 1},
+		{"foreground", 	     	"10",   "80",  0, 1, 0, 1, 0},
+		{"background", 	     	"20",  "100",  0, 0, 1, 0, 0},
+		{"system-background", 	 "0",   "50",  0, 0, 1, 0, 0},
+		{"camera-daemon",	    "10",  "100",  1, 1, 2, 0, 0},
+		{"nnapi-hal",	         "1",  "100",  0, 1, 2, 0, 0},
+		{"display",		        "20",  "100",  1, 1, 2, 0, 0},
+		{"restricted",		     "0",   "40",  0, 0, 1, 0, 0},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
@@ -2083,11 +2124,19 @@ static void uclamp_set(struct kernfs_open_file *of,
 				nbytes, off);
 			cpu_uclamp_max_write_wrapper(of, tgt.uclamp_max,
 				nbytes, off);
-			cpu_uclamp_ls_write_u64_wrapper(&cs->css, NULL,
-				tgt.uclamp_latency_sensitive);
 			cpu_uclamp_boost_write_u64_wrapper(&cs->css, NULL,
 				tgt.uclamp_boosted);
+			cpu_uclamp_ls_write_u64_wrapper(&cs->css, NULL,
+				tgt.uclamp_latency_sensitive);
 
+#ifdef CONFIG_SCHED_EMS
+			cpu_ems_sched_policy_write_u64_wrapper(&cs->css, NULL,
+				tgt.ems_sched_policy);
+			cpu_ems_ontime_enabled_write_u64_wrapper(&cs->css, NULL,
+				tgt.ems_ontime_enabled);
+			cpu_ems_tex_enabled_write_u64_wrapper(&cs->css, NULL,
+				tgt.ems_tex_enabled);
+#endif
 			break;
 		}
 	}

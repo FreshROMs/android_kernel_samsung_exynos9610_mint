@@ -24,6 +24,10 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 
+#ifdef CONFIG_SCHED_EMS
+#include <linux/ems.h>
+#endif
+
 #include "cpuidle.h"
 
 DEFINE_PER_CPU(struct cpuidle_device *, cpuidle_devices);
@@ -212,6 +216,10 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	ktime_t time_start, time_end;
 	s64 diff;
 
+#ifdef CONFIG_SCHED_EMS
+	ems_idle_enter(dev->cpu, &index);
+#endif
+
 	/*
 	 * Tell the time framework to switch to a broadcast timer because our
 	 * local timer will be shut down.  If a local timer is used from another
@@ -244,6 +252,10 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	dbg_snapshot_cpuidle(drv->states[index].desc, entered_state,
 			(int)ktime_to_us(ktime_sub(time_end, time_start)), DSS_FLAG_OUT);
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
+
+#ifdef CONFIG_SCHED_EMS
+	ems_idle_exit(dev->cpu, index);
+#endif
 
 	/* The cpu is no longer idle or about to enter idle. */
 	sched_idle_set_state(NULL, -1);

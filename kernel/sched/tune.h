@@ -19,7 +19,13 @@ int schedtune_task_boost(struct task_struct *tsk);
 int schedtune_task_group_idx(struct task_struct *tsk);
 int schedtune_task_top_app(struct task_struct *tsk);
 int schedtune_task_on_top(struct task_struct *tsk);
-int schedtune_task_sched_policy(struct task_struct *tsk);
+int schedtune_sched_policy(struct task_struct *tsk);
+
+int schedtune_ntu_ratio(struct task_struct *tsk);
+
+int schedtune_tex_en(struct task_struct *tsk);
+int schedtune_tex_prio(struct task_struct *tsk);
+int schedtune_tex_qjump_en(struct task_struct *tsk);
 #endif
 
 int schedtune_prefer_idle(struct task_struct *tsk);
@@ -35,10 +41,10 @@ void schedtune_dequeue_task(struct task_struct *p, int cpu);
 #define schedtune_task_boost(tsk) 0
 
 #ifdef CONFIG_SCHED_EMS
-int schedtune_task_group_idx(tsk) 0
-int schedtune_task_top_app(tsk) 0
-int schedtune_task_on_top(tsk) 0
-int schedtune_task_sched_policy(tsk) 0;
+#define schedtune_task_group_idx(tsk) 0
+#define schedtune_task_top_app(tsk) 0
+#define schedtune_task_on_top(tsk) 0
+#define schedtune_sched_policy(tsk) 0
 #endif
 
 #define schedtune_prefer_idle(tsk) 0

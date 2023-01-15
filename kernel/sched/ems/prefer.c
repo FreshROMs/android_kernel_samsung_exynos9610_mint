@@ -8,6 +8,7 @@
 #include <linux/kobject.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/ems.h>
 #include <linux/ems_service.h>
 #include <trace/events/ems.h>
 
@@ -18,7 +19,7 @@
 /**********************************************************************
  *                        Kernel Prefer Perf                          *
  **********************************************************************/
-struct plist_head kpp_list[STUNE_GROUP_COUNT];
+struct plist_head kpp_list[CGROUP_COUNT];
 
 static bool kpp_en;
 
@@ -30,7 +31,7 @@ int kpp_status(int grp_idx)
 	if (unlikely(!kpp_en))
 		return 0;
 
-	if (grp_idx >= STUNE_GROUP_COUNT)
+	if (grp_idx >= CGROUP_COUNT)
 		return -EINVAL;
 
 	if (plist_head_empty(&kpp_list[grp_idx]))
@@ -48,7 +49,7 @@ void kpp_request(int grp_idx, struct kpp *req, int value)
 	if (unlikely(!kpp_en))
 		return;
 
-	if (grp_idx >= STUNE_GROUP_COUNT)
+	if (grp_idx >= CGROUP_COUNT)
 		return;
 
 	if (req->node.prio == value)
@@ -76,7 +77,7 @@ static void __init init_kpp(void)
 {
 	int i;
 
-	for (i = 0; i < STUNE_GROUP_COUNT; i++)
+	for (i = 0; i < CGROUP_COUNT; i++)
 		plist_head_init(&kpp_list[i]);
 
 	kpp_en = 1;
@@ -154,7 +155,7 @@ void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	} else if (pp->heavy_coregroup_count > 0 && util >= pp->heavy_threshold) {
 		mark_prefer_cpu(env, mask, pp->heavy_coregroup_count, pp->heavy_prefer_cpus);
 		return;
-	} else if (env->prefer_perf || env->on_top) {
+	} else if (env->boosted || env->task_on_top) {
 		mark_prefer_cpu(env, mask, pp->coregroup_count, pp->prefer_cpus);
 		return;
 	}
@@ -247,7 +248,7 @@ static ssize_t show_kpp(struct kobject *kobj,
 	int i, ret = 0;
 
 	/* shows the prefer_perf value of all schedtune groups */
-	for (i = 0; i < STUNE_GROUP_COUNT; i++)
+	for (i = 0; i < CGROUP_COUNT; i++)
 		ret += snprintf(buf + ret, 10, "%d ", kpp_status(i));
 
 	ret += snprintf(buf + ret, 10, "\n");

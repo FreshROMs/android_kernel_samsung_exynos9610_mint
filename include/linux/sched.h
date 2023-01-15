@@ -430,15 +430,14 @@ struct sched_avg {
 	struct util_est			util_est;
 };
 
-struct ontime_avg {
-	u64 ontime_migration_time;
+struct ml_avg {
 	u64 load_sum;
 	u32 period_contrib;
 	unsigned long load_avg;
 };
 
-struct ontime_entity {
-	struct ontime_avg avg;
+struct ml_entity {
+	struct ml_avg avg;
 	int migrating;
 	int cpu;
 };
@@ -520,7 +519,7 @@ struct sched_entity {
 	 */
 	struct sched_avg		avg ____cacheline_aligned_in_smp;
 #endif
-	struct ontime_entity		ontime;
+	struct ml_entity		ml;
 };
 
 #ifdef CONFIG_SCHED_WALT
@@ -781,6 +780,10 @@ struct task_struct {
 #endif
 #ifdef CONFIG_SCHED_EMS
 	u64 ems_flags;
+	u64 ems_assigned_cpu;
+
+	u64 ems_qjump_node[4];
+	u64 ems_qjump_queued;
 #endif
 
 #ifdef CONFIG_CGROUP_SCHED
@@ -1055,6 +1058,7 @@ struct task_struct {
 	raw_spinlock_t			pi_lock;
 
 	struct wake_q_node		wake_q;
+	int				wake_q_count;
 
 #ifdef CONFIG_RT_MUTEXES
 	/* PI waiters blocked on a rt_mutex held by this task: */

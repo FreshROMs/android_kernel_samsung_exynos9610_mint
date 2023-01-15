@@ -72,7 +72,39 @@ static inline void cpu_load_update_active(struct rq *this_rq) { }
 #endif
 
 #ifdef CONFIG_SCHED_EMS
+#define EMS_CPU(task)        (task->ems_assigned_cpu)
 extern bool is_app(struct task_struct *p);
+
+/* ems api */
+extern void ems_tick(struct rq *rq);
+extern void ems_enqueue_task(struct rq *rq, struct task_struct *p);
+extern void ems_dequeue_task(struct rq *rq, struct task_struct *p);
+extern void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
+                struct sched_entity **se_ptr, bool *repick,
+                bool simple, struct task_struct *prev);
+extern void ems_schedule(struct task_struct *prev, struct task_struct *next, struct rq *rq);
+extern int ems_load_balance(struct rq *rq);
+
+/* Active Ratio Tracking */
+struct track_data {
+    int     **periods;
+    u64 *recent_sum;
+    int     *recent;
+
+    int state;
+    int state_count;
+};
+
+struct mlt {
+    int         cpu;
+    u64         period_start;
+    u64         last_updated;
+
+    int         cur_period;
+
+    struct track_data   art;    /* Active Ratio Tracking */
+    struct track_data   cst;    /* C-State Tracking */
+};
 #endif
 
 /*
@@ -391,6 +423,17 @@ struct task_group {
 	unsigned int		latency_sensitive;
 	/* Boosted flag for a task group */
 	unsigned int 		boosted;
+
+#ifdef CONFIG_SCHED_EMS
+	/* Scheduling policy for a task group */
+	unsigned int 		sched_policy;
+
+	/* Ontime enabled for a task group */
+	unsigned int 		ontime_enabled;
+
+	/* Task EXpress (TEX) for a task group */
+	unsigned int 		tex_enabled;
+#endif
 #endif
 
 };
@@ -932,8 +975,12 @@ struct rq {
 #endif /* CONFIG_SCHED_WALT */
 
 #ifdef CONFIG_SCHED_EMS
+	struct mlt ml;
+
 	bool ontime_migrating;
 	bool ontime_boost_migration;
+
+	u64 ems_qjump_list[4];
 #endif
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -2527,6 +2574,54 @@ static inline bool uclamp_boosted(struct task_struct *p)
 
 	return tg->boosted;
 }
+
+#ifdef CONFIG_SCHED_EMS
+static inline unsigned int ems_sched_policy(struct task_struct *p)
+{
+	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
+	struct task_group *tg;
+
+	if (!css)
+		return 0;
+
+	if (!strlen(css->cgroup->kn->name))
+		return 0;
+
+	tg = container_of(css, struct task_group, css);
+
+	return tg->sched_policy;
+}
+static inline bool ems_ontime_enabled(struct task_struct *p)
+{
+	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
+	struct task_group *tg;
+
+	if (!css)
+		return false;
+
+	if (!strlen(css->cgroup->kn->name))
+		return 0;
+
+	tg = container_of(css, struct task_group, css);
+
+	return tg->ontime_enabled;
+}
+static inline bool ems_tex_enabled(struct task_struct *p)
+{
+	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
+	struct task_group *tg;
+
+	if (!css)
+		return false;
+
+	if (!strlen(css->cgroup->kn->name))
+		return 0;
+
+	tg = container_of(css, struct task_group, css);
+
+	return tg->tex_enabled;
+}
+#endif
 #else
 static inline bool uclamp_latency_sensitive(struct task_struct *p)
 {
@@ -2534,6 +2629,21 @@ static inline bool uclamp_latency_sensitive(struct task_struct *p)
 }
 
 static inline bool uclamp_boosted(struct task_struct *p)
+{
+	return false;
+}
+
+static inline unsigned int ems_sched_policy(struct task_struct *p)
+{
+	return 0;
+}
+
+static inline bool ems_ontime_enabled(struct task_struct *p)
+{
+	return false;
+}
+
+static inline bool ems_tex_enabled(struct task_struct *p)
 {
 	return false;
 }

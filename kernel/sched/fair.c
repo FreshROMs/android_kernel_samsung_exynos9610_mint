@@ -844,7 +844,7 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->util_sum = 0;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 
-	ontime_new_entity_load(current, se);
+	ml_new_entity_load(current, se);
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
@@ -879,14 +879,13 @@ static void attach_entity_cfs_rq(struct sched_entity *se);
 void post_init_entity_util_avg(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
-	struct sched_avg *sa = &se->avg;
-	long cpu_scale = arch_scale_cpu_capacity(NULL, cpu_of(rq_of(cfs_rq)));
-	long cap = (long)(cpu_scale - cfs_rq->avg.util_avg) / 2;
 
-	if (sched_feat(EXYNOS_MS)) {
-		exynos_init_entity_util_avg(se);
-		goto util_init_done;
-	}
+#ifdef CONFIG_SCHED_EMS
+	ems_post_init_entity_util_avg(se);
+#else
+	long cpu_scale = arch_scale_cpu_capacity(NULL, cpu_of(rq_of(cfs_rq)));
+	struct sched_avg *sa = &se->avg;
+	long cap = (long)(cpu_scale - cfs_rq->avg.util_avg) / 2;
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -900,8 +899,8 @@ void post_init_entity_util_avg(struct sched_entity *se)
 		}
 		sa->util_sum = sa->util_avg * LOAD_AVG_MAX;
 	}
+#endif
 
-util_init_done:
 	if (entity_is_task(se)) {
 		struct task_struct *p = task_of(se);
 		struct sched_avg *sa = &se->avg;
@@ -3164,7 +3163,7 @@ ___update_load_avg(u64 now, int cpu, struct sched_avg *sa,
 		running = 0;
 
 	if (!cfs_rq && !rt_rq)
-		ontime_update_load_avg(delta, cpu, weight, sa);
+		ml_update_load_avg(delta, cpu, weight, sa);
 
 	/*
 	 * Now we know we crossed measurement unit boundaries. The *_avg
@@ -8339,11 +8338,10 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	find_matching_se(&se, &pse);
 	update_curr(cfs_rq_of(se));
 
-	if (p->pid && ems_task_boost() == p->pid)
+#ifdef CONFIG_SCHED_EMS
+	if (ems_check_preempt_wakeup(p))
 		goto preempt;
-
-	if (schedtune_task_on_top(p))
-		goto preempt;
+#endif
 
 	BUG_ON(!pse);
 	if (wakeup_preempt_entity(se, pse) == 1) {
@@ -8383,6 +8381,7 @@ pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
 	struct sched_entity *se;
 	struct task_struct *p;
 	int new_tasks;
+	bool repick = false;
 
 again:
 	if (!cfs_rq->nr_running)
@@ -8459,6 +8458,9 @@ again:
 	if (is_ftt(se))
 		fttstat.pick_ftt++;
 #endif
+#ifdef CONFIG_SCHED_EMS
+	ems_replace_next_task_fair(rq, &p, &se, &repick, false, prev);
+#endif
 
 	/*
 	 * Since we haven't yet done put_prev_entity and if the selected task
@@ -8491,6 +8493,15 @@ simple:
 #endif
 
 	put_prev_task(rq, prev);
+
+#ifdef CONFIG_SCHED_EMS
+	ems_replace_next_task_fair(rq, &p, &se, &repick, true, prev);
+	if (repick) {
+		for_each_sched_entity(se)
+			set_next_entity(cfs_rq_of(se), se);
+		goto done;
+	}
+#endif
 
 	do {
 		se = pick_next_entity(cfs_rq, NULL);
@@ -10487,9 +10498,9 @@ static int need_active_balance(struct lb_env *env)
 			return 1;
 	}
 
-	if (sched_feat(EXYNOS_MS))
-		return exynos_need_active_balance(env->idle, sd, env->src_cpu, env->dst_cpu);
-
+#ifdef CONFIG_SCHED_EMS
+	return exynos_need_active_balance(env->idle, sd, env->src_cpu, env->dst_cpu);
+#else
 	/*
 	 * The dst_cpu is idle and the src_cpu CPU has only 1 CFS task.
 	 * It's worth migrating the task if the src_cpu's capacity is reduced
@@ -10519,6 +10530,7 @@ static int need_active_balance(struct lb_env *env)
 		return 1;
 
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2);
+#endif
 }
 
 static int active_load_balance_cpu_stop(void *data);
@@ -10921,6 +10933,11 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 	int pulled_task = 0;
 	u64 curr_cost = 0;
 
+#ifdef CONFIG_SCHED_EMS
+	if (ems_load_balance(this_rq))
+		return 0;		
+#endif
+
 	/*
 	 * We must set idle_stamp _before_ calling idle_balance(), such that we
 	 * measure the duration of idle_balance() as idle time.
@@ -11286,6 +11303,11 @@ static void rebalance_domains(struct rq *rq, enum cpu_idle_type idle)
 	int need_serialize, need_decay = 0;
 	u64 max_cost = 0;
 
+#ifdef CONFIG_SCHED_EMS
+	if (ems_load_balance(rq))
+		return;
+#endif
+
 	rcu_read_lock();
 	for_each_domain(cpu, sd) {
 		/*
@@ -11517,6 +11539,11 @@ static inline bool nohz_kick_needed(struct rq *rq, bool only_update)
 
 	if (time_before(now, nohz.next_balance))
 		return false;
+
+#ifdef CONFIG_SCHED_EMS
+	if (ems_load_balance(rq))
+		return false;
+#endif
 
 	if (rq->nr_running >= 2 &&
 	    (!energy_aware() || cpu_overutilized(cpu)))

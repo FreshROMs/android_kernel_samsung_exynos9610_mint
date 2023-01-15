@@ -379,7 +379,7 @@ unsigned int calculate_efficiency(struct tp_env *env, int target_cpu)
 		if (likely(cpumask_test_cpu(cpu, cpu_active_mask)))
 			util[cpu] = env->cpu_stat[cpu].util_wo;
 		else
-			util[cpu] = cpu_util_without(cpu, env->p);
+			util[cpu] = ml_cpu_util_without(cpu, env->p);
 
 		if (unlikely(cpu == target_cpu))
 			util[cpu] += env->task_util;

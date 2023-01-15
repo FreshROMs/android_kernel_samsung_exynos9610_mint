@@ -41,6 +41,23 @@ extern struct kobject *ems_kobj;
 #define EMS_PF_MULLIGAN         0x00000001  /* I'm given a mulligan */
 #define EMS_PF_RUNNABLE_BUSY        0x00000002  /* Picked from runnable busy cpu */
 
+/*
+ * Vendor data handling for TEX queue jump
+ *
+ * rq  's ems_qjump_list indices 0, 1    are used
+ * task's ems_qjump_flags indices 0, 1, 2 are used
+ */
+#define ems_qjump_list(rq)      ((struct list_head *)&(rq->ems_qjump_list[0]))
+#define ems_qjump_node(task)        ((struct list_head *)&(task->ems_qjump_node[0]))
+#define ems_qjump_queued(task)      (task->ems_qjump_queued)
+
+#define ems_qjump_first_entry(list) ({                      \
+    void *__mptr = (void *)(list->next);                        \
+    (struct task_struct *)(__mptr -                         \
+                offsetof(struct task_struct, ems_qjump_node[0])); \
+})
+
+
 /* structure for task placement environment */
 struct tp_env {
     struct task_struct *p;
@@ -53,18 +70,19 @@ struct tp_env {
         unsigned int cap_max;
     } start_cpu;
 
-    int sched_policy;
+    unsigned int sched_policy;
     int sync;
     int wake;
 
-    int on_top;
-    int prefer_idle;
-    int prefer_perf;
+    int task_on_top;
+    int boosted;
+    int latency_sensitive;
 
     struct cpumask cpus_allowed;
     struct cpumask fit_cpus;
 
     unsigned long task_util;
+    unsigned long task_util_clamped;
     unsigned long min_util;
 
     volatile struct {
@@ -72,9 +90,13 @@ struct tp_env {
         unsigned long util_wo;
         unsigned long util_with;
         unsigned long util_cuml;
+        unsigned long runnable;
 
         unsigned int cap_max;
         unsigned long cap_orig;
+        unsigned long cap_curr;
+
+        unsigned long nr_running;
 
         int idle;
         int exit_latency;
@@ -83,12 +105,121 @@ struct tp_env {
     int idle_cpu_count;
 };
 
-#define MISFIT_TASK_UTIL_RATIO  (80)
+/* core */
+enum {
+    RUNNING = 0,
+    IDLE_START,
+    IDLE_END,
+};
 
-static inline
-int cpu_overutilized(unsigned long capacity, unsigned long util)
+extern inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
+               int sd_flag, int sync, int wake);
+
+/* energy table */
+extern unsigned int calculate_efficiency(struct tp_env *env, int target_cpu);
+extern unsigned int calculate_energy(struct tp_env *env, int target_cpu);
+extern unsigned int capacity_max_of(unsigned int cpu);
+extern unsigned int get_cpu_mips(unsigned int cpu);
+extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
+
+/* multi load */
+#define ml_of(p)        (&p->se.ml)
+#define cap_scale(v, s)     ((v)*(s) >> SCHED_CAPACITY_SHIFT)
+
+#define entity_is_cfs_rq(se)    (se->my_q)
+#define entity_is_task(se)  (!se->my_q)
+
+extern void mlt_update(int cpu);
+extern void mlt_idle_enter(int cpu, int cstate);
+extern void mlt_idle_exit(int cpu);
+extern void mlt_task_switch(int cpu, struct task_struct *next, int state);
+extern int mlt_cur_period(int cpu);
+extern int mlt_prev_period(int period);
+extern int mlt_period_with_delta(int idx, int delta);
+extern int mlt_art_value(int cpu, int idx);
+extern int mlt_art_last_value(int cpu);
+extern int mlt_art_cgroup_value(int cpu, int idx, int cgroup);
+extern int mlt_cst_value(int cpu, int idx, int cstate);
+extern int mlt_init(void);
+extern void ntu_apply(struct sched_entity *se);
+extern void ntu_init(struct kobject *ems_kobj);
+extern unsigned long ml_task_util(struct task_struct *p);
+extern unsigned long ml_task_util_est(struct task_struct *p);
+extern unsigned long ml_task_load_avg(struct task_struct *p);
+extern unsigned long ml_cpu_util(int cpu);
+extern unsigned long ml_cpu_util_with(struct task_struct *p, int dst_cpu);
+extern unsigned long ml_cpu_util_without(int cpu, struct task_struct *p);
+extern unsigned long ml_cpu_load_avg(int cpu);
+extern unsigned long ml_runnable_load_avg(int cpu);
+extern inline unsigned long ml_uclamp_task_util(struct task_struct *p);
+
+#define MLT_PERIOD_SIZE     (4 * NSEC_PER_MSEC)
+#define MLT_PERIOD_COUNT    40
+
+/* Active Ratio Tracking */
+enum {
+    CLKOFF = 0,
+    PWROFF,
+    CSTATE_MAX,
+};
+
+/* efficiency cpu selection */
+extern int find_best_cpu(struct tp_env *env);
+extern int find_min_load_cpu(struct tp_env *env);
+
+/* ontime migration */
+extern int ontime_can_migrate_task(struct task_struct *p, int cpu);
+extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
+extern void ontime_migration(void);
+extern void ontime_update_next_balance(int cpu, struct ml_avg *avg);
+
+/* prefer cpu */
+extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
+
+/* freqvar tune */
+extern unsigned long freqvar_st_boost_vector(int cpu);
+
+/*
+ * Priority-pinning
+ */
+extern int tex_task(struct task_struct *p);
+extern void tex_enqueue_task(struct task_struct *p, int cpu);
+extern void tex_dequeue_task(struct task_struct *p, int cpu);
+extern void tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus);
+extern void tex_init(void);
+
+/* SCHED CLASS */
+#define EMS_SCHED_STOP      (1 << 0)
+#define EMS_SCHED_DL        (1 << 1)
+#define EMS_SCHED_RT        (1 << 2)
+#define EMS_SCHED_FAIR      (1 << 3)
+#define EMS_SCHED_IDLE      (1 << 4)
+#define NUM_OF_SCHED_CLASS  5
+
+/* ems boost */
+#define EMS_INIT_BOOST 1
+#define EMS_BOOT_BOOST 2
+
+extern int ems_task_boost(void);
+extern int ems_boot_boost(void);
+extern int ems_global_boost(void);
+
+#define BUSY_CPU_RATIO (150)
+#define HEAVY_TASK_UTIL_RATIO   (40)
+#define MISFIT_TASK_UTIL_RATIO  (80)
+#define check_busy(util, cap)   ((util * 100) >= (cap * 80))
+
+extern inline int is_heavy_task_util(unsigned long util);
+extern inline int is_misfit_task_util(unsigned long util);
+
+/******************************************************************************
+ * common API                                                                 *
+ ******************************************************************************/
+extern inline int cpu_overutilized(int cpu);
+
+static inline struct sched_entity *se_of(struct sched_avg *sa)
 {
-    return (capacity * 1024) < (util * 1280);
+    return container_of(sa, struct sched_entity, avg);
 }
 
 static inline
@@ -97,33 +228,27 @@ struct task_struct *task_of(struct sched_entity *se)
     return container_of(se, struct task_struct, se);
 }
 
-extern void ontime_migration(void);
-
-#ifdef CONFIG_SCHED_EMS
-extern int ontime_can_migration(struct task_struct *p, int cpu);
-#else
-static inline int ontime_can_migration(struct task_struct *p, int cpu)
+static inline bool __is_busy_cpu(unsigned long util,
+                 unsigned long runnable,
+                 unsigned long capacity,
+                 unsigned long nr_running)
 {
-    return 1;
+    if (runnable < capacity)
+        return false;
+
+    if (!nr_running)
+        return false;
+
+    if (util * BUSY_CPU_RATIO >= runnable * 100)
+        return false;
+
+    return true;
 }
-#endif
 
-extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
-extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
+extern inline bool is_busy_cpu(int cpu);
 
-#if 0
-extern unsigned int calculate_energy(struct task_struct *p, int target_cpu);
-extern unsigned int calculate_efficiency(struct task_struct *p, int target_cpu);
-#endif
-
-extern unsigned int calculate_energy(struct tp_env *env, int target_cpu);
-extern unsigned int calculate_efficiency(struct tp_env *env, int target_cpu);
-
-extern int find_min_load_cpu(struct tp_env *env);
-extern int find_best_cpu(struct tp_env *env);
-
-extern unsigned int capacity_max_of(unsigned int cpu);
-extern unsigned long capacity_curr_of(int cpu);
+extern int get_sched_class_idx(const struct sched_class *class);
+extern int cpuctl_task_group_idx(struct task_struct *p);
 
 extern unsigned long cpu_util_without(int cpu, struct task_struct *p);
 extern unsigned long task_util_est(struct task_struct *p);
@@ -133,3 +258,5 @@ extern unsigned long freqvar_st_boost_vector(int cpu);
 
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
+
+extern unsigned long capacity_curr_of(int cpu);

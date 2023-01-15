@@ -774,7 +774,7 @@ static void set_load_weight(struct task_struct *p)
 static DEFINE_MUTEX(uclamp_mutex);
 
 /* Max allowed minimum utilization */
-unsigned int sysctl_sched_uclamp_util_min = SCHED_CAPACITY_SCALE;
+unsigned int sysctl_sched_uclamp_util_min = 128;
 
 /* Max allowed maximum utilization */
 unsigned int sysctl_sched_uclamp_util_max = SCHED_CAPACITY_SCALE;
@@ -794,7 +794,7 @@ unsigned int sysctl_sched_uclamp_util_max = SCHED_CAPACITY_SCALE;
  * This knob will not override the system default sched_util_clamp_min defined
  * above.
  */
-unsigned int sysctl_sched_uclamp_util_min_rt_default = 500;
+unsigned int sysctl_sched_uclamp_util_min_rt_default = 96;
 
 /* All clamps are required to be less or equal than these values */
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
@@ -1525,6 +1525,9 @@ static inline void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 
 	uclamp_rq_inc(rq, p);
 	p->sched_class->enqueue_task(rq, p, flags);
+#ifdef CONFIG_SCHED_EMS
+	ems_enqueue_task(rq, p);
+#endif
 }
 
 static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
@@ -1537,6 +1540,9 @@ static inline void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 		psi_dequeue(p, flags & DEQUEUE_SLEEP);
 	}
 
+#ifdef CONFIG_SCHED_EMS
+	ems_dequeue_task(rq, p);
+#endif
 	uclamp_rq_dec(rq, p);
 	p->sched_class->dequeue_task(rq, p, flags);
 }
@@ -2302,6 +2308,12 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 	const struct cpumask *nodemask = NULL;
 	enum { cpuset, possible, fail } state = cpuset;
 	int dest_cpu;
+
+#ifdef CONFIG_SCHED_EMS
+	dest_cpu = ems_select_fallback_rq(p);
+	if (dest_cpu >= 0)
+		return dest_cpu;
+#endif
 
 	/*
 	 * If the node that the CPU is on has been offlined, cpu_to_node()
@@ -3175,6 +3187,10 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 #endif
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	p->se.cfs_rq			= NULL;
+#endif
+
+#ifdef CONFIG_SCHED_EMS
+	ems_fork_init(p);
 #endif
 
 #ifdef CONFIG_SCHEDSTATS
@@ -4101,7 +4117,7 @@ void scheduler_tick(void)
 
 #ifdef CONFIG_SCHED_EMS
 	/* Exynos Mobile Scheduler tick */
-	ems_tick();
+	ems_tick(rq);
 #endif
 }
 
@@ -4460,6 +4476,10 @@ static void __sched notrace __schedule(bool preempt)
 	walt_update_task_ravg(next, rq, PICK_NEXT_TASK, wallclock, 0);
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
+
+#ifdef CONFIG_SCHED_EMS
+	ems_schedule(prev, next, rq);
+#endif
 
 	if (likely(prev != next)) {
 #ifdef CONFIG_SCHED_WALT
@@ -7927,6 +7947,87 @@ static u64 cpu_uclamp_boost_read_u64(struct cgroup_subsys_state *css,
 	return (u64) tg->boosted;
 }
 
+#ifdef CONFIG_SCHED_EMS
+char *ems_sched_policy_name[] = {
+    "SCHED_POLICY_EFF",
+    "SCHED_POLICY_ENERGY",
+    "SCHED_POLICY_SEMI_PERF",
+    "SCHED_POLICY_PERF",
+    "SCHED_POLICY_MIN_UTIL",
+    "SCHED_POLICY_UNKNOWN"
+};
+
+static int cpu_ems_sched_policy_write_u64(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 policy)
+{
+	struct task_group *tg;
+
+	if (policy < 0 || policy >= 5)
+		return -EINVAL;
+
+	tg = css_tg(css);
+	tg->sched_policy = (unsigned int) policy;
+
+	return 0;
+}
+
+static int cpu_ems_sched_policy_read_u64(struct seq_file *sf, void *v)
+{
+	struct cgroup_subsys_state *css = seq_css(sf);
+	struct task_group *tg = css_tg(css);
+
+	seq_printf(sf, "%u. %s\n", tg->sched_policy,
+		ems_sched_policy_name[tg->sched_policy]);
+	
+	return 0;
+}
+
+static int cpu_ems_ontime_enabled_write_u64(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 ontime_enabled)
+{
+	struct task_group *tg;
+
+	if (ontime_enabled < 0 || ontime_enabled > 1)
+		return -EINVAL;
+
+	tg = css_tg(css);
+	tg->ontime_enabled = (unsigned int) ontime_enabled;
+
+	return 0;
+}
+
+static u64 cpu_ems_ontime_enabled_read_u64(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	struct task_group *tg = css_tg(css);
+
+	return (u64) tg->ontime_enabled;
+}
+
+
+static int cpu_ems_tex_enabled_write_u64(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 tex_enabled)
+{
+	struct task_group *tg;
+
+	if (tex_enabled < 0 || tex_enabled > 1)
+		return -EINVAL;
+
+	tg = css_tg(css);
+	tg->tex_enabled = (unsigned int) tex_enabled;
+
+	return 0;
+}
+
+static u64 cpu_ems_tex_enabled_read_u64(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	struct task_group *tg = css_tg(css);
+
+	return (u64) tg->tex_enabled;
+}
+#endif
+
 /* Wrappers for the above {read, write, show} functions */
 int cpu_uclamp_min_show_wrapper(struct seq_file *sf, void *v)
 {
@@ -7971,6 +8072,40 @@ u64 cpu_uclamp_boost_read_u64_wrapper(struct cgroup_subsys_state *css,
 {
 	return cpu_uclamp_boost_read_u64(css, cft);
 }
+
+#ifdef CONFIG_SCHED_EMS
+int cpu_ems_sched_policy_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 policy)
+{
+	return cpu_ems_sched_policy_write_u64(css, cftype, policy);
+}
+int cpu_ems_sched_policy_read_u64_wrapper(struct seq_file *sf, void *v)
+{
+	return cpu_ems_sched_policy_read_u64(sf, v);
+}
+
+int cpu_ems_ontime_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 boost)
+{
+	return cpu_ems_ontime_enabled_write_u64(css, cftype, boost);
+}
+u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	return cpu_ems_ontime_enabled_read_u64(css, cft);
+}
+
+int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
+                              struct cftype *cftype, u64 boost)
+{
+	return cpu_ems_tex_enabled_write_u64(css, cftype, boost);
+}
+u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
+                             struct cftype *cft)
+{
+	return cpu_ems_tex_enabled_read_u64(css, cft);
+}
+#endif
 #endif /* CONFIG_UCLAMP_TASK_GROUP */
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
