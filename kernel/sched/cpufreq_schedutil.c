@@ -34,7 +34,7 @@
  */
 #define UTILAVG_FFSI_VARIANCE	16
 DECLARE_ELASTICITY(cpufreq, 32, 25, 23, 25);
-#define FFSI_CLUSTER_TRAVERSING
+// #define FFSI_CLUSTER_TRAVERSING
 #endif
 
 unsigned long boosted_cpu_util(int cpu);
@@ -446,15 +446,17 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
+#ifdef CONFIG_UCLAMP_TASK
+   	*util = min(cpu_util(cpu), capacity_orig_of(cpu));
+   	*util = uclamp_util_with(rq, *util, NULL);
+#else
 	*util = boosted_cpu_util(cpu);
+#endif
 	*util = freqvar_boost_vector(cpu, *util);
 	*util = *util + (*util >> 2);
 	*util = min(*util, max_cap);
 	*max = max_cap;
 
-#ifdef CONFIG_UCLAMP_TASK
-   	*util = uclamp_util_with(rq, *util, NULL);
-#endif
 #ifdef CONFIG_SCHED_EMS
 	mlt_cpu_active_ratio(util, max, cpu);
 #endif
