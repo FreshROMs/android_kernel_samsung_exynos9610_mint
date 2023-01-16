@@ -26,7 +26,10 @@
  */
 unsigned long ml_task_util(struct task_struct *p)
 {
-	return READ_ONCE(p->se.avg.util_avg);
+	if (rt_task(p))
+		return READ_ONCE(p->rt.avg.util_avg);
+	else
+		return READ_ONCE(p->se.avg.util_avg);
 }
 
 #define UTIL_AVG_UNCHANGED 0x1
@@ -104,12 +107,17 @@ unsigned long ml_task_load_avg(struct task_struct *p)
 unsigned long ml_cpu_util(int cpu)
 {
 	struct cfs_rq *cfs_rq;
+	struct rt_rq *rt_rq;
 	unsigned int util;
 
 	cfs_rq = &cpu_rq(cpu)->cfs;
-	util = READ_ONCE(cfs_rq->avg.util_avg);
+	rt_rq = &cpu_rq(cpu)->rt;
 
+	util = READ_ONCE(cfs_rq->avg.util_avg);
 	util = max(util, READ_ONCE(cfs_rq->avg.util_est.enqueued));
+
+	/* account rt task usage */
+	util += rt_rq->avg.util_avg;
 
 	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
@@ -131,7 +139,11 @@ unsigned long ml_cpu_util(int cpu)
 unsigned long ml_cpu_util_without(int cpu, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
+	struct rt_rq *rt_rq = &cpu_rq(cpu)->rt;
 	unsigned int util = READ_ONCE(cfs_rq->avg.util_avg);
+
+	/* account rt task usage */
+	util += rt_rq->avg.util_avg;
 
 	/* Task has no contribution or is new */
 	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
@@ -148,13 +160,9 @@ unsigned long ml_cpu_util_without(int cpu, struct task_struct *p)
  */
 unsigned long ml_cpu_util_with(struct task_struct *p, int cpu)
 {
-	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-	unsigned long util = READ_ONCE(cfs_rq->avg.util_avg);
+	unsigned long util;
 
-	/* Discount task's util from prev CPU's util */
-	if (cpu == task_cpu(p))
-		lsub_positive(&util, ml_task_util(p));
-
+	util = ml_cpu_util_without(cpu, p);
 	util += max(ml_task_util_est(p), (unsigned long)1);
 
 	return min(util, capacity_orig_of(cpu));

@@ -341,14 +341,12 @@ void take_util_snapshot(struct tp_env *env)
 
 	/* fill cpu util */
 	for_each_cpu_and(cpu, &env->p->cpus_allowed, cpu_active_mask) {
-		unsigned long rt_util = cpu_util_rt(cpu);
-
 		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
 		env->cpu_stat[cpu].cap_orig = capacity_orig_of(cpu);
 		env->cpu_stat[cpu].cap_orig = capacity_curr_of(cpu);
 
-		env->cpu_stat[cpu].util_wo = ml_cpu_util_without(cpu, env->p) + rt_util;
-		env->cpu_stat[cpu].util_with = ml_cpu_util_with(env->p, cpu) + rt_util;
+		env->cpu_stat[cpu].util_wo = ml_cpu_util_without(cpu, env->p);
+		env->cpu_stat[cpu].util_with = ml_cpu_util_with(env->p, cpu);
 
 		env->cpu_stat[cpu].runnable = ml_runnable_load_avg(cpu);
 

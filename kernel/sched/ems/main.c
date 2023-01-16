@@ -159,11 +159,7 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 
 inline int cpu_overutilized(int cpu)
 {
-#if 0
-    return (capacity_of(cpu) * 1024) < (ml_cpu_util(cpu) * 1280);
-#else
     return (capacity_orig_of(cpu) * 1024) < (ml_cpu_util(cpu) * 1280);
-#endif
 }
 
 inline int is_heavy_task_util(unsigned long util)
