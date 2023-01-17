@@ -701,6 +701,16 @@ int find_best_cpu(struct tp_env *env)
 	int policy = env->sched_policy;
 	int best_cpu = INVALID_CPU;
 
+#if 1
+	/* When sysbusy is detected, do scheduling under other policies */
+	if (sysbusy_activated()) {
+		best_cpu = sysbusy_schedule(env);
+		if (best_cpu >= 0) {
+			strcpy(state, "sysbusy");
+			goto out;
+		}
+	}
+#endif
 	switch (policy) {
 	case SCHED_POLICY_EFF:
 		/* Find best efficiency cpu */
@@ -1142,13 +1152,21 @@ done:
 static
 int find_cpus_allowed(struct tp_env *env)
 {
+#if 1
+	if (is_somac_ready(env))
+		goto out;
+#endif
 	/*
 	 * take a snapshot of cpumask to get CPUs allowed
 	 * - active_cpus : cpu_active_mask
 	 * - cpus_allowed : p->cpus_allowed
 	 */
+	cpumask_clear(&env->cpus_allowed);
 	cpumask_and(&env->cpus_allowed, tsk_cpus_allowed(env->p), cpu_active_mask);
 
+#if 1
+out:
+#endif
 	/* Return weight of allowed cpus */
 	return cpumask_weight(&env->cpus_allowed);
 }

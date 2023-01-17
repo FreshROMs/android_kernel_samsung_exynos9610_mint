@@ -266,7 +266,7 @@ void ems_tick(struct rq *rq)
 {
 	mlt_set_period_start(rq);
 
-	// profile_sched_data();
+	profile_sched_data();
 
 	// mlt_update(cpu_of(rq));
 
@@ -274,8 +274,8 @@ void ems_tick(struct rq *rq)
 
 	// frt_update_available_cpus(rq);
 
-	// monitor_sysbusy();
-	// somac_tasks();
+	monitor_sysbusy();
+	somac_tasks();
 
 	ontime_migration();
 	// ecs_update();
@@ -327,7 +327,7 @@ void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
 /* If EMS allows load balancing, return 0 */
 int ems_load_balance(struct rq *rq)
 {
-#if 0
+#if 1
 	if (sysbusy_on_somac())
 		return -EBUSY;
 #endif
@@ -390,8 +390,13 @@ static
 int __init init_sysfs(void)
 {
 	ems_kobj = kobject_create_and_add("ems", kernel_kobj);
-	if (!ems_kobj)
+	if (!ems_kobj) {
+		pr_err("failed to create sysfs for ems\n");
 		return -ENOMEM;
+	}
+
+	sysbusy_sysfs_init();
+	core_init();
 
 	return 0;
 }
@@ -400,8 +405,7 @@ core_initcall(init_sysfs);
 void __init ems_init(void) {
 
 	mlt_init();
-
 	qjump_rq_list_init();
-
-	core_init();
+	profile_sched_init();
+	sysbusy_init();
 }

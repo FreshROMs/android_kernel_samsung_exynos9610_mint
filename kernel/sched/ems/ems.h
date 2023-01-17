@@ -25,6 +25,9 @@ extern struct kobject *ems_kobj;
 /* Places which use this should consider cpumask_var_t. */
 #define VENDOR_NR_CPUS      NR_CPUS
 
+/* maximum count of tracking tasks in runqueue */
+#define TRACK_TASK_COUNT    5
+
 /* task scheduling policy */
 #define SCHED_POLICY_EFF 0 // foreground/background
 #define SCHED_POLICY_ENERGY 1
@@ -117,9 +120,11 @@ extern inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
 extern int core_init(void);
 
 /* energy table */
+extern const unsigned int et_get_max_capacity(void);
 extern unsigned int calculate_efficiency(struct tp_env *env, int target_cpu);
 extern unsigned int calculate_energy(struct tp_env *env, int target_cpu);
 extern unsigned int capacity_max_of(unsigned int cpu);
+extern unsigned long capacity_curr_of(int cpu);
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 
@@ -192,6 +197,20 @@ extern int ems_task_boost(void);
 extern int ems_boot_boost(void);
 extern int ems_global_boost(void);
 
+/* profile */
+struct system_profile_data {
+    int         busy_cpu_count;
+    int         heavy_task_count;
+    int         misfit_task_count;
+
+    unsigned long       cpu_util_sum;
+    unsigned long       heavy_task_util_sum;
+    unsigned long       misfit_task_util_sum;
+    unsigned long       heaviest_task_util;
+
+    unsigned long       cpu_util[NR_CPUS];
+};
+
 #define BUSY_CPU_RATIO (150)
 #define HEAVY_TASK_UTIL_RATIO   (40)
 #define MISFIT_TASK_UTIL_RATIO  (80)
@@ -200,6 +219,20 @@ extern int ems_global_boost(void);
 extern bool cpu_preemptible(struct tp_env *env, int cpu);
 extern inline int is_heavy_task_util(unsigned long util);
 extern inline int is_misfit_task_util(unsigned long util);
+
+extern int profile_sched_init(void);
+extern int profile_sched_data(void);
+extern void get_system_sched_data(struct system_profile_data *data);
+
+/* Sysbusy */
+extern void monitor_sysbusy(void);
+extern int sysbusy_schedule(struct tp_env *env);
+extern int sysbusy_activated(void);
+extern void somac_tasks(void);
+extern int sysbusy_on_somac(void);
+extern int is_somac_ready(struct tp_env *env);
+extern int sysbusy_sysfs_init(void);
+extern int sysbusy_init(void);
 
 /******************************************************************************
  * common API                                                                 *
@@ -245,5 +278,3 @@ extern unsigned long boosted_task_util(struct task_struct *p);
 
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
-
-extern unsigned long capacity_curr_of(int cpu);

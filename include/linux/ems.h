@@ -34,6 +34,68 @@ struct gb_qos_request {
 	bool active;
 };
 
+/*
+ * Sysbusy
+ */
+enum sysbusy_state {
+    SYSBUSY_STATE0 = 0,
+    SYSBUSY_STATE1,
+    SYSBUSY_STATE2,
+    SYSBUSY_STATE3,
+    NUM_OF_SYSBUSY_STATE,
+};
+
+#define SYSBUSY_CHECK_BOOST (0)
+#define SYSBUSY_STATE_CHANGE    (1)
+
+/* Sysbusy */
+struct sysbusy_param {
+    int monitor_interval;       /* tick (1 tick = 4ms) */
+    int release_duration;       /* tick (1 tick = 4ms) */
+    unsigned long allowed_next_state;
+};
+
+#define TICK_SEC    CONFIG_HZ
+static struct sysbusy_param sysbusy_params[] = {
+    {
+        /* SYSBUSY_STATE0 (sysbusy inactivation) */
+        .monitor_interval   = 1,
+        .release_duration   = 0,
+        .allowed_next_state = (1 << SYSBUSY_STATE1) |
+                      (1 << SYSBUSY_STATE2) |
+                      (1 << SYSBUSY_STATE3),
+    },
+    {
+        /* 
+         * TenSeventy7:
+         * Avoid instances where spiking loads, which is very frequent in
+         * Android, would cause 'sysbusy' levels 0-1 to switch and trigger quickly.
+         * Let the heavy load alleviate first by making STATE1 longer.
+         */ 
+        /* SYSBUSY_STATE1 */
+        .monitor_interval   = 4,
+        .release_duration   = 25,
+        .allowed_next_state = (1 << SYSBUSY_STATE0) |
+                      (1 << SYSBUSY_STATE2) |
+                      (1 << SYSBUSY_STATE3),
+    },
+    {
+        /* SYSBUSY_STATE2 */
+        .monitor_interval   = 25,
+        .release_duration   = TICK_SEC * 3,
+        .allowed_next_state = (1 << SYSBUSY_STATE0) |
+                      (1 << SYSBUSY_STATE3),
+    },
+    {
+        /* SYSBUSY_STATE3 */
+        .monitor_interval   = 25,
+        .release_duration   = TICK_SEC * 9,
+        .allowed_next_state = (1 << SYSBUSY_STATE0),
+    },
+};
+
+#define SYSBUSY_SOMAC   SYSBUSY_STATE3
+
 #ifdef CONFIG_SCHED_EMS
 extern struct kobject *ems_kobj;
 extern unsigned int capacity_max_of(unsigned int cpu);
@@ -94,6 +156,8 @@ extern int ems_get_tex_prio(void);
 extern void ems_set_tex_qjump_enabled(int enabled);
 extern int ems_get_tex_qjump_enabled(void);
 
+extern int sysbusy_register_notifier(struct notifier_block *nb);
+extern int sysbusy_unregister_notifier(struct notifier_block *nb);
 #else
 static inline void exynos_init_entity_util_avg(struct sched_entity *se) { }
 
@@ -137,6 +201,9 @@ static inline bool is_slowest_cpu(int cpu)
 static inline void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type) { }
 static inline void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu) { }
 static inline void set_part_period_start(struct rq *rq) { }
+
+static inline int sysbusy_register_notifier(struct notifier_block *nb) { return 0; };
+static inline int sysbusy_unregister_notifier(struct notifier_block *nb) { return 0; };
 #endif /* CONFIG_SCHED_EMS */
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL

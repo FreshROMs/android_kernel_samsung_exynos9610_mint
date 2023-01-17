@@ -403,6 +403,11 @@
 				};
 			};
 
+			sysbusy {
+				somac-ready-run = <1>;
+				somac-ready-cpus = "0-3";
+			};
+
 			prefer-perf-service {
 				/* foreground */
 				prefer-perf0 {

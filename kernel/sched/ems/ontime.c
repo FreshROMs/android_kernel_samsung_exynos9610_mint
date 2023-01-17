@@ -20,7 +20,6 @@
 /****************************************************************/
 /*			On-time migration			*/
 /****************************************************************/
-#define TASK_TRACK_COUNT	5
 #define MIN_CAPACITY_CPU	0
 #define MAX_CAPACITY_CPU	(NR_CPUS - 1)
 
@@ -218,7 +217,7 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 	}
 
 	se = __pick_first_entity(se->cfs_rq);
-	while (se && task_count < TASK_TRACK_COUNT) {
+	while (se && task_count < TRACK_TASK_COUNT) {
 		/* Skip non-task entity */
 		if (entity_is_cfs_rq(se))
 			goto next_entity;
@@ -662,17 +661,38 @@ int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 	return true;
 }
 
+static bool skip_ontime;
+
 void ontime_migration(void)
 {
-	/*
 	if (skip_ontime)
 		return;
-	*/
 
 	ontime_mulligan();
 	ontime_heavy_migration();
 }
 
+#if 1
+/****************************************************************/
+/*		  sysbusy state change notifier			*/
+/****************************************************************/
+static int ontime_sysbusy_notifier_call(struct notifier_block *nb,
+					unsigned long val, void *v)
+{
+	enum sysbusy_state state = *(enum sysbusy_state *)v;
+
+	if (val != SYSBUSY_STATE_CHANGE)
+		return NOTIFY_OK;
+
+	skip_ontime = (state > SYSBUSY_STATE1);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ontime_sysbusy_notifier = {
+	.notifier_call = ontime_sysbusy_notifier_call,
+};
+#endif
 /****************************************************************/
 /*				SYSFS				*/
 /****************************************************************/
@@ -854,6 +874,8 @@ static int __init init_ontime(void)
 	if (!dn)
 		return 0;
 
+	/* Explicitly assigned */
+	skip_ontime = false;
 
 	if (!cpumask_equal(cpu_possible_mask, cpu_all_mask))
 		return 0;
@@ -872,7 +894,9 @@ static int __init init_ontime(void)
 	}
 
 	ontime_sysfs_init();
-
+#if 1
+	sysbusy_register_notifier(&ontime_sysbusy_notifier);
+#endif
 	of_node_put(dn);
 	return 0;
 }

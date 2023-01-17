@@ -40,6 +40,7 @@ DEFINE_PER_CPU(struct energy_table, energy_table);
 
 struct cpumask slowest_mask;
 struct cpumask fastest_mask;
+static unsigned int max_capacity;
 
 const struct cpumask *cpu_slowest_mask(void)
 {
@@ -49,6 +50,10 @@ const struct cpumask *cpu_slowest_mask(void)
 const struct cpumask *cpu_fastest_mask(void)
 {
 	return &fastest_mask;
+}
+
+const unsigned int et_get_max_capacity(void) {
+	return max_capacity;
 }
 
 inline bool is_slowest_cpu(int cpu)
@@ -532,11 +537,13 @@ static void cpumask_speed_init(void)
 
 	cpumask_clear(&slowest_mask);
 	cpumask_clear(&fastest_mask);
+	max_capacity = 0;
 
 	for_each_cpu(cpu, cpu_possible_mask) {
 		unsigned long cap;
 
 		cap = capacity_max_of(cpu);
+		max_capacity += cap;
 		if (cap < min_cap)
 			min_cap = cap;
 		if (cap > max_cap)
