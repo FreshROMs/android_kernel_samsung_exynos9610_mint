@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
+#include <linux/ems.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/file.h>
@@ -1882,6 +1883,95 @@ int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
                               struct cftype *cftype, u64 tex_enabled);
 u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft);
+
+static int cpu_ems_tex_prio_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 prio)
+{
+	if (prio < MIN_NICE || prio > MAX_PRIO)
+		return -EINVAL;
+
+	ems_set_tex_prio((int) prio);
+
+	return 0;
+}
+static u64 cpu_ems_tex_prio_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	return (u64) ems_get_tex_prio();
+}
+static int cpu_ems_tex_qjump_enabled_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 qjump_enabled)
+{
+	if (qjump_enabled < 0 || qjump_enabled > 1)
+		return -EINVAL;
+
+	ems_set_tex_qjump_enabled((int) qjump_enabled);
+
+	return 0;
+}
+static u64 cpu_ems_tex_qjump_enabled_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	return (u64) ems_get_tex_qjump_enabled();
+}
+
+#if 0
+static int cpu_ems_freqboost_ratio_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 ratio)
+{
+	int cgroup_idx;
+
+	if (ratio < 0 || ratio > 10000)
+		return -EINVAL;
+
+	cgroup_idx = css->id - 1;
+
+	if (cgroup_idx >= CGROUP_COUNT)
+		return -EINVAL;
+
+	ems_set_freqboost_ratio(cgroup_idx, (int) ratio);
+
+	return 0;
+}
+static u64 cpu_ems_freqboost_ratio_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	int cgroup_idx = css->id - 1;
+
+	if (cgroup_idx >= CGROUP_COUNT)
+		return -EINVAL;
+
+	return (u64) ems_get_freqboost_ratio(cgroup_idx);
+}
+
+static int cpu_ems_wakeboost_ratio_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 ratio)
+{
+	int cgroup_idx;
+
+	if (ratio < 0 || ratio > 10000)
+		return -EINVAL;
+
+	cgroup_idx = css->id - 1;
+
+	if (cgroup_idx >= CGROUP_COUNT)
+		return -EINVAL;
+
+	ems_set_wakeboost_ratio(cgroup_idx, (int) ratio);
+
+	return 0;
+}
+static u64 cpu_ems_wakeboost_ratio_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft)
+{
+	int cgroup_idx = css->id - 1;
+
+	if (cgroup_idx >= CGROUP_COUNT)
+		return -EINVAL;
+
+	return (u64) ems_get_wakeboost_ratio(cgroup_idx);
+}
+#endif
 #endif
 
 #if !defined(CONFIG_SCHED_TUNE)
@@ -2058,6 +2148,20 @@ static struct cftype files[] = {
 		.seq_show = cpu_ems_sched_policy_read_u64_wrapper,
 		.write_u64 = cpu_ems_sched_policy_write_u64_wrapper,
 	},
+#if 0
+	{
+		.name = "ems.freqboost_ratio",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = cpu_ems_freqboost_ratio_read,
+		.write_u64 = cpu_ems_freqboost_ratio_write,
+	},
+	{
+		.name = "ems.wakeboost_ratio",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = cpu_ems_wakeboost_ratio_read,
+		.write_u64 = cpu_ems_wakeboost_ratio_write,
+	},
+#endif
 	{
 		.name = "ems.ontime_enabled",
 		.flags = CFTYPE_NOT_ON_ROOT,
@@ -2075,6 +2179,18 @@ static struct cftype files[] = {
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_u64 = cpu_ems_tex_enabled_read_u64_wrapper,
 		.write_u64 = cpu_ems_tex_enabled_write_u64_wrapper,
+	},
+	{
+		.name = "ems.tex_prio",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = cpu_ems_tex_prio_read,
+		.write_u64 = cpu_ems_tex_prio_write,
+	},
+	{
+		.name = "ems.tex_qjump_enabled",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = cpu_ems_tex_qjump_enabled_read,
+		.write_u64 = cpu_ems_tex_qjump_enabled_write,
 	},
 #endif
 
@@ -2117,14 +2233,14 @@ static void uclamp_set(struct kernfs_open_file *of,
 	const char *cs_name = cs->css.cgroup->kn->name;
 
 	static struct ucl_param tgts[] = {
-		/* cgroup                 min    max    b  l   e-p e-o e-n  e-t */
-		{"top-app",    	     	 "20",  "max",  0, 1,   0, 1,  25,   1},
-		{"foreground", 	     	 "10",   "80",  0, 0,   0, 1,  25,   0},
-		{"background", 	     	  "0",   "50",  0, 0,   1, 0,  25,   0},
-		{"system-background", 	  "0",   "60",  0, 0,   1, 0,  25,   0},
-		{"camera-daemon",	     "20",  "max",  1, 1,   2, 0,  25,   0},
-		{"moderate",	         "20",  "max",  0, 0,   0, 0,  25,   0},
-		{"restricted",		      "0",   "20",  0, 0,   1, 0,  25,   0},
+		/* cgroup                 min    max    b  l  e-p e-o   e-n  e-t */
+		{"top-app",    	     	 "20",  "max",  0, 1,   2,  1,   25,   1},
+		{"foreground", 	     	 "10",   "80",  0, 0,   0,  1,   25,   0},
+		{"background", 	     	  "0",   "50",  0, 0,   1,  0,   25,   0},
+		{"system-background", 	  "0",   "60",  0, 0,   1,  0,   25,   0},
+		{"camera-daemon",	     "20",  "max",  1, 1,   3,  0,   25,   0},
+		{"moderate",	         "10",   "90",  0, 0,   0,  0,   25,   0},
+		{"restricted",		      "0",   "30",  0, 0,   1,  0,   25,   0},
 	};
 
 #ifdef CONFIG_SCHED_EMS

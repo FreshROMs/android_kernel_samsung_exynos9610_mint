@@ -57,19 +57,16 @@ unsigned long ml_task_util_est(struct task_struct *p)
  *
  * Task utilization with util-est clamped with uclamp
  */
-#ifdef CONFIG_UCLAMP_TASK
 inline unsigned long ml_uclamp_task_util(struct task_struct *p)
 {
+#ifdef CONFIG_UCLAMP_TASK
     return clamp(ml_task_util_est(p),
              uclamp_eff_value(p, UCLAMP_MIN),
              uclamp_eff_value(p, UCLAMP_MAX));
-}
 #else
-inline unsigned long ml_uclamp_task_util(struct task_struct *p)
-{
     return ml_task_util_est(p);
-}
 #endif
+}
 
 /*
  * ml_task_load_avg - task ontime load_avg
@@ -573,7 +570,6 @@ void mlt_wakeup_task(struct rq *rq) {
 	trace_ems_cpu_active_ratio(cpu, mlt, "new task");
 }
 
-static
 void mlt_update_recent(struct rq *rq) {
 	struct mlt *mlt = &rq->mlt;
 	int cpu = cpu_of(rq);
@@ -610,68 +606,32 @@ int mlt_art_last_value(int cpu)
 	return mlt->period[mlt->cur_period];
 }
 
-void mlt_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu)
+bool mlt_art_high_patten(struct mlt *mlt)
 {
-	struct rq *rq = cpu_rq(cpu);
-	struct mlt *mlt = &rq->mlt;
-	unsigned long pelt_max = *max;
-	unsigned long pelt_util = *util;
-	int util_ratio = *util * SCHED_CAPACITY_SCALE / *max;
-	int demand = 0;
-
-	if (unlikely(mlt->period_start == 0))
-		return;
-
-	if (mlt->last_boost_time && util_ratio < mlt->active_ratio_boost) {
-		*max = SCHED_CAPACITY_SCALE;
-		*util = mlt->active_ratio_boost;
-		return;
-	}
-
-	if (util_ratio > mlt->active_ratio_limit)
-		return;
-
 	if (!mlt->running &&
 			(mlt->active_ratio_avg < high_patten_thres ||
-			 mlt->active_ratio_stdev > high_patten_stdev)) {
-		*util = 0;
-		*max = SCHED_CAPACITY_SCALE;
-		return;
-	}
+			 mlt->active_ratio_stdev > high_patten_stdev))
+		return true;
 
-	mlt_update_recent(rq);
+	return false;
+}
 
-	switch (mlt_policy_idx) {
-	case MLT_POLICY_RECENT:
-		demand = mlt->active_ratio_recent;
-		break;
-	case MLT_POLICY_MAX:
-		demand = mlt->active_ratio_max;
-		break;
-	case MLT_POLICY_MAX_RECENT_MAX:
-		demand = max(mlt->active_ratio_recent, mlt->active_ratio_max);
-		break;
-	case MLT_POLICY_LAST:
-		demand = mlt->period[mlt->cur_period];
-		break;
-	case MLT_POLICY_MAX_RECENT_LAST:
-		demand = max(mlt->active_ratio_recent, mlt->period[mlt->cur_period]);
-		break;
-	case MLT_POLICY_MAX_RECENT_AVG:
-		demand = max(mlt->active_ratio_recent, mlt->active_ratio_avg);
-		break;
-	}
+inline
+int mlt_art_boost(struct mlt *mlt)
+{
+	return mlt->active_ratio_boost;
+}
 
-	*util = max(demand, mlt->active_ratio_est);
-	*util = min_t(unsigned long, *util, (unsigned long)mlt->active_ratio_limit);
-	*max = SCHED_CAPACITY_SCALE;
+inline
+int mlt_art_boost_limit(struct mlt *mlt)
+{
+	return mlt->active_ratio_limit;
+}
 
-	if (util_ratio > *util) {
-		*util = pelt_util;
-		*max = pelt_max;
-	}
-
-	trace_ems_cpu_active_ratio_util_stat(cpu, *util, (unsigned long)util_ratio);
+inline
+int mlt_art_last_boost_time(struct mlt *mlt)
+{
+	return mlt->last_boost_time;
 }
 
 /********************************************************/
@@ -867,11 +827,11 @@ static const struct attribute_group attr_group = {
 	.attrs = attrs,
 };
 
-static int __init init_part_sysfs(void)
+static int __init mlt_init_sysfs(void)
 {
 	struct kobject *kobj;
 
-	kobj = kobject_create_and_add("part", ems_kobj);
+	kobj = kobject_create_and_add("mlt", ems_kobj);
 	if (!kobj)
 		return -EINVAL;
 
@@ -880,9 +840,9 @@ static int __init init_part_sysfs(void)
 
 	return 0;
 }
-late_initcall(init_part_sysfs);
+late_initcall(mlt_init_sysfs);
 
-static int __init parse_part(void)
+static int __init mlt_parse_dt(void)
 {
 	struct device_node *dn, *coregroup;
 	char name[15];
@@ -919,7 +879,7 @@ skip_parse:
 
 	return 0;
 }
-core_initcall(parse_part);
+core_initcall(mlt_parse_dt);
 
 void __init mlt_init(void)
 {

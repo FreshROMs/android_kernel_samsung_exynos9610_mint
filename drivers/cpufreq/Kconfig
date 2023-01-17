@@ -110,6 +110,15 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
+config CPU_FREQ_DEFAULT_GOV_AIGO
+	bool "energy_adaptive"
+	depends on SMP
+	select CPU_FREQ_GOV_AIGO
+	help
+	  Use the 'energy_adaptive' CPUFreq governor by default. If unsure,
+	  have a look at the help section of that governor. The fallback
+	  governor will be 'performance'.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -205,6 +214,19 @@ config CPU_FREQ_GOV_SCHEDUTIL
 	  case, it is proportional to the current frequency of the CPU.  The
 	  frequency tipping point is at utilization/capacity equal to 80% in
 	  both cases.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_AIGO
+	bool "'energy_adaptive' cpufreq policy governor"
+	depends on CPU_FREQ && SMP && SCHED_EMS
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	select FFSI
+	help
+	  This governor makes decisions based on the utilization data provided
+	  by cpu activated time and the scheduler and infers them to learn based
+	  on given utilization data.
 
 	  If in doubt, say N.
 

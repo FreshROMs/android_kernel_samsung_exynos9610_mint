@@ -87,6 +87,13 @@ extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
 extern const struct cpumask *cpu_slowest_mask(void);
 extern const struct cpumask *cpu_fastest_mask(void);
 extern inline bool is_slowest_cpu(int cpu);
+
+/* Task EXpress (TEX) */
+extern void ems_set_tex_prio(int prio);
+extern int ems_get_tex_prio(void);
+extern void ems_set_tex_qjump_enabled(int enabled);
+extern int ems_get_tex_qjump_enabled(void);
+
 #else
 static inline void exynos_init_entity_util_avg(struct sched_entity *se) { }
 
@@ -144,45 +151,3 @@ static inline void init_sched_energy_table(struct cpumask *cpus, int table_size,
 
 /* Fluid Real Time */
 extern unsigned int frt_disable_cpufreq;
-
-/*
- * Maximum number of boost groups to support
- * When per-task boosting is used we still allow only limited number of
- * boost groups for two main reasons:
- * 1. on a real system we usually have only few classes of workloads which
- *    make sense to boost with different values (e.g. background vs foreground
- *    tasks, interactive vs low-priority tasks)
- * 2. a limited number allows for a simpler and more memory/time efficient
- *    implementation especially for the computation of the per-CPU boost
- *    value
- */
-#if defined(CONFIG_MINT_SESL) && defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
-#define BOOSTGROUPS_COUNT 8
-#else
-#define BOOSTGROUPS_COUNT 6
-#endif
-
-/* SchedTune boost groups
- * Keep track of all the boost groups which impact on CPU, for example when a
- * CPU has two RUNNABLE tasks belonging to two different boost groups and thus
- * likely with different boost values.
- * Since on each system we expect only a limited number of boost groups, here
- * we use a simple array to keep track of the metrics required to compute the
- * maximum per-CPU boosting value.
- */
-struct boost_groups {
-	/* Maximum boost value for all RUNNABLE tasks on a CPU */
-	bool idle;
-	int boost_max;
-	u64 boost_ts;
-	struct {
-		/* The boost for tasks on that boost group */
-		int boost;
-		/* Count of RUNNABLE tasks on that boost group */
-		unsigned tasks;
-		/* Timestamp of boost activation */
-		u64 ts;
-	} group[BOOSTGROUPS_COUNT];
-	/* CPU's boost group locking */
-	raw_spinlock_t lock;
-};

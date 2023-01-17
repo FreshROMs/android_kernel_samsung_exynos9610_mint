@@ -6722,25 +6722,16 @@ schedtune_margin(unsigned long capacity, unsigned long signal, long boost)
 	return margin;
 }
 
-extern DEFINE_PER_CPU(struct boost_groups, cpu_boost_groups);
-extern unsigned long freqvar_st_boost_vector(int cpu);
 static inline int
 schedtune_cpu_margin(unsigned long util, int cpu)
 {
-	int fv_boost = 0, boost = schedtune_cpu_boost(cpu);
-	struct boost_groups *bg = &per_cpu(cpu_boost_groups, cpu);
+	int boost = schedtune_cpu_boost(cpu);
 	unsigned long capacity;
 
 	if (boost == 0)
 		return 0;
 
 	capacity = capacity_orig_of(cpu);
-
-	if (bg->group[STUNE_TOPAPP].tasks)
-		fv_boost = freqvar_st_boost_vector(cpu);
-
-	if (fv_boost > boost)
-		boost = fv_boost;
 
 	return schedtune_margin(capacity, util, boost);
 }

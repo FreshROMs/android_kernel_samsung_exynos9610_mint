@@ -386,8 +386,8 @@
 			part {
 				/* little cores */
 				coregroup0 {
-					active-ratio-limit = <41>;
-					active-ratio-boost = <40>;
+					active-ratio-limit = <43>;
+					active-ratio-boost = <42>;
 				};
 				/* big cores */
 				coregroup1 {
@@ -3443,20 +3443,20 @@
 			device_type = "freqvar-tune";
 			shared-cpus = "0-3";
 
-			boost_table = < 150 806000 136 910000 128 1053000 114 1118000 108 1222000 100 >;
-			up_rate_limit_table = < 2 >;
-			down_rate_limit_table = < 5 >;
-			st_table = < 5 >;
+			boost_table = < 158 806000 148 910000 136 1053000 132 1118000 122 1222000 112 1326000 100 >;
+			up_rate_limit_table = < 4 >;
+			down_rate_limit_table = < 8 >;
+			tipping_ratio_table = < 20 >;
 		};
 
 		domain@1 {
 			device_type = "freqvar-tune";
 			shared-cpus = "4-7";
 
-			boost_table = < 148 1248000 134 1456000 128 1664000 110 1898000 104 2080000 100 >;
+			boost_table = < 154 1144000 140 1248000 132 1352000 122 1456000 114 1508000 108 1664000 100 >;
 			up_rate_limit_table = < 1 >;
 			down_rate_limit_table = < 20 >;
-			st_table = < 5 >;
+			tipping_ratio_table = < 25 >;
 		};
 	};
 

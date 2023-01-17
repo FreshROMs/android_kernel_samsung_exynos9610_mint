@@ -91,7 +91,14 @@ extern void mlt_set_period_start(struct rq *rq);
 extern void mlt_wakeup_task(struct rq *rq);
 extern void mlt_dequeue_task(struct rq *rq);
 extern void mlt_enqueue_task(struct rq *rq);
+extern void mlt_update_recent(struct rq *rq);
 extern void mlt_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu);
+
+/* FreqBoost */
+extern void ems_set_freqboost_ratio(int cgroup_idx, int ratio);
+extern int ems_get_freqboost_ratio(int cgroup_idx);
+extern void ems_set_wakeboost_ratio(int cgroup_idx, int ratio);
+extern int ems_get_wakeboost_ratio(int cgroup_idx);
 #endif
 
 /*

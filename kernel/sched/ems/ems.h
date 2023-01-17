@@ -114,6 +114,7 @@ enum {
 
 extern inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
                int sd_flag, int sync, int wake);
+extern int core_init(void);
 
 /* energy table */
 extern unsigned int calculate_efficiency(struct tp_env *env, int target_cpu);
@@ -130,6 +131,10 @@ extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 #define entity_is_task(se)  (!se->my_q)
 
 extern int mlt_art_last_value(int cpu);
+extern bool mlt_art_high_patten(struct mlt *mlt);
+extern inline int mlt_art_boost(struct mlt *mlt);
+extern inline int mlt_art_boost_limit(struct mlt *mlt);
+extern inline int mlt_art_last_boost_time(struct mlt *mlt);
 extern void mlt_init(void);
 extern void ntu_apply(struct sched_entity *se);
 extern unsigned long ml_task_util(struct task_struct *p);
@@ -145,21 +150,24 @@ extern inline unsigned long ml_uclamp_task_util(struct task_struct *p);
 #define MLT_PERIOD_SIZE     (4 * NSEC_PER_MSEC)
 #define MLT_PERIOD_COUNT    10
 
-/* efficiency cpu selection */
-extern int find_best_cpu(struct tp_env *env);
-extern int find_min_load_cpu(struct tp_env *env);
-
 /* ontime migration */
 extern int ontime_can_migrate_task(struct task_struct *p, int cpu);
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void ontime_migration(void);
 extern void ontime_update_next_balance(int cpu, struct ml_avg *avg);
 
+/* cpufreq */
+extern unsigned long cpufreq_get_boost_pelt_util(int cpu, unsigned long util);
+extern unsigned int cpufreq_get_tipping_point(int cpu, unsigned int freq);
+#if 0
+extern void cpufreq_register_hook(int (*func_sysfs_add_attr)(struct cpufreq_policy *policy, const struct attribute *attr),
+        struct cpufreq_policy (*func_get_attr_policy)(struct gov_attr_set *attr_set),
+        void (*func_update_rate_limit_us)(struct cpufreq_policy *policy, int up_rate_limit_ms, int down_rate_limit_ms));
+extern void cpufreq_unregister_hook(void);
+#endif
+
 /* prefer cpu */
 extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
-
-/* freqvar tune */
-extern unsigned long freqvar_st_boost_vector(int cpu);
 
 /*
  * Priority-pinning
@@ -167,8 +175,6 @@ extern unsigned long freqvar_st_boost_vector(int cpu);
 extern int tex_task(struct task_struct *p);
 extern void tex_enqueue_task(struct task_struct *p, int cpu);
 extern void tex_dequeue_task(struct task_struct *p, int cpu);
-extern void tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus);
-extern void tex_init(void);
 
 /* SCHED CLASS */
 #define EMS_SCHED_STOP      (1 << 0)
@@ -191,6 +197,7 @@ extern int ems_global_boost(void);
 #define MISFIT_TASK_UTIL_RATIO  (80)
 #define check_busy(util, cap)   ((util * 100) >= (cap * 80))
 
+extern bool cpu_preemptible(struct tp_env *env, int cpu);
 extern inline int is_heavy_task_util(unsigned long util);
 extern inline int is_misfit_task_util(unsigned long util);
 
@@ -232,14 +239,11 @@ extern inline bool is_busy_cpu(int cpu);
 extern int get_sched_class_idx(const struct sched_class *class);
 extern int cpuctl_task_group_idx(struct task_struct *p);
 
-extern unsigned long cpu_util_without(int cpu, struct task_struct *p);
 extern unsigned long task_util_est(struct task_struct *p);
 
 extern unsigned long boosted_task_util(struct task_struct *p);
-extern unsigned long freqvar_st_boost_vector(int cpu);
 
 extern unsigned int get_cpu_mips(unsigned int cpu);
 extern unsigned long get_freq_cap(unsigned int cpu, unsigned long freq);
 
 extern unsigned long capacity_curr_of(int cpu);
-extern void init_part(void);

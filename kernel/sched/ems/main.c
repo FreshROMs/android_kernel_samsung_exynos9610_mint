@@ -20,100 +20,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ems.h>
 
-/*
- * When a task is dequeued, its estimated utilization should not be update if
- * its util_avg has not been updated at least once.
- * This flag is used to synchronize util_avg updates with util_est updates.
- * We map this information into the LSB bit of the utilization saved at
- * dequeue time (i.e. util_est.dequeued).
- */
-#define UTIL_AVG_UNCHANGED 0x1
-
-static
-inline unsigned long _task_util_est(struct task_struct *p)
-{
-	struct util_est ue = READ_ONCE(p->se.avg.util_est);
-
-	return max(ue.ewma, ue.enqueued);
-}
-
-unsigned long cpu_util_without(int cpu, struct task_struct *p)
-{
-	struct cfs_rq *cfs_rq;
-	unsigned int util;
-
-	/* Task has no contribution or is new */
-	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
-		return cpu_util(cpu);
-
-	cfs_rq = &cpu_rq(cpu)->cfs;
-	util = READ_ONCE(cfs_rq->avg.util_avg);
-
-	/* Discount task's blocked util from CPU's util */
-	util -= min_t(unsigned int, util, task_util_est(p));
-
-	/*
-	 * Covered cases:
-	 *
-	 * a) if *p is the only task sleeping on this CPU, then:
-	 *      cpu_util (== task_util) > util_est (== 0)
-	 *    and thus we return:
-	 *      cpu_util_wake = (cpu_util - task_util) = 0
-	 *
-	 * b) if other tasks are SLEEPING on this CPU, which is now exiting
-	 *    IDLE, then:
-	 *      cpu_util >= task_util
-	 *      cpu_util > util_est (== 0)
-	 *    and thus we discount *p's blocked utilization to return:
-	 *      cpu_util_wake = (cpu_util - task_util) >= 0
-	 *
-	 * c) if other tasks are RUNNABLE on that CPU and
-	 *      util_est > cpu_util
-	 *    then we use util_est since it returns a more restrictive
-	 *    estimation of the spare capacity on that CPU, by just
-	 *    considering the expected utilization of tasks already
-	 *    runnable on that CPU.
-	 *
-	 * Cases a) and b) are covered by the above code, while case c) is
-	 * covered by the following code when estimated utilization is
-	 * enabled.
-	 */
-	if (sched_feat(UTIL_EST)) {
-		unsigned int estimated =
-			READ_ONCE(cfs_rq->avg.util_est.enqueued);
-
-		/*
-		 * Despite the following checks we still have a small window
-		 * for a possible race, when an execl's select_task_rq_fair()
-		 * races with LB's detach_task():
-		 *
-		 *   detach_task()
-		 *     p->on_rq = TASK_ON_RQ_MIGRATING;
-		 *     ---------------------------------- A
-		 *     deactivate_task()                   \
-		 *       dequeue_task()                     + RaceTime
-		 *         util_est_dequeue()              /
-		 *     ---------------------------------- B
-		 *
-		 * The additional check on "current == p" it's required to
-		 * properly fix the execl regression and it helps in further
-		 * reducing the chances for the above race.
-		 */
-		if (unlikely(task_on_rq_queued(p) || current == p)) {
-			estimated -= min_t(unsigned int, estimated,
-					   (_task_util_est(p) | UTIL_AVG_UNCHANGED));
-		}
-		util = max(util, estimated);
-	}
-
-	/*
-	 * Utilization (estimated) can exceed the CPU capacity, thus let's
-	 * clamp to the maximum CPU capacity to ensure consistency with
-	 * the cpu_util call.
-	 */
-	return min_t(unsigned long, util, capacity_orig_of(cpu));
-}
-
 static inline int
 check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 {
@@ -155,6 +61,38 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 	}
 
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries + 2);
+}
+
+extern int wake_cap(struct task_struct *p, int cpu, int prev_cpu);
+bool cpu_preemptible(struct tp_env *env, int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	struct task_struct *curr = READ_ONCE(rq->curr);
+
+	if (is_slowest_cpu(cpu) || !curr)
+		goto skip_ux;
+
+	/* Don't preempt EMS boosted task */
+	if (curr->pid && ems_task_boost() == curr->pid)
+		return false;
+
+	/* Don't preempt EMS Task EXpress task */
+	if (!tex_task(env->p) && tex_task(curr))
+		return false;
+
+	/* Allow preemption if not top-app */
+	if (!ems_task_top_app(curr))
+		goto skip_ux;
+
+	/* Check if 'curr' is a prefer-perf top-app task */
+	if (ems_task_boosted(curr))
+		return false;
+
+skip_ux:
+	if (env->sync && (rq->nr_running != 1 || wake_cap(env->p, cpu, env->src_cpu)))
+		return false;
+
+	return true;
 }
 
 inline int cpu_overutilized(int cpu)
@@ -258,11 +196,12 @@ int ems_task_boosted(struct task_struct *p)
 {
 	int cgroup_idx;
 
+	/* honor uclamp boost flag */
 	if (uclamp_boosted(p))
 		return 1;
 
 	cgroup_idx = cpuctl_task_group_idx(p);
-	return kpp_status(cgroup_idx);
+	return max(kpp_status(cgroup_idx), ems_global_boost());
 }
 
 /******************************************************************************
@@ -302,11 +241,9 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	if (!ontime_can_migrate_task(p, dst_cpu))
 		return 0;
 
-#if 0
 	/* avoid migration for tex task */
 	if (tex_task(p))
 		return 0;
-#endif
 
 	/* avoid migrating prefer-perf task to slow cpus */
 	if (is_slowest_cpu(dst_cpu) && ems_task_boosted(p))
@@ -350,7 +287,7 @@ void ems_enqueue_task(struct rq *rq, struct task_struct *p)
 
 	// stt_enqueue_task(rq, p);
 
-	// tex_enqueue_task(p, cpu_of(rq));
+	tex_enqueue_task(p, cpu_of(rq));
 
 	// freqboost_enqueue_task(p, cpu_of(rq), flags);
 }
@@ -361,7 +298,7 @@ void ems_dequeue_task(struct rq *rq, struct task_struct *p)
 
 	// stt_dequeue_task(rq, p);
 
-	// tex_dequeue_task(p, cpu_of(rq));
+	tex_dequeue_task(p, cpu_of(rq));
 
 	// freqboost_dequeue_task(p, cpu_of(rq), flags);
 }
@@ -375,7 +312,6 @@ void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
 				struct sched_entity **se_ptr, bool *repick,
 				bool simple, struct task_struct *prev)
 {
-#if 0
     struct task_struct *p = NULL;
 
     if (!list_empty(ems_qjump_list(rq))) {
@@ -386,7 +322,6 @@ void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
         list_move_tail(ems_qjump_list(rq), ems_qjump_node(p));
         *repick = true;
     }
-#endif
 }
 
 /* If EMS allows load balancing, return 0 */
@@ -407,10 +342,8 @@ void ems_post_init_entity_util_avg(struct sched_entity *se)
 
 void ems_fork_init(struct task_struct *p)
 {
-#if 0
 	ems_qjump_queued(p) = 0;
 	INIT_LIST_HEAD(ems_qjump_node(p));
-#endif
 }
 
 void ems_schedule(struct task_struct *prev,
@@ -442,19 +375,19 @@ int ems_check_preempt_wakeup(struct task_struct *p)
 	return 0;
 }
 
-#if 0
-static void qjump_rq_list_init(void)
+static
+void qjump_rq_list_init(void)
 {
 	int cpu;
 
 	for_each_cpu(cpu, cpu_possible_mask)
 		INIT_LIST_HEAD(ems_qjump_list(cpu_rq(cpu)));
 }
-#endif
 
 struct kobject *ems_kobj;
 
-static int __init init_sysfs(void)
+static
+int __init init_sysfs(void)
 {
 	ems_kobj = kobject_create_and_add("ems", kernel_kobj);
 	if (!ems_kobj)
@@ -465,5 +398,10 @@ static int __init init_sysfs(void)
 core_initcall(init_sysfs);
 
 void __init ems_init(void) {
+
 	mlt_init();
+
+	qjump_rq_list_init();
+
+	core_init();
 }

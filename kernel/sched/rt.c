@@ -2748,8 +2748,7 @@ static void get_ready_env(struct rt_env *env)
 {
 	struct task_struct *task = env->p;
 
-	unsigned long task_util = rttsk_task_util(task);
-	env->task_util = task_util;
+	env->task_util = rttsk_task_util(task);
 	env->min_util = frt_boosted_task_util(env->p);
 
 	/* set prefer perf status */
