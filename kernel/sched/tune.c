@@ -799,7 +799,7 @@ static int schedtune_sysbusy_notifier_call(struct notifier_block *nb,
 	sysbusy_state = state;
 
 	for (i = 0; i < BOOSTGROUPS_COUNT; i++) {
-		struct schedtune *st = css_st(&allocated_group[CGROUP_TOPAPP]->css);
+		struct schedtune *st = css_st(&allocated_group[i]->css);
 		if (unlikely(!st))
 			continue;
 
