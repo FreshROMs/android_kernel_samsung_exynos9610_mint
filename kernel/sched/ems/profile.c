@@ -112,7 +112,6 @@ void get_system_sched_data(struct system_profile_data *data)
 	read_unlock(&profile_sched_lock);
 }
 
-#if 1
 /****************************************************************
  *		  sysbusy state change notifier			*
  ****************************************************************/
@@ -132,7 +131,7 @@ static int profile_sysbusy_notifier_call(struct notifier_block *nb,
 static struct notifier_block profile_sysbusy_notifier = {
 	.notifier_call = profile_sysbusy_notifier_call,
 };
-#endif
+
 /****************************************************************
  *			Initialization				*
  ****************************************************************/

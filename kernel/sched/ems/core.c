@@ -24,6 +24,7 @@ struct {
     int qjump;
     int enabled[CGROUP_COUNT];
     int prio;
+	int suppress;
 } tex;
 
 int tex_task(struct task_struct *p)
@@ -41,8 +42,7 @@ int tex_task(struct task_struct *p)
     if (ems_task_on_top(p))
         return 1;
 
-    /* kernel prefer perf task is eligible for tex */
-    if (!kpp_status(grp_idx) && (!p->pid || ems_task_boost() != p->pid))
+    if (!p->pid || ems_task_boost() != p->pid)
         return 0;
 
     return p->prio <= tex.prio;
@@ -112,10 +112,25 @@ tex_pinning_schedule(struct tp_env *env, struct cpumask *candidates)
     cpumask_set_cpu(max_spare_cpu, candidates);
 }
 
+int tex_suppress_task(struct task_struct *p)
+{
+	if (!tex.suppress)
+		return 0;
+
+	if (ems_task_on_top(p))
+		return 0;
+
+	if (p->sched_class == &fair_sched_class && p->prio <= DEFAULT_PRIO)
+		return 0;
+
+	return 1;
+}
+
 static void
 tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus)
 {
     int target = tex_task(env->p);
+	int suppress = tex_suppress_task(env->p);
 
     if (target) {
         cpumask_andnot(fit_cpus, &tex.pinning_cpus, &tex.busy_cpus);
@@ -132,7 +147,14 @@ tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus)
             /* Pick best cpu among fit_cpus */
             tex_pinning_schedule(env, fit_cpus);
         }
-    } else {
+    } else if (suppress) {
+		/* Clear fastest & tex-busy cpus for the supressed task */
+		cpumask_andnot(fit_cpus, &env->cpus_allowed, cpu_fastest_mask());
+		cpumask_andnot(fit_cpus, fit_cpus, &tex.busy_cpus);
+
+		if (cpumask_empty(fit_cpus))
+			cpumask_copy(fit_cpus, &env->cpus_allowed);
+	} else {
         /* Exclude cpus where priority pinning tasks run */
         cpumask_andnot(fit_cpus, tsk_cpus_allowed(env->p), &tex.busy_cpus);
     }
@@ -182,6 +204,21 @@ int ems_tex_prio_stune_hook_write(struct cgroup_subsys_state *css,
 		return -EINVAL;
 
 	tex.prio = prio;
+	return 0;
+}
+
+u64 ems_tex_suppress_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	return (u64) tex.suppress;
+}
+
+int ems_tex_suppress_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	tex.suppress = enabled;
 	return 0;
 }
 
@@ -291,6 +328,7 @@ int __init tex_init(void)
 
     cpumask_clear(&tex.busy_cpus);
     tex.qjump = 0;
+    tex.suppress = 1;
 	for (i = 0; i < CGROUP_COUNT; i++)
 		tex.enabled[i] = 0;
     tex.prio = 110;
@@ -782,7 +820,6 @@ int find_best_cpu(struct tp_env *env)
 	int policy = env->sched_policy;
 	int best_cpu = INVALID_CPU;
 
-#if 1
 	/* When sysbusy is detected, do scheduling under other policies */
 	if (sysbusy_activated()) {
 		best_cpu = sysbusy_schedule(env);
@@ -791,7 +828,7 @@ int find_best_cpu(struct tp_env *env)
 			goto out;
 		}
 	}
-#endif
+
 	switch (policy) {
 	case SCHED_POLICY_EFF:
 		/* Find best efficiency cpu */

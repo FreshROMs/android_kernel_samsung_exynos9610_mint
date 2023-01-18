@@ -73,13 +73,13 @@ bool cpu_preemptible(struct tp_env *env, int cpu)
 	if (curr->pid && ems_task_boost() == curr->pid)
 		return false;
 
-	/* Don't preempt EMS Task EXpress task */
-	if (!tex_task(env->p) && tex_task(curr))
-		return false;
-
 	/* Allow preemption if not top-app */
 	if (!ems_task_top_app(curr))
 		goto skip_ux;
+
+	/* Check if 'curr' is an on-top task */
+	if (ems_task_on_top(curr))
+		return false;
 
 	/* Check if 'curr' is a prefer-perf top-app task */
 	if (ems_task_boosted(curr))
@@ -215,6 +215,10 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	if (tex_task(p))
 		return 0;
 
+	/* avoid migrating tex supressed task to fast cpu */
+	if (!cpu_overutilized(src_cpu) && tex_suppress_task(p) && cpumask_test_cpu(dst_cpu, cpu_fastest_mask()))
+		return 0;
+
 	/* avoid migrating prefer-perf task to slow cpus */
 	if (is_slowest_cpu(dst_cpu) && ems_task_boosted(p))
 		return 0;
@@ -297,10 +301,8 @@ void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
 /* If EMS allows load balancing, return 0 */
 int ems_load_balance(struct rq *rq)
 {
-#if 1
 	if (sysbusy_on_somac())
 		return -EBUSY;
-#endif
 
 	return 0;
 }

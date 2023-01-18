@@ -621,6 +621,10 @@ extern u64 ems_tex_prio_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_tex_prio_stune_hook_write(struct cgroup_subsys_state *css,
 		             struct cftype *cft, u64 prio);
+extern u64 ems_tex_suppress_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_tex_suppress_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 prio);
 extern u64 ems_qjump_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_qjump_stune_hook_write(struct cgroup_subsys_state *css,
@@ -695,6 +699,12 @@ static struct cftype files[] = {
 		.flags = CFTYPE_ONLY_ON_ROOT,
 		.read_u64 = ems_tex_prio_stune_hook_read,
 		.write_u64 = ems_tex_prio_stune_hook_write,
+	},
+	{
+		.name = "tex_supress",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = ems_tex_suppress_stune_hook_read,
+		.write_u64 = ems_tex_suppress_stune_hook_write,
 	},
 	{
 		.name = "qjump",

@@ -178,6 +178,7 @@ extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
  * Priority-pinning
  */
 extern int tex_task(struct task_struct *p);
+extern int tex_suppress_task(struct task_struct *p);
 extern void tex_enqueue_task(struct task_struct *p, int cpu);
 extern void tex_dequeue_task(struct task_struct *p, int cpu);
 
