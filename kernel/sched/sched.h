@@ -417,20 +417,6 @@ struct task_group {
 	unsigned int		latency_sensitive;
 	/* Boosted flag for a task group */
 	unsigned int 		boosted;
-
-#ifdef CONFIG_SCHED_EMS
-	/* Scheduling policy for a task group */
-	unsigned int 		sched_policy;
-
-	/* Ontime enabled for a task group */
-	unsigned int 		ontime_enabled;
-
-	/* New task utilization ratio for a task group */
-	unsigned int 		ntu_ratio;
-
-	/* Task EXpress (TEX) for a task group */
-	unsigned int 		tex_enabled;
-#endif
 #endif
 
 };
@@ -2578,69 +2564,6 @@ static inline bool uclamp_boosted(struct task_struct *p)
 
 	return tg->boosted;
 }
-
-#ifdef CONFIG_SCHED_EMS
-static inline unsigned int ems_sched_policy(struct task_struct *p)
-{
-	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
-	struct task_group *tg;
-
-	if (!css)
-		return 0;
-
-	if (!strlen(css->cgroup->kn->name))
-		return 0;
-
-	tg = container_of(css, struct task_group, css);
-
-	return tg->sched_policy;
-}
-static inline bool ems_ontime_enabled(struct task_struct *p)
-{
-	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
-	struct task_group *tg;
-
-	if (!css)
-		return false;
-
-	if (!strlen(css->cgroup->kn->name))
-		return 0;
-
-	tg = container_of(css, struct task_group, css);
-
-	return tg->ontime_enabled;
-}
-static inline int ems_ntu_ratio(struct task_struct *p)
-{
-	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
-	struct task_group *tg;
-
-	if (!css)
-		return 25;
-
-	if (!strlen(css->cgroup->kn->name))
-		return 25;
-
-	tg = container_of(css, struct task_group, css);
-
-	return tg->ntu_ratio;
-}
-static inline bool ems_tex_enabled(struct task_struct *p)
-{
-	struct cgroup_subsys_state *css = task_css(p, cpuset_cgrp_id);
-	struct task_group *tg;
-
-	if (!css)
-		return false;
-
-	if (!strlen(css->cgroup->kn->name))
-		return 0;
-
-	tg = container_of(css, struct task_group, css);
-
-	return tg->tex_enabled;
-}
-#endif
 #else
 static inline bool uclamp_latency_sensitive(struct task_struct *p)
 {
@@ -2648,26 +2571,6 @@ static inline bool uclamp_latency_sensitive(struct task_struct *p)
 }
 
 static inline bool uclamp_boosted(struct task_struct *p)
-{
-	return false;
-}
-
-static inline unsigned int ems_sched_policy(struct task_struct *p)
-{
-	return 0;
-}
-
-static inline bool ems_ontime_enabled(struct task_struct *p)
-{
-	return false;
-}
-
-static inline int ems_ntu_ratio(struct task_struct *p)
-{
-	return 25;
-}
-
-static inline bool ems_tex_enabled(struct task_struct *p)
 {
 	return false;
 }

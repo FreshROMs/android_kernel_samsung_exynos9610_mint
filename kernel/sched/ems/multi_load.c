@@ -9,9 +9,8 @@
 #include <linux/ems.h>
 
 #include "../sched.h"
-#ifndef CONFIG_UCLAMP_TASK_GROUP
 #include "../tune.h"
-#endif
+
 #include "ems.h"
 
 #include <trace/events/ems.h>
@@ -257,6 +256,8 @@ void ml_new_entity_load(struct task_struct *parent, struct sched_entity *se)
 /******************************************************************************
  *                     New task utilization init                              *
  ******************************************************************************/
+static int ntu_ratio[CGROUP_COUNT] = {25, };
+
 void ntu_apply(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = se->cfs_rq;
@@ -264,7 +265,8 @@ void ntu_apply(struct sched_entity *se)
 	int cpu = cpu_of(cfs_rq->rq);
 	unsigned long cap_org = capacity_orig_of(cpu);
 	long cap = (long)(cap_org - cfs_rq->avg.util_avg) / 2;
-	int ratio = ems_ntu_ratio(task_of(se));
+	int grp_idx = schedtune_task_group_idx(task_of(se));
+	int ratio = ntu_ratio[grp_idx];
 
 	if (cap > 0) {
 		if (cfs_rq->avg.util_avg != 0) {
@@ -283,6 +285,36 @@ void ntu_apply(struct sched_entity *se)
 		 */
 		sa->util_sum = (u32)(sa->util_avg * LOAD_AVG_MAX);
 	}
+}
+
+u64 ems_ntu_ratio_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT)
+		return (u64) ntu_ratio[CGROUP_ROOT];
+
+	return (u64) ntu_ratio[group_idx];
+}
+
+int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 ratio) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (ratio < 0 || ratio > 100)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		ntu_ratio[CGROUP_ROOT] = ratio;
+		return 0;
+	}
+
+	ntu_ratio[group_idx] = ratio;
+	return 0;
 }
 
 /******************************************************************************

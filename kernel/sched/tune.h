@@ -1,7 +1,13 @@
 
 #ifdef CONFIG_SCHED_TUNE
-
 #include <linux/reciprocal_div.h>
+
+/*
+ * EAS scheduler tunables for task groups.
+ */
+
+/* We hold schedtune boost in effect for at least this long */
+#define SCHEDTUNE_BOOST_HOLD_NS 50000000ULL
 
 /*
  * System energy normalization constants
@@ -12,44 +18,70 @@ struct target_nrg {
 	struct reciprocal_value rdiv;
 };
 
-int schedtune_cpu_boost(int cpu);
-int schedtune_task_boost(struct task_struct *tsk);
+/* SchdTune tunables for a group of tasks */
+struct schedtune {
+	/* SchedTune CGroup subsystem */
+	struct cgroup_subsys_state css;
+
+	/* Boost group allocated ID */
+	int idx;
+
+	/* Boost value for tasks on that SchedTune CGroup */
+	int boost;
+
+#ifndef CONFIG_UCLAMP_TASK_GROUP
+	/* Hint to bias scheduling of tasks on that SchedTune CGroup
+	 * towards idle CPUs */
+	int prefer_idle;
+#endif
+};
+
+static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct schedtune, css) : NULL;
+}
+
+static inline struct schedtune *task_schedtune(struct task_struct *tsk)
+{
+	return css_st(task_css(tsk, schedtune_cgrp_id));
+}
+
+static inline struct schedtune *parent_st(struct schedtune *st)
+{
+	return css_st(st->css.parent);
+}
+
+extern inline int schedtune_cpu_margin(unsigned long util, int cpu);
+extern inline long schedtune_task_margin(struct task_struct *task);
 
 #ifdef CONFIG_SCHED_EMS
 int schedtune_task_group_idx(struct task_struct *tsk);
-int schedtune_task_top_app(struct task_struct *tsk);
-int schedtune_task_on_top(struct task_struct *tsk);
-int schedtune_sched_policy(struct task_struct *tsk);
-
-int schedtune_ntu_ratio(struct task_struct *tsk);
-
-int schedtune_tex_en(struct task_struct *tsk);
-int schedtune_tex_prio(struct task_struct *tsk);
-int schedtune_tex_qjump_en(struct task_struct *tsk);
 #endif
 
+int schedtune_cpu_boost(int cpu);
+int schedtune_task_boost(struct task_struct *tsk);
+
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+#define schedtune_prefer_idle(tsk) 0
+#else
 int schedtune_prefer_idle(struct task_struct *tsk);
-int schedtune_prefer_perf(struct task_struct *tsk);
-int schedtune_ontime_en(struct task_struct *tsk);
+#endif
 
 void schedtune_enqueue_task(struct task_struct *p, int cpu);
 void schedtune_dequeue_task(struct task_struct *p, int cpu);
 
 #else /* CONFIG_SCHED_TUNE */
+#define schedtune_cpu_margin(util, cpu) 0
+#define schedtune_task_margin(tsk) 0
+
+#ifdef CONFIG_SCHED_EMS
+#define schedtune_task_group_idx(tsk) 0
+#endif
 
 #define schedtune_cpu_boost(cpu)  0
 #define schedtune_task_boost(tsk) 0
 
-#ifdef CONFIG_SCHED_EMS
-#define schedtune_task_group_idx(tsk) 0
-#define schedtune_task_top_app(tsk) 0
-#define schedtune_task_on_top(tsk) 0
-#define schedtune_sched_policy(tsk) 0
-#endif
-
 #define schedtune_prefer_idle(tsk) 0
-#define schedtune_prefer_perf(tsk) 0
-#define schedtune_ontime_en(tsk) 0
 
 #define schedtune_enqueue_task(task, cpu) do { } while (0)
 #define schedtune_dequeue_task(task, cpu) do { } while (0)

@@ -5356,10 +5356,10 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct sched_entity *se = &p->se;
 	int task_new = !(flags & ENQUEUE_WAKEUP);
 	bool prefer_idle = sched_feat(EAS_PREFER_IDLE) ?
-#ifdef CONFIG_SCHED_TUNE
-				(schedtune_prefer_idle(p) > 0) : 0;
-#elif  CONFIG_UCLAMP_TASK
+#ifdef  CONFIG_UCLAMP_TASK
 				(uclamp_latency_sensitive(p) > 0) : 0;
+#elif CONFIG_SCHED_TUNE
+				(schedtune_prefer_idle(p) > 0) : 0;
 #endif
 
 	/*
@@ -6693,79 +6693,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 	return affine;
 }
 
-#ifdef CONFIG_SCHED_TUNE
-struct reciprocal_value schedtune_spc_rdiv;
-
-long
-schedtune_margin(unsigned long capacity, unsigned long signal, long boost)
-{
-	long long margin = 0;
-
-	/*
-	 * Signal proportional compensation (SPC)
-	 *
-	 * The Boost (B) value is used to compute a Margin (M) which is
-	 * proportional to the complement of the original Signal (S):
-	 *   M = B * (CAPACITY - S)
-	 * The obtained M could be used by the caller to "boost" S.
-	 */
-	if (boost >= 0) {
-		margin  = capacity - signal;
-		margin *= boost;
-	} else
-		margin = -signal * boost;
-
-	margin  = reciprocal_divide(margin, schedtune_spc_rdiv);
-
-	if (boost < 0)
-		margin *= -1;
-	return margin;
-}
-
-static inline int
-schedtune_cpu_margin(unsigned long util, int cpu)
-{
-	int boost = schedtune_cpu_boost(cpu);
-	unsigned long capacity;
-
-	if (boost == 0)
-		return 0;
-
-	capacity = capacity_orig_of(cpu);
-
-	return schedtune_margin(capacity, util, boost);
-}
-
-static inline long
-schedtune_task_margin(struct task_struct *task)
-{
-	int boost = schedtune_task_boost(task);
-	unsigned long util, capacity;
-
-	if (boost == 0)
-		return 0;
-
-	capacity = capacity_orig_of(task_cpu(task));
-	util = task_util_est(task);
-	return schedtune_margin(capacity, util, boost);
-}
-
-#else /* CONFIG_SCHED_TUNE */
-
-static inline int
-schedtune_cpu_margin(unsigned long util, int cpu)
-{
-	return 0;
-}
-
-static inline int
-schedtune_task_margin(struct task_struct *task)
-{
-	return 0;
-}
-
-#endif /* CONFIG_SCHED_TUNE */
-
 unsigned long
 boosted_cpu_util(int cpu)
 {
@@ -7888,10 +7815,10 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 		 * all if(prefer_idle) blocks.
 		 */
 		prefer_idle = sched_feat(EAS_PREFER_IDLE) ?
-#ifdef CONFIG_SCHED_TUNE
-				(schedtune_prefer_idle(p) > 0) : 0;
-#elif  CONFIG_UCLAMP_TASK
+#ifdef  CONFIG_UCLAMP_TASK
 				(uclamp_latency_sensitive(p) > 0) : 0;
+#elif CONFIG_SCHED_TUNE
+				(schedtune_prefer_idle(p) > 0) : 0;
 #endif
 		eenv->max_cpu_count = EAS_CPU_BKP + 1;
 
@@ -7980,10 +7907,10 @@ static inline int wake_energy(struct task_struct *p, int prev_cpu,
 		 * Force prefer-idle tasks into the slow path, this may not happen
 		 * if none of the sd flags matched.
 		 */
-#ifdef CONFIG_SCHED_TUNE
-		if (schedtune_prefer_idle(p) > 0
-#elif  CONFIG_UCLAMP_TASK
+#ifdef CONFIG_UCLAMP_TASK
 		if (uclamp_latency_sensitive(p) > 0
+#elif CONFIG_SCHED_TUNE
+		if (schedtune_prefer_idle(p) > 0
 #endif
 				&& !sync)
 			return false;

@@ -270,7 +270,6 @@ static inline bool __is_busy_cpu(unsigned long util,
 extern inline bool is_busy_cpu(int cpu);
 
 extern int get_sched_class_idx(const struct sched_class *class);
-extern int cpuctl_task_group_idx(struct task_struct *p);
 
 extern unsigned long task_util_est(struct task_struct *p);
 

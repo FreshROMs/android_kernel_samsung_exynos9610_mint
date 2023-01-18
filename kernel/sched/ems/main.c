@@ -12,10 +12,7 @@
 
 #include "ems.h"
 #include "../sched.h"
-
-#ifndef CONFIG_UCLAMP_TASK_GROUP
 #include "../tune.h"
-#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ems.h>
@@ -143,42 +140,18 @@ int get_sched_class_idx(const struct sched_class *class)
 	return 1 << class_idx;
 }
 
-int cpuctl_task_group_idx(struct task_struct *p)
-{
-	int idx;
-	struct cgroup_subsys_state *css;
-
-	rcu_read_lock();
-
-	/* On 4.14, Android uses 'cpuset' */
-	css = task_css(p, cpuset_cgrp_id);
-	idx = css->id - 1;
-
-	rcu_read_unlock();
-
-	if (idx >= CGROUP_COUNT)
-		return 0;
-
-	return idx;
-}
-
 int ems_task_top_app(struct task_struct *p)
 {
-#ifdef CONFIG_UCLAMP_TASK_GROUP
 	/* Don't touch kthreads */
 	if (p->flags & PF_KTHREAD)
 		return 0;
 
-	return cpuctl_task_group_idx(p) == CGROUP_TOPAPP;
-#else
-	return schedtune_task_top_app(p);
-#endif
+	return schedtune_task_group_idx(p) == CGROUP_TOPAPP;
 }
 
 #define SYSTEMUI_THREAD_NAME "ndroid.systemui"
 int ems_task_on_top(struct task_struct *p)
 {
-#ifdef CONFIG_UCLAMP_TASK_GROUP
 	if (p->signal->oom_score_adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
@@ -187,9 +160,6 @@ int ems_task_on_top(struct task_struct *p)
 		return 0;
 
 	return ems_task_top_app(p);
-#else
-	return schedtune_task_on_top(p);
-#endif
 }
 
 int ems_task_boosted(struct task_struct *p)
@@ -200,7 +170,7 @@ int ems_task_boosted(struct task_struct *p)
 	if (uclamp_boosted(p))
 		return 1;
 
-	cgroup_idx = cpuctl_task_group_idx(p);
+	cgroup_idx = schedtune_task_group_idx(p);
 	return max(kpp_status(cgroup_idx), ems_global_boost());
 }
 

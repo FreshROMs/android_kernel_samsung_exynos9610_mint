@@ -25,6 +25,7 @@
 #include <trace/events/power.h>
 
 #include "../sched.h"
+#include "../tune.h"
 #include "ems.h"
 
 /**
@@ -402,6 +403,7 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 	/* get basic pelt util with uclamp */
    	pelt_util = ml_cpu_util(cpu);
    	pelt_util = uclamp_util_with(rq, pelt_util, NULL);
+   	pelt_util += schedtune_cpu_margin(pelt_util, cpu);
 
    	/* get boosted pelt util from freqvar */
 	pelt_util = cpufreq_get_boost_pelt_util(cpu, pelt_util);
@@ -1254,8 +1256,7 @@ int aigov_need_slack_timer(unsigned int cpu)
 {
 	struct aigov_cpu *ai_gov = &per_cpu(aigov_cpu, cpu);
 
-#if 0
-	// TODO: Adapt to FREQBOOST
+#if 1
 	if (schedtune_cpu_boost(cpu))
 		return 0;
 #endif

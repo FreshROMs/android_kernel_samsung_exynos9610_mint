@@ -6,7 +6,6 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/ems.h>
-#include <linux/ems_service.h>
 
 #include <trace/events/sched.h>
 
@@ -14,57 +13,7 @@
 #include "tune.h"
 
 bool schedtune_initialized = false;
-extern struct reciprocal_value schedtune_spc_rdiv;
-
-/* We hold schedtune boost in effect for at least this long */
-#define SCHEDTUNE_BOOST_HOLD_NS 50000000ULL
-
-/*
- * EAS scheduler tunables for task groups.
- */
-
-/* SchdTune tunables for a group of tasks */
-struct schedtune {
-	/* SchedTune CGroup subsystem */
-	struct cgroup_subsys_state css;
-
-	/* Boost group allocated ID */
-	int idx;
-
-	/* Boost value for tasks on that SchedTune CGroup */
-	int boost;
-
-	/* Hint to bias scheduling of tasks on that SchedTune CGroup
-	 * towards idle CPUs */
-	int prefer_idle;
-
-	/* Hint to bias scheduling of tasks on that SchedTune CGroup
-	 * towards high performance CPUs */
-	int prefer_perf;
-
-#ifdef CONFIG_SCHED_EMS
-	/* Scheduling policy for given cgroup */
-	int sched_policy;
-#endif
-
-	/* SchedTune ontime migration */
-	int ontime_en;
-};
-
-static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
-{
-	return css ? container_of(css, struct schedtune, css) : NULL;
-}
-
-static inline struct schedtune *task_schedtune(struct task_struct *tsk)
-{
-	return css_st(task_css(tsk, schedtune_cgrp_id));
-}
-
-static inline struct schedtune *parent_st(struct schedtune *st)
-{
-	return css_st(st->css.parent);
-}
+struct reciprocal_value schedtune_spc_rdiv;
 
 /*
  * SchedTune root control group
@@ -78,10 +27,8 @@ static inline struct schedtune *parent_st(struct schedtune *st)
 static struct schedtune
 root_schedtune = {
 	.boost	= 0,
+#ifndef CONFIG_UCLAMP_TASK_GROUP
 	.prefer_idle = 0,
-	.prefer_perf = 0,
-#ifdef CONFIG_SCHED_EMS
-	.sched_policy = 0,
 #endif
 };
 
@@ -96,11 +43,7 @@ root_schedtune = {
  *    implementation especially for the computation of the per-CPU boost
  *    value
  */
-#if defined(CONFIG_MINT_SESL) && defined(CONFIG_MINT_PLATFORM_VERSION) && CONFIG_MINT_PLATFORM_VERSION >= 12
-#define BOOSTGROUPS_COUNT 8
-#else
 #define BOOSTGROUPS_COUNT 6
-#endif
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
@@ -430,29 +373,59 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
-#define SYSTEMUI_THREAD_NAME "ndroid.systemui"
-static inline int schedtune_adj_ta(struct task_struct *p)
+static long
+schedtune_margin(unsigned long capacity, unsigned long signal, long boost)
 {
-	struct schedtune *st;
-	char name_buf[NAME_MAX + 1];
-	int adj = p->signal->oom_score_adj;
+	long long margin = 0;
 
-	/* We only care about adj == 0 */
-	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
+	/*
+	 * Signal proportional compensation (SPC)
+	 *
+	 * The Boost (B) value is used to compute a Margin (M) which is
+	 * proportional to the complement of the original Signal (S):
+	 *   M = B * (CAPACITY - S)
+	 * The obtained M could be used by the caller to "boost" S.
+	 */
+	if (boost >= 0) {
+		margin  = capacity - signal;
+		margin *= boost;
+	} else
+		margin = -signal * boost;
+
+	margin  = reciprocal_divide(margin, schedtune_spc_rdiv);
+
+	if (boost < 0)
+		margin *= -1;
+	return margin;
+}
+
+inline int
+schedtune_cpu_margin(unsigned long util, int cpu)
+{
+	int boost = schedtune_cpu_boost(cpu);
+	unsigned long capacity;
+
+	if (boost == 0)
 		return 0;
 
-	/* Don't touch kthreads */
-	if (p->flags & PF_KTHREAD)
+	capacity = capacity_orig_of(cpu);
+
+	return schedtune_margin(capacity, util, boost);
+}
+
+extern unsigned long task_util_est(struct task_struct *p);
+inline long
+schedtune_task_margin(struct task_struct *task)
+{
+	int boost = schedtune_task_boost(task);
+	unsigned long util, capacity;
+
+	if (boost == 0)
 		return 0;
 
-	st = task_schedtune(p);
-	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
-	if (!strncmp(name_buf, "top-app", strlen("top-app"))) {
-		pr_debug("top app is %s with adj %i\n", p->comm, adj);
-		return 1;
-	}
-
-	return 0;
+	capacity = capacity_orig_of(task_cpu(task));
+	util = task_util_est(task);
+	return schedtune_margin(capacity, util, boost);
 }
 
 #ifdef CONFIG_SCHED_EMS
@@ -470,95 +443,11 @@ int schedtune_task_group_idx(struct task_struct *p)
 	group_idx = st->idx;
 	rcu_read_unlock();
 
+	/* if group idx goes beyond allowed, return root */
+	if (group_idx >= CGROUP_COUNT)
+		group_idx = 0;
+
 	return group_idx;
-}
-
-int schedtune_task_top_app(struct task_struct *p)
-{
-	int task_group_idx;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Don't touch kthreads */
-	if (p->flags & PF_KTHREAD)
-		return 0;
-
-	/* Return if task is not an app */
-	if (!is_app(p))
-		return 0;
-
-	task_group_idx = schedtune_task_group_idx(p);
-	return (task_group_idx == STUNE_TOPAPP);
-}
-
-int schedtune_task_on_top(struct task_struct *p)
-{
-	if (p->signal->oom_score_adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
-		return 0;
-
-	return schedtune_task_top_app(p);
-}
-
-int schedtune_task_sched_policy(struct task_struct *p)
-{
-	struct schedtune *st;
-	int sched_policy;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get sched_policy value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-
-	if (!st) {
-		sched_policy = 0;
-		goto out;
-	}
-
-	sched_policy = st->sched_policy;
-
-out:
-	rcu_read_unlock();
-
-	return sched_policy;
-}
-
-char *ems_sched_policy_name[] = {
-    "SCHED_POLICY_EFF",
-    "SCHED_POLICY_ENERGY",
-    "SCHED_POLICY_SEMI_PERF",
-    "SCHED_POLICY_PERF",
-    "SCHED_POLICY_MIN_UTIL",
-    "SCHED_POLICY_UNKNOWN"
-};
-
-static int
-sched_policy_read(struct seq_file *sf, void *v)
-{
-	struct cgroup_subsys_state *css = seq_css(sf);
-	struct schedtune *st = css_st(css);
-
-	seq_printf(sf, "%u. %s\n", st->sched_policy,
-		ems_sched_policy_name[st->sched_policy]);
-	
-	return 0;
-}
-
-static int
-sched_policy_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 sched_policy)
-{
-	struct schedtune *st = css_st(css);
-
-	if (sched_policy < 0 || sched_policy >= 5) {
-		st->sched_policy = 0;
-		return -EINVAL;
-	}
-
-	st->sched_policy = sched_policy;
-	return 0;
 }
 #endif
 
@@ -573,30 +462,13 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = max(st->boost, schedtune_adj_ta(p));
+	task_boost = st->boost;
 	rcu_read_unlock();
 
 	return task_boost;
 }
 
-int schedtune_ontime_en(struct task_struct *p)
-{
-	struct schedtune *st;
-	int ontime_en;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get ontime value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	ontime_en = st->ontime_en;
-	rcu_read_unlock();
-
-	return ontime_en;
-
-}
-
+#ifndef CONFIG_UCLAMP_TASK_GROUP
 int schedtune_prefer_idle(struct task_struct *p)
 {
 	struct schedtune *st;
@@ -613,42 +485,9 @@ int schedtune_prefer_idle(struct task_struct *p)
 
 	return prefer_idle;
 }
+#endif
 
-int schedtune_prefer_perf(struct task_struct *p)
-{
-	struct schedtune *st;
-	int prefer_perf;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get prefer_perf value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	prefer_perf = max(st->prefer_perf, kpp_status(st->idx));
-	rcu_read_unlock();
-
-	return prefer_perf;
-}
-
-static u64
-ontime_en_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->ontime_en;
-}
-
-static int
-ontime_en_write(struct cgroup_subsys_state *css, struct cftype *cft,
-		u64 ontime_en)
-{
-	struct schedtune *st = css_st(css);
-	st->ontime_en = ontime_en;
-
-	return 0;
-}
-
+#ifndef CONFIG_UCLAMP_TASK_GROUP
 static u64
 prefer_idle_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
@@ -666,24 +505,7 @@ prefer_idle_write(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	return 0;
 }
-
-static u64
-prefer_perf_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->prefer_perf;
-}
-
-static int
-prefer_perf_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 prefer_perf)
-{
-	struct schedtune *st = css_st(css);
-	st->prefer_perf = prefer_perf;
-
-	return 0;
-}
+#endif
 
 static s64
 boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
@@ -710,34 +532,80 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	return 0;
 }
 
+#ifdef CONFIG_SCHED_EMS
+/* stune api */
+extern u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_tex_enabled_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled);
+extern u64 ems_tex_prio_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_tex_prio_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 prio);
+extern u64 ems_qjump_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_qjump_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled);
+extern int ems_sched_policy_stune_hook_read(struct seq_file *sf, void *v);
+extern int ems_sched_policy_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 policy);
+extern u64 ems_ontime_enabled_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_ontime_enabled_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled);
+extern u64 ems_ntu_ratio_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 ratio);
+#endif
+
 static struct cftype files[] = {
 	{
 		.name = "boost",
 		.read_s64 = boost_read,
 		.write_s64 = boost_write,
 	},
+#ifndef CONFIG_UCLAMP_TASK_GROUP
 	{
 		.name = "prefer_idle",
 		.read_u64 = prefer_idle_read,
 		.write_u64 = prefer_idle_write,
 	},
-	{
-		.name = "prefer_perf",
-		.read_u64 = prefer_perf_read,
-		.write_u64 = prefer_perf_write,
-	},
+#endif
 #ifdef CONFIG_SCHED_EMS
 	{
-		.name = "ems_sched_policy",
-		.seq_show = sched_policy_read,
-		.write_u64 = sched_policy_write,
+		.name = "sched_policy",
+		.seq_show = ems_sched_policy_stune_hook_read,
+		.write_u64 = ems_sched_policy_stune_hook_write,
+	},
+	{
+		.name = "ontime_enabled",
+		.read_u64 = ems_ontime_enabled_stune_hook_read,
+		.write_u64 = ems_ontime_enabled_stune_hook_write,
+	},
+	{
+		.name = "ntu_ratio",
+		.read_u64 = ems_ntu_ratio_stune_hook_read,
+		.write_u64 = ems_ntu_ratio_stune_hook_write,
+	},
+	{
+		.name = "tex_enabled",
+		.read_u64 = ems_tex_enabled_stune_hook_read,
+		.write_u64 = ems_tex_enabled_stune_hook_write,
+	},
+	{
+		.name = "tex_prio",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = ems_tex_prio_stune_hook_read,
+		.write_u64 = ems_tex_prio_stune_hook_write,
+	},
+	{
+		.name = "qjump",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = ems_qjump_stune_hook_read,
+		.write_u64 = ems_qjump_stune_hook_write,
 	},
 #endif
-	{
-		.name = "ontime_en",
-		.read_u64 = ontime_en_read,
-		.write_u64 = ontime_en_write,
-	},
 	{ }	/* terminate */
 };
 
@@ -761,6 +629,48 @@ schedtune_boostgroup_init(struct schedtune *st)
 	return 0;
 }
 
+struct stune_param {
+	char *name;
+	s64 boost;
+
+	u64 ems_sched_policy;
+	u64 ems_ontime_enabled;
+	u64 ems_ntu_ratio;
+	u64 ems_tex_enabled;
+};
+
+static void
+schedtune_set_default_values(struct cgroup_subsys_state *css)
+{
+	int i;
+	static struct stune_param tgts[] = {
+		/* cgroup            b e-p e-o  e-n e-t */
+		{"top-app",	         5,  2,  1,  25,  1 },
+		{"foreground",	     0,  0,  1,  25,  0 },
+		{"background",	     0,  1,  0,  25,  0 },
+		{"rt",		         0,  2,  0,  25,  0 },
+		{"camera-daemon",	 0,  3,  0,  25,  0 },
+		{"nnapi-hal",	     0,  3,  0,  25,  0 },
+		{"hot",	             0,  0,  0,  25,  0 },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
+		struct stune_param tgt = tgts[i];
+
+		if (!strcmp(css->cgroup->kn->name, tgt.name)) {
+			pr_info("stune_assist: setting values for %s: boost=%d ems_sched_policy=%d ems_ontime_enabled=%d ems_ntu_ratio=%d ems_tex_enabled=%d\n",
+				tgt.name, tgt.boost, tgt.ems_sched_policy, tgt.ems_ontime_enabled,
+				tgt.ems_ntu_ratio, tgt.ems_tex_enabled);
+
+			boost_write(css, NULL, tgt.boost);
+			ems_sched_policy_stune_hook_write(css, NULL, tgt.ems_sched_policy);
+			ems_ontime_enabled_stune_hook_write(css, NULL, tgt.ems_ontime_enabled);
+			ems_ntu_ratio_stune_hook_write(css, NULL, tgt.ems_ntu_ratio);
+			ems_tex_enabled_stune_hook_write(css, NULL, tgt.ems_tex_enabled);
+		}
+	}
+}
+
 static struct cgroup_subsys_state *
 schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 {
@@ -777,9 +687,13 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 	}
 
 	/* Allow only a limited number of boosting groups */
-	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx)
+	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
 		if (!allocated_group[idx])
 			break;
+
+		schedtune_set_default_values(&allocated_group[idx]->css);
+	}
+
 	if (idx == BOOSTGROUPS_COUNT) {
 		pr_err("Trying to create more than %d SchedTune boosting groups\n",
 		       BOOSTGROUPS_COUNT);
@@ -792,21 +706,6 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	/* Initialize per CPUs boost group support */
 	st->idx = idx;
-
-#ifdef CONFIG_SCHED_EMS
-	switch (idx) {
-	case STUNE_BACKGROUND:
-		st->sched_policy = 1; // SCHED_POLICY_ENERGY
-		break;
-	// case STUNE_TOPAPP:
-	case STUNE_RT:
-		st->sched_policy = 2; // SCHED_POLICY_SEMI_PERF
-		break;
-	default:
-		st->sched_policy = 0; // SCHED_POLICY_EFF
-		break;
-	}
-#endif
 
 	if (schedtune_boostgroup_init(st))
 		goto release;

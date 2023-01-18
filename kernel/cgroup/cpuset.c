@@ -1867,113 +1867,6 @@ int cpu_uclamp_boost_write_u64_wrapper(struct cgroup_subsys_state *css,
 u64 cpu_uclamp_boost_read_u64_wrapper(struct cgroup_subsys_state *css,
                              struct cftype *cft);
 
-#ifdef CONFIG_SCHED_EMS
-int cpu_ems_sched_policy_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 policy);
-int cpu_ems_sched_policy_read_u64_wrapper(struct seq_file *sf, void *v);
-int cpu_ems_ontime_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 ontime_enabled);
-u64 cpu_ems_ontime_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
-                             struct cftype *cft);
-int cpu_ems_ntu_ratio_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 ntu_ratio);
-u64 cpu_ems_ntu_ratio_read_u64_wrapper(struct cgroup_subsys_state *css,
-                             struct cftype *cft);
-int cpu_ems_tex_enabled_write_u64_wrapper(struct cgroup_subsys_state *css,
-                              struct cftype *cftype, u64 tex_enabled);
-u64 cpu_ems_tex_enabled_read_u64_wrapper(struct cgroup_subsys_state *css,
-                             struct cftype *cft);
-
-static int cpu_ems_tex_prio_write(struct cgroup_subsys_state *css,
-		             struct cftype *cft, u64 prio)
-{
-	if (prio < MIN_NICE || prio > MAX_PRIO)
-		return -EINVAL;
-
-	ems_set_tex_prio((int) prio);
-
-	return 0;
-}
-static u64 cpu_ems_tex_prio_read(struct cgroup_subsys_state *css,
-			     struct cftype *cft)
-{
-	return (u64) ems_get_tex_prio();
-}
-static int cpu_ems_tex_qjump_enabled_write(struct cgroup_subsys_state *css,
-		             struct cftype *cft, u64 qjump_enabled)
-{
-	if (qjump_enabled < 0 || qjump_enabled > 1)
-		return -EINVAL;
-
-	ems_set_tex_qjump_enabled((int) qjump_enabled);
-
-	return 0;
-}
-static u64 cpu_ems_tex_qjump_enabled_read(struct cgroup_subsys_state *css,
-			     struct cftype *cft)
-{
-	return (u64) ems_get_tex_qjump_enabled();
-}
-
-#if 0
-static int cpu_ems_freqboost_ratio_write(struct cgroup_subsys_state *css,
-		             struct cftype *cft, u64 ratio)
-{
-	int cgroup_idx;
-
-	if (ratio < 0 || ratio > 10000)
-		return -EINVAL;
-
-	cgroup_idx = css->id - 1;
-
-	if (cgroup_idx >= CGROUP_COUNT)
-		return -EINVAL;
-
-	ems_set_freqboost_ratio(cgroup_idx, (int) ratio);
-
-	return 0;
-}
-static u64 cpu_ems_freqboost_ratio_read(struct cgroup_subsys_state *css,
-			     struct cftype *cft)
-{
-	int cgroup_idx = css->id - 1;
-
-	if (cgroup_idx >= CGROUP_COUNT)
-		return -EINVAL;
-
-	return (u64) ems_get_freqboost_ratio(cgroup_idx);
-}
-
-static int cpu_ems_wakeboost_ratio_write(struct cgroup_subsys_state *css,
-		             struct cftype *cft, u64 ratio)
-{
-	int cgroup_idx;
-
-	if (ratio < 0 || ratio > 10000)
-		return -EINVAL;
-
-	cgroup_idx = css->id - 1;
-
-	if (cgroup_idx >= CGROUP_COUNT)
-		return -EINVAL;
-
-	ems_set_wakeboost_ratio(cgroup_idx, (int) ratio);
-
-	return 0;
-}
-static u64 cpu_ems_wakeboost_ratio_read(struct cgroup_subsys_state *css,
-			     struct cftype *cft)
-{
-	int cgroup_idx = css->id - 1;
-
-	if (cgroup_idx >= CGROUP_COUNT)
-		return -EINVAL;
-
-	return (u64) ems_get_wakeboost_ratio(cgroup_idx);
-}
-#endif
-#endif
-
 #if !defined(CONFIG_SCHED_TUNE)
 static u64 st_boost_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft)
@@ -2141,72 +2034,6 @@ static struct cftype files[] = {
 		.read_u64 = cpu_uclamp_boost_read_u64_wrapper,
 		.write_u64 = cpu_uclamp_boost_write_u64_wrapper,
 	},
-#ifdef CONFIG_SCHED_EMS
-	{
-		.name = "ems.sched_policy",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.seq_show = cpu_ems_sched_policy_read_u64_wrapper,
-		.write_u64 = cpu_ems_sched_policy_write_u64_wrapper,
-	},
-#if 0
-	{
-		.name = "ems.freqboost_ratio",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_ems_freqboost_ratio_read,
-		.write_u64 = cpu_ems_freqboost_ratio_write,
-	},
-	{
-		.name = "ems.wakeboost_ratio",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_ems_wakeboost_ratio_read,
-		.write_u64 = cpu_ems_wakeboost_ratio_write,
-	},
-#endif
-	{
-		.name = "ems.ontime_enabled",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_ems_ontime_enabled_read_u64_wrapper,
-		.write_u64 = cpu_ems_ontime_enabled_write_u64_wrapper,
-	},
-	{
-		.name = "ems.ntu_ratio",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_ems_ntu_ratio_read_u64_wrapper,
-		.write_u64 = cpu_ems_ntu_ratio_write_u64_wrapper,
-	},
-	{
-		.name = "ems.tex_enabled",
-		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_ems_tex_enabled_read_u64_wrapper,
-		.write_u64 = cpu_ems_tex_enabled_write_u64_wrapper,
-	},
-	{
-		.name = "ems.tex_prio",
-		.flags = CFTYPE_ONLY_ON_ROOT,
-		.read_u64 = cpu_ems_tex_prio_read,
-		.write_u64 = cpu_ems_tex_prio_write,
-	},
-	{
-		.name = "ems.tex_qjump_enabled",
-		.flags = CFTYPE_ONLY_ON_ROOT,
-		.read_u64 = cpu_ems_tex_qjump_enabled_read,
-		.write_u64 = cpu_ems_tex_qjump_enabled_write,
-	},
-#endif
-
-#if !defined(CONFIG_SCHED_TUNE)
-	{
-		.name = "schedtune.boost",
-		.read_u64 = st_boost_read,
-		.write_u64 = st_boost_write,
-	},
-	{
-		.name = "schedtune.prefer_idle",
-		.read_u64 = st_prefer_idle_read,
-		.write_u64 = st_prefer_idle_write,
-	},
-#endif
-
 #endif
 	{ }	/* terminate */
 };
@@ -2218,11 +2045,6 @@ struct ucl_param {
 	char uclamp_max[3];
 	u64  uclamp_boosted;
 	u64  uclamp_latency_sensitive;
-
-	u64  ems_sched_policy;
-	u64  ems_ontime_enabled;
-	u64  ems_ntu_ratio;
-	u64  ems_tex_enabled;
 };
 
 static void uclamp_set(struct kernfs_open_file *of,
@@ -2233,20 +2055,15 @@ static void uclamp_set(struct kernfs_open_file *of,
 	const char *cs_name = cs->css.cgroup->kn->name;
 
 	static struct ucl_param tgts[] = {
-		/* cgroup                 min    max    b  l  e-p e-o   e-n  e-t */
-		{"top-app",    	     	 "20",  "max",  0, 1,   2,  1,   25,   1},
-		{"foreground", 	     	 "10",   "80",  0, 0,   0,  1,   25,   0},
-		{"background", 	     	  "0",   "50",  0, 0,   1,  0,   25,   0},
-		{"system-background", 	  "0",   "60",  0, 0,   1,  0,   25,   0},
-		{"camera-daemon",	     "20",  "max",  1, 1,   3,  0,   25,   0},
-		{"moderate",	         "10",   "90",  0, 0,   0,  0,   25,   0},
-		{"restricted",		      "0",   "30",  0, 0,   1,  0,   25,   0},
+		/* cgroup                 min    max    b  l */
+		{"top-app",    	     	 "20",  "max",  0, 1},
+		{"foreground", 	     	 "10",   "80",  0, 0},
+		{"background", 	     	  "0",   "50",  0, 0},
+		{"system-background", 	  "0",   "60",  0, 0},
+		{"camera-daemon",	     "20",  "max",  1, 1},
+		{"moderate",	         "10",   "90",  0, 0},
+		{"restricted",		      "0",   "30",  0, 0},
 	};
-
-#ifdef CONFIG_SCHED_EMS
-	/* ALWAYS set a default NTU ratio for EMS */
-	cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL, (u64) 25);
-#endif
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
 		struct ucl_param tgt = tgts[i];
@@ -2260,17 +2077,6 @@ static void uclamp_set(struct kernfs_open_file *of,
 				tgt.uclamp_boosted);
 			cpu_uclamp_ls_write_u64_wrapper(&cs->css, NULL,
 				tgt.uclamp_latency_sensitive);
-
-#ifdef CONFIG_SCHED_EMS
-			cpu_ems_sched_policy_write_u64_wrapper(&cs->css, NULL,
-				tgt.ems_sched_policy);
-			cpu_ems_ontime_enabled_write_u64_wrapper(&cs->css, NULL,
-				tgt.ems_ontime_enabled);
-			cpu_ems_ntu_ratio_write_u64_wrapper(&cs->css, NULL,
-				tgt.ems_ntu_ratio);
-			cpu_ems_tex_enabled_write_u64_wrapper(&cs->css, NULL,
-				tgt.ems_tex_enabled);
-#endif
 			break;
 		}
 	}

@@ -11,10 +11,7 @@
 
 #include "ems.h"
 #include "../sched.h"
-
-#ifndef CONFIG_UCLAMP_TASK_GROUP
 #include "../tune.h"
-#endif
 
 #include <trace/events/ems.h>
 
@@ -25,6 +22,7 @@ struct {
     struct cpumask pinning_cpus;
     struct cpumask busy_cpus;
     int qjump;
+    int enabled[CGROUP_COUNT];
     int prio;
 } tex;
 
@@ -32,7 +30,8 @@ int tex_task(struct task_struct *p)
 {
     int grp_idx;
 
-    if (!ems_tex_enabled(p))
+    grp_idx = schedtune_task_group_idx(p);
+    if (!tex.enabled[grp_idx])
         return 0;
 
     if (p->sched_class != &fair_sched_class)
@@ -42,7 +41,6 @@ int tex_task(struct task_struct *p)
     if (ems_task_on_top(p))
         return 1;
 
-    grp_idx = cpuctl_task_group_idx(p);
     /* kernel prefer perf task is eligible for tex */
     if (!kpp_status(grp_idx) && (!p->pid || ems_task_boost() != p->pid))
         return 0;
@@ -143,20 +141,63 @@ tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus)
 /**********************************************************************
  *  cpuset api for 4.14                                               *
  **********************************************************************/
-void ems_set_tex_prio(int prio) {
-    tex.prio = prio;
+u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx = st->idx;
+
+	if (group_idx >= CGROUP_COUNT)
+		return (u64) tex.enabled[CGROUP_ROOT];
+
+	return (u64) tex.enabled[st->idx];
 }
 
-int ems_get_tex_prio(void) {
-    return tex.prio;
+int ems_tex_enabled_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		tex.enabled[CGROUP_ROOT] = enabled;
+		return 0;
+	}
+
+	tex.enabled[group_idx] = enabled;
+	return 0;
 }
 
-void ems_set_tex_qjump_enabled(int enabled) {
-    tex.qjump = enabled;
+u64 ems_tex_prio_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	return (u64) tex.prio;
 }
 
-int ems_get_tex_qjump_enabled(void) {
-    return tex.qjump;
+int ems_tex_prio_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 prio) {
+
+	if (prio < MIN_NICE || prio > MAX_PRIO)
+		return -EINVAL;
+
+	tex.prio = prio;
+	return 0;
+}
+
+u64 ems_qjump_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	return (u64) tex.qjump;
+}
+
+int ems_qjump_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	tex.qjump = enabled;
+	return 0;
 }
 
 /**********************************************************************
@@ -230,6 +271,7 @@ static const struct attribute_group tex_group = {
 static
 int __init tex_init(void)
 {
+	int i;
     int ret;
 
     tex_kobj = kobject_create_and_add("tex", ems_kobj);
@@ -249,6 +291,8 @@ int __init tex_init(void)
 
     cpumask_clear(&tex.busy_cpus);
     tex.qjump = 0;
+	for (i = 0; i < CGROUP_COUNT; i++)
+		tex.enabled[i] = 0;
     tex.prio = 110;
 
     return 0;
@@ -257,6 +301,16 @@ int __init tex_init(void)
 /******************************************************************************
  * sched policy                                                               *
  ******************************************************************************/
+static int sched_policy[CGROUP_COUNT] = {SCHED_POLICY_EFF, };
+static char *sched_policy_name[] = {
+    "SCHED_POLICY_EFF",
+    "SCHED_POLICY_ENERGY",
+    "SCHED_POLICY_SEMI_PERF",
+    "SCHED_POLICY_PERF",
+    "SCHED_POLICY_MIN_UTIL",
+    "SCHED_POLICY_UNKNOWN"
+};
+
 static
 void sched_policy_get(struct tp_env *env)
 {
@@ -265,7 +319,7 @@ void sched_policy_get(struct tp_env *env)
 #ifndef CONFIG_UCLAMP_TASK_GROUP
 	int policy = schedtune_task_sched_policy(p);
 #else
-	int policy = ems_sched_policy(p);
+	int policy = sched_policy[env->cgroup_idx];
 #endif
 
 	/* 
@@ -329,6 +383,38 @@ void sched_policy_get(struct tp_env *env)
 
 out:
 	env->sched_policy = policy;
+}
+
+int ems_sched_policy_stune_hook_read(struct seq_file *sf, void *v) {
+	struct cgroup_subsys_state *css = seq_css(sf);
+	struct schedtune *st = css_st(css);
+	int policy = sched_policy[CGROUP_ROOT];
+	int group_idx = st->idx;
+
+	if (group_idx < CGROUP_COUNT)
+		policy = sched_policy[group_idx];
+
+	seq_printf(sf, "%u. %s\n", policy, sched_policy_name[policy]);
+
+	return 0;
+}
+
+int ems_sched_policy_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 policy) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (policy < SCHED_POLICY_EFF || policy >= SCHED_POLICY_UNKNOWN)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		sched_policy[CGROUP_ROOT] = policy;
+		return 0;
+	}
+
+	sched_policy[group_idx] = policy;
+	return 0;
 }
 
 /******************************************************************************
@@ -775,7 +861,12 @@ static
 void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 {
 	int cpu;
-	unsigned long util = env->task_util_clamped;
+	unsigned long util;
+
+	if (env->sched_policy == SCHED_POLICY_SEMI_PERF)
+		return;
+
+	util = env->task_util_clamped;
 
 	/* check if task is misfit - causes all CPUs to be over capacity */
 	if (is_misfit_task_util(util))
@@ -1260,7 +1351,7 @@ inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd
 	char state[30] = "fail";
 	struct tp_env env = {
 		.p = p,
-		.cgroup_idx = cpuctl_task_group_idx(p),
+		.cgroup_idx = schedtune_task_group_idx(p),
 		.src_cpu = prev_cpu,
 		.task_on_top = ems_task_on_top(p),
 

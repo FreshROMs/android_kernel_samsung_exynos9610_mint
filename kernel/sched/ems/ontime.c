@@ -20,6 +20,15 @@
 /****************************************************************/
 /*			On-time migration			*/
 /****************************************************************/
+static int ontime_enabled[CGROUP_COUNT];
+
+static int support_ontime(struct task_struct *p)
+{
+	int group_idx = schedtune_task_group_idx(p);
+
+	return ontime_enabled[group_idx];
+}
+
 #define MIN_CAPACITY_CPU	0
 #define MAX_CAPACITY_CPU	(NR_CPUS - 1)
 
@@ -121,7 +130,7 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	 * migration or task is currently migrating, it can be assigned to all
 	 * active cpus without specifying fit cpus.
 	 */
-	if (!ems_ontime_enabled(p) || ml_of(p)->migrating)
+	if (!support_ontime(p) || ml_of(p)->migrating)
 		goto done;
 
 	/*
@@ -207,7 +216,7 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 		*boost_migration = 1;
 		return p;
 	}
-	if (ems_ontime_enabled(p)) {
+	if (support_ontime(p)) {
 		util_avg = ml_task_load_avg(p);
 		if (util_avg >= get_upper_boundary(task_cpu(p))) {
 			heaviest_task = p;
@@ -229,7 +238,7 @@ ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 			break;
 		}
 
-		if (!ems_ontime_enabled(p))
+		if (!support_ontime(p))
 			goto next_entity;
 
 		util_avg = ml_task_load_avg(p);
@@ -371,14 +380,6 @@ void ontime_update_next_balance(int cpu, struct ml_avg *avg)
 	cpu_rq(smp_processor_id())->next_balance = jiffies;
 }
 
-/****************************************************************/
-/*			External APIs				*/
-/****************************************************************/
-void ontime_trace_task_info(struct task_struct *p)
-{
-	trace_ems_ontime_load_avg_task(p, &ml_of(p)->avg, ml_of(p)->migrating);
-}
-
 static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 {
 	int cpu = cpu_of(rq);
@@ -388,12 +389,8 @@ static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
 		return true;
 	}
 
-#if 1
 	return rq->nr_running > 1 &&
 		mlt_art_last_value(cpu) == SCHED_CAPACITY_SCALE;
-#else
-	return rq->nr_running > 1 && cpu_overutilized(cpu);
-#endif
 }
 
 static struct rq *ontime_find_mulligan_rq(struct task_struct *target_p,
@@ -519,7 +516,6 @@ static void ontime_mulligan(void)
 }
 
 DEFINE_PER_CPU(struct cpu_stop_work, ontime_migration_work);
-// static DEFINE_SPINLOCK(om_lock);
 
 static void ontime_heavy_migration(void)
 {
@@ -538,11 +534,6 @@ static void ontime_heavy_migration(void)
 	 */
 	if (cpumask_test_cpu(rq->cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
 		return;
-
-#if 0
-	if (!spin_trylock(&om_lock))
-		return;
-#endif
 
 	/*
 	 * No need to traverse rq to find a heavy task
@@ -617,17 +608,27 @@ static void ontime_heavy_migration(void)
 	/* Migrate task through stopper */
 	stop_one_cpu_nowait(rq->cpu, ontime_migration_cpu_stop, env,
 			&per_cpu(ontime_migration_work, rq->cpu));
+}
 
-#if 0
-	spin_unlock(&om_lock);
-#endif
+/****************************************************************/
+/*		           	    External APIs				            */
+/****************************************************************/
+static bool skip_ontime;
+
+void ontime_migration(void)
+{
+	if (skip_ontime)
+		return;
+
+	ontime_mulligan();
+	ontime_heavy_migration();
 }
 
 int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 {
 	int src_cpu = task_cpu(p);
 
-	if (!ems_ontime_enabled(p))
+	if (!support_ontime(p))
 		return true;
 
 	if (ml_of(p)->migrating == 1) {
@@ -661,18 +662,41 @@ int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 	return true;
 }
 
-static bool skip_ontime;
+u64 ems_ontime_enabled_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
 
-void ontime_migration(void)
-{
-	if (skip_ontime)
-		return;
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT)
+		return (u64) ontime_enabled[CGROUP_ROOT];
 
-	ontime_mulligan();
-	ontime_heavy_migration();
+	return (u64) ontime_enabled[group_idx];
 }
 
-#if 1
+int ems_ontime_enabled_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		ontime_enabled[CGROUP_ROOT] = enabled;
+		return 0;
+	}
+
+	ontime_enabled[group_idx] = enabled;
+	return 0;
+}
+
+void ontime_trace_task_info(struct task_struct *p)
+{
+	trace_ems_ontime_load_avg_task(p, &ml_of(p)->avg, ml_of(p)->migrating);
+}
+
 /****************************************************************/
 /*		  sysbusy state change notifier			*/
 /****************************************************************/
@@ -692,9 +716,9 @@ static int ontime_sysbusy_notifier_call(struct notifier_block *nb,
 static struct notifier_block ontime_sysbusy_notifier = {
 	.notifier_call = ontime_sysbusy_notifier_call,
 };
-#endif
+
 /****************************************************************/
-/*				SYSFS				*/
+/*				             SYSFS			                	*/
 /****************************************************************/
 static struct kobject *ontime_kobj;
 
@@ -753,6 +777,60 @@ static ssize_t store(struct kobject *kobj, struct attribute *at,
 	return oattr->store(kobj, buf, count);
 }
 
+static char *task_cgroup_simple_name[] = {
+    "root",
+    "fg",
+    "bg",
+    "ta",
+    "rt",
+    "sy",
+    "syb",
+    "n-h",
+    "c-d",
+};
+static ssize_t show_ontime_enabled(struct kobject *kobj,
+        struct kobj_attribute *attr, char *buf)
+{
+    int i, ret = 0;
+
+    for (i = 0; i < CGROUP_COUNT; i++)
+        ret += snprintf(buf + ret, 40, "cgroup=%4s enabled=%d\n",
+                task_cgroup_simple_name[i],
+                ontime_enabled[i]);
+
+    ret += sprintf(buf + ret, "\n");
+    ret += sprintf(buf + ret, "usage:");
+    ret += sprintf(buf + ret, "   # echo <group> <enabled=0/1> > %s\n", "ontime_enabled");
+    ret += sprintf(buf + ret, "(group0/1/2/3/4=root/fg/bg/ta/rt)\n");
+
+    return ret;
+}
+
+static ssize_t store_ontime_enabled(struct kobject *kobj,
+        struct kobj_attribute *attr, const char *buf,
+        size_t count)
+{
+    int i, grp_idx, value, ret;
+
+    ret = sscanf(buf, "%d %d", &grp_idx, &value);
+    if (ret < 0)
+        return -EINVAL;
+
+    if (grp_idx < 0 || grp_idx > CGROUP_COUNT)
+        return -EINVAL;
+
+    if (value < 0 || value > 1)
+        return -EINVAL;
+
+    ontime_enabled[i] = value;
+
+    return count;
+}
+
+static struct kobj_attribute ontime_enabled_attr =
+__ATTR(ontime_enabled, 0644, show_ontime_enabled, store_ontime_enabled);
+
+
 static const struct sysfs_ops ontime_sysfs_ops = {
 	.show	= show,
 	.store	= store,
@@ -779,6 +857,9 @@ static int __init ontime_sysfs_init(void)
 	ontime_kobj = kobject_create_and_add("ontime", ems_kobj);
 	if (!ontime_kobj)
 		goto out;
+
+	if (sysfs_create_file(ontime_kobj, &ontime_enabled_attr.attr))
+		pr_warn("%s: failed to create ontime enabled sysfs\n", __func__);
 
 	/* Add ontime sysfs node for each coregroup */
 	list_for_each_entry(curr, &cond_list, list) {
@@ -894,9 +975,9 @@ static int __init init_ontime(void)
 	}
 
 	ontime_sysfs_init();
-#if 1
+
 	sysbusy_register_notifier(&ontime_sysbusy_notifier);
-#endif
+
 	of_node_put(dn);
 	return 0;
 }

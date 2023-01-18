@@ -8,6 +8,7 @@
 #include <linux/ems.h>
 
 #include "../sched.h"
+#include "../tune.h"
 #include "ems.h"
 
 #include <trace/events/ems.h>
@@ -83,14 +84,13 @@ int is_somac_ready(struct tp_env *env)
 		return 0;
 
 	cpumask_clear(&mask);
-	cpumask_clear(&env->cpus_allowed);
 
-	cpumask_and(&mask, cpu_active_mask, &somac_ready.cpus);
-	cpumask_and(&env->cpus_allowed, cpu_active_mask, tsk_cpus_allowed(env->p));
+	cpumask_and(&env->cpus_allowed, cpu_active_mask, &somac_ready.cpus);
+	cpumask_and(&env->cpus_allowed, &env->cpus_allowed, tsk_cpus_allowed(env->p));
 	if (cpumask_empty(&env->cpus_allowed))
 		return 0;
 
-	cpumask_set_cpu(cpumask_any_and_distribute(&env->cpus_allowed), &mask);
+	cpumask_set_cpu(cpumask_last(&env->cpus_allowed), &mask);
 	cpumask_and(&env->cpus_allowed, &env->cpus_allowed, &mask);
 
 	return 1;
@@ -123,7 +123,7 @@ static int decision_somac_task(struct task_struct *p)
 	if (p == somac_ready.p)
 		return 0;
 
-	return cpuctl_task_group_idx(p) == CGROUP_TOPAPP;
+	return schedtune_task_group_idx(p) == CGROUP_TOPAPP;
 }
 
 static struct task_struct *pick_somac_task(struct rq *rq)
