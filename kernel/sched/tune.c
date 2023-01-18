@@ -15,6 +15,10 @@
 bool schedtune_initialized = false;
 struct reciprocal_value schedtune_spc_rdiv;
 
+#ifdef CONFIG_SCHED_EMS
+static int sysbusy_state = SYSBUSY_STATE0;
+#endif
+
 /*
  * SchedTune root control group
  * The root control group is used to defined a system-wide boosting tuning,
@@ -129,13 +133,34 @@ schedtune_cpu_update(int cpu, u64 now)
 }
 
 static int
+#ifdef CONFIG_SCHED_EMS
+schedtune_boostgroup_update(int idx, int boost, int light_boost, int heavy_boost, int busy_boost)
+#else
 schedtune_boostgroup_update(int idx, int boost)
+#endif
 {
 	struct boost_groups *bg;
 	int cur_boost_max;
 	int old_boost;
 	int cpu;
 	u64 now;
+
+#ifdef CONFIG_SCHED_EMS
+	if (boost == -1) {
+		switch (sysbusy_state) {
+		case SYSBUSY_STATE1:
+			boost = heavy_boost;
+			break;
+		case SYSBUSY_STATE2:
+		case SYSBUSY_STATE3:
+			boost = busy_boost;
+			break;
+		default:
+			boost = light_boost;
+			break;
+		}
+	}
+#endif
 
 	/* Update per CPU boost groups */
 	for_each_possible_cpu(cpu) {
@@ -527,12 +552,66 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	st->boost = boost;
 
 	/* Update CPU boost */
+#ifdef CONFIG_SCHED_EMS
+	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+#else
 	schedtune_boostgroup_update(st->idx, st->boost);
+#endif
 
 	return 0;
 }
 
 #ifdef CONFIG_SCHED_EMS
+static s64
+heavy_boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->heavy_boost;
+}
+
+static int
+heavy_boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
+	    s64 boost)
+{
+	struct schedtune *st = css_st(css);
+
+	if (boost < 0 || boost > 100)
+		return -EINVAL;
+
+	st->heavy_boost = boost;
+
+	/* Update CPU boost */
+	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+
+	return 0;
+}
+
+static s64
+busy_boost_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->busy_boost;
+}
+
+static int
+busy_boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
+	    s64 boost)
+{
+	struct schedtune *st = css_st(css);
+
+	if (boost < 0 || boost > 100)
+		return -EINVAL;
+
+	st->busy_boost = boost;
+
+	/* Update CPU boost */
+	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+
+	return 0;
+}
+
 /* stune api */
 extern u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
@@ -560,11 +639,19 @@ extern int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
 #endif
 
 static struct cftype files[] = {
+#ifdef CONFIG_UCLAMP_TASK_GROUP
+	{
+		.name = "freqboost",
+		.read_s64 = boost_read,
+		.write_s64 = boost_write,
+	},
+#else
 	{
 		.name = "boost",
 		.read_s64 = boost_read,
 		.write_s64 = boost_write,
 	},
+#endif
 #ifndef CONFIG_UCLAMP_TASK_GROUP
 	{
 		.name = "prefer_idle",
@@ -573,6 +660,16 @@ static struct cftype files[] = {
 	},
 #endif
 #ifdef CONFIG_SCHED_EMS
+	{
+		.name = "heavyboost",
+		.read_s64 = heavy_boost_read,
+		.write_s64 = heavy_boost_write,
+	},
+	{
+		.name = "busyboost",
+		.read_s64 = busy_boost_read,
+		.write_s64 = busy_boost_write,
+	},
 	{
 		.name = "sched_policy",
 		.seq_show = ems_sched_policy_stune_hook_read,
@@ -629,9 +726,13 @@ schedtune_boostgroup_init(struct schedtune *st)
 	return 0;
 }
 
+#ifdef CONFIG_SCHED_EMS
 struct stune_param {
 	char *name;
 	s64 boost;
+
+	u64 ems_heavy_boost;
+	u64 ems_busy_boost;
 
 	u64 ems_sched_policy;
 	u64 ems_ontime_enabled;
@@ -644,25 +745,27 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 {
 	int i;
 	static struct stune_param tgts[] = {
-		/* cgroup            b e-p e-o  e-n e-t */
-		{"top-app",	         5,  2,  1,  25,  1 },
-		{"foreground",	     0,  0,  1,  25,  0 },
-		{"background",	     0,  1,  0,  25,  0 },
-		{"rt",		         0,  2,  0,  25,  0 },
-		{"camera-daemon",	 0,  3,  0,  25,  0 },
-		{"nnapi-hal",	     0,  3,  0,  25,  0 },
-		{"hot",	             0,  0,  0,  25,  0 },
+		/* cgroup            l-b h-b b-b e-p e-o  e-n e-t */
+		{"top-app",	           3,  5,  7,  0,  1,  25,  1 },
+		{"foreground",	       0,  3,  5,  0,  1,  25,  0 },
+		{"background",	       0,  0,  2,  1,  0,  25,  0 },
+		{"rt",		           0,  3,  7,  2,  0,  25,  0 },
+		{"camera-daemon",	   5,  7,  7,  3,  0,  25,  0 },
+		{"nnapi-hal",	       5,  5,  5,  3,  0,  25,  0 },
+		{"hot",	               0,  0,  0,  0,  0,  25,  0 },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
 		struct stune_param tgt = tgts[i];
 
 		if (!strcmp(css->cgroup->kn->name, tgt.name)) {
-			pr_info("stune_assist: setting values for %s: boost=%d ems_sched_policy=%d ems_ontime_enabled=%d ems_ntu_ratio=%d ems_tex_enabled=%d\n",
-				tgt.name, tgt.boost, tgt.ems_sched_policy, tgt.ems_ontime_enabled,
+			pr_info("stune_assist: setting values for %s: boost=%d heavy_boost=%d busy_boost=%d ems_sched_policy=%d ems_ontime_enabled=%d ems_ntu_ratio=%d ems_tex_enabled=%d\n",
+				tgt.name, tgt.boost, tgt.ems_heavy_boost, tgt.ems_busy_boost, tgt.ems_sched_policy, tgt.ems_ontime_enabled,
 				tgt.ems_ntu_ratio, tgt.ems_tex_enabled);
 
 			boost_write(css, NULL, tgt.boost);
+			heavy_boost_write(css, NULL, tgt.ems_heavy_boost);
+			busy_boost_write(css, NULL, tgt.ems_busy_boost);
 			ems_sched_policy_stune_hook_write(css, NULL, tgt.ems_sched_policy);
 			ems_ontime_enabled_stune_hook_write(css, NULL, tgt.ems_ontime_enabled);
 			ems_ntu_ratio_stune_hook_write(css, NULL, tgt.ems_ntu_ratio);
@@ -670,6 +773,36 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 		}
 	}
 }
+
+/****************************************************************/
+/*		  sysbusy state change notifier			*/
+/****************************************************************/
+static int schedtune_sysbusy_notifier_call(struct notifier_block *nb,
+					unsigned long val, void *v)
+{
+	enum sysbusy_state state = *(enum sysbusy_state *)v;
+	int i;
+
+	if (val != SYSBUSY_STATE_CHANGE)
+		return NOTIFY_OK;
+
+	sysbusy_state = state;
+
+	for (i = 0; i < BOOSTGROUPS_COUNT; i++) {
+		struct schedtune *st = css_st(&allocated_group[CGROUP_TOPAPP]->css);
+		if (unlikely(!st))
+			continue;
+
+		schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block schedtune_sysbusy_notifier = {
+	.notifier_call = schedtune_sysbusy_notifier_call,
+};
+#endif
 
 static struct cgroup_subsys_state *
 schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
@@ -722,7 +855,11 @@ static void
 schedtune_boostgroup_release(struct schedtune *st)
 {
 	/* Reset this boost group */
+#ifdef CONFIG_SCHED_EMS
+	schedtune_boostgroup_update(st->idx, 0, 0, 0, 0);
+#else
 	schedtune_boostgroup_update(st->idx, 0);
+#endif
 
 	/* Keep track of allocated boost groups */
 	allocated_group[st->idx] = NULL;
@@ -773,6 +910,8 @@ schedtune_init(void)
 {
 	schedtune_spc_rdiv = reciprocal_value(100);
 	schedtune_init_cgroups();
+
+	sysbusy_register_notifier(&schedtune_sysbusy_notifier);
 
 	return 0;
 }

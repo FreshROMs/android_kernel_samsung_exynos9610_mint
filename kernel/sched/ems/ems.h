@@ -162,7 +162,7 @@ extern void ontime_migration(void);
 extern void ontime_update_next_balance(int cpu, struct ml_avg *avg);
 
 /* cpufreq */
-extern unsigned long cpufreq_get_boost_pelt_util(int cpu, unsigned long util);
+extern unsigned long cpufreq_get_pelt_boost_util(int cpu, unsigned long util);
 extern unsigned int cpufreq_get_tipping_point(int cpu, unsigned int freq);
 #if 0
 extern void cpufreq_register_hook(int (*func_sysfs_add_attr)(struct cpufreq_policy *policy, const struct attribute *attr),

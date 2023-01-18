@@ -74,7 +74,7 @@ static struct sysbusy_param sysbusy_params[] = {
          */ 
         /* SYSBUSY_STATE1 */
         .monitor_interval   = 4,
-        .release_duration   = 25,
+        .release_duration   = TICK_SEC / 2,
         .allowed_next_state = (1 << SYSBUSY_STATE0) |
                       (1 << SYSBUSY_STATE2) |
                       (1 << SYSBUSY_STATE3),

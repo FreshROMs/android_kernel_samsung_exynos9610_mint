@@ -445,19 +445,21 @@ static int sysbusy_find_min_util_cpu(struct tp_env *env)
 static enum sysbusy_state determine_sysbusy_state(void)
 {
 	struct system_profile_data system_data;
+	int is_higher_state;
 
 	get_system_sched_data(&system_data);
 
+	is_higher_state = check_busy(system_data.heavy_task_util_sum, et_get_max_capacity());
+
 	/* Determine STATE1 */
-	if (system_data.busy_cpu_count == 1) {
-		if (check_busy(system_data.heavy_task_util_sum,
-				system_data.cpu_util_sum)) {
+	if (!is_higher_state && system_data.busy_cpu_count >= 1) {
+		if (check_busy(system_data.heavy_task_util_sum, system_data.cpu_util_sum) && system_data.heavy_task_count >= 2) {
 			return SYSBUSY_STATE1;
 		}
 	}
 
 	/* Determine STATE2 or STATE3 */
-	if (check_busy(system_data.heavy_task_util_sum, et_get_max_capacity())) {
+	if (is_higher_state) {
 		bool is_somac;
 
 		is_somac = system_data.misfit_task_count > (NR_CPUS / 2);

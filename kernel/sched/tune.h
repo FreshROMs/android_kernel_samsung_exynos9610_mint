@@ -29,6 +29,14 @@ struct schedtune {
 	/* Boost value for tasks on that SchedTune CGroup */
 	int boost;
 
+#ifdef CONFIG_SCHED_EMS
+	/* Boost value for heavy tasks on that SchedTune CGroup */
+	int heavy_boost;
+
+	/* Boost value for busy tasks on that SchedTune CGroup */
+	int busy_boost;
+#endif
+
 #ifndef CONFIG_UCLAMP_TASK_GROUP
 	/* Hint to bias scheduling of tasks on that SchedTune CGroup
 	 * towards idle CPUs */

@@ -282,7 +282,7 @@ DEFINE_PER_CPU(struct cpufreq_pelt_boost *, cpufreq_pelt_boost);
 attr_cpufreq(pelt_boost, pelt_boost, table);
 static struct governor_attr cpufreq_pelt_boost_attr = __ATTR_RW(cpufreq_pelt_boost);
 
-unsigned long cpufreq_get_boost_pelt_util(int cpu, unsigned long util)
+unsigned long cpufreq_get_pelt_boost_util(int cpu, unsigned long util)
 {
 	struct cpufreq_pelt_boost *boost = per_cpu(cpufreq_pelt_boost, cpu);
 	unsigned long boosted_util = 0;
@@ -636,7 +636,7 @@ static void cpufreq_pelt_boost_update(int cpu, int new_freq)
 /**********************************************************************
  * cpufreq notifier callback                                          *
  **********************************************************************/
-static int cpufreq_cpufreq_callback(struct notifier_block *nb,
+static int ems_cpufreq_callback(struct notifier_block *nb,
 					unsigned long val, void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -654,8 +654,8 @@ static int cpufreq_cpufreq_callback(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block cpufreq_cpufreq_notifier = {
-	.notifier_call  = cpufreq_cpufreq_callback,
+static struct notifier_block ems_cpufreq_notifier = {
+	.notifier_call  = ems_cpufreq_callback,
 };
 
 /**********************************************************************
@@ -687,7 +687,7 @@ static int __init cpufreq_init(void)
 		cpufreq_tipping_point_init(dn, &shared_mask);
 	}
 
-	cpufreq_register_notifier(&cpufreq_cpufreq_notifier,
+	cpufreq_register_notifier(&ems_cpufreq_notifier,
 					CPUFREQ_TRANSITION_NOTIFIER);
 
 	return 0;

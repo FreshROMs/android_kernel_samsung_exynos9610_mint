@@ -295,6 +295,7 @@ static void aigov_update_commit(struct aigov_policy *ag_policy, u64 time,
 	}
 }
 
+static int sysbusy_state = SYSBUSY_STATE0;
 static
 void aigov_inferrer_get_delta(struct rand_var *rv, struct aigov_cpu *ai_cpu) {
 	rv->nval = min(ai_cpu->max, ai_cpu->util) - ai_cpu->cached_util;
@@ -304,7 +305,7 @@ void aigov_inferrer_get_delta(struct rand_var *rv, struct aigov_cpu *ai_cpu) {
 
 static inline
 unsigned int aigov_inferrer_get_freq(struct aigov_cpu *ai_cpu, unsigned int initial_freq) {
-	unsigned int inferred_freq;
+	unsigned int inferred_freq = initial_freq;
 	struct ffsi_class *vessel;
 	int cur_rand = FFSI_DIVERGING;
 	struct rand_var rv = {
@@ -312,6 +313,9 @@ unsigned int aigov_inferrer_get_freq(struct aigov_cpu *ai_cpu, unsigned int init
 		.ubound		= 0,
 		.lbound		= 0
 	};
+
+	if (sysbusy_state > SYSBUSY_STATE1)
+		goto skip_inference;
 
 	vessel = ai_cpu->util_vessel;
 
@@ -406,7 +410,7 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
    	pelt_util += schedtune_cpu_margin(pelt_util, cpu);
 
    	/* get boosted pelt util from freqvar */
-	pelt_util = cpufreq_get_boost_pelt_util(cpu, pelt_util);
+	pelt_util = cpufreq_get_pelt_boost_util(cpu, pelt_util);
 	pelt_util = min(pelt_util, max_cap);
 	pelt_max = max_cap;
 
@@ -456,9 +460,13 @@ static void aigov_set_iowait_boost(struct aigov_cpu *ai_cpu, u64 time,
 				   unsigned int flags)
 {
 	struct aigov_policy *ag_policy = ai_cpu->ag_policy;
+	int iowait_boost_enabled = ag_policy->tunables->iowait_boost_enable;
 
-	if (!ag_policy->tunables->iowait_boost_enable ||
-	     ag_policy->fb_panel_blank)
+	/* temporarily enable iowait_boost if device is busy */
+	if (sysbusy_state > SYSBUSY_STATE0)
+		iowait_boost_enabled = 1;
+
+	if (!iowait_boost_enabled || ag_policy->fb_panel_blank)
 		return;
 
 	if (ai_cpu->iowait_boost) {
@@ -1256,10 +1264,8 @@ int aigov_need_slack_timer(unsigned int cpu)
 {
 	struct aigov_cpu *ai_gov = &per_cpu(aigov_cpu, cpu);
 
-#if 1
 	if (schedtune_cpu_boost(cpu))
 		return 0;
-#endif
 
 	if (ai_gov->util > ai_gov->slack_min_util &&
 		aigov_get_next_event_time(cpu) > ai_gov->slack_expired_time_ms)
@@ -1368,6 +1374,26 @@ static struct notifier_block aigov_min_qos_notifier = {
 	.priority = INT_MIN,
 };
 
+/****************************************************************/
+/*		  sysbusy state change notifier			*/
+/****************************************************************/
+static int aigov_sysbusy_notifier_call(struct notifier_block *nb,
+					unsigned long val, void *v)
+{
+	enum sysbusy_state state = *(enum sysbusy_state *)v;
+
+	if (val != SYSBUSY_STATE_CHANGE)
+		return NOTIFY_OK;
+
+	sysbusy_state = state;
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block aigov_sysbusy_notifier = {
+	.notifier_call = aigov_sysbusy_notifier_call,
+};
+
 static int __init aigov_parse_dt(struct device_node *dn, int cpu)
 {
 	struct aigov_cpu *ai_cpu = &per_cpu(aigov_cpu, cpu);
@@ -1419,6 +1445,7 @@ static void __init aigov_cpufreq_init(void)
 	pm_qos_add_notifier(PM_QOS_CLUSTER0_FREQ_MIN, &aigov_min_qos_notifier);
 	pm_qos_add_notifier(PM_QOS_CLUSTER1_FREQ_MIN, &aigov_min_qos_notifier);
 	cpu_pm_register_notifier(&aigov_pm_notifier_block);
+	sysbusy_register_notifier(&aigov_sysbusy_notifier);
 
 	return;
 exit:

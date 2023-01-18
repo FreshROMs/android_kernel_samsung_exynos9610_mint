@@ -315,12 +315,7 @@ static
 void sched_policy_get(struct tp_env *env)
 {
 	struct task_struct *p = env->p;
-
-#ifndef CONFIG_UCLAMP_TASK_GROUP
-	int policy = schedtune_task_sched_policy(p);
-#else
 	int policy = sched_policy[env->cgroup_idx];
-#endif
 
 	/* 
 	 * Mint additions - scheduling policy changes
@@ -338,11 +333,6 @@ void sched_policy_get(struct tp_env *env)
 		goto out;
 	}
 
-	if (env->boosted && env->cgroup_idx == CGROUP_TOPAPP) {
-		policy = SCHED_POLICY_PERF;
-		goto out;
-	}
-
 	if (env->p->pid && ems_task_boost() == env->p->pid) {
 		policy = SCHED_POLICY_PERF;
 		goto out;
@@ -351,7 +341,12 @@ void sched_policy_get(struct tp_env *env)
 	if (policy >= SCHED_POLICY_PERF)
 		goto out;
 
-	if ((env->boosted && env->cgroup_idx == CGROUP_FOREGROUND) || ems_boot_boost() == EMS_BOOT_BOOST) {
+	if (env->boosted && env->cgroup_idx == CGROUP_TOPAPP) {
+		policy = SCHED_POLICY_SEMI_PERF;
+		goto out;
+	}
+
+	if (ems_boot_boost() == EMS_BOOT_BOOST) {
 		policy = SCHED_POLICY_SEMI_PERF;
 		goto out;
 	}
