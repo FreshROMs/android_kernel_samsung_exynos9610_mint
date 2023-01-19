@@ -66,18 +66,16 @@ static inline struct sched_entity *se_of(struct sched_avg *sa)
 	return container_of(sa, struct sched_entity, avg);
 }
 
-extern long schedtune_margin(unsigned long capacity, unsigned long signal, long boost);
+extern long schedtune_margin(unsigned long signal, long boost);
 static inline unsigned long ontime_load_avg(struct task_struct *p)
 {
 	int boost = schedtune_task_boost(p);
 	unsigned long load_avg = ontime_of(p)->avg.load_avg;
-	unsigned long capacity;
 
 	if (boost == 0)
 		return load_avg;
 
-	capacity = capacity_orig_of(task_cpu(p));
-	return load_avg + schedtune_margin(capacity, load_avg, boost);
+	return load_avg + schedtune_margin(load_avg, boost);
 }
 
 struct ontime_cond *get_current_cond(int cpu)
@@ -191,8 +189,7 @@ ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
 		int i;
 		int best_cpu = -1, backup_cpu = -1;
 		unsigned int min_exit_latency = UINT_MAX;
-		unsigned long min_wake_util = ULONG_MAX;
-		unsigned long min_active_util = ULONG_MAX;
+		unsigned long min_util = ULONG_MAX;
 		unsigned long coverage_util;
 
 		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
@@ -201,7 +198,6 @@ ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
 		coverage_util = capacity_orig_of(cpu) * get_coverage_ratio(cpu);
 
 		for_each_cpu_and(i, cpu_coregroup_mask(cpu), cpu_active_mask) {
-			unsigned long wake_util;
 
 			if (!cpumask_test_cpu(i, tsk_cpus_allowed(p)))
 				continue;
@@ -209,37 +205,28 @@ ontime_select_target_cpu(struct task_struct *p, struct cpumask *fit_cpus)
 			if (cpu_rq(i)->ontime_migrating)
 				continue;
 
-			wake_util = cpu_util_without(i, p);
-			
 			if (idle_cpu(i)) {
 				/* 1. Find shallowest idle_cpu */
 				struct cpuidle_state *idle = idle_get_state(cpu_rq(cpu));
 
 				if (!idle) {
 					best_cpu = i;
-					continue;
+					break;
 				}
 
-				if (idle->exit_latency > min_exit_latency)
-					continue;
-
-				if (idle->exit_latency == min_exit_latency &&
-					wake_util >= min_wake_util)
-					continue;
-
-				min_wake_util = wake_util;
-				min_exit_latency = idle->exit_latency;
-				best_cpu = i;
+				if (idle->exit_latency < min_exit_latency) {
+					min_exit_latency = idle->exit_latency;
+					best_cpu = i;
+				}
 			} else {
 				/* 2. Find cpu that have to spare */
-				unsigned long new_util = wake_util + task_util_est(p);
-				new_util = max(new_util, boosted_task_util(p));
+				unsigned long new_util = task_util(p) + cpu_util_wake(i, p);
 
 				if (new_util * 100 >= coverage_util)
 					continue;
 
-				if (new_util < min_active_util) {
-					min_active_util = new_util;
+				if (new_util < min_util) {
+					min_util = new_util;
 					backup_cpu = i;
 				}
 			}
@@ -288,10 +275,10 @@ static struct task_struct *
 ontime_pick_heavy_task(struct sched_entity *se, int *boost_migration)
 {
 	struct task_struct *heaviest_task = NULL;
-	struct task_struct *p = task_of(se);
+	struct task_struct *p;
 	unsigned int max_util_avg = 0;
 	int task_count = 0;
-	int boosted = !!global_boosted() || !!(schedtune_task_top_app(p) && schedtune_prefer_high_cap(p));
+	int boosted = !!global_boosted() || !!schedtune_prefer_perf(task_of(se));
 
 	/*
 	 * Since current task does not exist in entity list of cfs_rq,
@@ -436,7 +423,6 @@ out_unlock:
 
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
-	dst_rq->ontime_boost_migration = 0;
 
 	raw_spin_unlock_irq(&src_rq->lock);
 	put_task_struct(p);
@@ -581,7 +567,6 @@ void ontime_migration(void)
 		rq->active_balance = 1;
 
 		cpu_rq(dst_cpu)->ontime_migrating = 1;
-		cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
 
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 
@@ -619,8 +604,7 @@ int ontime_task_wakeup(struct task_struct *p, int sync)
 		int cpu = smp_processor_id();
 
 		if (cpumask_test_cpu(cpu, &p->cpus_allowed)
-				&& cpumask_test_cpu(cpu, &fit_cpus)
-				&& is_cpu_preemptible(p, src_cpu, cpu, sync)) {
+				&& cpumask_test_cpu(cpu, &fit_cpus)) {
 			trace_ems_ontime_task_wakeup(p, src_cpu, cpu, "ontime-sync wakeup");
 			return cpu;
 		}
@@ -671,7 +655,7 @@ int ontime_can_migration(struct task_struct *p, int dst_cpu)
 	 * If so, allow the task to be migrated.
 	 */
 	if (cpu_rq(src_cpu)->nr_running > 1) {
-		unsigned long cpu_util = cpu_util_without(src_cpu, p);
+		unsigned long cpu_util = cpu_util_wake(src_cpu, p);
 		unsigned long util = task_util(p);
 		unsigned long coverage_ratio = get_coverage_ratio(src_cpu);
 

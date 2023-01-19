@@ -348,12 +348,12 @@
 				/* little cores */
 				coregroup0 {
 					lower-boundary = <0>;
-					upper-boundary = <56>;
-					coverage-ratio = <90>;
+					upper-boundary = <68>;
+					coverage-ratio = <100>;
 				};
 				/* big cores */
 				coregroup1 {
-					lower-boundary = <20>;
+					lower-boundary = <17>;
 					upper-boundary = <100>;
 					coverage-ratio = <75>;
 				};
@@ -385,19 +385,6 @@
 				coregroup1 {
 					coverage-ratio = <15>;
 					active-ratio = <5>;
-				};
-			};
-
-			part {
-				/* little cores */
-				coregroup0 {
-					active-ratio-limit = <40>;
-					active-ratio-boost = <38>;
-				};
-				/* big cores */
-				coregroup1 {
-					active-ratio-limit = <29>;
-					active-ratio-boost = <11>;
 				};
 			};
 
@@ -3414,20 +3401,20 @@
 			device_type = "freqvar-tune";
 			shared-cpus = "0-3";
 
-			boost_table = < 150 806000 136 910000 128 1053000 114 1118000 108 1222000 100 >;
+			boost_table = < 0 >;
 			up_rate_limit_table = < 2 >;
 			down_rate_limit_table = < 5 >;
-			st_table = < 5 >;
+			upscale_ratio_table = < 60 1456000 80 >;
 		};
 
 		domain@1 {
 			device_type = "freqvar-tune";
 			shared-cpus = "4-7";
 
-			boost_table = < 148 1248000 134 1456000 128 1664000 110 1898000 104 2080000 100 >;
+			boost_table = < 20 1352000 10 1664000 5 2080000 0 >;
 			up_rate_limit_table = < 1 >;
 			down_rate_limit_table = < 20 >;
-			st_table = < 5 >;
+			upscale_ratio_table = < 75 1508000 80 >;
 		};
 	};
 
@@ -3448,7 +3435,7 @@
 			device_type = "cpufreq-userctrl";
 			shared-cpus = "4-7";
 
-			user-default-qos = <1040000>;
+			user-default-qos = <936000>;
 			user-boost = <1>;
 
 			min-limit {
@@ -3468,6 +3455,9 @@
 					1248000 806000
 					1144000 806000
 					1040000 806000
+					936000  806000
+					832000  806000
+					728000  806000
 					>;
 			};
 
@@ -3488,6 +3478,9 @@
 					1248000 1222000
 					1144000 1222000
 					1040000 1118000
+					936000  1053000
+					832000  1053000
+					728000  1053000
 					>;
 			};
 
@@ -3529,6 +3522,8 @@
 						   910000  676000
 						   806000  676000
 						   702000  546000
+						   598000  419000
+						   403000  419000
 						   >;
 				};
 			};
@@ -3568,7 +3563,10 @@
 						  1352000 1014000
 						  1248000 1014000
 						  1144000  845000
-						  1040000  676000 >;
+						  1040000  676000
+						   936000  546000
+						   832000  546000
+						   728000  546000 >;
 				};
 			};
 		};
@@ -3739,7 +3737,7 @@
 		/* MIF / INT / CL0 / CL1 */
 		/* this qos_table should be per-platform. Leave it here until we have multiple platfrom support */
 		qos_table = <
-			 419000 100000 702000  1040000  /* SCSC_QOS_MIN */
+			 419000 100000 403000  936000  /* SCSC_QOS_MIN */
 			1014000 533000 910000  1664000 /* SCSC_QOS_MED */
 			2093000 667000 1742000 2314000 /* SCSC_QOS_MAX */
 			    >;

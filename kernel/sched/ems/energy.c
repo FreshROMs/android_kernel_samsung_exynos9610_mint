@@ -6,13 +6,10 @@
  */
 
 #include <linux/cpufreq.h>
-#include <linux/cpuidle.h>
-#include <linux/freezer.h>
 #include <trace/events/ems.h>
 
 #include "ems.h"
 #include "../sched.h"
-#include "../tune.h"
 
 /*
  * The compute capacity, power consumption at this compute capacity and
@@ -35,28 +32,9 @@ struct energy_table {
 	unsigned int coefficient;;
 
 	struct energy_state *states;
-
 	unsigned int nr_states;
 };
 DEFINE_PER_CPU(struct energy_table, energy_table);
-
-struct cpumask slowest_mask;
-struct cpumask fastest_mask;
-
-const struct cpumask *cpu_slowest_mask(void)
-{
-	return &slowest_mask;
-}
-
-const struct cpumask *cpu_fastest_mask(void)
-{
-	return &fastest_mask;
-}
-
-inline bool is_slowest_cpu(int cpu)
-{
-	return cpumask_test_cpu(cpu, cpu_slowest_mask());
-}
 
 inline unsigned int get_cpu_mips(unsigned int cpu)
 {
@@ -74,32 +52,15 @@ unsigned int get_cpu_max_capacity(unsigned int cpu)
 	return table->states[table->nr_states - 1].cap;
 }
 
-unsigned long get_freq_cap(unsigned int cpu, unsigned long freq)
-{
-	struct energy_table *table = &per_cpu(energy_table, cpu);
-	struct energy_state *state = NULL;
-	int i;
-
-	for (i = 0; i < table->nr_states; i++) {
-		if (table->states[i].frequency >= freq) {
-			state = &table->states[i];
-			break;
-		}
-	}
-
-	if (!state)
-		return 0;
-
-	return state->cap;
-}
-
-static unsigned long normalized_util(unsigned long util, unsigned long capacity)
-{
-	if (util >= capacity)
-		return SCHED_CAPACITY_SCALE;
-
-	return util << SCHED_CAPACITY_SHIFT / capacity;
-}
+/*
+ * When choosing cpu considering energy efficiency, decide best cpu and
+ * backup cpu according to policy, and then choose cpu which consumes the
+ * least energy including prev cpu.
+ */
+struct eco_env {
+	struct task_struct *p;
+	int prev_cpu;
+};
 
 unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 {
@@ -112,7 +73,7 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 	 *    is assigned to target cpu.
 	 */
 	for_each_cpu(cpu, cpu_active_mask) {
-		util[cpu] = cpu_util_without(cpu, p);
+		util[cpu] = cpu_util_wake(cpu, p);
 
 		if (unlikely(cpu == target_cpu))
 			util[cpu] += task_util_est(p);
@@ -172,7 +133,7 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 			}
 
 			/* normalize cpu utilization */
-			util_sum += normalized_util(util[i], capacity);
+			util_sum += (util[i] << SCHED_CAPACITY_SHIFT) / capacity;
 		}
 
 		/*
@@ -184,109 +145,42 @@ unsigned int calculate_energy(struct task_struct *p, int target_cpu)
 	return total_energy;
 }
 
-struct cpu_env {
-	int cpu;
-	int idle_idx;
-	unsigned long util;
-	unsigned int exit_latency;
-};
-
-static void find_min_util_cpu(struct cpu_env *cenv, struct cpumask *mask, struct eco_env *eenv)
+static int find_min_util_cpu(struct cpumask *mask, unsigned long task_util)
 {
-	struct cpuidle_state *state = NULL;
 	unsigned long min_util = ULONG_MAX;
-	unsigned long min_wake_util = ULONG_MAX;
-	unsigned long min_active_util = ULONG_MAX;
-	int idle_idx = INT_MAX;
-	int best_idle_cstate = INT_MAX;
-
-	int best_idle_cpu = -1;
 	int min_util_cpu = -1;
-	int best_cpu = -1;
-
-	bool prefer_idle = (eenv->prefer_idle > 0);
-
 	int cpu;
 
 	/* Find energy efficient cpu in each coregroup. */
 	for_each_cpu_and(cpu, mask, cpu_active_mask) {
-		unsigned long new_util = cpu_util_without(cpu, eenv->p) + eenv->task_util;
-		new_util = max(new_util, eenv->min_util);
-
-		/* Skip CPUs under boosted ontime migration if not UX task */
-		if (cpu_rq(cpu)->ontime_boost_migration)
-			continue;
+		unsigned long capacity_orig = capacity_orig_of(cpu);
+		unsigned long util = cpu_util(cpu);
 
 		/* Skip over-capacity cpu */
-		if (new_util > capacity_orig_of(cpu))
+		if (util + task_util > capacity_orig)
 			continue;
-
-		if (idle_cpu(cpu)) {
-			int idle_cstate = idle_get_state_idx(cpu_rq(cpu));
-
-			/* find shallowest idle state cpu */
-			if (idle_cstate > best_idle_cstate)
-				continue;
-
-			/* if same cstate, select lower util */
-			if (idle_cstate == best_idle_cstate &&
-				(best_idle_cpu == eenv->prev_cpu ||
-				(cpu != eenv->prev_cpu &&
-				new_util >= min_wake_util)))
-				continue;
-
-			/* Keep track of best idle CPU */
-			best_idle_cstate = idle_cstate;
-			min_wake_util = new_util;
-			best_idle_cpu = cpu;
-			continue;
-		}
 
 		/*
 		 * Choose min util cpu within coregroup as candidates.
 		 * Choosing a min util cpu is most likely to handle
 		 * wake-up task without increasing the frequecncy.
 		 */
-		if (new_util < min_active_util) {
-			min_active_util = new_util;
+		if (util < min_util) {
+			min_util = util;
 			min_util_cpu = cpu;
 		}
 	}
 
-	if (cpu_selected(min_util_cpu)) {
-		best_cpu = min_util_cpu;
-		min_util = min_active_util;
-	}
-
-	if (best_idle_cpu != -1) {
-		if (prefer_idle || !cpu_selected(best_cpu) ||
-			(!is_slowest_cpu(min_util_cpu) && !is_cpu_preemptible(eenv->p, -1, min_util_cpu, 0))) {
-			best_cpu = best_idle_cpu;
-			min_util = min_wake_util;
-		}
-	}
-
-	if (cpu_selected(best_cpu)) {
-		idle_idx = idle_get_state_idx(cpu_rq(best_cpu));
-		state = idle_get_state(cpu_rq(best_cpu));
-	}
-
-	cenv->cpu = best_cpu;
-	cenv->util = !cpu_selected(best_cpu) ? min_util
-		: normalized_util(min_util, capacity_orig_of(best_cpu));
-	cenv->idle_idx = idle_idx;
-	cenv->exit_latency = state ? state->exit_latency : UINT_MAX;
+	return min_util_cpu;
 }
 
 static int select_eco_cpu(struct eco_env *eenv)
 {
-	unsigned long best_util = ULONG_MAX;
+	unsigned long task_util = task_util_est(eenv->p);
 	unsigned int best_energy = UINT_MAX;
 	unsigned int prev_energy;
 	int eco_cpu = eenv->prev_cpu;
 	int cpu, best_cpu = -1;
-	int best_idle_idx = INT_MAX;
-	unsigned int best_exit_latency = UINT_MAX;
 
 	/*
 	 * It is meaningless to find an energy cpu when the energy table is
@@ -297,68 +191,37 @@ static int select_eco_cpu(struct eco_env *eenv)
 
 	for_each_cpu(cpu, cpu_active_mask) {
 		struct cpumask mask;
-		struct cpu_env cenv;
+		int energy_cpu;
 
 		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
 			continue;
 
 		cpumask_and(&mask, cpu_coregroup_mask(cpu), tsk_cpus_allowed(eenv->p));
-
-		if (cpumask_empty(&mask))
-			continue;
-
 		/*
-		* Skip processing placement further if we are visiting
-		* cpus with lower capacity than start cpu
-		*/
-		if (!pm_freezing && (get_cpu_max_capacity(cpumask_first(&mask)) < eenv->start_cpu_cap))
+		 * Checking prev cpu is meaningless, because the energy of prev cpu
+		 * will be compared to best cpu at last
+		 */
+		cpumask_clear_cpu(eenv->prev_cpu, &mask);
+		if (cpumask_empty(&mask))
 			continue;
 
 		/*
 		 * Select the best target, which is expected to consume the
 		 * lowest energy among the min util cpu for each coregroup.
 		 */
-		find_min_util_cpu(&cenv, &mask, eenv);
-		if (cpu_selected(cenv.cpu)) {
-			unsigned int energy = calculate_energy(eenv->p, cenv.cpu);
+		energy_cpu = find_min_util_cpu(&mask, task_util);
+		if (cpu_selected(energy_cpu)) {
+			unsigned int energy = calculate_energy(eenv->p, energy_cpu);
 
-			/* 1. find min_energy cpu */
-			if (energy < best_energy)
-				goto energy_cpu_found;
-			if (energy > best_energy)
-				continue;
-
-			/* 2. find min_util cpu when energy is same */
-			if (cenv.util < best_util)
-				goto energy_cpu_found;
-			if (cenv.util > best_util)
-				continue;
-
-			/* 3. find idle cpu when energy, util are same */
-			if (best_idle_idx == -1 && cenv.idle_idx > -1)
-				goto energy_cpu_found;
-
-			/* 4. find shallower idle cpu when energy, util, idle-status are same */
-			if ((best_idle_idx > -1) && (best_idle_idx > cenv.idle_idx))
-				goto energy_cpu_found;
-			else if (best_idle_idx < cenv.idle_idx)
-				continue;
-
-			/* 5. find cpu with least exit latency */
-			if (cenv.exit_latency > best_exit_latency)
-				continue;
-
-energy_cpu_found:
-			best_energy = energy;
-			best_cpu = cenv.cpu;
-			best_util = cenv.util;
-			best_idle_idx = cenv.idle_idx;
-			best_exit_latency = cenv.exit_latency;
+			if (energy < best_energy) {
+				best_energy = energy;
+				best_cpu = energy_cpu;
+			}
 		}
 	}
 
-	if (!cpu_selected(best_cpu) || best_cpu == eco_cpu)
-		return eco_cpu;
+	if (!cpu_selected(best_cpu))
+		return -1;
 
 	/*
 	 * Compare prev cpu to best cpu to determine whether keeping the task
@@ -377,10 +240,14 @@ energy_cpu_found:
 	return eco_cpu;
 }
 
-int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync)
+int select_energy_cpu(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
 {
 	struct sched_domain *sd = NULL;
 	int cpu = smp_processor_id();
+	struct eco_env eenv = {
+		.p = p,
+		.prev_cpu = prev_cpu,
+	};
 
 	if (!sched_feat(ENERGY_AWARE))
 		return -1;
@@ -390,7 +257,7 @@ int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync)
 	 * energy gain.
 	 */
 	rcu_read_lock();
-	sd = rcu_dereference_sched(cpu_rq(eenv->prev_cpu)->sd);
+	sd = rcu_dereference_sched(cpu_rq(prev_cpu)->sd);
 	if (!sd || sd->shared->overutilized) {
 		rcu_read_unlock();
 		return -1;
@@ -402,12 +269,11 @@ int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync)
 	 * with 0 utilization, so let them be placed according to the normal
 	 * strategy.
 	 */
-	if (!task_util(eenv->p))
+	if (!task_util(p))
 		return -1;
 
 	if (sysctl_sched_sync_hint_enable && sync)
-		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(eenv->p)) &&
-		    is_cpu_preemptible(eenv->p, eenv->prev_cpu, cpu, sync))
+		if (cpumask_test_cpu(cpu, &p->cpus_allowed))
 			return cpu;
 
 	/*
@@ -415,7 +281,7 @@ int select_energy_cpu(struct eco_env *eenv, int sd_flag, int sync)
 	 * After selecting the best cpu according to strategy,
 	 * we choose a cpu that is energy efficient compared to prev cpu.
 	 */
-	return select_eco_cpu(eenv);
+	return select_eco_cpu(&eenv);
 }
 
 #ifdef CONFIG_SIMPLIFIED_ENERGY_MODEL
@@ -520,39 +386,6 @@ static struct notifier_block sched_cpufreq_policy_notifier = {
 	.notifier_call = sched_cpufreq_policy_callback,
 };
 
-static void cpumask_speed_init(void)
-{
-	int cpu;
-	unsigned long min_cap = ULONG_MAX, max_cap = 0;
-
-	cpumask_clear(&slowest_mask);
-	cpumask_clear(&fastest_mask);
-
-	for_each_cpu(cpu, cpu_possible_mask) {
-		unsigned long cap;
-
-		cap = get_cpu_max_capacity(cpu);
-		if (cap < min_cap)
-			min_cap = cap;
-		if (cap > max_cap)
-			max_cap = cap;
-	}
-
-	for_each_cpu(cpu, cpu_possible_mask) {
-		unsigned long cap;
-
-		cap = get_cpu_max_capacity(cpu);
-		if (cap == min_cap) {
-			pr_info("cpu%d is_min_cap=%d\n", cpu, 1);
-			cpumask_set_cpu(cpu, &slowest_mask);
-		}
-		if (cap == max_cap) {
-			pr_info("cpu%d is_min_cap=%d\n", cpu, 0);
-			cpumask_set_cpu(cpu, &fastest_mask);
-		}
-	}
-}
-
 /*
  * Whenever frequency domain is registered, and energy table corresponding to
  * the domain is created. Because cpu in the same frequency domain has the same
@@ -656,7 +489,6 @@ void init_sched_energy_table(struct cpumask *cpus, int table_size,
 	}
 
 	topology_update();
-	cpumask_speed_init();
 }
 
 static int __init init_sched_energy_data(void)

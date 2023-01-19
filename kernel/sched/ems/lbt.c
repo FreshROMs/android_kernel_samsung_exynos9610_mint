@@ -87,19 +87,6 @@ bool lbt_overutilized(int cpu, int level)
 	return overutilized;
 }
 
-bool lbt_util_overutilized(int cpu)
-{
-	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);
-
-	if (!ou)
-		return false;
-
-	if (cpu_util(cpu) > ou[0].capacity)
-		return true;
-
-	return false;
-}
-
 void update_lbt_overutil(int cpu, unsigned long capacity)
 {
 	struct lbt_overutil *ou = per_cpu(lbt_overutil, cpu);

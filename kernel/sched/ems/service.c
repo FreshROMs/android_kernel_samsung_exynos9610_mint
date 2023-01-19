@@ -8,7 +8,6 @@
 #include <linux/kobject.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <linux/ems.h>
 #include <linux/ems_service.h>
 #include <trace/events/ems.h>
 
@@ -102,14 +101,12 @@ static struct prefer_perf *find_prefer_perf(int boost)
 }
 
 static int
-select_prefer_cpu(struct eco_env *eenv, int coregroup_count, struct cpumask *prefer_cpus)
+select_prefer_cpu(struct task_struct *p, int coregroup_count, struct cpumask *prefer_cpus)
 {
 	struct cpumask mask;
 	int coregroup, cpu;
-	unsigned long best_perf_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
 	int best_perf_cstate = INT_MAX;
-	int best_active_cpu = -1;
 	int best_perf_cpu = -1;
 	int backup_cpu = -1;
 
@@ -120,86 +117,55 @@ select_prefer_cpu(struct eco_env *eenv, int coregroup_count, struct cpumask *pre
 		if (cpumask_empty(&mask))
 			continue;
 
-		if ((cpu_selected(best_perf_cpu) ||
-		     cpu_selected(backup_cpu)) &&
-		    is_slowest_cpu(cpumask_first(&mask)))
-			continue;
-
-		for_each_cpu_and(cpu, tsk_cpus_allowed(eenv->p), &mask) {
-			unsigned long spare_cap;
-			unsigned long capacity_curr;
+		for_each_cpu_and(cpu, &p->cpus_allowed, &mask) {
 			unsigned long capacity_orig;
 			unsigned long wake_util;
-			unsigned long new_util;
-
-			/* Skip CPUs under boosted ontime migration if not UX task */
-			if (cpu_rq(cpu)->ontime_boost_migration)
-				continue;
-
-			capacity_orig = capacity_orig_of(cpu);
-			wake_util = cpu_util_without(cpu, eenv->p);
-			new_util = wake_util + eenv->task_util;
-			new_util = max(new_util, eenv->min_util);
-
-			/* Skip over-capacity cpu */
-			if (capacity_orig < new_util)
-				continue;
 
 			if (idle_cpu(cpu)) {
 				int idle_idx = idle_get_state_idx(cpu_rq(cpu));
 
 				/* find shallowest idle state cpu */
-				if (idle_idx > best_perf_cstate)
-					continue;
-
-				/* if same cstate, select lower util */
-				if (idle_idx == best_perf_cstate &&
-				    wake_util >= best_perf_util)
+				if (idle_idx >= best_perf_cstate)
 					continue;
 
 				/* Keep track of best idle CPU */
-				best_perf_util = wake_util;
 				best_perf_cstate = idle_idx;
 				best_perf_cpu = cpu;
 				continue;
 			}
 
-			if (cpu_selected(best_perf_cpu))
+			capacity_orig = capacity_orig_of(cpu);
+			wake_util = cpu_util_wake(cpu, p);
+			if ((capacity_orig - wake_util) < max_spare_cap)
 				continue;
 
-			spare_cap = capacity_orig - new_util;
-			capacity_curr = capacity_curr_of(cpu);
-			if (spare_cap > max_spare_cap) {
-				max_spare_cap = spare_cap;
-				backup_cpu = cpu;
-
-				if (capacity_curr > new_util)
-					best_active_cpu = cpu;
-			}
+			max_spare_cap = capacity_orig - wake_util;
+			backup_cpu = cpu;
 		}
+
+		if (cpu_selected(best_perf_cpu))
+			break;
 	}
 
 	rcu_read_unlock();
 
-	if (!cpu_selected(best_active_cpu))
-		best_active_cpu = backup_cpu;
-
 	if (best_perf_cpu == -1)
-		return best_active_cpu;
+		return backup_cpu;
 
 	return best_perf_cpu;
 }
 
-int select_service_cpu(struct eco_env *eenv)
+int select_service_cpu(struct task_struct *p)
 {
 	struct prefer_perf *pp;
 	int boost, service_cpu;
+	unsigned long util;
 	char state[30];
 
 	if (!prefer_perf_services)
 		return -1;
 
-	boost = max(eenv->prefer_high_cap, eenv->task_on_top);
+	boost = schedtune_prefer_perf(p);
 	if (boost <= 0)
 		return -1;
 
@@ -207,15 +173,23 @@ int select_service_cpu(struct eco_env *eenv)
 	if (!pp)
 		return -1;
 
-	if ((eenv->p)->prio <= 110) {
-		service_cpu = select_prefer_cpu(eenv, 1, pp->prefer_cpus);
+	util = task_util_est(p);
+	if (util <= pp->threshold) {
+		service_cpu = select_prefer_cpu(p, 1, pp->prefer_cpus);
+		strcpy(state, "light task");
+		goto out;
+	}
+
+	if (p->prio <= 110) {
+		service_cpu = select_prefer_cpu(p, 1, pp->prefer_cpus);
 		strcpy(state, "high-prio task");
 	} else {
-		service_cpu = select_prefer_cpu(eenv, pp->coregroup_count, pp->prefer_cpus);
+		service_cpu = select_prefer_cpu(p, pp->coregroup_count, pp->prefer_cpus);
 		strcpy(state, "heavy task");
 	}
 
-	trace_ems_prefer_perf_service(eenv->p, -1, service_cpu, state);
+out:
+	trace_ems_prefer_perf_service(p, util, service_cpu, state);
 	return service_cpu;
 }
 

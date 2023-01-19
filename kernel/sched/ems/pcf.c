@@ -5,7 +5,6 @@
  * Park Bumgyu <bumgyu.park@samsung.com>
  */
 
-#include <linux/cpuidle.h>
 #include <trace/events/ems.h>
 
 #include "ems.h"
@@ -17,40 +16,20 @@
  * capacity. Although the current algorithm may suffice, it is necessary to
  * examine a selection algorithm considering cache hot and migration cost.
  */
-int select_perf_cpu(struct eco_env *eenv)
+int select_perf_cpu(struct task_struct *p)
 {
 	int cpu;
 	unsigned long best_perf_cap_orig = 0;
-	unsigned long best_perf_util = ULONG_MAX;
-	unsigned long best_wake_util = ULONG_MAX;
-	unsigned long best_active_util = ULONG_MAX;
-	unsigned long best_active_cuml_util = ULONG_MAX;
 	unsigned long max_spare_cap = 0;
-	unsigned int min_exit_latency = UINT_MAX;
+	int best_perf_cstate = INT_MAX;
 	int best_perf_cpu = -1;
-	int best_active_cpu = -1;
 	int backup_cpu = -1;
 
 	rcu_read_lock();
 
-	for_each_cpu_and(cpu, tsk_cpus_allowed(eenv->p), cpu_active_mask) {
+	for_each_cpu_and(cpu, &p->cpus_allowed, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
-		unsigned long new_util, new_util_cuml, spare_cap, wake_util = cpu_util_without(cpu, eenv->p);
-
-		/* Skip CPUs under boosted ontime migration if not UX task */
-		if (cpu_rq(cpu)->ontime_boost_migration)
-			continue;
-
-		new_util = wake_util + eenv->task_util;
-		new_util = max(new_util, eenv->min_util);
-
-		/* Skip over-capacity cpu */
-		if (new_util > capacity_orig)
-			continue;
-
-		new_util_cuml = cpu_util(cpu) + eenv->min_util;
-		if (task_in_cum_window_demand(cpu_rq(cpu), eenv->p))
-			new_util_cuml -= eenv->task_util;
+		unsigned long wake_util;
 
 		/*
 		 * A) Find best performance cpu.
@@ -63,40 +42,30 @@ int select_perf_cpu(struct eco_env *eenv)
 		 * shallowest idle state for fast reactivity.
 		 */
 		if (idle_cpu(cpu)) {
-			struct cpuidle_state *idle;
+			int idle_idx = idle_get_state_idx(cpu_rq(cpu));
 
 			/* find biggest capacity cpu */
 			if (capacity_orig < best_perf_cap_orig)
 				continue;
 
-			idle = idle_get_state(cpu_rq(cpu));
-
-			if (!idle) {
-				best_perf_cpu = cpu;
-				continue;
+			/*
+			 * if we find a better-performing cpu, re-initialize
+			 * best_perf_cstate
+			 */
+			if (capacity_orig > best_perf_cap_orig) {
+				best_perf_cap_orig = capacity_orig;
+				best_perf_cstate = INT_MAX;
 			}
 
 			/* find shallowest idle state cpu */
-			if (capacity_orig == best_perf_cap_orig &&
-				idle->exit_latency > min_exit_latency)
-				continue;
-
-			/* if same cstate, select lower util */
-			if (capacity_orig == best_perf_cap_orig &&
-				idle->exit_latency == min_exit_latency &&
-				wake_util >= best_perf_util)
+			if (idle_idx >= best_perf_cstate)
 				continue;
 
 			/* Keep track of best idle CPU */
-			best_perf_cap_orig = capacity_orig;
-			best_perf_util = wake_util;
-			min_exit_latency = idle->exit_latency;
+			best_perf_cstate = idle_idx;
 			best_perf_cpu = cpu;
 			continue;
 		}
-
-		if (cpu_selected(best_perf_cpu))
-			continue;
 
 		/*
 		 * B) Find backup performance cpu.
@@ -107,48 +76,19 @@ int select_perf_cpu(struct eco_env *eenv)
 		 * computations. Since a high performance cpu has a large capacity,
 		 * cpu having a high performance is likely to be selected.
 		 */
-		spare_cap = capacity_orig - new_util;
-
-		if (capacity_curr_of(cpu) > new_util &&
-			spare_cap > max_spare_cap) {
-			max_spare_cap = spare_cap;
-			best_active_cpu = cpu;
-			continue;
-		}
-		
-		if (wake_util > best_wake_util)
-			continue;
-		if (new_util > best_active_util)
+		wake_util = cpu_util_wake(cpu, p);
+		if ((capacity_orig - wake_util) < max_spare_cap)
 			continue;
 
-		/*
-		 * If utilization is the same between CPUs,
-		 * break the ties with cumulative demand,
-		 * also prefer lower order cpu.
-		 */
-		if (new_util == best_active_util &&
-			new_util_cuml >= best_active_cuml_util)
-			continue;
-
-		best_wake_util = wake_util;
-		best_active_util = new_util;
-		best_active_cuml_util = new_util_cuml;
+		max_spare_cap = capacity_orig - wake_util;
 		backup_cpu = cpu;
 	}
 
 	rcu_read_unlock();
 
-	if (!cpu_selected(best_active_cpu))
-		best_active_cpu = backup_cpu;
-
-	trace_ems_select_perf_cpu(eenv->p, best_perf_cpu, best_active_cpu);
-
-	if (!cpu_selected(best_perf_cpu))
-		best_perf_cpu = best_active_cpu;
-
-	/* Return the previous CPU if CPU is not overutilized */
-	if (!cpu_selected(best_perf_cpu) && !lbt_util_overutilized(eenv->prev_cpu))
-		return eenv->prev_cpu;
+	trace_ems_select_perf_cpu(p, best_perf_cpu, backup_cpu);
+	if (best_perf_cpu == -1)
+		return backup_cpu;
 
 	return best_perf_cpu;
 }

@@ -12,12 +12,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cpufreq.h>
-#include <linux/fb.h>
 #include <linux/kthread.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/slab.h>
 #include <linux/cpu_pm.h>
-#include <linux/ems.h>
 
 #include <trace/events/power.h>
 
@@ -77,10 +75,6 @@ struct sugov_policy {
 #ifdef CONFIG_SCHED_FFSI_GLUE
 	bool 			be_stochastic;
 #endif
-
-	/* Framebuffer callbacks */
-	struct notifier_block fb_notif;
-	bool is_panel_blank;
 };
 
 struct sugov_cpu {
@@ -307,7 +301,7 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 
 		policy->cur = next_freq;
 		trace_cpu_frequency(next_freq, smp_processor_id());
-	} else if (!sg_policy->work_in_progress) {
+	} else {
 		cpu = sugov_select_scaling_cpu();
 		if (cpu < 0)
 			return;
@@ -319,11 +313,11 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 }
 
 #ifdef CONFIG_FREQVAR_TUNE
-unsigned long freqvar_boost_vector(int cpu, unsigned long util);
+unsigned int freqvar_tipping_point(int cpu, unsigned int freq);
 #else
-static inline unsigned long freqvar_boost_vector(int cpu, unsigned long util)
+static inline unsigned int freqvar_tipping_point(int cpu, unsigned int freq)
 {
-	return util;
+	return  freq + (freq >> 2);
 }
 #endif
 
@@ -372,7 +366,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	RV_DECLARE(rv);
 #endif
 
-	freq = freq * util / max;
+	freq = freqvar_tipping_point(policy->cpu, freq) * util / max;
 
 #ifdef CONFIG_SCHED_FFSI_GLUE
 	legacy_freq = freq;
@@ -439,14 +433,8 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
 	*util = boosted_cpu_util(cpu);
-	*util = freqvar_boost_vector(cpu, *util);
-	*util = *util + (*util >> 2);
 	*util = min(*util, max_cap);
 	*max = max_cap;
-
-#ifdef CONFIG_SCHED_EMS
-	part_cpu_active_ratio(util, max, cpu);
-#endif
 }
 
 #ifdef CONFIG_SCHED_FFSI_GLUE
@@ -471,8 +459,7 @@ static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 {
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 
-	if (!sg_policy->tunables->iowait_boost_enable ||
-	     sg_policy->is_panel_blank)
+	if (!sg_policy->tunables->iowait_boost_enable)
 		return;
 
 	if (sg_cpu->iowait_boost) {
@@ -609,29 +596,15 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 static void sugov_work(struct kthread_work *work)
 {
 	struct sugov_policy *sg_policy = container_of(work, struct sugov_policy, work);
-	unsigned int freq;
-	unsigned long flags;
-
-	/*
-	 * Hold sg_policy->update_lock shortly to handle the case where:
-	 * incase sg_policy->next_freq is read here, and then updated by
-	 * sugov_update_shared just before work_in_progress is set to false
-	 * here, we may miss queueing the new update.
-	 *
-	 * Note: If a work was queued after the update_lock is released,
-	 * sugov_work will just be called again by kthread_work code; and the
-	 * request will be proceed before the sugov thread sleeps.
-	 */
-	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
-	freq = sg_policy->next_freq;
-	sg_policy->work_in_progress = false;
-	raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 
 	down_write(&sg_policy->policy->rwsem);
 	mutex_lock(&sg_policy->work_lock);
-	__cpufreq_driver_target(sg_policy->policy, freq, CPUFREQ_RELATION_L);
+	__cpufreq_driver_target(sg_policy->policy, sg_policy->next_freq,
+				CPUFREQ_RELATION_L);
 	mutex_unlock(&sg_policy->work_lock);
 	up_write(&sg_policy->policy->rwsem);
+
+	sg_policy->work_in_progress = false;
 }
 
 static void sugov_irq_work(struct irq_work *irq_work)
@@ -944,23 +917,6 @@ static void sugov_clear_global_tunables(void)
 		global_tunables = NULL;
 }
 
-static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
-			  void *data)
-{
-	struct sugov_policy *sg_policy = container_of(nb, struct sugov_policy, fb_notif);
-	int *blank = ((struct fb_event *)data)->data;
-
-	if (action != FB_EARLY_EVENT_BLANK)
-		return NOTIFY_OK;
-
-	if (*blank == FB_BLANK_UNBLANK)
-		sg_policy->is_panel_blank = false;
-	else
-		sg_policy->is_panel_blank = true;
-
-	return NOTIFY_OK;
-}
-
 static int sugov_init(struct cpufreq_policy *policy)
 {
 	struct sugov_policy *sg_policy;
@@ -1019,7 +975,6 @@ tunables_init:
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
-	sg_policy->is_panel_blank = false;
 
 	ret = kobject_init_and_add(&tunables->attr_set.kobj, &sugov_tunables_ktype,
 				   get_governor_parent_kobj(policy), "%s",
@@ -1029,15 +984,6 @@ tunables_init:
 
 out:
 	mutex_unlock(&global_tunables_lock);
-
-	sg_policy->fb_notif.notifier_call = fb_notifier_cb;
-	sg_policy->fb_notif.priority = INT_MAX;
-	ret = fb_register_client(&sg_policy->fb_notif);
-	if (ret) {
-		pr_err("Failed to register fb notifier, err: %d\n", ret);
-		goto fail;
-	}
-
 	return 0;
 
 fail:
@@ -1087,7 +1033,6 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	if (sugov_save_policy(sg_policy))
 		goto out;
 
-	fb_unregister_client(&sg_policy->fb_notif);
 	sugov_kthread_stop(sg_policy);
 	sugov_policy_free(sg_policy);
 

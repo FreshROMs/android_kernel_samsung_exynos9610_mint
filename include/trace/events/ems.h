@@ -392,82 +392,54 @@ TRACE_EVENT(ems_lbt_overutilized,
 		__entry->cpu, __entry->level, __entry->util,
 		__entry->capacity, __entry->overutilized)
 );
-TRACE_EVENT(ems_cpu_active_ratio_patten,
 
-	TP_PROTO(int cpu, int p_count, int p_avg, int p_stdev),
+TRACE_EVENT(ems_update_band,
 
-	TP_ARGS(cpu, p_count, p_avg, p_stdev),
+	TP_PROTO(int band_id, unsigned long band_util, int member_count, unsigned int playable_cpus),
+
+	TP_ARGS(band_id, band_util, member_count, playable_cpus),
 
 	TP_STRUCT__entry(
-		__field( int,	cpu				)
-		__field( int,	p_count				)
-		__field( int,	p_avg				)
-		__field( int,	p_stdev				)
+		__field( int,		band_id			)
+		__field( unsigned long,	band_util		)
+		__field( int,		member_count		)
+		__field( unsigned int,	playable_cpus		)
 	),
 
 	TP_fast_assign(
-		__entry->cpu			= cpu;
-		__entry->p_count		= p_count;
-		__entry->p_avg			= p_avg;
-		__entry->p_stdev		= p_stdev;
+		__entry->band_id		= band_id;
+		__entry->band_util		= band_util;
+		__entry->member_count		= member_count;
+		__entry->playable_cpus		= playable_cpus;
 	),
 
-	TP_printk("cpu=%d p_count=%2d p_avg=%4d p_stdev=%4d",
-		__entry->cpu, __entry->p_count, __entry->p_avg, __entry->p_stdev)
+	TP_printk("band_id=%d band_util=%ld member_count=%d playable_cpus=%#x",
+			__entry->band_id, __entry->band_util, __entry->member_count,
+			__entry->playable_cpus)
 );
 
-TRACE_EVENT(ems_cpu_active_ratio,
+TRACE_EVENT(ems_manage_band,
 
-	TP_PROTO(int cpu, struct part *pa, char *event),
+	TP_PROTO(struct task_struct *p, int band_id, char *event),
 
-	TP_ARGS(cpu, pa, event),
+	TP_ARGS(p, band_id, event),
 
 	TP_STRUCT__entry(
-		__field( int,	cpu				)
-		__field( u64,	start				)
-		__field( int,	recent				)
-		__field( int,	last				)
-		__field( int,	avg				)
-		__field( int,	max				)
-		__field( int,	est				)
-		__array( char,	event,		64		)
+		__array( char,		comm,		TASK_COMM_LEN	)
+		__field( pid_t,		pid				)
+		__field( int,		band_id				)
+		__array( char,		event,		64		)
 	),
 
 	TP_fast_assign(
-		__entry->cpu			= cpu;
-		__entry->start			= pa->period_start;
-		__entry->recent			= pa->active_ratio_recent;
-		__entry->last			= pa->hist[pa->hist_idx];
-		__entry->avg			= pa->active_ratio_avg;
-		__entry->max			= pa->active_ratio_max;
-		__entry->est			= pa->active_ratio_est;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->pid			= p->pid;
+		__entry->band_id		= band_id;
 		strncpy(__entry->event, event, 63);
 	),
 
-	TP_printk("cpu=%d start=%llu recent=%4d last=%4d avg=%4d max=%4d est=%4d event=%s",
-		__entry->cpu, __entry->start, __entry->recent, __entry->last,
-		__entry->avg, __entry->max, __entry->est, __entry->event)
-);
-
-TRACE_EVENT(ems_cpu_active_ratio_util_stat,
-
-	TP_PROTO(int cpu, unsigned long part_util, unsigned long pelt_util),
-
-	TP_ARGS(cpu, part_util, pelt_util),
-
-	TP_STRUCT__entry(
-		__field( int,		cpu					)
-		__field( unsigned long,	part_util				)
-		__field( unsigned long,	pelt_util				)
-	),
-
-	TP_fast_assign(
-		__entry->cpu			= cpu;
-		__entry->part_util		= part_util;
-		__entry->pelt_util		= pelt_util;
-	),
-
-	TP_printk("cpu=%d part_util=%lu pelt_util=%lu", __entry->cpu, __entry->part_util, __entry->pelt_util)
+	TP_printk("comm=%s pid=%d band_id=%d event=%s",
+			__entry->comm, __entry->pid, __entry->band_id, __entry->event)
 );
 
 TRACE_EVENT(ems_prefer_perf_service,
@@ -494,56 +466,6 @@ TRACE_EVENT(ems_prefer_perf_service,
 
 	TP_printk("comm=%s pid=%d util=%lu service_cpu=%d event=%s",
 			__entry->comm, __entry->pid, __entry->util, __entry->service_cpu, __entry->event)
-);
-
-/*
- * Tracepoint for frequency variant boost
- */
-
-TRACE_EVENT(ems_freqvar_st_boost,
-
-	TP_PROTO(int cpu, int ratio),
-
-	TP_ARGS(cpu, ratio),
-
-	TP_STRUCT__entry(
-		__field( int,		cpu			)
-		__field( int,		ratio			)
-	),
-
-	TP_fast_assign(
-		__entry->cpu			= cpu;
-		__entry->ratio			= ratio;
-	),
-
-	TP_printk("cpu=%d ratio=%d", __entry->cpu, __entry->ratio)
-);
-TRACE_EVENT(ems_freqvar_boost,
-
-	TP_PROTO(int cpu, int ratio, unsigned long step_max_util,
-			unsigned long util, unsigned long boosted_util),
-
-	TP_ARGS(cpu, ratio, step_max_util, util, boosted_util),
-
-	TP_STRUCT__entry(
-		__field( int,		cpu			)
-		__field( int,		ratio			)
-		__field( unsigned long,	step_max_util		)
-		__field( unsigned long,	util			)
-		__field( unsigned long,	boosted_util		)
-	),
-
-	TP_fast_assign(
-		__entry->cpu			= cpu;
-		__entry->ratio			= ratio;
-		__entry->step_max_util		= step_max_util;
-		__entry->util			= util;
-		__entry->boosted_util		= boosted_util;
-	),
-
-	TP_printk("cpu=%d ratio=%d step_max_util=%lu util=%lu boosted_util=%lu",
-		  __entry->cpu, __entry->ratio, __entry->step_max_util,
-		  __entry->util, __entry->boosted_util)
 );
 #endif /* _TRACE_EMS_H */
 

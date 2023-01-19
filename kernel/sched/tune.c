@@ -42,12 +42,11 @@ struct schedtune {
 	 * towards high performance CPUs */
 	int prefer_perf;
 
-	/* Hint to bias scheduling of tasks on that SchedTune CGroup
-	 * towards higher-capacity CPUs */
-	int prefer_high_cap;
-
 	/* SchedTune util-est */
 	int util_est_en;
+
+	/* Hint to group tasks by process */
+	int band;
 
 	/* SchedTune ontime migration */
 	int ontime_en;
@@ -82,13 +81,51 @@ root_schedtune = {
 	.boost	= 0,
 	.prefer_idle = 0,
 	.prefer_perf = 0,
-	.prefer_high_cap = 0,
+	.band = 0,
 };
+
+/*
+ * Maximum number of boost groups to support
+ * When per-task boosting is used we still allow only limited number of
+ * boost groups for two main reasons:
+ * 1. on a real system we usually have only few classes of workloads which
+ *    make sense to boost with different values (e.g. background vs foreground
+ *    tasks, interactive vs low-priority tasks)
+ * 2. a limited number allows for a simpler and more memory/time efficient
+ *    implementation especially for the computation of the per-CPU boost
+ *    value
+ */
+#define BOOSTGROUPS_COUNT 6
 
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
 	&root_schedtune,
 	NULL,
+};
+
+/* SchedTune boost groups
+ * Keep track of all the boost groups which impact on CPU, for example when a
+ * CPU has two RUNNABLE tasks belonging to two different boost groups and thus
+ * likely with different boost values.
+ * Since on each system we expect only a limited number of boost groups, here
+ * we use a simple array to keep track of the metrics required to compute the
+ * maximum per-CPU boosting value.
+ */
+struct boost_groups {
+	/* Maximum boost value for all RUNNABLE tasks on a CPU */
+	bool idle;
+	int boost_max;
+	u64 boost_ts;
+	struct {
+		/* The boost for tasks on that boost group */
+		int boost;
+		/* Count of RUNNABLE tasks on that boost group */
+		unsigned tasks;
+		/* Timestamp of boost activation */
+		u64 ts;
+	} group[BOOSTGROUPS_COUNT];
+	/* CPU's boost group locking */
+	raw_spinlock_t lock;
 };
 
 /* Boost groups affecting each CPU in the system */
@@ -344,6 +381,15 @@ void schedtune_cancel_attach(struct cgroup_taskset *tset)
 	WARN(1, "SchedTune cancel attach not implemented");
 }
 
+static void schedtune_attach(struct cgroup_taskset *tset)
+{
+	struct task_struct *task;
+	struct cgroup_subsys_state *css;
+
+	cgroup_taskset_for_each(task, css, tset)
+		sync_band(task, css_st(css)->band);
+}
+
 /*
  * NOTE: This function must be called while holding the lock on the CPU RQ
  */
@@ -388,86 +434,29 @@ int schedtune_cpu_boost(int cpu)
 	return bg->boost_max;
 }
 
-#define SYSTEMUI_THREAD_NAME "ndroid.systemui"
-static inline int schedtune_adj_ta(struct schedtune *st, struct task_struct *p)
+static inline int schedtune_adj_ta(struct task_struct *p)
 {
+	struct schedtune *st;
+	char name_buf[NAME_MAX + 1];
 	int adj = p->signal->oom_score_adj;
 
-	if (!st)
+	/* We only care about adj == 0 */
+	if (adj != 0)
 		return 0;
 
 	/* Don't touch kthreads */
 	if (p->flags & PF_KTHREAD)
 		return 0;
 
-	/* We only care about adj == 0 */
-	if (adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
-		return 0;
-
-	if (st->idx == STUNE_TOPAPP) {
+	st = task_schedtune(p);
+	cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
+	if (!strncmp(name_buf, "top-app", strlen("top-app"))) {
 		pr_debug("top app is %s with adj %i\n", p->comm, adj);
 		return 1;
 	}
 
 	return 0;
 }
-
-#ifdef CONFIG_SCHED_EMS
-inline int is_top_app(struct schedtune *st) {
-	return (st->idx == STUNE_TOPAPP);
-}
-
-int schedtune_task_top_app(struct task_struct *p)
-{
-	struct schedtune *st;
-	int top_app;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Don't touch kthreads */
-	if (p->flags & PF_KTHREAD)
-		return 0;
-
-	/* Return if task is not an app */
-	if (!is_app(p))
-		return 0;
-
-	/* Get task boost value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	top_app = is_top_app(st);
-	rcu_read_unlock();
-
-	return top_app;
-}
-
-int schedtune_task_on_top(struct task_struct *p)
-{
-	int adj = p->signal->oom_score_adj;
-	struct schedtune *st;
-	int on_top;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Don't touch kthreads */
-	if (p->flags & PF_KTHREAD)
-		return 0;
-
-	/* Return if task is not an app */
-	if (!is_app(p))
-		return 0;
-
-	/* Get task boost value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	on_top = is_top_app(st) && (adj == 0);
-	rcu_read_unlock();
-
-	return on_top;
-}
-#endif
 
 int schedtune_task_boost(struct task_struct *p)
 {
@@ -480,7 +469,7 @@ int schedtune_task_boost(struct task_struct *p)
 	/* Get task boost value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	task_boost = max(st->boost, schedtune_adj_ta(st, p));
+	task_boost = max(st->boost, schedtune_adj_ta(p));
 	rcu_read_unlock();
 
 	return task_boost;
@@ -549,27 +538,10 @@ int schedtune_prefer_perf(struct task_struct *p)
 	/* Get prefer_perf value */
 	rcu_read_lock();
 	st = task_schedtune(p);
-	prefer_perf = st->prefer_perf;
+	prefer_perf = max(st->prefer_perf, kpp_status(st->idx));
 	rcu_read_unlock();
 
 	return prefer_perf;
-}
-
-int schedtune_prefer_high_cap(struct task_struct *p)
-{
-	struct schedtune *st;
-	int prefer_high_cap;
-
-	if (unlikely(!schedtune_initialized))
-		return 0;
-
-	/* Get prefer_high_cap value */
-	rcu_read_lock();
-	st = task_schedtune(p);
-	prefer_high_cap = max(st->prefer_high_cap, kpp_status(st->idx));
-	rcu_read_unlock();
-
-	return prefer_high_cap;
 }
 
 static u64
@@ -609,6 +581,24 @@ ontime_en_write(struct cgroup_subsys_state *css, struct cftype *cft,
 }
 
 static u64
+band_read(struct cgroup_subsys_state *css, struct cftype *cft)
+{
+	struct schedtune *st = css_st(css);
+
+	return st->band;
+}
+
+static int
+band_write(struct cgroup_subsys_state *css, struct cftype *cft,
+	    u64 band)
+{
+	struct schedtune *st = css_st(css);
+	st->band = band;
+
+	return 0;
+}
+
+static u64
 prefer_idle_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
 	struct schedtune *st = css_st(css);
@@ -640,24 +630,6 @@ prefer_perf_write(struct cgroup_subsys_state *css, struct cftype *cft,
 {
 	struct schedtune *st = css_st(css);
 	st->prefer_perf = prefer_perf;
-
-	return 0;
-}
-
-static u64
-prefer_high_cap_read(struct cgroup_subsys_state *css, struct cftype *cft)
-{
-	struct schedtune *st = css_st(css);
-
-	return st->prefer_high_cap;
-}
-
-static int
-prefer_high_cap_write(struct cgroup_subsys_state *css, struct cftype *cft,
-	    u64 prefer_high_cap)
-{
-	struct schedtune *st = css_st(css);
-	st->prefer_high_cap = prefer_high_cap;
 
 	return 0;
 }
@@ -704,9 +676,9 @@ static struct cftype files[] = {
 		.write_u64 = prefer_perf_write,
 	},
 	{
-		.name = "prefer_high_cap",
-		.read_u64 = prefer_high_cap_read,
-		.write_u64 = prefer_high_cap_write,
+		.name = "band",
+		.read_u64 = band_read,
+		.write_u64 = band_write,
 	},
 	{
 		.name = "util_est_en",
@@ -807,6 +779,7 @@ struct cgroup_subsys schedtune_cgrp_subsys = {
 	.css_free	= schedtune_css_free,
 	.can_attach     = schedtune_can_attach,
 	.cancel_attach  = schedtune_cancel_attach,
+	.attach		= schedtune_attach,
 	.legacy_cftypes	= files,
 	.early_init	= 1,
 };

@@ -352,33 +352,6 @@ struct util_est {
 #define UTIL_EST_WEIGHT_SHIFT		2
 };
 
-
-#define EMS_PART_ENQUEUE	0x1
-#define EMS_PART_DEQUEUE	0x2
-#define EMS_PART_UPDATE		0x4
-#define EMS_PART_WAKEUP_NEW	0x8
-
-struct part {
-	bool	running;
-
-	u64	period_start;
-	u64	last_updated;
-	u64	active_sum;
-
-#define PART_HIST_SIZE_MAX	20
-	int	hist_idx;
-	int	hist[PART_HIST_SIZE_MAX];
-	int	active_ratio_recent;
-	int	active_ratio_avg;
-	int	active_ratio_max;
-	int	active_ratio_est;
-	int	active_ratio_stdev;
-	int	active_ratio_limit;
-
-	u64	last_boost_time;
-	int	active_ratio_boost;
-};
-
 /*
  * The load_avg/util_avg accumulates an infinite geometric series
  * (see __update_load_avg() in kernel/sched/fair.c).
@@ -750,6 +723,11 @@ struct task_struct {
 #endif
 #ifdef CONFIG_SCHED_USE_FLUID_RT
 	int victim_flag;
+#endif
+
+#ifdef CONFIG_SCHED_EMS
+	struct task_band *band;
+	struct list_head band_members;
 #endif
 
 #ifdef CONFIG_CGROUP_SCHED
@@ -1952,7 +1930,6 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 # define vcpu_is_preempted(cpu)	false
 #endif
 
-extern long msm_sched_setaffinity(pid_t pid, struct cpumask *new_mask);
 extern long sched_setaffinity(pid_t pid, const struct cpumask *new_mask);
 extern long sched_getaffinity(pid_t pid, struct cpumask *mask);
 

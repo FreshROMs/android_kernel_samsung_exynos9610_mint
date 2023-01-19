@@ -6,7 +6,6 @@
  */
 
 #include <linux/ems.h>
-#include <linux/freezer.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ems.h>
@@ -15,24 +14,41 @@
 #include "../sched.h"
 #include "../tune.h"
 
-/*
- * When a task is dequeued, its estimated utilization should not be update if
- * its util_avg has not been updated at least once.
- * This flag is used to synchronize util_avg updates with util_est updates.
- * We map this information into the LSB bit of the utilization saved at
- * dequeue time (i.e. util_est.dequeued).
- */
-#define UTIL_AVG_UNCHANGED 0x1
-
-static
-inline unsigned long _task_util_est(struct task_struct *p)
+unsigned long cpu_util(int cpu)
 {
-	struct util_est ue = READ_ONCE(p->se.avg.util_est);
+	struct cfs_rq *cfs_rq;
+	unsigned int util;
 
-	return max(ue.ewma, ue.enqueued);
+#ifdef CONFIG_SCHED_WALT
+	if (likely(!walt_disabled && sysctl_sched_use_walt_cpu_util)) {
+		u64 walt_cpu_util = cpu_rq(cpu)->cumulative_runnable_avg;
+
+		walt_cpu_util <<= SCHED_CAPACITY_SHIFT;
+		do_div(walt_cpu_util, walt_ravg_window);
+
+		return min_t(unsigned long, walt_cpu_util,
+			     capacity_orig_of(cpu));
+	}
+#endif
+
+	cfs_rq = &cpu_rq(cpu)->cfs;
+	util = READ_ONCE(cfs_rq->avg.util_avg);
+
+	if (sched_feat(UTIL_EST))
+		util = max(util, READ_ONCE(cfs_rq->avg.util_est.enqueued));
+
+	return min_t(unsigned long, util, capacity_orig_of(cpu));
 }
 
-unsigned long cpu_util_without(int cpu, struct task_struct *p)
+unsigned long task_util(struct task_struct *p)
+{
+	if (rt_task(p))
+		return p->rt.avg.util_avg;
+	else
+		return p->se.avg.util_avg;
+}
+
+int cpu_util_wake(int cpu, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned int util;
@@ -73,33 +89,8 @@ unsigned long cpu_util_without(int cpu, struct task_struct *p)
 	 * covered by the following code when estimated utilization is
 	 * enabled.
 	 */
-	if (sched_feat(UTIL_EST)) {
-		unsigned int estimated =
-			READ_ONCE(cfs_rq->avg.util_est.enqueued);
-
-		/*
-		 * Despite the following checks we still have a small window
-		 * for a possible race, when an execl's select_task_rq_fair()
-		 * races with LB's detach_task():
-		 *
-		 *   detach_task()
-		 *     p->on_rq = TASK_ON_RQ_MIGRATING;
-		 *     ---------------------------------- A
-		 *     deactivate_task()                   \
-		 *       dequeue_task()                     + RaceTime
-		 *         util_est_dequeue()              /
-		 *     ---------------------------------- B
-		 *
-		 * The additional check on "current == p" it's required to
-		 * properly fix the execl regression and it helps in further
-		 * reducing the chances for the above race.
-		 */
-		if (unlikely(task_on_rq_queued(p) || current == p)) {
-			estimated -= min_t(unsigned int, estimated,
-					   (_task_util_est(p) | UTIL_AVG_UNCHANGED));
-		}
-		util = max(util, estimated);
-	}
+	if (sched_feat(UTIL_EST))
+		util = max(util, READ_ONCE(cfs_rq->avg.util_est.enqueued));
 
 	/*
 	 * Utilization (estimated) can exceed the CPU capacity, thus let's
@@ -152,54 +143,11 @@ int exynos_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries + 2);
 }
 
-extern int wake_cap(struct task_struct *p, int cpu, int prev_cpu);
-bool is_cpu_preemptible(struct task_struct *p, int prev_cpu, int cpu, int sync)
-{
-	struct rq *rq = cpu_rq(cpu);
-#ifdef CONFIG_SCHED_TUNE
-	struct task_struct *curr = READ_ONCE(rq->curr);
-
-	/* allow sync wakeups for boosted tasks */
-	if (sync && schedtune_task_boost(p) > 0)
-		return true;
-
-	if (is_slowest_cpu(cpu) || !curr)
-		goto skip_ux;
-
-	/* Allow preemption if not top-app */
-	if (!schedtune_task_top_app(curr))
-		goto skip_ux;
-
-	/* Always avoid preempting the app in front of user */
-	if (p != curr && schedtune_task_on_top(curr))
-		return false;
-
-	/* Check if 'curr' is a high-cap top-app task */
-	if (schedtune_prefer_high_cap(curr) > 0)
-		return false;
-
-skip_ux:
-#endif
-
-	if (sync && (rq->nr_running != 1 || wake_cap(p, cpu, prev_cpu)))
-		return false;
-
-	return true;
-}
-
-static int select_proper_cpu(struct eco_env *eenv)
+static int select_proper_cpu(struct task_struct *p, int prev_cpu)
 {
 	int cpu;
-	unsigned long best_active_util = ULONG_MAX;
-	unsigned long best_idle_util = ULONG_MAX;
-	unsigned long target_capacity = ULONG_MAX;
-	int best_idle_cstate = INT_MAX;
-
-	int best_active_cpu = -1;
-	int best_idle_cpu = -1;
+	unsigned long best_min_util = ULONG_MAX;
 	int best_cpu = -1;
-
-	bool prefer_idle = (eenv->prefer_idle > 0);
 
 	for_each_cpu(cpu, cpu_active_mask) {
 		int i;
@@ -209,51 +157,20 @@ static int select_proper_cpu(struct eco_env *eenv)
 			continue;
 
 		/* skip if task cannot be assigned to coregroup */
-		if (!cpumask_intersects(tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)))
+		if (!cpumask_intersects(&p->cpus_allowed, cpu_coregroup_mask(cpu)))
 			continue;
 
-		for_each_cpu_and(i, tsk_cpus_allowed(eenv->p), cpu_coregroup_mask(cpu)) {
-			unsigned long cpu_capacity = get_cpu_max_capacity(cpu);
+		for_each_cpu_and(i, tsk_cpus_allowed(p), cpu_coregroup_mask(cpu)) {
+			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long wake_util, new_util;
 
-			/*
-			 * Skip processing placement further if we are visiting
-			 * cpus with lower capacity than start cpu
-			 */
-			if (!pm_freezing && (cpu_capacity < eenv->start_cpu_cap))
-				continue;
-
-			wake_util = cpu_util_without(i, eenv->p);
-			new_util = wake_util + eenv->task_util;
-			new_util = max(new_util, eenv->min_util);
+			wake_util = cpu_util_wake(i, p);
+			new_util = wake_util + task_util_est(p);
+			new_util = max(new_util, boosted_task_util(p));
 
 			/* skip over-capacity cpu */
-			if (new_util > capacity_orig_of(i))
+			if (new_util > capacity_orig)
 				continue;
-
-			if (idle_cpu(i)) {
-				int idle_idx = idle_get_state_idx(cpu_rq(i));
-
-				/* find shallowest idle state cpu */
-				if (cpu_capacity == target_capacity &&
-				    idle_idx > best_idle_cstate)
-					continue;
-
-				/* if same cstate, select lower util */
-				if (idle_idx == best_idle_cstate &&
-				    cpu_capacity == target_capacity &&
-				    (best_idle_cpu == eenv->prev_cpu ||
-				    (i != eenv->prev_cpu &&
-				    new_util >= best_idle_util)))
-					continue;
-
-				/* Keep track of best idle CPU */
-				target_capacity = cpu_capacity;
-				best_idle_cstate = idle_idx;
-				best_idle_util = new_util;
-				best_idle_cpu = i;
-				continue;
-			}
 
 			/*
 			 * Best target) lowest utilization among lowest-cap cpu
@@ -262,137 +179,61 @@ static int select_proper_cpu(struct eco_env *eenv)
 			 * does not require performance and the prev cpu is over-
 			 * utilized, so it should do load balancing without
 			 * considering energy side. Therefore, it selects cpu
-			 * with smallest cpapacity or highest spare capacity
-			 * and the least utilization among cpus that fits the task.
+			 * with smallest cpapacity and the least utilization among
+			 * cpu that fits the task.
 			 */
-			if (new_util > best_active_util)
+			if (best_min_util < new_util)
 				continue;
 
-			target_capacity = cpu_capacity;
-			best_active_util = new_util;
-			best_active_cpu = i;
+			best_min_util = new_util;
+			best_cpu = i;
 		}
 
 		/*
 		 * if it fails to find the best cpu in this coregroup, visit next
 		 * coregroup.
 		 */
-		if (cpu_selected(best_active_cpu))
-			best_cpu = best_active_cpu;
-
-		if (cpu_selected(best_idle_cpu)) {
-			if (prefer_idle || !cpu_selected(best_cpu) ||
-				(!is_slowest_cpu(best_active_cpu) && !is_cpu_preemptible(eenv->p, -1, best_active_cpu, 0))) {
-				best_cpu = best_idle_cpu;
-			}
-		}
-
 		if (cpu_selected(best_cpu))
 			break;
 	}
 
-	trace_ems_select_proper_cpu(eenv->p, best_cpu,
-		best_cpu == best_idle_cpu ? best_idle_util : best_active_util);
+	trace_ems_select_proper_cpu(p, best_cpu, best_min_util);
 
 	/*
 	 * if it fails to find the vest cpu, choosing any cpu is meaningless.
 	 * Return prev cpu.
 	 */
-	return cpu_selected(best_cpu) ? best_cpu : eenv->prev_cpu;
+	return cpu_selected(best_cpu) ? best_cpu : prev_cpu;
 }
 
-static
-int start_cpu(struct task_struct *p, unsigned long task_util, int prefer_perf) {
-	struct cpumask active_fast_mask;
-	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
-
-	// Avoid recommending fast CPUs during idle as these are inactive
-	if (pm_freezing)
-		return start_cpu;
-
-	/* Get all active fast CPUs */
-	cpumask_and(&active_fast_mask, cpu_fastest_mask(), cpu_active_mask);
-
-	/* Start with fast CPU if available, task is allowed to be placed, and matches criteria */
-	if (!cpumask_empty(&active_fast_mask) && cpumask_intersects(tsk_cpus_allowed(p), &active_fast_mask)) {
-		/* Return fast CPU if task is prefer_perf or global boosting */
-		if (prefer_perf || global_boosted())
-			return cpumask_first(&active_fast_mask);
-
-		/* 
-		 * Check if task can be placed on big cluster and
-		 * fits slowest CPU. Return fast if overutil.
-		 */
-		if ((task_util * 100 >= get_cpu_max_capacity(start_cpu) * 61))
-			return cpumask_first(&active_fast_mask);
-	}
-
-	/* If task does not match criteria, return slowest CPU */
-	return start_cpu;
-}
+extern void sync_entity_load_avg(struct sched_entity *se);
 
 int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int sync)
 {
 	int target_cpu = -1;
 	char state[30] = "fail";
 
-	unsigned long sched_task_util = task_util_est(p);
-	int sched_prefer_perf = schedtune_prefer_perf(p);
-	int sched_start_cpu = start_cpu(p, sched_task_util, sched_prefer_perf);
-
-	struct eco_env eenv = {
-		.p = p,
-		.task_util = sched_task_util,
-		.min_util = boosted_task_util(p),
-
-		.boost = schedtune_task_boost(p),
-		.task_on_top = schedtune_task_on_top(p),
-		.prefer_idle = schedtune_prefer_idle(p),
-		.prefer_perf = sched_prefer_perf,
-		.prefer_high_cap = schedtune_prefer_high_cap(p),
-
-		.start_cpu = sched_start_cpu,
-		.start_cpu_cap = get_cpu_max_capacity(sched_start_cpu),
-
-		.prev_cpu = prev_cpu,
-	};
-
-	/* 
-	 * Priority 1: fast prev_cpu path
-	 *
-	 * Do not migrate task if prev_cpu is shallow idle, and has same capacity
-	 * as start_cpu. This is the highest priority to avoid scheduling from the
-	 * slow path if not needed.
-	 *
+	/*
+	 * Since the utilization of a task is accumulated before sleep, it updates
+	 * the utilization to determine which cpu the task will be assigned to.
+	 * Exclude new task.
 	 */
-	if (cpu_active(prev_cpu) && idle_cpu(prev_cpu) && cpumask_test_cpu(prev_cpu, tsk_cpus_allowed(p))) {
-		if ((eenv.start_cpu_cap == get_cpu_max_capacity(prev_cpu)) && !lbt_util_overutilized(prev_cpu)) {
-			if (idle_get_state_idx(cpu_rq(prev_cpu)) <= 1) {
-				target_cpu = prev_cpu;
-				strcpy(state, "fast path");
-				goto out;
-			}
-		}
+	if (!(sd_flag & SD_BALANCE_FORK)) {
+		unsigned long old_util = task_util(p);
+
+		sync_entity_load_avg(&p->se);
+		/* update the band if a large amount of task util is decayed */
+		update_band(p, old_util);
 	}
 
-	/*
-	 * Priority 2 : service task
-	 *
-	 * Service selection is a function that operates on cgroup basis managed by
-	 * schedtune. When perfer-high-cap is set to 1, the tasks in the group are
-	 * placed onto big cluster cpu.
-	 *
-	 * It has a high priority because it is a function that is turned on
-	 * temporarily in scenario requiring reactivity(touch, app laucning).
-	 */
-	target_cpu = select_service_cpu(&eenv);
+	target_cpu = select_service_cpu(p);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "service");
 		goto out;
 	}
 
 	/*
-	 * Priority 3 : ontime task
+	 * Priority 1 : ontime task
 	 *
 	 * If task which has more utilization than threshold wakes up, the task is
 	 * classified as "ontime task" and assigned to performance cpu. Conversely,
@@ -410,20 +251,42 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	}
 
 	/*
-	 * Priority 4 : prefer-perf
+	 * Priority 2 : prefer-perf
 	 *
 	 * Prefer-perf is a function that operates on cgroup basis managed by
 	 * schedtune. When perfer-perf is set to 1, the tasks in the group are
 	 * preferentially assigned to the performance cpu.
+	 *
+	 * It has a high priority because it is a function that is turned on
+	 * temporarily in scenario requiring reactivity(touch, app laucning).
 	 */
-	target_cpu = prefer_perf_cpu(&eenv);
+	target_cpu = prefer_perf_cpu(p);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "prefer-perf");
 		goto out;
 	}
 
 	/*
-	 * Priority 5 : global boosting
+	 * Priority 3 : task band
+	 *
+	 * The tasks in a process are likely to interact, and its operations are
+	 * sequential and share resources. Therefore, if these tasks are packed and
+	 * and assign on a specific cpu or cluster, the latency for interaction
+	 * decreases and the reusability of the cache increases, thereby improving
+	 * performance.
+	 *
+	 * The "task band" is a function that groups tasks on a per-process basis
+	 * and assigns them to a specific cpu or cluster. If the attribute "band"
+	 * of schedtune.cgroup is set to '1', task band operate on this cgroup.
+	 */
+	target_cpu = band_play_cpu(p);
+	if (cpu_selected(target_cpu)) {
+		strcpy(state, "task band");
+		goto out;
+	}
+
+	/*
+	 * Priority 4 : global boosting
 	 *
 	 * Global boost is a function that preferentially assigns all tasks in the
 	 * system to the performance cpu. Unlike prefer-perf, which targets only
@@ -436,14 +299,14 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	 * all tasks to performance cpu, which is not as effective as perfer-perf.
 	 * For this reason, global boost has a lower priority than prefer-perf.
 	 */
-	target_cpu = global_boosting(&eenv);
+	target_cpu = global_boosting(p);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "global boosting");
 		goto out;
 	}
 
 	/*
-	 * Priority 6 : prefer-idle
+	 * Priority 5 : prefer-idle
 	 *
 	 * Prefer-idle is a function that operates on cgroup basis managed by
 	 * schedtune. When perfer-idle is set to 1, the tasks in the group are
@@ -452,32 +315,32 @@ int exynos_wakeup_balance(struct task_struct *p, int prev_cpu, int sd_flag, int 
 	 * Prefer-idle has a smaller performance impact than the above. Therefore
 	 * it has a relatively low priority.
 	 */
-	target_cpu = prefer_idle_cpu(&eenv);
+	target_cpu = prefer_idle_cpu(p);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "prefer-idle");
 		goto out;
 	}
 
 	/*
-	 * Priority 7 : energy cpu
+	 * Priority 6 : energy cpu
 	 *
 	 * A scheduling scheme based on cpu energy, find the least power consumption
 	 * cpu with energy table when assigning task.
 	 */
-	target_cpu = select_energy_cpu(&eenv, sd_flag, sync);
+	target_cpu = select_energy_cpu(p, prev_cpu, sd_flag, sync);
 	if (cpu_selected(target_cpu)) {
 		strcpy(state, "energy cpu");
 		goto out;
 	}
 
 	/*
-	 * Priority 8 : proper cpu
+	 * Priority 7 : proper cpu
 	 *
 	 * If the task failed to find a cpu to assign from the above conditions,
 	 * it means that assigning task to any cpu does not have performance and
 	 * power benefit. In this case, select cpu for balancing cpu utilization.
 	 */
-	target_cpu = select_proper_cpu(&eenv);
+	target_cpu = select_proper_cpu(p, prev_cpu);
 	if (cpu_selected(target_cpu))
 		strcpy(state, "proper cpu");
 
