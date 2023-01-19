@@ -2005,8 +2005,8 @@ struct ucl_param {
 	char *name;
 	char uclamp_min[3];
 	char uclamp_max[3];
-	u64  uclamp_latency_sensitive;
 	u64  uclamp_boosted;
+	u64  uclamp_latency_sensitive;
 };
 
 static void uclamp_set(struct kernfs_open_file *of,
@@ -2017,11 +2017,18 @@ static void uclamp_set(struct kernfs_open_file *of,
 	const char *cs_name = cs->css.cgroup->kn->name;
 
 	static struct ucl_param tgts[] = {
-		{"top-app",    	     	"10", "100", 1, 1},
-		{"foreground", 	     	"0",  "50",  1, 1},
-		{"background", 	     	"20", "100", 0, 0},
-		{"system-background", 	"0",  "40",  0, 0},
-		{"camera-daemon",	"50", "100", 1, 1},
+		/* cgroup                 min    max    b  l */
+		{"top-app",    	     	 "20",  "max",  0, 1},
+		{"foreground", 	     	 "10",   "80",  0, 0},
+#ifdef CONFIG_MINT_SESL
+		/* this is only needed for samsung roms */
+		{"foreground-boost", 	 "20",   "80",  0, 0},
+#endif
+		{"background", 	     	  "0",   "50",  0, 0},
+		{"system-background", 	  "0",   "60",  0, 0},
+		{"camera-daemon",	     "20",  "max",  1, 1},
+		{"moderate",	         "10",   "80",  0, 0},
+		{"restricted",		      "0",   "30",  0, 0},
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
@@ -2032,11 +2039,10 @@ static void uclamp_set(struct kernfs_open_file *of,
 				nbytes, off);
 			cpu_uclamp_max_write_wrapper(of, tgt.uclamp_max,
 				nbytes, off);
-			cpu_uclamp_ls_write_u64_wrapper(&cs->css, NULL,
-				tgt.uclamp_latency_sensitive);
 			cpu_uclamp_boost_write_u64_wrapper(&cs->css, NULL,
 				tgt.uclamp_boosted);
-
+			cpu_uclamp_ls_write_u64_wrapper(&cs->css, NULL,
+				tgt.uclamp_latency_sensitive);
 			break;
 		}
 	}
