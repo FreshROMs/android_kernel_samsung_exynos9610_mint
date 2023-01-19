@@ -56,6 +56,7 @@ struct sysbusy_param {
 };
 
 #define TICK_SEC    CONFIG_HZ
+#define BUSY_MONITOR_INTERVAL    (TICK_SEC / 10)
 static struct sysbusy_param sysbusy_params[] = {
     {
         /* SYSBUSY_STATE0 (sysbusy inactivation) */
@@ -81,14 +82,14 @@ static struct sysbusy_param sysbusy_params[] = {
     },
     {
         /* SYSBUSY_STATE2 */
-        .monitor_interval   = 25,
+        .monitor_interval   = BUSY_MONITOR_INTERVAL,
         .release_duration   = TICK_SEC * 3,
         .allowed_next_state = (1 << SYSBUSY_STATE0) |
                       (1 << SYSBUSY_STATE3),
     },
     {
         /* SYSBUSY_STATE3 */
-        .monitor_interval   = 25,
+        .monitor_interval   = BUSY_MONITOR_INTERVAL,
         .release_duration   = TICK_SEC * 9,
         .allowed_next_state = (1 << SYSBUSY_STATE0),
     },
@@ -111,8 +112,6 @@ extern int exynos_need_active_balance(enum cpu_idle_type idle,
 extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake);
 extern int ems_select_fallback_rq(struct task_struct *p);
 extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
-extern void ems_idle_exit(int cpu, int state);
-extern void ems_idle_enter(int cpu, int *state);
 extern void ems_fork_init(struct task_struct *p);
 extern void ems_post_init_entity_util_avg(struct sched_entity *se);
 extern int ems_check_preempt_wakeup(struct task_struct *p);
@@ -197,10 +196,6 @@ static inline bool is_slowest_cpu(int cpu)
 {
 	return false;
 }
-/* P.A.R.T */
-static inline void update_cpu_active_ratio(struct rq *rq, struct task_struct *p, int type) { }
-static inline void part_cpu_active_ratio(unsigned long *util, unsigned long *max, int cpu) { }
-static inline void set_part_period_start(struct rq *rq) { }
 
 static inline int sysbusy_register_notifier(struct notifier_block *nb) { return 0; };
 static inline int sysbusy_unregister_notifier(struct notifier_block *nb) { return 0; };

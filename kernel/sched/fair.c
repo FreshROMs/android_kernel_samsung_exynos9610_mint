@@ -5325,11 +5325,11 @@ static inline void update_overutilized_status(struct rq *rq)
 	rcu_read_lock();
 	sd = rcu_dereference(rq->sd);
 	if (sd && !sd_overutilized(sd)) {
-		if (sched_feat(EXYNOS_MS))
-			overutilized = lbt_overutilized(rq->cpu, sd->level);
-		else
-			overutilized = cpu_overutilized(rq->cpu);
-
+#ifdef CONFIG_SCHED_EMS
+		overutilized = lbt_overutilized(rq->cpu, sd->level);
+#else
+		overutilized = cpu_overutilized(rq->cpu);
+#endif
 		if (overutilized)
 			set_sd_overutilized(sd);
 	}
@@ -10853,7 +10853,7 @@ static int idle_balance(struct rq *this_rq, struct rq_flags *rf)
 
 #ifdef CONFIG_SCHED_EMS
 	if (ems_load_balance(this_rq))
-		return 0;		
+		return 0;
 #endif
 
 	/*

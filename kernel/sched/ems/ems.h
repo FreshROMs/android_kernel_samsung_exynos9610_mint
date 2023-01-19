@@ -182,14 +182,6 @@ extern int tex_suppress_task(struct task_struct *p);
 extern void tex_enqueue_task(struct task_struct *p, int cpu);
 extern void tex_dequeue_task(struct task_struct *p, int cpu);
 
-/* SCHED CLASS */
-#define EMS_SCHED_STOP      (1 << 0)
-#define EMS_SCHED_DL        (1 << 1)
-#define EMS_SCHED_RT        (1 << 2)
-#define EMS_SCHED_FAIR      (1 << 3)
-#define EMS_SCHED_IDLE      (1 << 4)
-#define NUM_OF_SCHED_CLASS  5
-
 /* ems boost */
 #define EMS_INIT_BOOST 1
 #define EMS_BOOT_BOOST 2

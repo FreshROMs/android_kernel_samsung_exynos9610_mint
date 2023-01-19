@@ -256,7 +256,7 @@ void ml_new_entity_load(struct task_struct *parent, struct sched_entity *se)
 /******************************************************************************
  *                     New task utilization init                              *
  ******************************************************************************/
-static int ntu_ratio[CGROUP_COUNT] = {25, };
+static int ntu_ratio[BOOSTGROUPS_COUNT] = {25, };
 
 void ntu_apply(struct sched_entity *se)
 {
@@ -293,7 +293,7 @@ u64 ems_ntu_ratio_stune_hook_read(struct cgroup_subsys_state *css,
 	int group_idx;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT)
+	if (group_idx >= BOOSTGROUPS_COUNT)
 		return (u64) ntu_ratio[CGROUP_ROOT];
 
 	return (u64) ntu_ratio[group_idx];
@@ -308,7 +308,7 @@ int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
 		return -EINVAL;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT) {
+	if (group_idx >= BOOSTGROUPS_COUNT) {
 		ntu_ratio[CGROUP_ROOT] = ratio;
 		return 0;
 	}

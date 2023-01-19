@@ -125,21 +125,6 @@ inline bool is_busy_cpu(int cpu)
 /******************************************************************************
  * common function for ems                                                    *
  ******************************************************************************/
-static const struct sched_class *sched_class_begin;
-int get_sched_class_idx(const struct sched_class *class)
-{
-	const struct sched_class *c;
-	int class_idx;
-
-	for (c = sched_class_begin, class_idx = 0;
-	     class_idx < NUM_OF_SCHED_CLASS;
-	     c--, class_idx++)
-		if (c == class)
-			break;
-
-	return 1 << class_idx;
-}
-
 int ems_task_top_app(struct task_struct *p)
 {
 	/* Don't touch kthreads */
@@ -226,55 +211,30 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	return 1;
 }
 
-void ems_idle_exit(int cpu, int state)
-{
-	// mlt_idle_exit(cpu);
-}
-
-void ems_idle_enter(int cpu, int *state)
-{
-	// mlt_idle_enter(cpu, *state);
-}
-
 void ems_tick(struct rq *rq)
 {
 	mlt_set_period_start(rq);
 
 	profile_sched_data();
 
-	// mlt_update(cpu_of(rq));
-
-	// stt_update(rq, NULL);
-
-	// frt_update_available_cpus(rq);
-
 	monitor_sysbusy();
 	somac_tasks();
 
 	ontime_migration();
-	// ecs_update();
 }
 
 void ems_enqueue_task(struct rq *rq, struct task_struct *p)
 {
 	mlt_enqueue_task(rq);
 
-	// stt_enqueue_task(rq, p);
-
 	tex_enqueue_task(p, cpu_of(rq));
-
-	// freqboost_enqueue_task(p, cpu_of(rq), flags);
 }
 
 void ems_dequeue_task(struct rq *rq, struct task_struct *p)
 {
 	mlt_dequeue_task(rq);
 
-	// stt_dequeue_task(rq, p);
-
 	tex_dequeue_task(p, cpu_of(rq));
-
-	// freqboost_dequeue_task(p, cpu_of(rq), flags);
 }
 
 void ems_wakeup_task(struct rq *rq, struct task_struct *p)
@@ -316,24 +276,6 @@ void ems_fork_init(struct task_struct *p)
 {
 	ems_qjump_queued(p) = 0;
 	INIT_LIST_HEAD(ems_qjump_node(p));
-}
-
-void ems_schedule(struct task_struct *prev,
-		struct task_struct *next, struct rq *rq)
-{
-#if 0
-	int state = RUNNING;
-
-	if (prev == next)
-		return;
-
-	if (get_sched_class_idx(next->sched_class) == EMS_SCHED_IDLE)
-		state = IDLE_START;
-	else if (get_sched_class_idx(prev->sched_class) == EMS_SCHED_IDLE)
-		state = IDLE_END;
-
-	mlt_task_switch(rq->cpu, next, state);
-#endif
 }
 
 int ems_check_preempt_wakeup(struct task_struct *p)

@@ -490,6 +490,31 @@ TRACE_EVENT(ems_freqvar_boost,
 		  __entry->cpu, __entry->ratio, __entry->step_max_util,
 		  __entry->util, __entry->boosted_util)
 );
+
+/*
+ * Tracepoint for newidle balance
+ */
+TRACE_EVENT(ems_newidle_balance,
+
+	TP_PROTO(int cpu, int target_cpu, int pulled),
+
+	TP_ARGS(cpu, target_cpu, pulled),
+
+	TP_STRUCT__entry(
+		__field( int,		cpu			)
+		__field( int,		target_cpu			)
+		__field( int,		pulled		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu		= cpu;
+		__entry->pulled		= pulled;
+		__entry->target_cpu		= target_cpu;
+	),
+
+	TP_printk("cpu=%d pulled=%d target_cpu=%d",
+		__entry->cpu, __entry->pulled, __entry->target_cpu)
+);
 #endif /* _TRACE_EMS_H */
 
 /* This part must be outside protection */

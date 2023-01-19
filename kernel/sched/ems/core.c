@@ -22,7 +22,7 @@ struct {
     struct cpumask pinning_cpus;
     struct cpumask busy_cpus;
     int qjump;
-    int enabled[CGROUP_COUNT];
+    int enabled[BOOSTGROUPS_COUNT];
     int prio;
 	int suppress;
 } tex;
@@ -168,7 +168,7 @@ u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
 	struct schedtune *st = css_st(css);
 	int group_idx = st->idx;
 
-	if (group_idx >= CGROUP_COUNT)
+	if (group_idx >= BOOSTGROUPS_COUNT)
 		return (u64) tex.enabled[CGROUP_ROOT];
 
 	return (u64) tex.enabled[st->idx];
@@ -183,7 +183,7 @@ int ems_tex_enabled_stune_hook_write(struct cgroup_subsys_state *css,
 		return -EINVAL;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT) {
+	if (group_idx >= BOOSTGROUPS_COUNT) {
 		tex.enabled[CGROUP_ROOT] = enabled;
 		return 0;
 	}
@@ -329,7 +329,7 @@ int __init tex_init(void)
     cpumask_clear(&tex.busy_cpus);
     tex.qjump = 0;
     tex.suppress = 1;
-	for (i = 0; i < CGROUP_COUNT; i++)
+	for (i = 0; i < BOOSTGROUPS_COUNT; i++)
 		tex.enabled[i] = 0;
     tex.prio = 110;
 
@@ -339,7 +339,7 @@ int __init tex_init(void)
 /******************************************************************************
  * sched policy                                                               *
  ******************************************************************************/
-static int sched_policy[CGROUP_COUNT] = {SCHED_POLICY_EFF, };
+static int sched_policy[BOOSTGROUPS_COUNT] = {SCHED_POLICY_EFF, };
 static char *sched_policy_name[] = {
     "SCHED_POLICY_EFF",
     "SCHED_POLICY_ENERGY",
@@ -424,7 +424,7 @@ int ems_sched_policy_stune_hook_read(struct seq_file *sf, void *v) {
 	int policy = sched_policy[CGROUP_ROOT];
 	int group_idx = st->idx;
 
-	if (group_idx < CGROUP_COUNT)
+	if (group_idx < BOOSTGROUPS_COUNT)
 		policy = sched_policy[group_idx];
 
 	seq_printf(sf, "%u. %s\n", policy, sched_policy_name[policy]);
@@ -441,7 +441,7 @@ int ems_sched_policy_stune_hook_write(struct cgroup_subsys_state *css,
 		return -EINVAL;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT) {
+	if (group_idx >= BOOSTGROUPS_COUNT) {
 		sched_policy[CGROUP_ROOT] = policy;
 		return 0;
 	}

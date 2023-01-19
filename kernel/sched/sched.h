@@ -83,7 +83,6 @@ extern void ems_wakeup_task(struct rq *rq, struct task_struct *p);
 extern void ems_replace_next_task_fair(struct rq *rq, struct task_struct **p_ptr,
                 struct sched_entity **se_ptr, bool *repick,
                 bool simple, struct task_struct *prev);
-extern void ems_schedule(struct task_struct *prev, struct task_struct *next, struct rq *rq);
 extern int ems_load_balance(struct rq *rq);
 
 /* Active Ratio Tracking */

@@ -4481,10 +4481,6 @@ static void __sched notrace __schedule(bool preempt)
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 
-#ifdef CONFIG_SCHED_EMS
-	ems_schedule(prev, next, rq);
-#endif
-
 	if (likely(prev != next)) {
 #ifdef CONFIG_SCHED_WALT
 		if (!prev->on_rq)

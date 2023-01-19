@@ -49,15 +49,14 @@ unsigned int frt_disable_cpufreq;
 extern long schedtune_margin(unsigned long capacity, unsigned long signal, long boost);
 static inline u64 frt_boosted_task_util(struct task_struct *p)
 {
-#ifdef CONFIG_UCLAMP_TASK_GROUP
 	unsigned long util = rttsk_task_util(p);
+#ifdef CONFIG_UCLAMP_TASK_GROUP
 	unsigned long util_min = uclamp_eff_value(p, UCLAMP_MIN);
 	unsigned long util_max = uclamp_eff_value(p, UCLAMP_MAX);
 
 	return clamp(util, util_min, util_max);
 #else
 	int boost = schedtune_task_boost(p);
-	unsigned long util = rttsk_task_util(p);
 	unsigned long capacity;
 
 	if (boost == 0)

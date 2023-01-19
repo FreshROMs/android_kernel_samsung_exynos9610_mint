@@ -20,7 +20,7 @@
 /****************************************************************/
 /*			On-time migration			*/
 /****************************************************************/
-static int ontime_enabled[CGROUP_COUNT];
+static int ontime_enabled[BOOSTGROUPS_COUNT];
 
 static int support_ontime(struct task_struct *p)
 {
@@ -668,7 +668,7 @@ u64 ems_ontime_enabled_stune_hook_read(struct cgroup_subsys_state *css,
 	int group_idx;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT)
+	if (group_idx >= BOOSTGROUPS_COUNT)
 		return (u64) ontime_enabled[CGROUP_ROOT];
 
 	return (u64) ontime_enabled[group_idx];
@@ -683,7 +683,7 @@ int ems_ontime_enabled_stune_hook_write(struct cgroup_subsys_state *css,
 		return -EINVAL;
 
 	group_idx = st->idx;
-	if (group_idx >= CGROUP_COUNT) {
+	if (group_idx >= BOOSTGROUPS_COUNT) {
 		ontime_enabled[CGROUP_ROOT] = enabled;
 		return 0;
 	}
@@ -793,7 +793,7 @@ static ssize_t show_ontime_enabled(struct kobject *kobj,
 {
     int i, ret = 0;
 
-    for (i = 0; i < CGROUP_COUNT; i++)
+    for (i = 0; i < BOOSTGROUPS_COUNT; i++)
         ret += snprintf(buf + ret, 40, "cgroup=%4s enabled=%d\n",
                 task_cgroup_simple_name[i],
                 ontime_enabled[i]);
@@ -816,7 +816,7 @@ static ssize_t store_ontime_enabled(struct kobject *kobj,
     if (ret < 0)
         return -EINVAL;
 
-    if (grp_idx < 0 || grp_idx > CGROUP_COUNT)
+    if (grp_idx < 0 || grp_idx > BOOSTGROUPS_COUNT)
         return -EINVAL;
 
     if (value < 0 || value > 1)

@@ -36,19 +36,6 @@ root_schedtune = {
 #endif
 };
 
-/*
- * Maximum number of boost groups to support
- * When per-task boosting is used we still allow only limited number of
- * boost groups for two main reasons:
- * 1. on a real system we usually have only few classes of workloads which
- *    make sense to boost with different values (e.g. background vs foreground
- *    tasks, interactive vs low-priority tasks)
- * 2. a limited number allows for a simpler and more memory/time efficient
- *    implementation especially for the computation of the per-CPU boost
- *    value
- */
-#define BOOSTGROUPS_COUNT 6
-
 /* Array of configured boostgroups */
 static struct schedtune *allocated_group[BOOSTGROUPS_COUNT] = {
 	&root_schedtune,
@@ -146,7 +133,7 @@ schedtune_boostgroup_update(int idx, int boost)
 	u64 now;
 
 #ifdef CONFIG_SCHED_EMS
-	if (boost == -1) {
+	if (likely(boost == -1)) {
 		switch (sysbusy_state) {
 		case SYSBUSY_STATE1:
 			boost = heavy_boost;
@@ -756,12 +743,12 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 	int i;
 	static struct stune_param tgts[] = {
 		/* cgroup            l-b h-b b-b e-p e-o  e-n e-t */
-		{"top-app",	           3,  5,  7,  0,  1,  25,  1 },
-		{"foreground",	       0,  3,  5,  0,  1,  25,  0 },
-		{"background",	       0,  0,  2,  1,  0,  25,  0 },
-		{"rt",		           0,  3,  7,  2,  0,  25,  0 },
-		{"camera-daemon",	   5,  7,  7,  3,  0,  25,  0 },
-		{"nnapi-hal",	       5,  5,  5,  3,  0,  25,  0 },
+		{"top-app",	           1,  3,  5,  0,  1,  25,  1 },
+		{"foreground",	       0,  1,  3,  0,  1,  25,  0 },
+		{"background",	       0,  0,  1,  1,  0,  25,  0 },
+		{"rt",		           3,  5,  7,  2,  0,  25,  0 },
+		{"camera-daemon",	   3,  7,  7,  3,  0,  25,  0 },
+		{"nnapi-hal",	       3,  5,  7,  3,  0,  25,  0 },
 		{"hot",	               0,  0,  0,  0,  0,  25,  0 },
 	};
 
@@ -776,6 +763,7 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 			boost_write(css, NULL, tgt.boost);
 			heavy_boost_write(css, NULL, tgt.ems_heavy_boost);
 			busy_boost_write(css, NULL, tgt.ems_busy_boost);
+
 			ems_sched_policy_stune_hook_write(css, NULL, tgt.ems_sched_policy);
 			ems_ontime_enabled_stune_hook_write(css, NULL, tgt.ems_ontime_enabled);
 			ems_ntu_ratio_stune_hook_write(css, NULL, tgt.ems_ntu_ratio);

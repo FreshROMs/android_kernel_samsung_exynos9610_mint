@@ -44,6 +44,19 @@ struct schedtune {
 #endif
 };
 
+/*
+ * Maximum number of boost groups to support
+ * When per-task boosting is used we still allow only limited number of
+ * boost groups for two main reasons:
+ * 1. on a real system we usually have only few classes of workloads which
+ *    make sense to boost with different values (e.g. background vs foreground
+ *    tasks, interactive vs low-priority tasks)
+ * 2. a limited number allows for a simpler and more memory/time efficient
+ *    implementation especially for the computation of the per-CPU boost
+ *    value
+ */
+#define BOOSTGROUPS_COUNT 8
+
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
 {
 	return css ? container_of(css, struct schedtune, css) : NULL;
