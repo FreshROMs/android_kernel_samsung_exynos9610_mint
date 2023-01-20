@@ -438,7 +438,7 @@ mlt_update(int cpu, struct mlt *mlt, u64 now, int boost)
 	mlt->last_updated = now;
 }
 
-static int
+static inline int
 mlt_can_update_art(struct mlt *mlt)
 {
 	if (unlikely(mlt->period_start == 0))
