@@ -3499,7 +3499,10 @@ void wake_up_new_task(struct task_struct *p)
 	update_rq_clock(rq);
 	post_init_entity_util_avg(&p->se);
 
+
+#ifdef CONFIG_SCHED_EMS
 	ems_wakeup_task(rq, p);
+#endif
 
 	activate_task(rq, p, ENQUEUE_NOCLOCK);
 	walt_mark_task_starting(p);
