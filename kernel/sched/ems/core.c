@@ -1392,25 +1392,6 @@ inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd
 		goto out;
 	}
 
-	if (!env.wake) {
-		struct cpumask mask;
-
-		/*
-		 * 'wake = 0' indicates that running task attempt to migrate to
-		 * faster cpu by ontime migration. Therefore, if there are no
-		 * fit faster cpus, give up on choosing rq.
-		 */
-		cpumask_and(&mask, cpu_coregroup_mask(prev_cpu), &env.fit_cpus);
-		cpumask_andnot(&env.fit_cpus, &env.fit_cpus, &mask);
-		cpumask_andnot(&env.fit_cpus, &env.fit_cpus, cpu_slowest_mask());
-
-		if (!cpumask_weight(&env.fit_cpus)) {
-			target_cpu = INVALID_CPU;
-			strcpy(state, "no fit for migration");
-			goto out;
-		}
-	}
-
 	target_cpu = find_best_cpu(&env);
 	if (cpu_selected(target_cpu))
 		goto found_best_cpu;
