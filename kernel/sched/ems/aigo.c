@@ -424,7 +424,7 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 	if (mlt_art_last_boost_time(mlt) && util_ratio < util_boost) {
 		*util = util_boost;
 		*max = SCHED_CAPACITY_SCALE;
-		return;
+		goto out;
 	}
 
 	if (util_ratio > mlt_art_boost_limit(mlt))
@@ -433,7 +433,7 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 	if (mlt_art_high_patten(mlt)) {
 		*util = 0;
 		*max = SCHED_CAPACITY_SCALE;
-		return;
+		goto out;
 	}
 
 	mlt_update_recent(rq);
