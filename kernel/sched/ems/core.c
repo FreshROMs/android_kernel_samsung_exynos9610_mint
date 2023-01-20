@@ -965,31 +965,10 @@ void find_busy_cpus(struct tp_env *env, struct cpumask *mask)
 }
 
 static
-void find_migration_cpus(struct tp_env *env, struct cpumask *mask)
-{
-	int cpu;
-
-	/*
-	 * It looks for busy cpu to exclude from selection. If cpu is under
-	 * boosted ontime migration, it is defined as migration cpu.
-	 *
-	 * migration_cpus = cpu with boosted ontime migration
-	 */
-	for_each_cpu(cpu, &env->cpus_allowed) {
-		/* only avoid migration to fast cpus */
-		if (et_cpu_slowest(cpu))
-			continue;
-
-		if (cpu_rq(cpu)->ontime_boost_migration)
-			cpumask_set_cpu(cpu, mask);
-	}
-}
-
-static
 int find_fit_cpus(struct tp_env *env)
 {
 	struct cpumask fit_cpus;
-	struct cpumask overcap_cpus, tex_pinning_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, migration_cpus;
+	struct cpumask overcap_cpus, tex_pinning_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus;
 	int cpu = smp_processor_id();
 
 	/* clear masks */
@@ -1000,7 +979,6 @@ int find_fit_cpus(struct tp_env *env)
 	cpumask_clear(&ontime_fit_cpus);
 	cpumask_clear(&prefer_cpus);
 	cpumask_clear(&busy_cpus);
-	cpumask_clear(&migration_cpus);
 
 	/* find min load cpu for busy mulligan task */
 	if (EMS_PF_GET(env->p) & EMS_PF_RUNNABLE_BUSY) {
@@ -1018,14 +996,12 @@ int find_fit_cpus(struct tp_env *env)
 	 * - ontime_fit_cpus : ontime fit cpus
 	 * - prefer_cpus : prefer cpu
 	 * - busy_cpus : busy cpu for migrating tasks
-	 * - migration_cpus : cpu under boosted ontime migration
 	 */
 	find_overcap_cpus(env, &overcap_cpus);
 	tex_pinning_fit_cpus(env, &tex_pinning_cpus);
 	ontime_select_fit_cpus(env->p, &ontime_fit_cpus);
 	prefer_cpu_get(env, &prefer_cpus);
 	find_busy_cpus(env, &busy_cpus);
-	find_migration_cpus(env, &migration_cpus);
 
 	/*
 	 * Exclude overcap cpu from cpus_allowed. If there is only one or no
@@ -1037,11 +1013,6 @@ int find_fit_cpus(struct tp_env *env)
 
 	/* Exclude busy cpus from fit_cpus */
 	cpumask_andnot(&fit_cpus, &fit_cpus, &busy_cpus);
-	if (cpumask_weight(&fit_cpus) <= 1)
-		goto out;
-
-	/* Exclude cpus under boosted ontime migration from fit_cpus */
-	cpumask_andnot(&fit_cpus, &fit_cpus, &migration_cpus);
 	if (cpumask_weight(&fit_cpus) <= 1)
 		goto out;
 
@@ -1102,8 +1073,7 @@ out:
 		*(unsigned int *)cpumask_bits(&ontime_fit_cpus),
 		*(unsigned int *)cpumask_bits(&prefer_cpus),
 		*(unsigned int *)cpumask_bits(&overcap_cpus),
-		*(unsigned int *)cpumask_bits(&busy_cpus),
-		*(unsigned int *)cpumask_bits(&migration_cpus));
+		*(unsigned int *)cpumask_bits(&busy_cpus));
 
 	return cpumask_weight(&env->fit_cpus);
 }

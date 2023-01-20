@@ -930,9 +930,6 @@ struct rq {
 #ifdef CONFIG_SCHED_EMS
 	struct mlt mlt;
 
-	bool ontime_migrating;
-	bool ontime_boost_migration;
-
 	u64 ems_qjump_list[4];
 #endif
 

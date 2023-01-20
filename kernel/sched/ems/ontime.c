@@ -54,7 +54,6 @@ struct ontime_env {
 	struct rq		*dst_rq;
 	struct rq		*src_rq;
 	struct task_struct	*target_task;
-	int			boost_migration;
 	u64			flags;
 };
 DEFINE_PER_CPU(struct ontime_env, ontime_env);
@@ -196,16 +195,15 @@ done:
 	cpumask_copy(fit_cpus, &mask);
 }
 
-static struct task_struct *pick_heavy_task(struct rq *rq, int *boost_migration)
+static struct task_struct *pick_heavy_task(struct rq *rq)
 {
 	struct task_struct *p, *heaviest_task = NULL;
 	unsigned long util, max_util = 0;
 	int task_count = 0;
 
 	list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
-		if (tex_task(p) || ems_task_on_top(p) || ems_task_boosted(p)) {
+		if (tex_task(p)) {
 			heaviest_task = p;
-			*boost_migration = 1;
 			break;
 		}
 
@@ -293,13 +291,11 @@ static int ontime_migration_cpu_stop(void *data)
 	struct ontime_env *env = data;
 	struct rq *src_rq, *dst_rq;
 	struct task_struct *p;
-	int boost_migration;
 
 	/* Initialize environment data */
 	src_rq = env->src_rq;
 	dst_rq = env->dst_rq;
 	p = env->target_task;
-	boost_migration = env->boost_migration;
 
 	raw_spin_lock_irq(&src_rq->lock);
 
@@ -319,8 +315,6 @@ static int ontime_migration_cpu_stop(void *data)
 
 out_unlock:
 	src_rq->active_balance = 0;
-	dst_rq->ontime_migrating = 0;
-	dst_rq->ontime_boost_migration = 0;
 
 	raw_spin_unlock_irq(&src_rq->lock);
 	put_task_struct(p);
@@ -473,7 +467,6 @@ static void ontime_heavy_migration(void)
 	int dst_cpu;
 	unsigned long flags;
 	struct ontime_cond *curr;
-	int boost_migration = 0;
 
 	/*
 	 * If this cpu belongs to last domain of ontime, no cpu is
@@ -515,7 +508,7 @@ static void ontime_heavy_migration(void)
 	 * Pick task to be migrated.
 	 * Return NULL if there is no heavy task in rq.
 	 */
-	p = pick_heavy_task(rq, &boost_migration);
+	p = pick_heavy_task(rq);
 	if (!p) {
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		return;
@@ -534,13 +527,9 @@ static void ontime_heavy_migration(void)
 	env->dst_rq = cpu_rq(dst_cpu);
 	env->src_rq = rq;
 	env->target_task = p;
-	env->boost_migration = boost_migration;
 
 	/* Prevent active balance to use stopper for migration */
 	rq->active_balance = 1;
-
-	cpu_rq(dst_cpu)->ontime_migrating = 1;
-	cpu_rq(dst_cpu)->ontime_boost_migration = boost_migration;
 
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
