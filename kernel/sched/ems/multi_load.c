@@ -67,33 +67,6 @@ inline unsigned long ml_uclamp_task_util(struct task_struct *p)
 #endif
 }
 
-/*
- * ml_task_load_avg - task ontime load_avg
- */
-#ifndef CONFIG_UCLAMP_TASK_GROUP
-extern long schedtune_margin(unsigned long capacity, unsigned long signal, long boost);
-extern int schedtune_task_boost(struct task_struct *p);
-#endif
-unsigned long ml_task_load_avg(struct task_struct *p)
-{
-	unsigned long load_avg = ml_of(p)->avg.load_avg;
-#ifdef CONFIG_UCLAMP_TASK_GROUP
-	unsigned long util_min = uclamp_eff_value(p, UCLAMP_MIN);
-	unsigned long util_max = uclamp_eff_value(p, UCLAMP_MAX);
-
-	return clamp(load_avg, util_min, util_max);
-#else
-	int boost = schedtune_task_boost(p);
-	unsigned long capacity;
-
-	if (boost == 0)
-		return load_avg;
-
-	capacity = capacity_orig_of(task_cpu(p));
-	return load_avg + schedtune_margin(capacity, load_avg, boost);
-#endif
-}
-
 /******************************************************************************
  *                            MULTI LOAD for CPU                              *
  ******************************************************************************/
@@ -180,77 +153,6 @@ unsigned long ml_runnable_load_avg(int cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
 	return cfs_rq->runnable_load_avg;
-}
-
-extern u64 decay_load(u64 val, u64 n);
-static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
-{
-	u32 c1, c2, c3 = d3;
-
-	c1 = decay_load((u64)d1, periods);
-	c2 = LOAD_AVG_MAX - decay_load(LOAD_AVG_MAX, periods) - 1024;
-
-	return c1 + c2 + c3;
-}
-
-/*
- * ems_update_load_avg : load tracking for multi-load
- *
- * @sa : sched_avg to be updated
- * @delta : elapsed time since last update
- * @period_contrib : amount already accumulated against our next period
- * @scale_freq : scale vector of cpu frequency
- * @scale_cpu : scale vector of cpu capacity
- */
-void ems_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa)
-{
-	struct ml_avg *avg = &se_of(sa)->ml.avg;
-	unsigned long scale_freq, scale_cpu;
-	u32 contrib = (u32)delta; /* p == 0 -> delta < 1024 */
-	u64 periods;
-
-	scale_freq = arch_scale_freq_capacity(NULL, cpu);
-	scale_cpu = arch_scale_cpu_capacity(NULL, cpu);
-
-	delta += avg->period_contrib;
-	periods = delta / 1024; /* A period is 1024us (~1ms) */
-
-	if (periods) {
-		avg->load_sum = decay_load(avg->load_sum, periods);
-
-		delta %= 1024;
-		contrib = __accumulate_pelt_segments(periods,
-				1024 - avg->period_contrib, delta);
-	}
-	avg->period_contrib = delta;
-
-	if (weight) {
-		contrib = cap_scale(contrib, scale_freq);
-		avg->load_sum += contrib * scale_cpu;
-	}
-
-	if (!periods)
-		return;
-
-	avg->load_avg = div_u64(avg->load_sum, LOAD_AVG_MAX - 1024 + avg->period_contrib);
-	ontime_update_next_balance(cpu, avg);
-}
-
-void ems_new_entity_load(struct task_struct *parent, struct sched_entity *se)
-{
-	struct ml_entity *ml;
-
-	if (entity_is_cfs_rq(se))
-		return;
-
-	ml = &se->ml;
-
-	ml->avg.load_sum = ml_of(parent)->avg.load_sum >> 1;
-	ml->avg.load_avg = ml_of(parent)->avg.load_avg >> 1;
-	ml->avg.period_contrib = 1023;
-	ml->migrating = 0;
-
-	trace_ems_ontime_new_entity_load(task_of(se), &ml->avg);
 }
 
 /******************************************************************************

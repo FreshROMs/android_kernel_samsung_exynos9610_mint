@@ -131,9 +131,6 @@ extern void ems_fork_init(struct task_struct *p);
 extern int ems_check_preempt_wakeup(struct task_struct *p);
 extern void ems_init(void);
 
-extern void ems_update_load_avg(u64 delta, int cpu, unsigned long weight, struct sched_avg *sa);
-extern void ems_new_entity_load(struct task_struct *parent, struct sched_entity *se);
-
 extern int ems_task_top_app(struct task_struct *p);
 extern int ems_task_boosted(struct task_struct *p);
 
@@ -141,9 +138,6 @@ extern unsigned int capacity_max_of(unsigned int cpu);
 
 extern void ems_set_energy_table_status(bool status);
 extern bool ems_get_energy_table_status(void);
-
-/* ontime migration */
-extern void ontime_trace_task_info(struct task_struct *p);
 
 /* load balance trigger */
 extern bool ems_lbt_overutilized(int cpu, int level);
@@ -165,8 +159,6 @@ extern inline bool et_cpu_slowest(int cpu);
 extern int sysbusy_register_notifier(struct notifier_block *nb);
 extern int sysbusy_unregister_notifier(struct notifier_block *nb);
 #else
-static inline void ontime_trace_task_info(struct task_struct *p) { }
-
 static inline bool lbt_overutilized(int cpu, int level)
 {
 	return false;

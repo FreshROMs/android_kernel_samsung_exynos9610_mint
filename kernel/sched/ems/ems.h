@@ -119,12 +119,6 @@ extern unsigned int et_get_cpu_mips(unsigned int cpu);
 extern unsigned long et_get_freq_cap(unsigned int cpu, unsigned long freq);
 
 /* multi load */
-#define ml_of(p)        (&p->se.ml)
-#define cap_scale(v, s)     ((v)*(s) >> SCHED_CAPACITY_SHIFT)
-
-#define entity_is_cfs_rq(se)    (se->my_q)
-#define entity_is_task(se)  (!se->my_q)
-
 extern void mlt_set_period_start(struct rq *rq);
 extern void mlt_wakeup_task(struct rq *rq);
 extern void mlt_dequeue_task(struct rq *rq);
@@ -139,7 +133,6 @@ extern void mlt_init(void);
 extern void ntu_apply(struct sched_entity *se);
 extern unsigned long ml_task_util(struct task_struct *p);
 extern unsigned long ml_task_util_est(struct task_struct *p);
-extern unsigned long ml_task_load_avg(struct task_struct *p);
 extern unsigned long ml_cpu_util(int cpu);
 extern unsigned long ml_cpu_util_with(struct task_struct *p, int dst_cpu);
 extern unsigned long ml_cpu_util_without(int cpu, struct task_struct *p);
@@ -154,7 +147,6 @@ extern inline unsigned long ml_uclamp_task_util(struct task_struct *p);
 extern int ontime_can_migrate_task(struct task_struct *p, int cpu);
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void ontime_migration(void);
-extern void ontime_update_next_balance(int cpu, struct ml_avg *avg);
 
 /* cpufreq */
 extern unsigned long cpufreq_get_pelt_boost_util(int cpu, unsigned long util);

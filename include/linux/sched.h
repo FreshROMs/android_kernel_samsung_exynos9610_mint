@@ -453,18 +453,6 @@ struct sched_avg {
 	struct util_est			util_est;
 };
 
-struct ml_avg {
-	u64 load_sum;
-	u32 period_contrib;
-	unsigned long load_avg;
-};
-
-struct ml_entity {
-	struct ml_avg avg;
-	int migrating;
-	int cpu;
-};
-
 struct sched_statistics {
 #ifdef CONFIG_SCHEDSTATS
 	u64				wait_start;
@@ -542,7 +530,6 @@ struct sched_entity {
 	 */
 	struct sched_avg		avg ____cacheline_aligned_in_smp;
 #endif
-	struct ml_entity		ml;
 };
 
 #ifdef CONFIG_SCHED_WALT

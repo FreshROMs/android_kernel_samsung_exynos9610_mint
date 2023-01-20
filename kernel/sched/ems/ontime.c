@@ -116,7 +116,7 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	struct ontime_cond *curr;
 	struct cpumask mask;
 	int src_cpu = task_cpu(p);
-	unsigned long load_avg = ml_task_load_avg(p);
+	unsigned long util = ml_uclamp_task_util(p);
 
 	cpumask_clear(&mask);
 	cpumask_copy(&mask, cpu_active_mask);
@@ -130,32 +130,32 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	 * migration or task is currently migrating, it can be assigned to all
 	 * active cpus without specifying fit cpus.
 	 */
-	if (!support_ontime(p) || ml_of(p)->migrating)
+	if (!support_ontime(p))
 		goto done;
 
 	/*
-	 * case 1) task load_avg < lower boundary
+	 * case 1) task util < lower boundary
 	 *
-	 * If task 'load_avg' is smaller than lower boundary of current domain,
+	 * If task 'util' is smaller than lower boundary of current domain,
 	 * do not target specific cpu because ontime migration is not involved
 	 * in down migration. All active cpus are fit.
 	 *
 	 * fit_cpus = cpu_active_mask
 	 */
-	if (load_avg < curr->lower_boundary)
+	if (util < curr->lower_boundary)
 		goto done;
 
 	cpumask_clear(&mask);
 
 	/*
-	 * case 2) lower boundary <= task load_avg < upper boundary
+	 * case 2) lower boundary <= task util < upper boundary
 	 *
-	 * If task 'load_avg' is between lower boundary and upper boundary of
+	 * If task 'util' is between lower boundary and upper boundary of
 	 * current domain, both current and faster domain are fit.
 	 *
 	 * fit_cpus = current cpus & faster cpus
 	 */
-	if (load_avg < curr->upper_boundary) {
+	if (util < curr->upper_boundary) {
 		cpumask_or(&mask, &mask, &curr->cpus);
 		list_for_each_entry(curr, &cond_list, list) {
 			int dst_cpu = cpumask_first(&curr->cpus);
@@ -168,9 +168,9 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	}
 
 	/*
-	 * case 3) task load_avg >= upper boundary
+	 * case 3) task util >= upper boundary
 	 *
-	 * If task 'load_avg' is greater than boundary of current domain, only
+	 * If task 'util' is greater than boundary of current domain, only
 	 * faster domain is fit to gurantee cpu performance.
 	 *
 	 * fit_cpus = faster cpus
@@ -199,7 +199,7 @@ done:
 static struct task_struct *pick_heavy_task(struct rq *rq, int *boost_migration)
 {
 	struct task_struct *p, *heaviest_task = NULL;
-	unsigned long util_avg, max_util_avg = 0;
+	unsigned long util, max_util = 0;
 	int task_count = 0;
 
 	list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
@@ -213,16 +213,16 @@ static struct task_struct *pick_heavy_task(struct rq *rq, int *boost_migration)
 			continue;
 
 		/*
-		 * Pick the task with the biggest util_avg among tasks whose
-		 * util_avg is greater than the upper boundary.
+		 * Pick the task with the biggest util among tasks whose
+		 * util is greater than the upper boundary.
 		 */
-		util_avg = ml_task_load_avg(p);
-		if (util_avg < get_upper_boundary(task_cpu(p)))
+		util = ml_uclamp_task_util(p);
+		if (util < get_upper_boundary(task_cpu(p)))
 			continue;
 
-		if (util_avg > max_util_avg) {
+		if (util > max_util) {
 			heaviest_task = p;
-			max_util_avg = util_avg;
+			max_util = util;
 		}
 
 		if (++task_count >= TRACK_TASK_COUNT)
@@ -232,7 +232,8 @@ static struct task_struct *pick_heavy_task(struct rq *rq, int *boost_migration)
 	return heaviest_task;
 }
 
-static bool __can_migrate(struct task_struct *p, struct ontime_env *env)
+static
+bool can_migrate(struct task_struct *p, struct ontime_env *env)
 {
 	struct rq *src_rq = env->src_rq, *dst_rq = env->dst_rq;
 
@@ -258,15 +259,6 @@ static bool __can_migrate(struct task_struct *p, struct ontime_env *env)
 		return false;
 
 	return true;
-}
-
-static
-bool can_migrate(struct task_struct *p, struct ontime_env *env)
-{
-	if (ml_of(p)->migrating == 0)
-		return false;
-
-	return __can_migrate(p, env);
 }
 
 static void move_task(struct task_struct *p, struct ontime_env *env)
@@ -320,14 +312,12 @@ static int ontime_migration_cpu_stop(void *data)
 	/* Move task from source to destination */
 	double_lock_balance(src_rq, dst_rq);
 	if (move_specific_task(p, env)) {
-		trace_ems_ontime_migration(p, ml_of(p)->avg.load_avg,
-				src_rq->cpu, dst_rq->cpu, boost_migration ? "boosted" : "not boosted");
+		trace_ems_ontime_migration(p, ml_uclamp_task_util(p),
+				src_rq->cpu, dst_rq->cpu, "heavy task");
 	}
 	double_unlock_balance(src_rq, dst_rq);
 
 out_unlock:
-	ml_of(p)->migrating = 0;
-
 	src_rq->active_balance = 0;
 	dst_rq->ontime_migrating = 0;
 	dst_rq->ontime_boost_migration = 0;
@@ -336,21 +326,6 @@ out_unlock:
 	put_task_struct(p);
 
 	return 0;
-}
-
-void ontime_update_next_balance(int cpu, struct ml_avg *avg)
-{
-	if (cpumask_test_cpu(cpu, cpu_coregroup_mask(MAX_CAPACITY_CPU)))
-		return;
-
-	if (avg->load_avg < get_upper_boundary(cpu))
-		return;
-
-	/*
-	 * Update the next_balance of this cpu because tick is most likely
-	 * to occur first in currently running cpu.
-	 */
-	cpu_rq(smp_processor_id())->next_balance = jiffies;
 }
 
 static bool ontime_check_runnable(struct ontime_env *env, struct rq *rq)
@@ -474,7 +449,7 @@ static void ontime_mulligan(void)
 	/* Fill ontime_env and check whether the task can be migrated */
 	local_env.dst_rq = dst_rq;
 	local_env.target_task = target_p;
-	if (!__can_migrate(target_p, &local_env)) {
+	if (!can_migrate(target_p, &local_env)) {
 		raw_spin_unlock_irqrestore(&src_rq->lock, flags);
 		return;
 	}
@@ -553,7 +528,6 @@ static void ontime_heavy_migration(void)
 		return;
 	}
 
-	ml_of(p)->migrating = 1;
 	get_task_struct(p);
 
 	/* Set environment data */
@@ -592,20 +566,17 @@ void ontime_migration(void)
 int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 {
 	int src_cpu = task_cpu(p);
+	unsigned long util;
 
 	if (!support_ontime(p))
 		return true;
-
-	if (ml_of(p)->migrating == 1) {
-		trace_ems_ontime_check_migrate(p, dst_cpu, false, "on migrating");
-		return false;
-	}
 
 	/*
 	 * Task is heavy enough but load balancer tries to migrate the task to
 	 * slower cpu, it does not allow migration.
 	 */
-	if (ml_task_load_avg(p) >= get_lower_boundary(src_cpu) &&
+	util = ml_task_util(p);
+	if (util >= get_lower_boundary(src_cpu) &&
 	    check_migrate_slower(src_cpu, dst_cpu)) {
 		/*
 		 * However, only if the source cpu is overutilized, it allows
@@ -613,7 +584,7 @@ int ontime_can_migrate_task(struct task_struct *p, int dst_cpu)
 		 * (criteria : task util is under 75% of cpu util)
 		 */
 		if (cpu_overutilized(src_cpu) &&
-			ml_task_util_est(p) * 100 < (cpu_util(src_cpu) * 75)) {
+			util * 100 < (cpu_util(src_cpu) * 75)) {
 			trace_ems_ontime_check_migrate(p, dst_cpu, true, "src overutil");
 			return true;
 		}
@@ -655,11 +626,6 @@ int ems_ontime_enabled_stune_hook_write(struct cgroup_subsys_state *css,
 
 	ontime_enabled[group_idx] = enabled;
 	return 0;
-}
-
-void ontime_trace_task_info(struct task_struct *p)
-{
-	trace_ems_ontime_load_avg_task(p, &ml_of(p)->avg, ml_of(p)->migrating);
 }
 
 /****************************************************************/
