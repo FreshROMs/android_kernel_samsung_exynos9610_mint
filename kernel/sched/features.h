@@ -122,8 +122,6 @@
 #define SCHED_FEAT_FIND_BEST_TARGET 1
 #define SCHED_FEAT_FBT_STRICT_ORDER 1
 
-#define SCHED_FEAT_EXYNOS_MS 1
-
 /*
  * Apply schedtune boost hold to tasks of all sched classes.
  * If enabled, schedtune will hold the boost applied to a CPU
