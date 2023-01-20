@@ -986,33 +986,10 @@ void find_migration_cpus(struct tp_env *env, struct cpumask *mask)
 }
 
 static
-void find_non_preemptible_cpus(struct tp_env *env, struct cpumask *mask)
-{
-	int cpu;
-
-	/* Allow preemption if task is the 'on-top' or task_boost task */
-	if (env->task_on_top || (env->p->pid && ems_task_boost() == env->p->pid))
-		return;
-
-	/* Allow preemption if task is sync and 'prefer-perf' task */
-	if (env->sync && env->boosted)
-		return;
-
-	for_each_cpu(cpu, &env->cpus_allowed) {
-		if (!cpu_preemptible(env, cpu))
-			cpumask_set_cpu(cpu, mask);
-	}
-
-	/* if all cpus are non-preemptible, allow preemption */
-	if (cpumask_equal(mask, &env->cpus_allowed))
-		cpumask_clear(mask);
-}
-
-static
 int find_fit_cpus(struct tp_env *env)
 {
 	struct cpumask fit_cpus;
-	struct cpumask overcap_cpus, tex_pinning_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, migration_cpus, non_preemptible_cpus;
+	struct cpumask overcap_cpus, tex_pinning_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus, migration_cpus;
 	int cpu = smp_processor_id();
 
 	/* clear masks */
@@ -1024,7 +1001,6 @@ int find_fit_cpus(struct tp_env *env)
 	cpumask_clear(&prefer_cpus);
 	cpumask_clear(&busy_cpus);
 	cpumask_clear(&migration_cpus);
-	cpumask_clear(&non_preemptible_cpus);
 
 	/* find min load cpu for busy mulligan task */
 	if (EMS_PF_GET(env->p) & EMS_PF_RUNNABLE_BUSY) {
@@ -1043,7 +1019,6 @@ int find_fit_cpus(struct tp_env *env)
 	 * - prefer_cpus : prefer cpu
 	 * - busy_cpus : busy cpu for migrating tasks
 	 * - migration_cpus : cpu under boosted ontime migration
-	 * - non_preemptible_cpus : non preemptible cpu
 	 */
 	find_overcap_cpus(env, &overcap_cpus);
 	tex_pinning_fit_cpus(env, &tex_pinning_cpus);
@@ -1051,7 +1026,6 @@ int find_fit_cpus(struct tp_env *env)
 	prefer_cpu_get(env, &prefer_cpus);
 	find_busy_cpus(env, &busy_cpus);
 	find_migration_cpus(env, &migration_cpus);
-	find_non_preemptible_cpus(env, &non_preemptible_cpus);
 
 	/*
 	 * Exclude overcap cpu from cpus_allowed. If there is only one or no
@@ -1071,11 +1045,6 @@ int find_fit_cpus(struct tp_env *env)
 	if (cpumask_weight(&fit_cpus) <= 1)
 		goto out;
 
-	/* Exclude non-preemptible cpus from fit_cpus */
-	cpumask_andnot(&fit_cpus, &fit_cpus, &non_preemptible_cpus);
-	if (cpumask_weight(&fit_cpus) <= 1)
-		goto out;
-
 	if (env->p->pid && ems_task_boost() == env->p->pid) {
 		if (cpumask_intersects(&fit_cpus, cpu_fastest_mask())) {
 			cpumask_and(&fit_cpus, &fit_cpus, cpu_fastest_mask());
@@ -1083,17 +1052,19 @@ int find_fit_cpus(struct tp_env *env)
 		}
 	}
 
-	/* Handle sync flag if waker cpu is preemptible */
-	if (sysctl_sched_sync_hint_enable &&
-		env->sync && (env->task_on_top || env->boosted || cpu_preemptible(env, cpu))) {
-		if (cpu_rq(cpu)->nr_running == 1 && cpumask_test_cpu(cpu, &fit_cpus)) {
+	/* Handle sync flag */
+	if (sysctl_sched_sync_hint_enable && env->sync) {
+		if (cpu_rq(cpu)->nr_running == 1 &&
+			cpumask_test_cpu(cpu, &env->fit_cpus)) {
 			struct cpumask mask;
+
+			cpumask_andnot(&mask, cpu_active_mask,
+						cpu_slowest_mask());
 
 			/*
 			 * Select this cpu if boost is activated and this
 			 * cpu does not belong to slowest cpumask.
 			 */
-			cpumask_andnot(&mask, cpu_active_mask, cpu_slowest_mask());
 			if (cpumask_test_cpu(cpu, &mask)) {
 				cpumask_clear(&fit_cpus);
 				cpumask_set_cpu(cpu, &fit_cpus);
@@ -1122,8 +1093,7 @@ int find_fit_cpus(struct tp_env *env)
 		cpumask_and(&fit_cpus, &fit_cpus, &prefer_cpus);
 
 out:
-	cpumask_and(&env->fit_cpus, &env->p->cpus_allowed, cpu_active_mask);
-	cpumask_and(&env->fit_cpus, &env->fit_cpus, &fit_cpus);
+	cpumask_copy(&env->fit_cpus, &fit_cpus);
 
 	trace_ems_select_fit_cpus(env->p, env->wake,
 		*(unsigned int *)cpumask_bits(&env->fit_cpus),
@@ -1133,8 +1103,7 @@ out:
 		*(unsigned int *)cpumask_bits(&prefer_cpus),
 		*(unsigned int *)cpumask_bits(&overcap_cpus),
 		*(unsigned int *)cpumask_bits(&busy_cpus),
-		*(unsigned int *)cpumask_bits(&migration_cpus),
-		*(unsigned int *)cpumask_bits(&non_preemptible_cpus));
+		*(unsigned int *)cpumask_bits(&migration_cpus));
 
 	return cpumask_weight(&env->fit_cpus);
 }

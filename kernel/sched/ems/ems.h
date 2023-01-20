@@ -204,7 +204,6 @@ struct system_profile_data {
 #define MISFIT_TASK_UTIL_RATIO  (80)
 #define check_busy(util, cap)   ((util * 100) >= (cap * 80))
 
-extern bool cpu_preemptible(struct tp_env *env, int cpu);
 extern inline int is_heavy_task_util(unsigned long util);
 extern inline int is_misfit_task_util(unsigned long util);
 

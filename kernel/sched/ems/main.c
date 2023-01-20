@@ -30,38 +30,6 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
 /******************************************************************************
  * common function for ems                                                    *
  ******************************************************************************/
-extern int wake_cap(struct task_struct *p, int cpu, int prev_cpu);
-bool cpu_preemptible(struct tp_env *env, int cpu)
-{
-	struct rq *rq = cpu_rq(cpu);
-	struct task_struct *curr = READ_ONCE(rq->curr);
-
-	if (et_cpu_slowest(cpu) || !curr)
-		goto skip_ux;
-
-	/* Don't preempt EMS boosted task */
-	if (curr->pid && ems_task_boost() == curr->pid)
-		return false;
-
-	/* Allow preemption if not top-app */
-	if (!ems_task_top_app(curr))
-		goto skip_ux;
-
-	/* Check if 'curr' is an on-top task */
-	if (ems_task_on_top(curr))
-		return false;
-
-	/* Check if 'curr' is a prefer-perf top-app task */
-	if (ems_task_boosted(curr))
-		return false;
-
-skip_ux:
-	if (env->sync && (rq->nr_running != 1 || wake_cap(env->p, cpu, env->src_cpu)))
-		return false;
-
-	return true;
-}
-
 inline int cpu_overutilized(int cpu)
 {
     return (capacity_orig_of(cpu) * 1024) < (ml_cpu_util(cpu) * 1280);
