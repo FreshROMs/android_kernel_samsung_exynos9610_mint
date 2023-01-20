@@ -466,6 +466,7 @@ static void ontime_heavy_migration(void)
 	struct task_struct *p;
 	int dst_cpu;
 	unsigned long flags;
+	unsigned long util;
 	struct ontime_cond *curr;
 
 	/*
@@ -483,7 +484,9 @@ static void ontime_heavy_migration(void)
 	 * No need to traverse rq to find a heavy task
 	 * if this CPU utilization is under upper boundary
 	 */
-	if (ml_cpu_util(cpu_of(rq)) < curr->upper_boundary)
+	util = ml_cpu_util(cpu_of(rq));
+   	util = uclamp_util_with(rq, util, NULL);
+	if (util < curr->upper_boundary)
 		return;
 
 	raw_spin_lock_irqsave(&rq->lock, flags);
