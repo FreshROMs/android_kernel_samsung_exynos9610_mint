@@ -1151,27 +1151,31 @@ void take_util_snapshot(struct tp_env *env)
 static
 bool fast_path_eligible(struct tp_env *env)
 {	
-	/* Cond 1: Previous CPU should be eligible for placement */
+	/* Cond 1: Task should not be under mulligan migration */
+	if (EMS_PF_GET(env->p) & EMS_PF_MULLIGAN)
+		return false;
+
+	/* Cond 2: Previous CPU should be eligible for placement */
 	if (!cpumask_test_cpu(env->src_cpu, &env->cpus_allowed))
 		return false;
 
-	/* Cond 2: Previous CPU must be active */
+	/* Cond 3: Previous CPU must be active */
 	if (!cpu_active(env->src_cpu))
 		return false;
 
-	/* Cond 3: Previous CPU capacity must be same as start CPU capacity */
+	/* Cond 4: Previous CPU capacity must be same as start CPU capacity */
 	if (env->start_cpu.cap_max != capacity_max_of(env->src_cpu))
 		return false;
 
-	/* Cond 4: Previous CPU should be idle */
+	/* Cond 5: Previous CPU should be idle */
 	if (!idle_cpu(env->src_cpu))
 		return false;
 
-	/* Cond 5: Previous CPU must not be overutilized */
+	/* Cond 6: Previous CPU must not be overutilized */
 	if (cpu_overutilized(env->src_cpu))
 		return false;
 
-	/* Cond 6: Previous CPU must be shallow idle */
+	/* Cond 7: Previous CPU must be shallow idle */
 	if (idle_get_state_idx(cpu_rq(env->src_cpu)) <= 1) {
 		return true;
 	}
