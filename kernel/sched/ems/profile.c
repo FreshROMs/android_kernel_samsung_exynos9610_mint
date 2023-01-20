@@ -19,7 +19,7 @@ static DEFINE_RWLOCK(profile_sched_lock);
  *			External APIs				*
  ****************************************************************/
 static u64 last_profile_time;
-static int profile_interval = 1; /* 1 tick = 4ms */
+static int profile_interval = MS_TO_JIFFIES(4); /* 1 tick = 4ms */
 int profile_sched_data(void)
 {
 	unsigned long flags;

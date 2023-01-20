@@ -55,12 +55,17 @@ struct sysbusy_param {
     unsigned long allowed_next_state;
 };
 
-#define TICK_SEC    CONFIG_HZ
-#define BUSY_MONITOR_INTERVAL    (TICK_SEC / 10)
+/*
+ * Helpers for converting millisecond timing to jiffy resolution
+ */
+#define MS_TO_JIFFIES(TIME) ((unsigned long)(TIME) / (MSEC_PER_SEC / HZ))
+
+#define TICK_SEC    MS_TO_JIFFIES(1000)
+#define BUSY_MONITOR_INTERVAL    MS_TO_JIFFIES(100)
 static struct sysbusy_param sysbusy_params[] = {
     {
         /* SYSBUSY_STATE0 (sysbusy inactivation) */
-        .monitor_interval   = 1,
+        .monitor_interval   = MS_TO_JIFFIES(4),
         .release_duration   = 0,
         .allowed_next_state = (1 << SYSBUSY_STATE1) |
                       (1 << SYSBUSY_STATE2) |
@@ -74,8 +79,8 @@ static struct sysbusy_param sysbusy_params[] = {
          * Let the heavy load alleviate first by making STATE1 longer.
          */ 
         /* SYSBUSY_STATE1 */
-        .monitor_interval   = 4,
-        .release_duration   = TICK_SEC / 2,
+        .monitor_interval   = MS_TO_JIFFIES(16),
+        .release_duration   = MS_TO_JIFFIES(500),
         .allowed_next_state = (1 << SYSBUSY_STATE0) |
                       (1 << SYSBUSY_STATE2) |
                       (1 << SYSBUSY_STATE3),
