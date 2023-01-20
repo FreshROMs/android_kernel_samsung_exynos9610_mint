@@ -249,7 +249,7 @@ static __read_mostly int low_patten_count = 3;
 static __read_mostly int low_patten_thres = 1024;
 static __read_mostly int low_patten_stdev = 200;
 
-static __read_mostly u64 boost_interval = 12 * NSEC_PER_MSEC;
+static __read_mostly u64 boost_interval = 16 * NSEC_PER_MSEC;
 
 /********************************************************/
 /*		  Helper funcition			*/
