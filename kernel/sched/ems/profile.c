@@ -144,8 +144,7 @@ int profile_sched_init(void)
 		return -ENOMEM;
 	}
 
-#if 1
 	sysbusy_register_notifier(&profile_sysbusy_notifier);
-#endif
+
 	return 0;
 }
