@@ -159,13 +159,7 @@ extern inline bool et_cpu_slowest(int cpu);
 extern int sysbusy_register_notifier(struct notifier_block *nb);
 extern int sysbusy_unregister_notifier(struct notifier_block *nb);
 #else
-static inline bool lbt_overutilized(int cpu, int level)
-{
-	return false;
-}
-static inline void ems_lbt_update_overutil(int cpu, unsigned long capacity) { }
 static inline void gb_qos_update_request(struct gb_qos_request *req, u32 new_value) { }
-
 static inline bool et_cpu_slowest(int cpu)
 {
 	return false;
