@@ -1322,7 +1322,7 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int
 		if (cpumask_test_cpu(prev_cpu, &env.cpus_allowed))
 			target_cpu = prev_cpu;
 		else
-			target_cpu = cpumask_any(&env.cpus_allowed);
+			target_cpu = cpumask_any_distribute(&env.cpus_allowed);
 	}
 
 out:
