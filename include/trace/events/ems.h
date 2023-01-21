@@ -57,7 +57,7 @@ TRACE_EVENT(ems_select_fit_cpus,
 		__entry->busy_cpus		= busy_cpus;
 	),
 
-	TP_printk("comm=%s pid=%d src_cpu=%d wake=%d fit_cpus=%#x cpus_allowed=%#x tex_pinning_cpus=%#x ontime_fit_cpus=%#x prefer_cpus=%#x overutil_cpus=%#x busy_cpus=%#x migration_cpus=%#x",
+	TP_printk("comm=%s pid=%d src_cpu=%d wake=%d fit_cpus=%#x cpus_allowed=%#x tex_pinning_cpus=%#x ontime_fit_cpus=%#x prefer_cpus=%#x overutil_cpus=%#x busy_cpus=%#x",
 		  __entry->comm, __entry->pid, __entry->src_cpu,  __entry->wake,
 		  __entry->fit_cpus, __entry->cpus_allowed, __entry->tex_pinning_cpus, __entry->ontime_fit_cpus, __entry->prefer_cpus,
 		  __entry->overutil_cpus, __entry->busy_cpus)
@@ -66,30 +66,37 @@ TRACE_EVENT(ems_select_fit_cpus,
 /*
  * Tracepoint for wakeup balance
  */
-TRACE_EVENT(ems_wakeup_balance,
+TRACE_EVENT(ems_select_task_rq,
 
-	TP_PROTO(struct task_struct *p, int target_cpu, int wake, char *state),
+	TP_PROTO(struct task_struct *p, unsigned long task_util, unsigned long task_util_clamped, int cgroup_idx, int target_cpu, int wake, char *state),
 
-	TP_ARGS(p, target_cpu, wake, state),
+	TP_ARGS(p, task_util, task_util_clamped, cgroup_idx, target_cpu, wake, state),
 
 	TP_STRUCT__entry(
-		__array(	char,		comm,	TASK_COMM_LEN	)
-		__field(	pid_t,		pid			)
-		__field(	int,		target_cpu		)
-		__field(	int,		wake		)
-		__array(	char,		state,		30	)
+		__array(	char,		        comm,	TASK_COMM_LEN	)
+		__field(	pid_t,		        pid			            )
+		__field(	unsigned long,		task_util		        )
+		__field(	unsigned long,		task_util_clamped		)
+		__field(	int,		        cgroup_idx		        )
+		__field(	int,		        target_cpu		        )
+		__field(	int,		        wake		            )
+		__array(	char,		        state,		30	        )
 	),
 
 	TP_fast_assign(
 		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid		= p->pid;
-		__entry->target_cpu	= target_cpu;
-		__entry->wake	= wake;
+		__entry->pid		        = p->pid;
+		__entry->task_util	        = task_util;
+		__entry->task_util_clamped	= task_util_clamped;
+		__entry->cgroup_idx	        = cgroup_idx;
+		__entry->target_cpu	        = target_cpu;
+		__entry->wake	            = wake;
 		memcpy(__entry->state, state, 30);
 	),
 
-	TP_printk("comm=%s pid=%d target_cpu=%d wake=%d state=%s",
-		  __entry->comm, __entry->pid, __entry->target_cpu, __entry->wake, __entry->state)
+	TP_printk("comm=%s pid=%d task_util=%lu task_util_clamped=%lu cgroup_idx=%d target_cpu=%d wake=%d state=%s",
+		  __entry->comm, __entry->pid, __entry->task_util, __entry->task_util_clamped, __entry->cgroup_idx,
+		  __entry->target_cpu, __entry->wake, __entry->state)
 );
 
 /*

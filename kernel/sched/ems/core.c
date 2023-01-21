@@ -862,9 +862,6 @@ int find_best_cpu(struct tp_env *env)
 		best_cpu = find_min_util_with_cpu(env);
 		strcpy(state, "min util");
 		break;
-	default:
-		best_cpu = env->src_cpu;
-		strcpy(state, "prev");
 	}
 
 	if (cpu_selected(best_cpu))
@@ -873,8 +870,9 @@ int find_best_cpu(struct tp_env *env)
 	/* Keep task on prev cpu if no efficient cpu is found */
 	best_cpu = env->src_cpu;
 	strcpy(state, "no best cpu");
+
 out:
-	trace_ems_wakeup_balance(env->p, best_cpu, env->wake, state);
+	trace_ems_select_task_rq(env->p, env->task_util, env->task_util_clamped, env->cgroup_idx, best_cpu, env->wake, state);
 	return best_cpu;
 }
 
@@ -1264,6 +1262,7 @@ void get_ready_env(struct tp_env *env)
 		/* Task is eligible for fast placement, keep the task on prev cpu */
 		cpumask_clear(&env->cpus_allowed);
 		cpumask_set_cpu(env->src_cpu, &env->cpus_allowed);
+		trace_ems_select_task_rq(env->p, 0, 0, env->cgroup_idx, env->src_cpu, env->wake, "fast placement");
 		return;
 	}
 
@@ -1354,14 +1353,14 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int
 
 	/* there is no CPU allowed, give up find new cpu */
 	if (cpumask_empty(&env.cpus_allowed)) {
-		strcpy(state, "no CPU allowed");
+		trace_ems_select_task_rq(p, 0, 0, env.cgroup_idx, target_cpu, wake, "no CPU allowed");
 		goto out;
 	}
 
 	/* there is only one CPU allowed, no need to find cpu */
 	if (cpumask_weight(&env.cpus_allowed) == 1) {
 		target_cpu = cpumask_any(&env.cpus_allowed);
-		strcpy(state, "one CPU allowed");
+		trace_ems_select_task_rq(p, 0, 0, env.cgroup_idx, target_cpu, wake, "one CPU allowed");
 		goto out;
 	}
 
@@ -1369,8 +1368,6 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int
 	if (cpu_selected(target_cpu))
 		goto found_best_cpu;
 out:
-	trace_ems_wakeup_balance(p, target_cpu, wake, state);
-found_best_cpu:
 	return target_cpu;
 }
 
