@@ -143,7 +143,7 @@ unsigned long ml_cpu_util_with(struct task_struct *p, int cpu)
 unsigned long ml_cpu_load_avg(int cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-	return cfs_rq->avg.load_avg;
+	return READ_ONCE(cfs_rq->avg.load_avg);
 }
 
 /*
@@ -152,7 +152,7 @@ unsigned long ml_cpu_load_avg(int cpu)
 unsigned long ml_runnable_load_avg(int cpu)
 {
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
-	return cfs_rq->runnable_load_avg;
+	return READ_ONCE(cfs_rq->runnable_load_avg);
 }
 
 /******************************************************************************
