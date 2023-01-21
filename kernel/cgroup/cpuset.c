@@ -2019,15 +2019,15 @@ static void uclamp_set(struct kernfs_open_file *of,
 	static struct ucl_param tgts[] = {
 		/* cgroup                 min    max    b  l */
 		{"top-app",    	     	 "20",  "max",  0, 1},
-		{"foreground", 	     	 "10",   "80",  0, 0},
+		{"foreground", 	     	 "10",   "70",  0, 0},
 #ifdef CONFIG_MINT_SESL
 		/* this is only needed for samsung roms */
 		{"foreground-boost", 	 "20",   "80",  0, 0},
 #endif
-		{"background", 	     	  "0",   "50",  0, 0},
-		{"system-background", 	  "0",   "60",  0, 0},
-		{"camera-daemon",	     "20",  "max",  1, 1},
-		{"moderate",	         "10",   "80",  0, 0},
+		{"background", 	     	  "0",   "40",  0, 0},
+		{"system-background", 	  "0",   "50",  0, 0},
+		{"camera-daemon",	     "30",  "max",  1, 1},
+		{"moderate",	         "10",   "70",  0, 0},
 		{"restricted",		      "0",   "30",  0, 0},
 	};
 
