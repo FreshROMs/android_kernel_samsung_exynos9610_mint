@@ -585,9 +585,6 @@ struct sched_rt_entity {
 #endif
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_SCHED_USE_FLUID_RT
-	int sync_flag;
-#endif
 	/*
 	 * Per entity load average tracking.
 	 *
@@ -785,9 +782,7 @@ struct task_struct {
 	u32 init_load_pct;
 	u64 last_sleep_ts;
 #endif
-#ifdef CONFIG_SCHED_USE_FLUID_RT
-	int victim_flag;
-#endif
+
 #ifdef CONFIG_SCHED_EMS
 	u64 ems_flags;
 	u64 ems_assigned_cpu;

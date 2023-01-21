@@ -34,6 +34,22 @@ struct gb_qos_request {
 	bool active;
 };
 
+/* support flag-handling for EMS */
+#define EMS_PF_GET(task)        (task->ems_flags)
+#define EMS_PF_SET(task, value)     (task->ems_flags |= (value))
+#define EMS_PF_CLEAR(task, value)   (task->ems_flags &= ~(value))
+
+#define EMS_CPU(task)        (task->ems_assigned_cpu)
+
+#define EMS_PF_MULLIGAN             0x00000001  /* I'm given a mulligan */
+#define EMS_PF_RUNNABLE_BUSY        0x00000002  /* Picked from runnable busy cpu */
+#define EMS_PF_RT_VICTIM            0x00000003  /* Victim task from FRT */
+
+/*
+ * Helpers for converting millisecond timing to jiffy resolution
+ */
+#define MS_TO_JIFFIES(TIME) ((unsigned long)(TIME) / (MSEC_PER_SEC / HZ))
+
 /*
  * Sysbusy
  */
@@ -54,11 +70,6 @@ struct sysbusy_param {
     int release_duration;       /* tick (1 tick = 4ms) */
     unsigned long allowed_next_state;
 };
-
-/*
- * Helpers for converting millisecond timing to jiffy resolution
- */
-#define MS_TO_JIFFIES(TIME) ((unsigned long)(TIME) / (MSEC_PER_SEC / HZ))
 
 #define TICK_SEC    MS_TO_JIFFIES(1000)
 #define BUSY_MONITOR_INTERVAL    MS_TO_JIFFIES(100)
@@ -101,8 +112,6 @@ static struct sysbusy_param sysbusy_params[] = {
 };
 
 #define SYSBUSY_SOMAC   SYSBUSY_STATE3
-
-#define EMS_CPU(task)        (task->ems_assigned_cpu)
 
 struct rq;
 

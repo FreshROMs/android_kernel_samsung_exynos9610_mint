@@ -32,14 +32,6 @@ extern struct kobject *ems_kobj;
 #define SCHED_POLICY_MIN_UTIL 4 // overutil case
 #define SCHED_POLICY_UNKNOWN 5
 
-/* support flag-handling for EMS */
-#define EMS_PF_GET(task)        (task->ems_flags)
-#define EMS_PF_SET(task, value)     (task->ems_flags |= (value))
-#define EMS_PF_CLEAR(task, value)   (task->ems_flags &= ~(value))
-
-#define EMS_PF_MULLIGAN         0x00000001  /* I'm given a mulligan */
-#define EMS_PF_RUNNABLE_BUSY        0x00000002  /* Picked from runnable busy cpu */
-
 /*
  * Vendor data handling for TEX queue jump
  *
