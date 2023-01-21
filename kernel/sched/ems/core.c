@@ -1325,8 +1325,7 @@ void get_ready_env(struct tp_env *env)
 		rcu_read_unlock();
 }
 
-extern void sync_entity_load_avg(struct sched_entity *se);
-inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake)
+int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int wake)
 {
 	int target_cpu = INVALID_CPU;
 	char state[30] = "fail";

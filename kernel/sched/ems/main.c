@@ -130,12 +130,11 @@ int ems_need_active_balance(enum cpu_idle_type idle, struct sched_domain *sd,
 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries + 2);
 }
 
-int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
-			   int sd_flag, int sync, int wake)
+int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int wake)
 {
 	int cpu;
 
-	cpu = __ems_select_task_rq_fair(p, prev_cpu, sd_flag, sync, wake);
+	cpu = __ems_select_task_rq_fair(p, prev_cpu, sync, wake);
 
 	EMS_CPU(p) = cpu;
 	return cpu;

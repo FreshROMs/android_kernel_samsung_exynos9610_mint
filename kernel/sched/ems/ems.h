@@ -104,8 +104,7 @@ struct tp_env {
 };
 
 /* core */
-extern inline int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu,
-               int sd_flag, int sync, int wake);
+extern int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int wake);
 extern int ems_task_on_top(struct task_struct *p);
 extern int core_init(void);
 

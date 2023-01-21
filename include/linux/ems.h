@@ -115,7 +115,7 @@ extern struct kobject *ems_kobj;
 /* ems api */
 extern int ems_need_active_balance(enum cpu_idle_type idle,
                 struct sched_domain *sd, int src_cpu, int dst_cpu);
-extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int sync, int wake);
+extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int wake);
 extern int ems_select_fallback_rq(struct task_struct *p);
 extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
 extern void ems_tick(struct rq *rq);

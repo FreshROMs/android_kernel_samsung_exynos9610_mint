@@ -345,7 +345,7 @@ static struct rq *ontime_find_mulligan_rq(struct task_struct *target_p,
 	EMS_PF_SET(target_p, env->flags);
 
 	/* Find next cpu for this task */
-	dst_cpu = ems_select_task_rq_fair(target_p, cpu_of(src_rq), 0, 0, 0);
+	dst_cpu = ems_select_task_rq_fair(target_p, cpu_of(src_rq), 0, 0);
 
 	/* Clear flag */
 	EMS_PF_CLEAR(target_p, env->flags);
@@ -518,7 +518,7 @@ static void ontime_heavy_migration(void)
 	}
 
 	/* Select destination cpu which the task will be moved */
-	dst_cpu = ems_select_task_rq_fair(p, rq->cpu, 0, 0, 0);
+	dst_cpu = ems_select_task_rq_fair(p, rq->cpu, 0, 0);
 	if (dst_cpu < 0 || rq->cpu == dst_cpu) {
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		return;
