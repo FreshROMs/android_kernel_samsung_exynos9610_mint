@@ -728,7 +728,7 @@ int find_max_spare_cpu(struct tp_env *env, bool among_idle)
 		if (among_idle && !env->cpu_stat[cpu].idle)
 			continue;
 
-		curr_cap = env->cpu_stat[cpu].cap_curr;
+		curr_cap = capacity_curr_of(cpu);
 		spare_cap = curr_cap - env->cpu_stat[cpu].util_with;
 
 		if (max_spare_cap >= spare_cap)
@@ -1093,7 +1093,6 @@ void take_util_snapshot(struct tp_env *env)
 	for_each_cpu_and(cpu, &env->p->cpus_allowed, cpu_active_mask) {
 		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
 		env->cpu_stat[cpu].cap_orig = capacity_orig_of(cpu);
-		env->cpu_stat[cpu].cap_orig = capacity_curr_of(cpu);
 
 		env->cpu_stat[cpu].util_wo = ml_cpu_util_without(cpu, env->p);
 		env->cpu_stat[cpu].util_with = ml_cpu_util_with(env->p, cpu);
