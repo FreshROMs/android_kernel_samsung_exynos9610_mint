@@ -61,6 +61,7 @@ struct tp_env {
     } start_cpu;
 
     unsigned int sched_policy;
+    int per_cpu_kthread;
     int sync;
     int wake;
 
@@ -81,6 +82,7 @@ struct tp_env {
         unsigned long util_with;
         unsigned long util_cuml;
         unsigned long runnable;
+        unsigned long load_avg;
 
         unsigned int cap_max;
         unsigned long cap_orig;

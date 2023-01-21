@@ -113,12 +113,9 @@ void
 ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 {
 	struct ontime_cond *curr;
-	struct cpumask mask;
 	int src_cpu = task_cpu(p);
-	unsigned long util = ml_uclamp_task_util(p);
-
-	cpumask_clear(&mask);
-	cpumask_copy(&mask, cpu_active_mask);
+	u32 util = ml_uclamp_task_util(p);
+	struct cpumask mask;
 
 	curr = get_current_cond(src_cpu);
 	if (!curr)
@@ -126,11 +123,12 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 
 	/*
 	 * If the task belongs to a group that does not support ontime
-	 * migration or task is currently migrating, it can be assigned to all
-	 * active cpus without specifying fit cpus.
+	 * migration, all active cpus are fit.
 	 */
-	if (!support_ontime(p))
+	if (!support_ontime(p)) {
+		cpumask_copy(&mask, cpu_active_mask);
 		goto done;
+	}
 
 	/*
 	 * case 1) task util < lower boundary
@@ -141,8 +139,10 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 	 *
 	 * fit_cpus = cpu_active_mask
 	 */
-	if (util < curr->lower_boundary)
+	if (util < curr->lower_boundary) {
+		cpumask_copy(&mask, cpu_active_mask);
 		goto done;
+	}
 
 	cpumask_clear(&mask);
 
@@ -163,7 +163,7 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 				cpumask_or(&mask, &mask, &curr->cpus);
 		}
 
-		goto masking;
+		goto done;
 	}
 
 	/*
@@ -181,8 +181,6 @@ ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus)
 			cpumask_or(&mask, &mask, &curr->cpus);
 	}
 
-masking:
-	cpumask_and(&mask, &mask, cpu_active_mask);
 done:
 	/*
 	 * Check if the task is given a mulligan.
@@ -191,7 +189,6 @@ done:
 	if (EMS_PF_GET(p) & EMS_PF_MULLIGAN)
 		cpumask_clear_cpu(src_cpu, &mask);
 
-	cpumask_clear(fit_cpus);
 	cpumask_copy(fit_cpus, &mask);
 }
 

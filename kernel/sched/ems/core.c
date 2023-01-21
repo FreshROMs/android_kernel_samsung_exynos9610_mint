@@ -130,41 +130,37 @@ static void
 tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus)
 {
     int target = tex_task(env->p);
-	int suppress;
+	int suppress = tex_suppress_task(env->p);
 
-    if (target) {
-        cpumask_andnot(fit_cpus, &tex.pinning_cpus, &tex.busy_cpus);
-        cpumask_and(fit_cpus, fit_cpus, &env->p->cpus_allowed);
+	cpumask_clear(fit_cpus);
 
-        if (cpumask_empty(fit_cpus)) {
-            /*
-             * All priority pinning cpus are occupied by TEX tasks.
-             * Return cpu_active_mask so that priority pinning
-             * has no effect.
-             */
-            cpumask_copy(fit_cpus, cpu_active_mask);
-        } else {
-            /* Pick best cpu among fit_cpus */
-            tex_pinning_schedule(env, fit_cpus);
-        }
+	if (target) {
+		cpumask_andnot(fit_cpus, &tex.pinning_cpus, &tex.busy_cpus);
+		cpumask_and(fit_cpus, fit_cpus, &env->cpus_allowed);
 
-        return;
-    }
-
-	suppress = tex_suppress_task(env->p);
-    if (suppress) {
+		if (cpumask_empty(fit_cpus)) {
+			/*
+			 * All priority pinning cpus are occupied by TEX tasks.
+			 * Return cpu_active_mask so that priority pinning
+			 * has no effect.
+			 */
+			cpumask_copy(fit_cpus, cpu_active_mask);
+		} else {
+			/* Pick best cpu among fit_cpus */
+			tex_pinning_schedule(env, fit_cpus);
+		}
+	} else if (suppress) {
 		/* Clear fastest & tex-busy cpus for the supressed task */
 		cpumask_andnot(fit_cpus, &env->cpus_allowed, cpu_fastest_mask());
 		cpumask_andnot(fit_cpus, fit_cpus, &tex.busy_cpus);
 
 		if (cpumask_empty(fit_cpus))
 			cpumask_copy(fit_cpus, &env->cpus_allowed);
-
-		return;
+	} else {
+		/* Exclude cpus where priority pinning tasks run */
+		cpumask_andnot(fit_cpus, cpu_active_mask,
+					&tex.busy_cpus);
 	}
-
-    /* Exclude cpus where priority pinning tasks run */
-    cpumask_andnot(fit_cpus, &env->p->cpus_allowed, &tex.busy_cpus);
 }
 
 /**********************************************************************
@@ -357,10 +353,10 @@ static char *sched_policy_name[] = {
 };
 
 static
-void sched_policy_get(struct tp_env *env)
+int sched_policy_get(struct task_struct *p)
 {
-	struct task_struct *p = env->p;
-	int policy = sched_policy[env->cgroup_idx];
+	int cgroup_idx = schedtune_task_group_idx(p);
+	int policy = sched_policy[cgroup_idx];
 
 	/* 
 	 * Mint additions - scheduling policy changes
@@ -373,28 +369,20 @@ void sched_policy_get(struct tp_env *env)
 	 * e. global boosted scenario - SCHED_POLICY_SEMI_PERF
 	 *
 	 */
-	if (env->task_on_top || ems_boot_boost() == EMS_INIT_BOOST) {
-		policy = SCHED_POLICY_PERF;
-		goto out;
-	}
+	if (ems_task_on_top(p) || ems_boot_boost() == EMS_INIT_BOOST)
+		return SCHED_POLICY_PERF;
 
-	if (env->p->pid && ems_task_boost() == env->p->pid) {
-		policy = SCHED_POLICY_PERF;
-		goto out;
-	}
+	if (p->pid && ems_task_boost() == p->pid)
+		return SCHED_POLICY_PERF;
 
 	if (policy >= SCHED_POLICY_PERF)
-		goto out;
+		return SCHED_POLICY_PERF;
 
-	if (env->boosted && env->cgroup_idx == CGROUP_TOPAPP) {
-		policy = SCHED_POLICY_SEMI_PERF;
-		goto out;
-	}
+	if (kpp_status(cgroup_idx) && cgroup_idx == CGROUP_TOPAPP)
+		return SCHED_POLICY_SEMI_PERF;
 
-	if (ems_boot_boost() == EMS_BOOT_BOOST) {
-		policy = SCHED_POLICY_SEMI_PERF;
-		goto out;
-	}
+	if (ems_boot_boost() == EMS_BOOT_BOOST)
+		return SCHED_POLICY_SEMI_PERF;
 
 	/*
 	 * Change target tasks' policy to SCHED_POLICY_ENERGY
@@ -407,10 +395,10 @@ void sched_policy_get(struct tp_env *env)
 		policy = SCHED_POLICY_ENERGY;
 
 	if (policy >= SCHED_POLICY_SEMI_PERF)
-		goto out;
+		return SCHED_POLICY_SEMI_PERF;
 
 	if (policy == SCHED_POLICY_EFF &&
-		env->task_util <= SCHED_CAPACITY_SCALE >> 6)
+		ml_task_util(p) <= SCHED_CAPACITY_SCALE >> 6)
 		policy = SCHED_POLICY_ENERGY;
 
 	/*
@@ -418,11 +406,10 @@ void sched_policy_get(struct tp_env *env)
 	 * fail when task has no utilization. Place task
 	 * using min util strategy if this is the case.
 	 */
-	if (policy == SCHED_POLICY_ENERGY && !env->task_util)
+	if (policy == SCHED_POLICY_ENERGY && !ml_task_util(p))
 		policy = SCHED_POLICY_MIN_UTIL;
 
-out:
-	env->sched_policy = policy;
+	return policy;
 }
 
 int ems_sched_policy_stune_hook_read(struct seq_file *sf, void *v) {
@@ -774,34 +761,33 @@ int find_semi_perf_cpu(struct tp_env *env)
 	int max_spare_cap_cpu_ls = env->src_cpu;
 	unsigned long max_spare_cap_ls = 0;
 	unsigned long min_cuml_util = ULONG_MAX;
+	unsigned long spare_cap, util, cpu_cap, target_cap = 0;
+	struct cpuidle_state *idle;
 
-	unsigned long spare_cap, util, cpu_cap, target_cap;
-	int exit_lat;
+	rcu_read_lock();
 
 	for_each_cpu(cpu, &env->fit_cpus) {
 		util = env->cpu_stat[cpu].util_with;
 		cpu_cap = env->cpu_stat[cpu].cap_orig;
 		spare_cap = cpu_cap - util;
-		if (env->cpu_stat[cpu].idle) {
-			exit_lat = env->cpu_stat[cpu].exit_latency;
-
+		if (idle_cpu(cpu)) {
 			if (cpu_cap < target_cap)
 				continue;
 
-			if (cpu_cap == target_cap &&
-				exit_lat > min_exit_lat)
+			idle = idle_get_state(cpu_rq(cpu));
+			if (idle && idle->exit_latency > min_exit_lat &&
+				cpu_cap == target_cap)
 				continue;
 
-			if (exit_lat == min_exit_lat &&
+			if (idle && idle->exit_latency == min_exit_lat &&
 				target_cap == cpu_cap &&
 				(best_idle_cpu == env->src_cpu ||
 				(cpu != env->src_cpu &&
 				env->cpu_stat[cpu].util_cuml > min_cuml_util)))
 				continue;
 
-			if (exit_lat)
-				min_exit_lat = exit_lat;
-
+			if (idle)
+				min_exit_lat = idle->exit_latency;
 			min_cuml_util = env->cpu_stat[cpu].util_cuml;
 			target_cap = cpu_cap;
 			best_idle_cpu = cpu;
@@ -810,6 +796,8 @@ int find_semi_perf_cpu(struct tp_env *env)
 			max_spare_cap_cpu_ls = cpu;
 		}
 	}
+
+	rcu_read_unlock();
 
 	if (!env->latency_sensitive && cpu_selected(max_spare_cap_cpu_ls))
 		return max_spare_cap_cpu_ls;
@@ -877,21 +865,20 @@ out:
 }
 
 static
-int find_min_load_cpu(struct tp_env *env)
+int find_min_load_avg_cpu(struct tp_env *env)
 {
-	int cpu, min_load_cpu = -1;
-	unsigned long load, min_load = ULONG_MAX;
+	int cpu, min_load_avg_cpu = -1;
+	unsigned long load_avg, min_load_avg = ULONG_MAX;
 
 	for_each_cpu(cpu, &env->cpus_allowed) {
-		load = env->cpu_stat[cpu].util_with;
-		if (load < env->cpu_stat[cpu].cap_orig &&
-			load < min_load) {
-			min_load = load;
-			min_load_cpu = cpu;
+		load_avg = env->cpu_stat[cpu].load_avg;
+		if (load_avg < min_load_avg) {
+			min_load_avg = load_avg;
+			min_load_avg_cpu = cpu;
 		}
 	}
 
-	return min_load_cpu;
+	return min_load_avg_cpu;
 }
 
 static
@@ -900,13 +887,13 @@ void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 	int cpu;
 	unsigned long util;
 
+	cpumask_clear(mask);
+
 	if (env->sched_policy == SCHED_POLICY_SEMI_PERF)
 		return;
 
-	util = env->task_util_clamped;
-
 	/* check if task is misfit - causes all CPUs to be over capacity */
-	if (is_misfit_task_util(util))
+	if (is_misfit_task_util(env->task_util_clamped))
 		goto misfit;
 
 	/*
@@ -914,9 +901,11 @@ void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 	 *
 	 * overcap_cpus = cpu capacity < cpu util + task util
 	 */
-	for_each_cpu(cpu, &env->cpus_allowed)
-		if (env->cpu_stat[cpu].util_wo + util > env->cpu_stat[cpu].cap_orig)
+	for_each_cpu(cpu, &env->cpus_allowed) {
+		util = env->cpu_stat[cpu].util_wo + env->task_util_clamped;
+		if (util > env->cpu_stat[cpu].cap_orig)
 			cpumask_set_cpu(cpu, mask);
+	}
 
 	return;
 
@@ -948,6 +937,8 @@ void find_busy_cpus(struct tp_env *env, struct cpumask *mask)
 {
 	int cpu;
 
+	cpumask_clear(mask);
+
 	for_each_cpu(cpu, &env->cpus_allowed) {
 		unsigned long util, runnable, nr_running;
 
@@ -965,58 +956,51 @@ void find_busy_cpus(struct tp_env *env, struct cpumask *mask)
 static
 int find_fit_cpus(struct tp_env *env)
 {
-	struct cpumask fit_cpus;
-	struct cpumask overcap_cpus, tex_pinning_cpus, ontime_fit_cpus, prefer_cpus, busy_cpus;
+	struct cpumask mask[5];
 	int cpu = smp_processor_id();
 
-	/* clear masks */
+	/* clear cpumask */
 	cpumask_clear(&env->fit_cpus);
-	cpumask_clear(&fit_cpus);
-	cpumask_clear(&overcap_cpus);
-	cpumask_clear(&tex_pinning_cpus);
-	cpumask_clear(&ontime_fit_cpus);
-	cpumask_clear(&prefer_cpus);
-	cpumask_clear(&busy_cpus);
 
-	/* find min load cpu for busy mulligan task */
+	/* find min load cpu for busy task */
 	if (EMS_PF_GET(env->p) & EMS_PF_RUNNABLE_BUSY) {
-		cpu = find_min_load_cpu(env);
+		cpu = find_min_load_avg_cpu(env);
 		if (cpu_selected(cpu)) {
-			cpumask_set_cpu(cpu, &fit_cpus);
+			cpumask_set_cpu(cpu, &env->fit_cpus);
 			goto out;
 		}
 	}
 
 	/*
 	 * take a snapshot of cpumask to get fit cpus
-	 * - overcap_cpus : overcap cpus
-	 * - tex_pinning_cpus : prio pinning cpus
-	 * - ontime_fit_cpus : ontime fit cpus
-	 * - prefer_cpus : prefer cpu
-	 * - busy_cpus : busy cpu for migrating tasks
+	 * - mask0 : overcap cpus
+	 * - mask1 : prio pinning cpus
+	 * - mask2 : ontime fit cpus
+	 * - mask3 : prefer cpu
+	 * - mask4 : busy cpu
 	 */
-	find_overcap_cpus(env, &overcap_cpus);
-	tex_pinning_fit_cpus(env, &tex_pinning_cpus);
-	ontime_select_fit_cpus(env->p, &ontime_fit_cpus);
-	prefer_cpu_get(env, &prefer_cpus);
-	find_busy_cpus(env, &busy_cpus);
+	find_overcap_cpus(env, &mask[0]);
+	tex_pinning_fit_cpus(env, &mask[1]);
+	ontime_select_fit_cpus(env->p, &mask[2]);
+	prefer_cpu_get(env, &mask[3]);
+	find_busy_cpus(env, &mask[4]);
 
 	/*
 	 * Exclude overcap cpu from cpus_allowed. If there is only one or no
 	 * fit cpus, it does not need to find fit cpus anymore.
 	 */
-	cpumask_andnot(&fit_cpus, &env->cpus_allowed, &overcap_cpus);
-	if (cpumask_weight(&fit_cpus) <= 1)
+	cpumask_andnot(&env->fit_cpus, &env->cpus_allowed, &mask[0]);
+	if (cpumask_weight(&env->fit_cpus) <= 1)
 		goto out;
 
 	/* Exclude busy cpus from fit_cpus */
-	cpumask_andnot(&fit_cpus, &fit_cpus, &busy_cpus);
-	if (cpumask_weight(&fit_cpus) <= 1)
+	cpumask_andnot(&env->fit_cpus, &env->fit_cpus, &mask[4]);
+	if (cpumask_weight(&env->fit_cpus) <= 1)
 		goto out;
 
 	if (env->p->pid && ems_task_boost() == env->p->pid) {
-		if (cpumask_intersects(&fit_cpus, cpu_fastest_mask())) {
-			cpumask_and(&fit_cpus, &fit_cpus, cpu_fastest_mask());
+		if (cpumask_intersects(&env->fit_cpus, cpu_fastest_mask())) {
+			cpumask_and(&env->fit_cpus, &env->fit_cpus, cpu_fastest_mask());
 			goto out;
 		}
 	}
@@ -1035,8 +1019,8 @@ int find_fit_cpus(struct tp_env *env)
 			 * cpu does not belong to slowest cpumask.
 			 */
 			if (cpumask_test_cpu(cpu, &mask)) {
-				cpumask_clear(&fit_cpus);
-				cpumask_set_cpu(cpu, &fit_cpus);
+				cpumask_clear(&env->fit_cpus);
+				cpumask_set_cpu(cpu, &env->fit_cpus);
 				goto out;
 			}
 		}
@@ -1047,31 +1031,29 @@ int find_fit_cpus(struct tp_env *env)
 	 * higher priority than ontime, it does not need to execute sequence
 	 * afterwards if there is only one fit cpus.
 	 */
-	if (cpumask_intersects(&fit_cpus, &tex_pinning_cpus)) {
-		cpumask_and(&fit_cpus, &fit_cpus, &tex_pinning_cpus);
-		if (cpumask_weight(&fit_cpus) == 1)
+	if (cpumask_intersects(&env->fit_cpus, &mask[1])) {
+		cpumask_and(&env->fit_cpus, &env->fit_cpus, &mask[1]);
+		if (cpumask_weight(&env->fit_cpus) == 1)
 			goto out;
 	}
 
 	/* Pick ontime fit cpus if ontime is applicable */
-	if (cpumask_intersects(&fit_cpus, &ontime_fit_cpus))
-		cpumask_and(&fit_cpus, &fit_cpus, &ontime_fit_cpus);
+	if (cpumask_intersects(&env->fit_cpus, &mask[2]))
+		cpumask_and(&env->fit_cpus, &env->fit_cpus, &mask[2]);
 
 	/* Apply prefer cpu if it is applicable */
-	if (cpumask_intersects(&fit_cpus, &prefer_cpus))
-		cpumask_and(&fit_cpus, &fit_cpus, &prefer_cpus);
+	if (cpumask_intersects(&env->fit_cpus, &mask[3]))
+		cpumask_and(&env->fit_cpus, &env->fit_cpus, &mask[3]);
 
 out:
-	cpumask_copy(&env->fit_cpus, &fit_cpus);
-
 	trace_ems_select_fit_cpus(env->p, env->wake,
 		*(unsigned int *)cpumask_bits(&env->fit_cpus),
 		*(unsigned int *)cpumask_bits(&env->cpus_allowed),
-		*(unsigned int *)cpumask_bits(&tex_pinning_cpus),
-		*(unsigned int *)cpumask_bits(&ontime_fit_cpus),
-		*(unsigned int *)cpumask_bits(&prefer_cpus),
-		*(unsigned int *)cpumask_bits(&overcap_cpus),
-		*(unsigned int *)cpumask_bits(&busy_cpus));
+		*(unsigned int *)cpumask_bits(&mask[1]),
+		*(unsigned int *)cpumask_bits(&mask[2]),
+		*(unsigned int *)cpumask_bits(&mask[3]),
+		*(unsigned int *)cpumask_bits(&mask[0]),
+		*(unsigned int *)cpumask_bits(&mask[4]));
 
 	return cpumask_weight(&env->fit_cpus);
 }
@@ -1090,23 +1072,26 @@ void take_util_snapshot(struct tp_env *env)
 	env->task_util_clamped = max(ml_uclamp_task_util(env->p), (unsigned long) 1);
 
 	/* fill cpu util */
-	for_each_cpu_and(cpu, &env->p->cpus_allowed, cpu_active_mask) {
-		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
-		env->cpu_stat[cpu].cap_orig = capacity_orig_of(cpu);
+	for_each_cpu(cpu, cpu_active_mask) {
+		unsigned long capacity_orig = capacity_orig_of(cpu);
 
-		env->cpu_stat[cpu].util_wo = ml_cpu_util_without(cpu, env->p);
-		env->cpu_stat[cpu].util_with = ml_cpu_util_with(env->p, cpu);
+		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
+		env->cpu_stat[cpu].cap_orig = capacity_orig;
+
+		env->cpu_stat[cpu].util_wo = min(ml_cpu_util_without(cpu, env->p), capacity_orig);
+		env->cpu_stat[cpu].util_with = min(ml_cpu_util_with(env->p, cpu), capacity_orig);
 
 		env->cpu_stat[cpu].runnable = ml_runnable_load_avg(cpu);
+		env->cpu_stat[cpu].load_avg = ml_cpu_load_avg(cpu);
 
-		if (cpu_equal(env->src_cpu, cpu))
+		if (cpu == task_cpu(env->p))
 			env->cpu_stat[cpu].util = env->cpu_stat[cpu].util_with;
 		else
 			env->cpu_stat[cpu].util = env->cpu_stat[cpu].util_wo;
 
 		/* cumulative CPU demand */
 		env->cpu_stat[cpu].util_cuml =
-			min(env->cpu_stat[cpu].util + env->task_util_clamped, capacity_orig_of(cpu));
+			min(env->cpu_stat[cpu].util + env->task_util_clamped, capacity_orig);
 		if (task_in_cum_window_demand(cpu_rq(cpu), env->p))
 			env->cpu_stat[cpu].util_cuml -= env->task_util;
 
@@ -1127,24 +1112,28 @@ bool fast_path_eligible(struct tp_env *env)
 		return false;
 
 	/* Cond 3: Previous CPU must be active */
-	if (!cpu_active(env->src_cpu))
+	if (!env->per_cpu_kthread && !cpu_active(env->src_cpu))
+		return false;
+	if (env->per_cpu_kthread && !cpu_online(env->src_cpu))
 		return false;
 
-	/* Cond 4: Previous CPU capacity must be same as start CPU capacity */
+	/* Cond 4: Previous CPU must not be overutilized */
+	if (cpu_overutilized(env->src_cpu))
+		return false;
+
+	/* Cond 5: Previous CPU capacity must be same as start CPU capacity */
 	if (env->start_cpu.cap_max != capacity_max_of(env->src_cpu))
 		return false;
 
-	/* Cond 5: Previous CPU should be idle */
+	/* Cond 6: Previous CPU should be idle */
 	if (!idle_cpu(env->src_cpu))
-		return false;
-
-	/* Cond 6: Previous CPU must not be overutilized */
-	if (cpu_overutilized(env->src_cpu))
 		return false;
 
 	/* Cond 7: Previous CPU must be shallow idle */
 	if (idle_get_state_idx(cpu_rq(env->src_cpu)) <= 1) {
-		return true;
+		/* final sanity check in case 'cpuset' changes gears */
+		if (cpumask_test_cpu(env->src_cpu, &env->cpus_allowed))
+			return true;
 	}
 
 	return false;
@@ -1161,13 +1150,7 @@ void select_start_cpu(struct tp_env *env) {
 		goto done;
 
 	/* Don't select CPU if task is not allowed to be placed on fast CPUs */
-	if (!cpumask_intersects(&env->p->cpus_allowed, cpu_fastest_mask()))
-		goto done;
-
-	/* Get all active fast CPUs */
-	cpumask_and(&active_fast_mask, cpu_fastest_mask(), cpu_active_mask);
-
-	/* Don't select CPU if fast CPUs are unavailable */
+	cpumask_and(&active_fast_mask, cpu_fastest_mask(), &env->cpus_allowed);
 	if (cpumask_empty(&active_fast_mask))
 		goto done;
 
@@ -1188,34 +1171,29 @@ done:
 static
 int find_cpus_allowed(struct tp_env *env)
 {
-	struct cpumask active_cpus;
-	struct cpumask online_cpus;
-	struct cpumask cpus_allowed;
+	struct cpumask mask[3];
+
+	/* clear mask */
+	cpumask_clear(&env->cpus_allowed);
 
 	if (is_somac_ready(env))
 		goto out;
 
-	/* clear masks */
-	cpumask_clear(&env->cpus_allowed);
-	cpumask_clear(&active_cpus);
-	cpumask_clear(&online_cpus);
-	cpumask_clear(&cpus_allowed);
-
 	/*
 	 * take a snapshot of cpumask to get CPUs allowed
-	 * - active_cpus : cpu_active_mask
-	 * - cpus_allowed : p->cpus_allowed
+	 * - mask0 : cpu_active_mask
+	 * - mask1 : &p->cpus_allowed
 	 */
-	cpumask_copy(&active_cpus, cpu_active_mask);
-	cpumask_copy(&cpus_allowed, &env->p->cpus_allowed);
+	cpumask_copy(&mask[0], cpu_active_mask);
+	cpumask_copy(&mask[1], cpu_online_mask);
+	cpumask_copy(&mask[2], &env->p->cpus_allowed);
 
 	/*
 	 * Putting per-cpu kthread on other cpu is not allowed.
 	 * It does not have to find cpus allowed in this case.
 	 */
-	if (is_per_cpu_kthread(env->p)) {
-		cpumask_copy(&online_cpus, cpu_online_mask);
-		cpumask_and(&env->cpus_allowed, &online_cpus, &cpus_allowed);
+	if (env->per_cpu_kthread) {
+		cpumask_and(&env->cpus_allowed, &mask[2], &mask[1]);
 		goto out;
 	}
 
@@ -1223,17 +1201,17 @@ int find_cpus_allowed(struct tp_env *env)
 	 * Given task must run on the CPU combined as follows:
 	 *	cpu_active_mask
 	 */
-	cpumask_copy(&env->cpus_allowed, &active_cpus);
+	cpumask_copy(&env->cpus_allowed, &mask[0]);
 	if (cpumask_empty(&env->cpus_allowed))
 		goto out;
 
 	/*
-	 * Unless task is per-cpu kthread, p->cpus_allowed does not cause a problem
-	 * even if it is ignored. Consider p->cpus_allowed as possible, but if it
+	 * Unless task is per-cpu kthread, &p->cpus_allowed does not cause a problem
+	 * even if it is ignored. Consider &p->cpus_allowed as possible, but if it
 	 * does not overlap with CPUs allowed made above, ignore it.
 	 */
-	if (cpumask_intersects(&env->cpus_allowed, &cpus_allowed))
-		cpumask_and(&env->cpus_allowed, &env->cpus_allowed, &cpus_allowed);
+	if (cpumask_intersects(&env->cpus_allowed, &mask[2]))
+		cpumask_and(&env->cpus_allowed, &env->cpus_allowed, &mask[2]);
 
 out:
 	/* Return weight of allowed cpus */
@@ -1244,7 +1222,6 @@ static
 void get_ready_env(struct tp_env *env)
 {
 	int cpu, nr_cpus;
-	int semi_perf_placement;
 
 	/*
 	 * If there is only one or no CPU allowed for a given task,
@@ -1267,10 +1244,6 @@ void get_ready_env(struct tp_env *env)
 
 	/* snapshot util to use same util during core selection */
 	take_util_snapshot(env);
-
-	/* snapshot scheduling policy to use in the process */
-	sched_policy_get(env);
-	semi_perf_placement = (env->sched_policy == SCHED_POLICY_SEMI_PERF);
 
 	/* Find fit cpus */
 	nr_cpus = find_fit_cpus(env);
@@ -1298,54 +1271,28 @@ void get_ready_env(struct tp_env *env)
 
 	/* Get available idle cpu count */
 	env->idle_cpu_count = 0;
-
-	/* 4.14 requires rcu locking to get idle state */
-	if (semi_perf_placement)
-		rcu_read_lock();
-
-	for_each_cpu(cpu, &env->fit_cpus) {
-		struct cpuidle_state *idle;
-		env->cpu_stat[cpu].exit_latency = 0;
-
-		if (env->cpu_stat[cpu].idle) {
-			/* Get idle state for semi perf selection */
-			if (semi_perf_placement) {
-				idle = idle_get_state(cpu_rq(cpu));
-				if (idle)
-					env->cpu_stat[cpu].exit_latency = idle->exit_latency;
-			}
-
+	for_each_cpu(cpu, &env->fit_cpus)
+		if (env->cpu_stat[cpu].idle)
 			env->idle_cpu_count++;
-		}
-	}
-
-	if (semi_perf_placement)
-		rcu_read_unlock();
 }
 
 int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int wake)
 {
 	int target_cpu = INVALID_CPU;
-	char state[30] = "fail";
 	struct tp_env env = {
 		.p = p,
+		.src_cpu = task_cpu(p),
 		.cgroup_idx = schedtune_task_group_idx(p),
-		.src_cpu = prev_cpu,
-		.task_on_top = ems_task_on_top(p),
+		.per_cpu_kthread = is_per_cpu_kthread(p),
+		.sched_policy = sched_policy_get(p),
 
+		.task_on_top = ems_task_on_top(p),
 		.boosted = ems_task_boosted(p),
 		.latency_sensitive = uclamp_latency_sensitive(p),
 
 		.sync = sync,
 		.wake = wake,
 	};
-
-	/*
-	 * Update utilization of waking task to apply "sleep" period
-	 * before selecting cpu.
-	 */
-	if (!(sd_flag & SD_BALANCE_FORK))
-		sync_entity_load_avg(&p->se);
 
 	/* Get ready environment variable */
 	get_ready_env(&env);
@@ -1364,8 +1311,20 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int
 	}
 
 	target_cpu = find_best_cpu(&env);
-	if (cpu_selected(target_cpu))
-		goto found_best_cpu;
+	if (target_cpu < 0 || !cpumask_test_cpu(target_cpu, &env.cpus_allowed)) {
+		/* 
+		 * There are instances where 'cpuset' contends with EMS' current scheduling
+		 * and would change allowed CPUs before we can schedule a given task. It's been
+		 * alleviated heavily, but it still happens to a minor extent.
+		 *
+		 * I seriously have nothing else to do other than this. CFS on 4.14 is just painful.
+		 */
+		if (cpumask_test_cpu(prev_cpu, &env.cpus_allowed))
+			target_cpu = prev_cpu;
+		else
+			target_cpu = cpumask_any(&env.cpus_allowed);
+	}
+
 out:
 	return target_cpu;
 }

@@ -113,7 +113,7 @@ void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	struct prefer_group *pp;
 	int idx;
 
-	cpumask_copy(mask, &env->p->cpus_allowed);
+	cpumask_clear(mask);
 
 	if (!prefer_list)
 		return;
@@ -125,6 +125,8 @@ void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	pp = find_prefer_group(idx);
 	if (!pp)
 		return;
+
+	cpumask_copy(mask, cpu_active_mask);
 
 	/* light task util threshold */
 	if (env->task_util <= pp->light_threshold) {
