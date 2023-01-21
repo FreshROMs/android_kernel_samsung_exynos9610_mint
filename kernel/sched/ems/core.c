@@ -164,7 +164,7 @@ tex_pinning_fit_cpus(struct tp_env *env, struct cpumask *fit_cpus)
 }
 
 /**********************************************************************
- *  cpuset api for 4.14                                               *
+ *  stune api for 4.14                                                *
  **********************************************************************/
 u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft) {
@@ -243,88 +243,10 @@ int ems_qjump_stune_hook_write(struct cgroup_subsys_state *css,
 /**********************************************************************
  *  SYSFS support                                                     *
  **********************************************************************/
-static struct kobject *tex_kobj;
-
-static ssize_t show_qjump_enabled(struct kobject *kobj,
-        struct kobj_attribute *attr, char *buf)
-{
-    return sprintf(buf, "%d\n", tex.qjump);
-}
-
-static ssize_t store_qjump_enabled(struct kobject *kobj,
-        struct kobj_attribute *attr, const char *buf,
-        size_t count)
-{
-    int enabled;
-
-    if (sscanf(buf, "%d", &enabled) != 1)
-        return -EINVAL;
-
-    /* ignore if requested mode is out of range */
-    if (enabled < 0 || enabled > 1)
-        return -EINVAL;
-
-    tex.qjump = enabled;
-
-    return count;
-}
-
-static ssize_t show_task_prio(struct kobject *kobj,
-        struct kobj_attribute *attr, char *buf)
-{
-    return sprintf(buf, "%d\n", tex.prio);
-}
-
-static ssize_t store_task_prio(struct kobject *kobj,
-        struct kobj_attribute *attr, const char *buf,
-        size_t count)
-{
-    int prio;
-
-    if (sscanf(buf, "%d", &prio) != 1)
-        return -EINVAL;
-
-    /* ignore if requested mode is out of range */
-    if (prio < MIN_NICE || prio > MAX_PRIO)
-        return -EINVAL;
-
-    tex.prio = prio;
-
-    return count;
-}
-
-static struct kobj_attribute qjump_enabled_attr =
-__ATTR(qjump_enabled, 0644, show_qjump_enabled, store_qjump_enabled);
-static struct kobj_attribute task_prio_attr =
-__ATTR(task_prio, 0644, show_task_prio, store_task_prio);
-
-static struct attribute *tex_attrs[] = {
-    &qjump_enabled_attr.attr,
-    &task_prio_attr.attr,
-    NULL,
-};
-
-static const struct attribute_group tex_group = {
-    .attrs = tex_attrs,
-};
-
 static
 int __init tex_init(void)
 {
 	int i;
-    int ret;
-
-    tex_kobj = kobject_create_and_add("tex", ems_kobj);
-    if (!tex_kobj) {
-        pr_err("Failed to create ems tex kboject\n");
-        return -EINVAL;
-    }
-
-    ret = sysfs_create_group(tex_kobj, &tex_group);
-    if (ret) {
-        pr_err("Failed to create ems tex group\n");
-        return ret;
-    }
 
     cpumask_clear(&tex.pinning_cpus);
     cpumask_copy(&tex.pinning_cpus, cpu_perf_mask);
