@@ -280,7 +280,6 @@ static char *sched_policy_name[] = {
     "SCHED_POLICY_ENERGY",
     "SCHED_POLICY_SEMI_PERF",
     "SCHED_POLICY_PERF",
-    "SCHED_POLICY_MIN_UTIL",
     "SCHED_POLICY_UNKNOWN"
 };
 
@@ -332,14 +331,6 @@ int sched_policy_get(struct task_struct *p)
 	if (policy == SCHED_POLICY_EFF &&
 		ml_task_util(p) <= SCHED_CAPACITY_SCALE >> 6)
 		policy = SCHED_POLICY_ENERGY;
-
-	/*
-	 * On 4.14, energy and efficiency calculations
-	 * fail when task has no utilization. Place task
-	 * using min util strategy if this is the case.
-	 */
-	if (policy == SCHED_POLICY_ENERGY && !ml_task_util(p))
-		policy = SCHED_POLICY_MIN_UTIL;
 
 	return policy;
 }
@@ -430,38 +421,6 @@ skip_cap:
 	}
 
 	return min_cpu;
-}
-
-static
-int find_min_util_with_cpu(struct tp_env *env)
-{
-	int cpu, min_cpu = INVALID_CPU, min_idle_cpu = INVALID_CPU;
-
-	for_each_cpu(cpu, cpu_active_mask) {
-		struct cpumask mask;
-
-		if (cpu != cpumask_first(cpu_coregroup_mask(cpu)))
-			continue;
-
-		cpumask_and(&mask, cpu_coregroup_mask(cpu), &env->fit_cpus);
-		if (cpumask_empty(&mask))
-			continue;
-
-		/* find idle cpu from slowest coregroup for task performance */
-		if (env->idle_cpu_count && et_cpu_slowest(cpumask_first(cpu_coregroup_mask(cpu)))) {
-			min_idle_cpu = find_min_util_cpu(env, &mask, true);
-			if (cpu_selected(min_idle_cpu))
-				break;
-		}
-
-		min_cpu = find_min_util_cpu(env, &mask, false);
-
-		/* Traverse next coregroup if no best cpu is found */
-		if (cpu_selected(min_cpu))
-			break;
-	}
-
-	return cpu_selected(min_idle_cpu) ? min_idle_cpu : min_cpu;
 }
 
 static int
@@ -776,11 +735,6 @@ int find_best_cpu(struct tp_env *env)
 		/* Find semi performance cpu */
 		best_cpu = find_semi_perf_cpu(env);
 		strcpy(state, "semi perf");
-		break;
-	case SCHED_POLICY_MIN_UTIL:
-		/* Find cpu with minimum util with task */
-		best_cpu = find_min_util_with_cpu(env);
-		strcpy(state, "min util");
 		break;
 	}
 

@@ -29,8 +29,7 @@ extern struct kobject *ems_kobj;
 #define SCHED_POLICY_ENERGY 1
 #define SCHED_POLICY_SEMI_PERF 2 // top-app/rt/camera-daemon
 #define SCHED_POLICY_PERF 3 // prefer-perf/on-top/nnapi-hal
-#define SCHED_POLICY_MIN_UTIL 4 // overutil case
-#define SCHED_POLICY_UNKNOWN 5
+#define SCHED_POLICY_UNKNOWN 4
 
 /*
  * Vendor data handling for TEX queue jump
