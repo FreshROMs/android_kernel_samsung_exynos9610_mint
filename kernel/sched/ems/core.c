@@ -333,7 +333,7 @@ int sched_policy_get(struct task_struct *p)
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
 		return SCHED_POLICY_SEMI_PERF;
 
-	if (cgroup_idx == CGROUP_TOPAPP && kpp_status(cgroup_idx))
+	if (kpp_status(cgroup_idx))
 		return SCHED_POLICY_SEMI_PERF;
 
 	/*
