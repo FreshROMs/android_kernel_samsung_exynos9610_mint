@@ -310,10 +310,10 @@ int sched_policy_get(struct task_struct *p)
 	if (policy >= SCHED_POLICY_PERF)
 		return SCHED_POLICY_PERF;
 
-	if (kpp_status(cgroup_idx) && cgroup_idx == CGROUP_TOPAPP)
+	if (ems_boot_boost() == EMS_BOOT_BOOST)
 		return SCHED_POLICY_SEMI_PERF;
 
-	if (ems_boot_boost() == EMS_BOOT_BOOST)
+	if (kpp_status(cgroup_idx))
 		return SCHED_POLICY_SEMI_PERF;
 
 	/*
