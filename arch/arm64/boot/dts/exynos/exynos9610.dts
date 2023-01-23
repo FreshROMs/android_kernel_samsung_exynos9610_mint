@@ -354,11 +354,11 @@
 				/* little cores */
 				coregroup0 {
 					lower-boundary = <0>;
-					upper-boundary = <60>;
+					upper-boundary = <61>;
 				};
 				/* big cores */
 				coregroup1 {
-					lower-boundary = <20>;
+					lower-boundary = <21>;
 					upper-boundary = <100>;
 				};
 			};
