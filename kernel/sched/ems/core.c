@@ -306,9 +306,6 @@ int sched_policy_get(struct task_struct *p)
 	if (p->pid && ems_task_boost() == p->pid)
 		return SCHED_POLICY_PERF;
 
-	if (policy >= SCHED_POLICY_PERF)
-		return SCHED_POLICY_PERF;
-
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
 		return SCHED_POLICY_SEMI_PERF;
 
@@ -323,14 +320,11 @@ int sched_policy_get(struct task_struct *p)
 	 * 2) tasks is worker thread.
 	 */
 	if (p->flags & PF_WQ_WORKER)
-		policy = SCHED_POLICY_ENERGY;
-
-	if (policy >= SCHED_POLICY_SEMI_PERF)
-		return SCHED_POLICY_SEMI_PERF;
+		return SCHED_POLICY_ENERGY;
 
 	if (policy == SCHED_POLICY_EFF &&
 		ml_task_util(p) <= SCHED_CAPACITY_SCALE >> 6)
-		policy = SCHED_POLICY_ENERGY;
+		return SCHED_POLICY_ENERGY;
 
 	return policy;
 }
