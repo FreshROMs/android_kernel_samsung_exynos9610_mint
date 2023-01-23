@@ -299,7 +299,7 @@ static irqreturn_t irq_handler(int intr, void *arg)
 
 static cpumask_t tee_set_affinity(void)
 {
-	cpumask_t old_affinity = current->cpus_allowed;
+	cpumask_t old_affinity = current->cpus_mask;
 	unsigned long affinity = get_tee_affinity();
 #if KERNEL_VERSION(4, 0, 0) > LINUX_VERSION_CODE
 	char buf_aff[64];
@@ -331,7 +331,7 @@ static void tee_restore_affinity(cpumask_t old_affinity)
 	cpulist_scnprintf(buf_aff, sizeof(buf_aff), &old_affinity);
 	cpulist_scnprintf(buf_cur_aff,
 			  sizeof(buf_cur_aff),
-			  &current->cpus_allowed);
+			  &current->cpus_mask);
 	mc_dev_devel("aff = %s mask = %lx curr_aff = %s (pid = %u)",
 		     buf_aff,
 		     l_ctx.default_affinity_mask,
@@ -341,7 +341,7 @@ static void tee_restore_affinity(cpumask_t old_affinity)
 	mc_dev_devel("aff = %*pbl mask = %lx curr_aff = %*pbl (pid = %u)",
 		     cpumask_pr_args(&old_affinity),
 		     l_ctx.default_affinity_mask,
-		     cpumask_pr_args(&current->cpus_allowed),
+		     cpumask_pr_args(&current->cpus_mask),
 		     current->pid);
 #endif
 	sched_setaffinity(current->pid, &old_affinity);
