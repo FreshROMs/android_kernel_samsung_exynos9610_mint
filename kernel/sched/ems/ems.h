@@ -53,12 +53,6 @@ struct tp_env {
     int cgroup_idx;
     int src_cpu;
 
-    /* start cpu */
-    volatile struct {
-        int cpu;
-        unsigned int cap_max;
-    } start_cpu;
-
     unsigned int sched_policy;
     int per_cpu_kthread;
     int sync;
@@ -83,7 +77,6 @@ struct tp_env {
         unsigned long runnable;
         unsigned long load_avg;
 
-        unsigned int cap_max;
         unsigned long cap_orig;
 
         unsigned long nr_running;

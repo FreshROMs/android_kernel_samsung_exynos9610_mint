@@ -393,17 +393,6 @@ int find_min_util_cpu(struct tp_env *env, const struct cpumask *mask, bool among
 		if (among_idle && !env->cpu_stat[cpu].idle)
 			continue;
 
-		/*
-		* Skip processing placement further if we are visiting
-		* cpus with lower capacity than start cpu
-		*/
-		if (pm_freezing || env->cpu_stat[cpu].idle)
-			goto skip_cap;
-
-		if (env->cpu_stat[cpu].cap_max < env->start_cpu.cap_max)
-			continue;
-
-skip_cap:
 		cpu_util = env->cpu_stat[cpu].util_with;
 		if (cpu_equal(env->src_cpu, cpu))
 			prev_cpu_advantage(&cpu_util, env->task_util);
@@ -535,17 +524,6 @@ int __find_best_eff_cpu(struct tp_env *env, bool among_idle)
 		if (among_idle && !env->cpu_stat[cpu].idle)
 			continue;
 
-		/*
-		* Skip processing placement further if we are visiting
-		* cpus with lower capacity than start cpu
-		*/
-		if (pm_freezing || env->cpu_stat[cpu].idle)
-			goto skip_cap;
-
-		if (env->cpu_stat[cpu].cap_max < env->start_cpu.cap_max)
-			continue;
-
-skip_cap:
 		eff = et_calculate_efficiency(env, cpu);
 
 		/*
@@ -955,7 +933,6 @@ void take_util_snapshot(struct tp_env *env)
 	for_each_cpu(cpu, cpu_active_mask) {
 		unsigned long capacity_orig = capacity_orig_of(cpu);
 
-		env->cpu_stat[cpu].cap_max = capacity_max_of(cpu);
 		env->cpu_stat[cpu].cap_orig = capacity_orig;
 
 		env->cpu_stat[cpu].util_wo = min(ml_cpu_util_without(cpu, env->p), capacity_orig);
@@ -981,8 +958,32 @@ void take_util_snapshot(struct tp_env *env)
 }
 
 static
+int select_start_cpu(struct tp_env *env) {
+	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
+	int task_boosted = max(env->boosted, env->task_on_top);
+	struct cpumask active_fast_mask;
+
+	/* Avoid recommending fast CPUs during idle as these are inactive */
+	if (pm_freezing)
+		return start_cpu;
+
+	/* Don't select CPU if task is not allowed to be placed on fast CPUs */
+	cpumask_and(&active_fast_mask, cpu_fastest_mask(), &env->cpus_allowed);
+	if (cpumask_empty(&active_fast_mask))
+		return start_cpu;
+
+	/* Return fast CPU if task is boosted or global boosting */
+	if (task_boosted || ems_boot_boost())
+		start_cpu = cpumask_first(&active_fast_mask);
+
+	return start_cpu;
+}
+
+static
 bool fast_path_eligible(struct tp_env *env)
 {	
+	int start_cpu = select_start_cpu(env);
+
 	/* Cond 1: Task should not be under mulligan migration */
 	if (EMS_PF_GET(env->p) & EMS_PF_MULLIGAN)
 		return false;
@@ -1002,7 +1003,7 @@ bool fast_path_eligible(struct tp_env *env)
 		return false;
 
 	/* Cond 5: Previous CPU capacity must be same as start CPU capacity */
-	if (env->start_cpu.cap_max != capacity_max_of(env->src_cpu))
+	if (capacity_max_of(start_cpu) != capacity_max_of(env->src_cpu))
 		return false;
 
 	/* Cond 6: Previous CPU should be idle */
@@ -1017,32 +1018,6 @@ bool fast_path_eligible(struct tp_env *env)
 	}
 
 	return false;
-}
-
-static
-void select_start_cpu(struct tp_env *env) {
-	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
-	int task_boosted = max(env->boosted, env->task_on_top);
-	struct cpumask active_fast_mask;
-
-	/* Avoid recommending fast CPUs during idle as these are inactive */
-	if (pm_freezing)
-		goto done;
-
-	/* Don't select CPU if task is not allowed to be placed on fast CPUs */
-	cpumask_and(&active_fast_mask, cpu_fastest_mask(), &env->cpus_allowed);
-	if (cpumask_empty(&active_fast_mask))
-		goto done;
-
-	/* Return fast CPU if task is boosted or global boosting */
-	if (task_boosted || ems_boot_boost()) {
-		start_cpu = cpumask_first(&active_fast_mask);
-		goto done;
-	}
-
-done:
-	env->start_cpu.cpu = start_cpu;
-	env->start_cpu.cap_max = capacity_max_of(start_cpu);
 }
 
 /*
@@ -1110,9 +1085,6 @@ void get_ready_env(struct tp_env *env)
 	 */
 	if (find_cpus_allowed(env) <= 1)
 		return;
-
-	/* Get start CPU for the task */
-	select_start_cpu(env);
 
 	/* Check for fast placement eligibility */
 	if (fast_path_eligible(env)) {
