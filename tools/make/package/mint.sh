@@ -36,6 +36,7 @@ mount /vendor/
 mount -o rw,remount -t auto /system > /dev/null
 mount -o rw,remount -t auto /vendor > /dev/null
 
+fresh4=0
 fresh=$(file_getprop "/system_root/system/system_ext/fresh.prop" "ro.fresh.maintainer")
 oneui=$(file_getprop "/system_root/system/build.prop" "ro.build.PDA")
 
@@ -49,6 +50,9 @@ fi
 # Try for Fresh 4 series
 if [ -z $fresh ]; then
 	fresh=$(file_getprop "/system_root/system/system_ext/etc/fresh.prop" "ro.fresh.maintainer")
+	if [ ! -z $fresh ]; then
+		fresh4=1
+	fi
 fi
 
 if [ ! -z $oneui ]; then
@@ -87,6 +91,11 @@ if [ ! -z $oneui ]; then
   		fi
 	else
 		ui_print "  - FreshROMs detected! RAM Plus is already enabled!"
+
+		if [ "${fresh4}" == "1" ]; then
+			cp -rf $AK_FOLDER/files_fresh/system/etc/init/init.fresh.perf.rc /system/etc/init/init.fresh.perf.rc
+			chmod 644 /system_root/system/etc/init/init.fresh.perf.rc
+		fi
 	fi
 else
 	ui_print "  - AOSP ROM detected!"

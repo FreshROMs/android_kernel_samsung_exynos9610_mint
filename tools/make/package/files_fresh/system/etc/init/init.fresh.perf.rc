@@ -1,0 +1,302 @@
+# Copyright (C) 2022 John Vincent
+# This file is part of the Fresh Project <https://github.com/FreshROMs>.
+#
+# This is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with other components of the Fresh Project. If not, see <http://www.gnu.org/licenses/>.
+
+on init
+    chown system system /sys/devices/platform/11500000.mali/power_policy
+    chown system system /sys/devices/platform/11500000.mali/highspeed_clock
+    chown system system /sys/devices/platform/11500000.mali/highspeed_load
+    chown system system /sys/module/mmc_core/parameters/use_spi_crc
+    chown system system /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable
+    chown system system /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable
+    chown system system /proc/irq/default_smp_affinity
+
+    chmod 0644 /sys/devices/platform/11500000.mali/power_policy
+    chmod 0644 /sys/devices/platform/11500000.mali/highspeed_clock
+    chmod 0644 /sys/devices/platform/11500000.mali/highspeed_load
+    chmod 0644 /sys/module/mmc_core/parameters/use_spi_crc
+    chmod 0644 /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable
+    chmod 0644 /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable
+    chmod 0644 /proc/irq/default_smp_affinity
+
+on property:sys.boot_completed=1
+    # Fresh Performance Kit version
+    setprop persist.sys.zest.perf_version 14.2.0.2
+
+    # Setup runtime blkio
+    write /dev/blkio/blkio.weight 1000
+    write /dev/blkio/background/blkio.weight 200
+    write /dev/blkio/blkio.group_idle 2000
+    write /dev/blkio/background/blkio.group_idle 0
+
+    # Set common cgroup uclamp/ems hints
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 0
+    write /dev/stune/top-app/schedtune.sched_policy 0
+    write /dev/stune/top-app/schedtune.ontime_enabled 1
+    write /dev/stune/top-app/schedtune.ntu_ratio 25
+    write /dev/stune/top-app/schedtune.tex_enabled 1
+
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 0
+    write /dev/cpuset/foreground/uclamp.boosted 0
+    write /dev/stune/foreground/schedtune.sched_policy 0
+    write /dev/stune/foreground/schedtune.ontime_enabled 1
+    write /dev/stune/foreground/schedtune.ntu_ratio 25
+    write /dev/stune/foreground/schedtune.tex_enabled 0
+
+    write /dev/cpuset/background/uclamp.latency_sensitive 0
+    write /dev/cpuset/background/uclamp.boosted 0
+    write /dev/stune/background/schedtune.sched_policy 1
+    write /dev/stune/background/schedtune.ontime_enabled 0
+    write /dev/stune/background/schedtune.ntu_ratio 25
+    write /dev/stune/background/schedtune.tex_enabled 0
+
+    # Set common cgroup cpusets
+    write /dev/cpuset/abnormal/cpus 0-3
+
+    # Make entropy generation lighter on the CPU
+    write /proc/sys/kernel/random/urandom_min_reseed_secs 90
+
+    # Report cached max frequency to some tasks and fix forced affinity
+    # Genshin/Honkai Impact, all Unity-written apps, and the Facebook library
+    write /proc/sys/kernel/sched_lib_name "com.miHoYo.,com.mojang.minecraftpe,libminecraftpe.so,UnityMain,libunity.so,libfb.so"
+    write /proc/sys/kernel/sched_lib_mask_force 255
+
+## Performance Settings - Zest
+
+# Default
+on property:sys.boot_completed=1 && property:persist.config.chimera.enable=true && property:wlan.p2p.wfdsta=disconnected
+    write /sys/module/mmc_core/parameters/use_spi_crc Y
+
+    write /sys/devices/platform/11500000.mali/power_policy adaptive
+    write /sys/devices/platform/11500000.mali/highspeed_clock 764000
+    write /sys/devices/platform/11500000.mali/highspeed_load 60
+
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/foreground/cpus 0-3,6-7
+    write /dev/cpuset/foreground-boost/cpus 0-6
+    write /dev/cpuset/moderate/cpus 0-5
+    write /dev/cpuset/background/cpus 0-2
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/restricted/cpus 0-3
+
+    write /proc/sys/vm/swappiness 150
+    write /proc/sys/vm/direct_swappiness 60
+    write /proc/sys/vm/dirty_background_ratio 10
+    write /proc/sys/vm/dirty_ratio 30
+    write /proc/sys/vm/vfs_cache_pressure 100
+    write /proc/sys/vm/dirty_expire_centisecs 1500
+    write /proc/sys/vm/dirty_writeback_centisecs 3000
+
+    write /proc/sys/kernel/perf_cpu_time_max_percent 10
+    write /proc/sys/kernel/sched_child_runs_first 1
+    write /proc/sys/kernel/sched_migration_cost_ns 1000000
+    write /proc/sys/kernel/sched_latency_ns 5000000
+    write /proc/sys/kernel/sched_wakeup_granularity_ns 2500000
+    write /proc/sys/kernel/sched_min_granularity_ns 500000
+
+on property:sys.boot_completed=1 && property:service.camera.running=0 && property:persist.config.chimera.enable=true && property:wlan.p2p.wfdsta=disconnected
+    write /dev/stune/top-app/schedtune.freqboost 1
+    write /dev/stune/top-app/schedtune.heavyboost 3
+    write /dev/stune/top-app/schedtune.busyboost 5
+    write /dev/stune/foreground/schedtune.freqboost 0
+    write /dev/stune/foreground/schedtune.heavyboost 1
+    write /dev/stune/foreground/schedtune.busyboost 3
+
+    write /dev/stune/top-app/schedtune.sched_policy 0
+    write /dev/stune/foreground/schedtune.sched_policy 0
+    write /dev/stune/background/schedtune.sched_policy 1
+    
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 0
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 0
+    write /dev/cpuset/foreground/uclamp.boosted 0
+
+    write /dev/stune/schedtune.qjump 0
+
+    write /proc/sys/kernel/sched_nr_migrate 16
+
+    write /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable 1
+    write /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable 0
+
+# Gaming
+on property:sys.boot_completed=1 && property:persist.config.chimera.enable=true,CA && property:wlan.p2p.wfdsta=disconnected
+    write /sys/module/mmc_core/parameters/use_spi_crc N
+
+    write /sys/devices/platform/11500000.mali/power_policy always_on
+    write /sys/devices/platform/11500000.mali/highspeed_clock 949000
+    write /sys/devices/platform/11500000.mali/highspeed_load 40
+
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/foreground/cpus 0-6
+    write /dev/cpuset/foreground-boost/cpus 0-7
+    write /dev/cpuset/moderate/cpus 0-5
+    write /dev/cpuset/background/cpus 0-2
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/restricted/cpus 0-3
+
+    write /proc/sys/vm/swappiness 100
+    write /proc/sys/vm/direct_swappiness 50
+    write /proc/sys/vm/dirty_background_ratio 3
+    write /proc/sys/vm/dirty_ratio 30
+    write /proc/sys/vm/vfs_cache_pressure 200
+    write /proc/sys/vm/dirty_expire_centisecs 1500
+    write /proc/sys/vm/dirty_writeback_centisecs 1500
+
+    write /proc/sys/kernel/perf_cpu_time_max_percent 5
+    write /proc/sys/kernel/sched_child_runs_first 1
+    write /proc/sys/kernel/sched_migration_cost_ns 500000
+    write /proc/sys/kernel/sched_latency_ns 1000000
+    write /proc/sys/kernel/sched_wakeup_granularity_ns 500000
+    write /proc/sys/kernel/sched_min_granularity_ns 100000
+
+on property:sys.boot_completed=1 && property:service.camera.running=0 && property:persist.config.chimera.enable=true,CA && property:wlan.p2p.wfdsta=disconnected
+    write /dev/stune/top-app/schedtune.freqboost 3
+    write /dev/stune/top-app/schedtune.heavyboost 5
+    write /dev/stune/top-app/schedtune.busyboost 7
+    write /dev/stune/foreground/schedtune.freqboost 1
+    write /dev/stune/foreground/schedtune.heavyboost 3
+    write /dev/stune/foreground/schedtune.busyboost 5
+
+    write /dev/stune/top-app/schedtune.sched_policy 3
+    write /dev/stune/foreground/schedtune.sched_policy 0
+    write /dev/stune/background/schedtune.sched_policy 1
+    
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 1
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 1
+    write /dev/cpuset/foreground/uclamp.boosted 0
+
+    write /dev/stune/schedtune.qjump 1
+
+    write /proc/sys/kernel/sched_nr_migrate 12
+
+    write /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable 1
+    write /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable 1
+
+## Standby Battery Life for Gaming Mode
+
+# Multitasking
+on property:sys.boot_completed=1 && property:persist.config.chimera.enable=true,CC && property:wlan.p2p.wfdsta=disconnected
+    write /sys/module/mmc_core/parameters/use_spi_crc Y
+
+    write /sys/devices/platform/11500000.mali/power_policy coarse_demand
+    write /sys/devices/platform/11500000.mali/highspeed_clock 764000
+    write /sys/devices/platform/11500000.mali/highspeed_load 60
+
+    write /dev/cpuset/top-app/cpus 0-7
+    write /dev/cpuset/foreground/cpus 0-6
+    write /dev/cpuset/foreground-boost/cpus 0-7
+    write /dev/cpuset/moderate/cpus 0-5
+    write /dev/cpuset/background/cpus 0-3
+    write /dev/cpuset/system-background/cpus 0-3
+    write /dev/cpuset/restricted/cpus 0-3
+    
+    write /proc/sys/vm/swappiness 160
+    write /proc/sys/vm/direct_swappiness 70
+    write /proc/sys/vm/dirty_background_ratio 15
+    write /proc/sys/vm/dirty_ratio 30
+    write /proc/sys/vm/vfs_cache_pressure 80
+    write /proc/sys/vm/dirty_expire_centisecs 3000
+    write /proc/sys/vm/dirty_writeback_centisecs 3000
+
+    write /proc/sys/kernel/perf_cpu_time_max_percent 25
+    write /proc/sys/kernel/sched_child_runs_first 0
+    write /proc/sys/kernel/sched_migration_cost_ns 1000000
+    write /proc/sys/kernel/sched_latency_ns 10000000
+    write /proc/sys/kernel/sched_wakeup_granularity_ns 5000000
+    write /proc/sys/kernel/sched_min_granularity_ns 1000000
+
+on property:sys.boot_completed=1 && property:service.camera.running=0 && property:persist.config.chimera.enable=true,CC && property:wlan.p2p.wfdsta=disconnected
+    write /dev/stune/top-app/schedtune.freqboost 3
+    write /dev/stune/top-app/schedtune.heavyboost 3
+    write /dev/stune/top-app/schedtune.busyboost 5
+    write /dev/stune/foreground/schedtune.freqboost 1
+    write /dev/stune/foreground/schedtune.heavyboost 1
+    write /dev/stune/foreground/schedtune.busyboost 5
+
+    write /dev/stune/top-app/schedtune.sched_policy 2
+    write /dev/stune/foreground/schedtune.sched_policy 0
+    write /dev/stune/background/schedtune.sched_policy 1
+    
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 0
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 1
+    write /dev/cpuset/foreground/uclamp.boosted 0
+
+    write /dev/stune/schedtune.qjump 0
+
+    write /proc/sys/kernel/sched_nr_migrate 20
+    
+    write /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable 1
+    write /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable 1
+
+## Performance Settings - Zest
+
+## Camera Performance
+
+on property:sys.boot_completed=1 && property:service.camera.running=1 && property:wlan.p2p.wfdsta=disconnected
+    write /dev/stune/top-app/schedtune.freqboost 3
+    write /dev/stune/top-app/schedtune.heavyboost 3
+    write /dev/stune/top-app/schedtune.busyboost 5
+    write /dev/stune/foreground/schedtune.freqboost 1
+    write /dev/stune/foreground/schedtune.heavyboost 1
+    write /dev/stune/foreground/schedtune.busyboost 3
+
+    write /dev/stune/top-app/schedtune.sched_policy 2
+    write /dev/stune/foreground/schedtune.sched_policy 0
+    write /dev/stune/background/schedtune.sched_policy 1
+
+    write /proc/sys/kernel/sched_nr_migrate 16
+    
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 1
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 1
+    write /dev/cpuset/foreground/uclamp.boosted 0
+
+    write /dev/stune/schedtune.qjump 0
+
+    write /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable 1
+    write /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable 1
+
+## Camera Performance
+
+## Samsung DeX Performance
+
+on property:sys.boot_completed=1 && property:wlan.p2p.wfdsta=connected
+    write /dev/stune/top-app/schedtune.freqboost 3
+    write /dev/stune/top-app/schedtune.heavyboost 5
+    write /dev/stune/top-app/schedtune.busyboost 7
+    write /dev/stune/foreground/schedtune.freqboost 1
+    write /dev/stune/foreground/schedtune.heavyboost 3
+    write /dev/stune/foreground/schedtune.busyboost 5
+
+    write /dev/stune/top-app/schedtune.sched_policy 3
+    write /dev/stune/foreground/schedtune.sched_policy 2
+    write /dev/stune/background/schedtune.sched_policy 1
+
+    write /proc/sys/kernel/sched_nr_migrate 16
+    
+    write /dev/cpuset/top-app/uclamp.latency_sensitive 1
+    write /dev/cpuset/top-app/uclamp.boosted 1
+    write /dev/cpuset/foreground/uclamp.latency_sensitive 1
+    write /dev/cpuset/foreground/uclamp.boosted 0
+
+    write /dev/stune/schedtune.qjump 1
+
+    write /sys/devices/system/cpu/cpufreq/policy0/schedutil/iowait_boost_enable 1
+    write /sys/devices/system/cpu/cpufreq/policy4/schedutil/iowait_boost_enable 1
+
+## Samsung DeX Performance
