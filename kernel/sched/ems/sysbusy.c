@@ -86,7 +86,7 @@ int is_somac_ready(struct tp_env *env)
 	cpumask_clear(&mask);
 
 	cpumask_and(&env->cpus_allowed, cpu_active_mask, &somac_ready.cpus);
-	cpumask_and(&env->cpus_allowed, &env->cpus_allowed, &env->p->cpus_allowed);
+	cpumask_and(&env->cpus_allowed, &env->cpus_allowed, env->p->cpus_ptr);
 	if (cpumask_empty(&env->cpus_allowed))
 		return 0;
 
@@ -165,7 +165,7 @@ static bool can_move_task(struct task_struct *p, struct somac_env *env)
 	if (src_rq->nr_running <= 1)
 		return false;
 
-	if (!cpumask_test_cpu(env->dst_cpu, &p->cpus_allowed))
+	if (!cpumask_test_cpu(env->dst_cpu, p->cpus_ptr))
 		return false;
 
 	if (task_running(env->src_rq, p))
@@ -558,7 +558,7 @@ int sysbusy_schedule(struct tp_env *env)
 		break;
 	case SYSBUSY_STATE3:
 		if (is_heavy_task_util(env->task_util)) {
-			if (cpumask_test_cpu(task_cpu(env->p), &env->p->cpus_allowed))
+			if (cpumask_test_cpu(task_cpu(env->p), &env->cpus_allowed))
 				target_cpu = task_cpu(env->p);
 		}
 		else

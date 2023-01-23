@@ -52,8 +52,8 @@ struct rt_env {
 
 unsigned int frt_disable_cpufreq;
 
-/* Future-safe accessor for struct task_struct's cpus_allowed. */
-#define frt_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
+/* Future-safe accessor for struct task_struct's cpus_ptr. */
+#define frt_cpus_allowed(tsk) (tsk->cpus_ptr)
 #define frt_task_util(tsk) ((tsk)->rt.avg.util_avg)
 
 static inline unsigned long frt_uclamp_task_util(struct task_struct *p)
@@ -2569,7 +2569,7 @@ static int find_victim_rt_rq(struct rt_env *env)
 		return best_cpu;
 
 	do {
-		for_each_cpu_and(cpu, &dom->cpus, &(env->p)->cpus_allowed) {
+		for_each_cpu_and(cpu, &dom->cpus, (env->p)->cpus_ptr) {
 			struct task_struct *victim;
 
 			/* ensure we have a best slow cpu to fallback */

@@ -1114,11 +1114,12 @@ int find_cpus_allowed(struct tp_env *env)
 	/*
 	 * take a snapshot of cpumask to get CPUs allowed
 	 * - mask0 : cpu_active_mask
-	 * - mask1 : &p->cpus_allowed
+	 * - mask1 : cpu_online_mask
+	 * - mask2 : p->cpus_ptr
 	 */
 	cpumask_copy(&mask[0], cpu_active_mask);
 	cpumask_copy(&mask[1], cpu_online_mask);
-	cpumask_copy(&mask[2], &env->p->cpus_allowed);
+	cpumask_copy(&mask[2], env->p->cpus_ptr);
 
 	/*
 	 * Putting per-cpu kthread on other cpu is not allowed.
@@ -1138,8 +1139,8 @@ int find_cpus_allowed(struct tp_env *env)
 		goto out;
 
 	/*
-	 * Unless task is per-cpu kthread, &p->cpus_allowed does not cause a problem
-	 * even if it is ignored. Consider &p->cpus_allowed as possible, but if it
+	 * Unless task is per-cpu kthread, p->cpus_ptr does not cause a problem
+	 * even if it is ignored. Consider p->cpus_ptr as possible, but if it
 	 * does not overlap with CPUs allowed made above, ignore it.
 	 */
 	if (cpumask_intersects(&env->cpus_allowed, &mask[2]))

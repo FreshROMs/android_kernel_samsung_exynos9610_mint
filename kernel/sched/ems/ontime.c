@@ -247,7 +247,7 @@ bool can_migrate(struct task_struct *p, struct ontime_env *env)
 	if (src_rq->nr_running <= 1)
 		return false;
 
-	if (!cpumask_test_cpu(dst_rq->cpu, &p->cpus_allowed))
+	if (!cpumask_test_cpu(dst_rq->cpu, p->cpus_ptr))
 		return false;
 
 	if (task_running(src_rq, p))
