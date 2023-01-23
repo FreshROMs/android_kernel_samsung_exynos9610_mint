@@ -60,26 +60,21 @@ inline bool is_busy_cpu(int cpu)
 	return __is_busy_cpu(util, runnable, capacity, nr_running);
 }
 
-int ems_task_top_app(struct task_struct *p)
-{
-	/* Don't touch kthreads */
-	if (p->flags & PF_KTHREAD)
-		return 0;
-
-	return schedtune_task_group_idx(p) == CGROUP_TOPAPP;
-}
-
 #define SYSTEMUI_THREAD_NAME "ndroid.systemui"
 int ems_task_on_top(struct task_struct *p)
 {
 	if (p->signal->oom_score_adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
+	/* Don't touch kthreads */
+	if (p->flags & PF_KTHREAD)
+		return 0;
+
 	/* Return if task is not an app */
 	if (!is_app(p))
 		return 0;
 
-	return ems_task_top_app(p);
+	return schedtune_task_group_idx(p) == CGROUP_TOPAPP;
 }
 
 int ems_task_boosted(struct task_struct *p)

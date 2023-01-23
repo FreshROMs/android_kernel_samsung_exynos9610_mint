@@ -140,7 +140,6 @@ extern void ems_fork_init(struct task_struct *p);
 extern int ems_check_preempt_wakeup(struct task_struct *p);
 extern void ems_init(void);
 
-extern int ems_task_top_app(struct task_struct *p);
 extern int ems_task_boosted(struct task_struct *p);
 
 extern unsigned int capacity_max_of(unsigned int cpu);
