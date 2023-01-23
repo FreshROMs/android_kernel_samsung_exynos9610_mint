@@ -274,7 +274,7 @@ int __init tex_init(void)
 /******************************************************************************
  * sched policy                                                               *
  ******************************************************************************/
-static int sched_policy[CGROUP_COUNT] = {SCHED_POLICY_EFF, };
+static int sched_policy[CGROUP_COUNT] = {SCHED_POLICY_ENERGY, };
 static char *sched_policy_name[] = {
     "SCHED_POLICY_EFF",
     "SCHED_POLICY_ENERGY",
