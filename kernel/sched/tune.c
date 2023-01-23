@@ -604,6 +604,10 @@ extern u64 ems_tex_enabled_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_tex_enabled_stune_hook_write(struct cgroup_subsys_state *css,
 		             struct cftype *cft, u64 enabled);
+extern int ems_tex_pinning_cpus_stune_hook_read(struct seq_file *sf, void *v);
+extern ssize_t ems_tex_pinning_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off);
 extern u64 ems_tex_prio_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_tex_prio_stune_hook_write(struct cgroup_subsys_state *css,
@@ -680,6 +684,12 @@ static struct cftype files[] = {
 		.name = "tex_enabled",
 		.read_u64 = ems_tex_enabled_stune_hook_read,
 		.write_u64 = ems_tex_enabled_stune_hook_write,
+	},
+	{
+		.name = "tex_pinning_cpus",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.seq_show = ems_tex_pinning_cpus_stune_hook_read,
+		.write = ems_tex_pinning_cpus_stune_hook_write,
 	},
 	{
 		.name = "tex_prio",

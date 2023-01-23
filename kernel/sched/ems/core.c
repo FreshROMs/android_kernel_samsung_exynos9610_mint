@@ -205,6 +205,30 @@ int ems_tex_enabled_stune_hook_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
+int ems_tex_pinning_cpus_stune_hook_read(struct seq_file *sf, void *v)
+{
+	seq_printf(sf, "%*pbl\n", cpumask_pr_args(&tex.pinning_cpus));
+	return 0;
+}
+
+#define STR_LEN (6)
+ssize_t ems_tex_pinning_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off)
+{
+	char str[STR_LEN];
+
+	if (strlen(buf) >= STR_LEN)
+		return -EINVAL;
+
+	if (!sscanf(buf, "%s", str))
+		return -EINVAL;
+
+	cpulist_parse(buf, &tex.pinning_cpus);
+
+	return nbytes;
+}
+
 u64 ems_tex_prio_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft) {
 	return (u64) tex.prio;
