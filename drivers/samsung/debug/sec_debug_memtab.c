@@ -48,7 +48,7 @@ DEFINE_MEMBER_TYPE(raw_spinlock_owner, raw_spinlock, owner);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 DEFINE_MEMBER_TYPE(rw_semaphore_owner, rw_semaphore, owner);
 #endif
-DEFINE_MEMBER_TYPE(task_struct_cpus_allowed, task_struct, cpus_allowed);
+DEFINE_MEMBER_TYPE(task_struct_cpus_allowed, task_struct, cpus_mask);
 DEFINE_MEMBER_TYPE(task_struct_normal_prio, task_struct, normal_prio);
 DEFINE_MEMBER_TYPE(task_struct_rt_priority, task_struct, rt_priority);
 #ifdef CONFIG_FAST_TRACK
