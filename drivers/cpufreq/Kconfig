@@ -110,10 +110,10 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
-config CPU_FREQ_DEFAULT_GOV_AIGO
+config CPU_FREQ_DEFAULT_GOV_ENERGY_ADAPTIVE
 	bool "energy_adaptive"
 	depends on SMP
-	select CPU_FREQ_GOV_AIGO
+	select CPU_FREQ_GOV_ENERGY_ADAPTIVE
 	help
 	  Use the 'energy_adaptive' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
@@ -217,7 +217,7 @@ config CPU_FREQ_GOV_SCHEDUTIL
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_AIGO
+config CPU_FREQ_GOV_ENERGY_ADAPTIVE
 	bool "'energy_adaptive' cpufreq policy governor"
 	depends on CPU_FREQ && SMP && SCHED_EMS
 	select CPU_FREQ_GOV_ATTR_SET

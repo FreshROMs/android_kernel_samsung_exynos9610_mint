@@ -1200,7 +1200,7 @@ static struct cpufreq_governor adaptive_gov = {
 	.limits = aigov_limits,
 };
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_AIGO
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ENERGY_ADAPTIVE
 struct cpufreq_governor *cpufreq_default_governor(void)
 {
 	return &adaptive_gov;
