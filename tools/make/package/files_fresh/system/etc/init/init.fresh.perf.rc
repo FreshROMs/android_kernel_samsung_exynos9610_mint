@@ -33,7 +33,7 @@ on init
 
 on property:sys.boot_completed=1
     # Fresh Performance Kit version
-    setprop persist.sys.zest.perf_version 14.2.0.2
+    setprop persist.sys.zest.perf_version 14.2.1.1
 
     # Setup runtime blkio
     write /dev/blkio/blkio.weight 1000
@@ -42,6 +42,8 @@ on property:sys.boot_completed=1
     write /dev/blkio/background/blkio.group_idle 0
 
     # Set common cgroup uclamp/ems hints
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 25
     write /dev/cpuset/top-app/uclamp.latency_sensitive 1
     write /dev/cpuset/top-app/uclamp.boosted 0
     write /dev/stune/top-app/schedtune.sched_policy 0
@@ -49,6 +51,10 @@ on property:sys.boot_completed=1
     write /dev/stune/top-app/schedtune.ntu_ratio 25
     write /dev/stune/top-app/schedtune.tex_enabled 1
 
+    write /dev/cpuset/foreground/uclamp.max 70
+    write /dev/cpuset/foreground/uclamp.min 10
+    write /dev/cpuset/foreground-boost/uclamp.max 75
+    write /dev/cpuset/foreground-boost/uclamp.min 15
     write /dev/cpuset/foreground/uclamp.latency_sensitive 0
     write /dev/cpuset/foreground/uclamp.boosted 0
     write /dev/stune/foreground/schedtune.sched_policy 0
@@ -56,6 +62,10 @@ on property:sys.boot_completed=1
     write /dev/stune/foreground/schedtune.ntu_ratio 25
     write /dev/stune/foreground/schedtune.tex_enabled 0
 
+    write /dev/cpuset/background/uclamp.max 45
+    write /dev/cpuset/background/uclamp.min 0
+    write /dev/cpuset/system-background/uclamp.max 45
+    write /dev/cpuset/system-background/uclamp.min 0
     write /dev/cpuset/background/uclamp.latency_sensitive 0
     write /dev/cpuset/background/uclamp.boosted 0
     write /dev/stune/background/schedtune.sched_policy 1
@@ -118,6 +128,13 @@ on property:sys.boot_completed=1 && property:service.camera.running=0 && propert
     write /dev/stune/top-app/schedtune.sched_policy 0
     write /dev/stune/foreground/schedtune.sched_policy 0
     write /dev/stune/background/schedtune.sched_policy 1
+
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 25
+    write /dev/cpuset/foreground/uclamp.max 70
+    write /dev/cpuset/foreground/uclamp.min 10
+    write /dev/cpuset/foreground-boost/uclamp.max 75
+    write /dev/cpuset/foreground-boost/uclamp.min 15
     
     write /dev/cpuset/top-app/uclamp.latency_sensitive 1
     write /dev/cpuset/top-app/uclamp.boosted 0
@@ -173,6 +190,13 @@ on property:sys.boot_completed=1 && property:service.camera.running=0 && propert
     write /dev/stune/top-app/schedtune.sched_policy 3
     write /dev/stune/foreground/schedtune.sched_policy 0
     write /dev/stune/background/schedtune.sched_policy 1
+
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 50
+    write /dev/cpuset/foreground/uclamp.max 80
+    write /dev/cpuset/foreground/uclamp.min 20
+    write /dev/cpuset/foreground-boost/uclamp.max 90
+    write /dev/cpuset/foreground-boost/uclamp.min 25
     
     write /dev/cpuset/top-app/uclamp.latency_sensitive 1
     write /dev/cpuset/top-app/uclamp.boosted 1
@@ -230,6 +254,13 @@ on property:sys.boot_completed=1 && property:service.camera.running=0 && propert
     write /dev/stune/top-app/schedtune.sched_policy 2
     write /dev/stune/foreground/schedtune.sched_policy 0
     write /dev/stune/background/schedtune.sched_policy 1
+
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 40
+    write /dev/cpuset/foreground/uclamp.max 80
+    write /dev/cpuset/foreground/uclamp.min 10
+    write /dev/cpuset/foreground-boost/uclamp.max 85
+    write /dev/cpuset/foreground-boost/uclamp.min 15
     
     write /dev/cpuset/top-app/uclamp.latency_sensitive 1
     write /dev/cpuset/top-app/uclamp.boosted 0
@@ -260,7 +291,14 @@ on property:sys.boot_completed=1 && property:service.camera.running=1 && propert
     write /dev/stune/background/schedtune.sched_policy 1
 
     write /proc/sys/kernel/sched_nr_migrate 16
-    
+
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 40
+    write /dev/cpuset/foreground/uclamp.max 80
+    write /dev/cpuset/foreground/uclamp.min 10
+    write /dev/cpuset/foreground-boost/uclamp.max 85
+    write /dev/cpuset/foreground-boost/uclamp.min 15
+
     write /dev/cpuset/top-app/uclamp.latency_sensitive 1
     write /dev/cpuset/top-app/uclamp.boosted 1
     write /dev/cpuset/foreground/uclamp.latency_sensitive 1
@@ -286,6 +324,13 @@ on property:sys.boot_completed=1 && property:wlan.p2p.wfdsta=connected
     write /dev/stune/top-app/schedtune.sched_policy 3
     write /dev/stune/foreground/schedtune.sched_policy 2
     write /dev/stune/background/schedtune.sched_policy 1
+
+    write /dev/cpuset/top-app/uclamp.max max
+    write /dev/cpuset/top-app/uclamp.min 50
+    write /dev/cpuset/foreground/uclamp.max 80
+    write /dev/cpuset/foreground/uclamp.min 10
+    write /dev/cpuset/foreground-boost/uclamp.max 85
+    write /dev/cpuset/foreground-boost/uclamp.min 15
 
     write /proc/sys/kernel/sched_nr_migrate 16
     
