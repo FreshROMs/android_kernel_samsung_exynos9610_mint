@@ -377,7 +377,7 @@ unsigned int aigov_get_next_freq(struct aigov_cpu *ai_cpu, struct aigov_policy *
 	struct cpufreq_policy *policy = ag_policy->policy;
 	unsigned int freq = arch_scale_freq_invariant() ? policy->max : policy->cur;
 
-	freq = cpufreq_get_tipping_point(policy->cpu, freq) * util / max;
+	freq = (freq + (freq >> 2)) * util / max;
 	freq = aigov_inferrer_get_freq(ai_cpu, freq);
 
 	if (freq == ag_policy->cached_raw_freq && !ag_policy->need_freq_update)
@@ -405,10 +405,9 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 	/* get basic pelt util with uclamp */
    	pelt_util = ml_cpu_util(cpu);
    	pelt_util = uclamp_util_with(rq, pelt_util, NULL);
-   	pelt_util += schedtune_cpu_margin(pelt_util, cpu);
 
-   	/* get boosted pelt util from freqvar */
-	pelt_util = cpufreq_get_pelt_boost_util(cpu, pelt_util);
+   	/* boost util with schedtune */
+   	pelt_util += schedtune_cpu_margin(pelt_util, cpu);
 	pelt_util = min(pelt_util, max_cap);
 	pelt_max = max_cap;
 
@@ -648,54 +647,6 @@ static void aigov_irq_work(struct irq_work *irq_work)
 	 * neglected for now.
 	 */
 	kthread_queue_work(&ag_policy->worker, &ag_policy->work);
-}
-
-/************************ Governor externals ***********************/
-static void update_min_rate_limit_ns(struct aigov_policy *ag_policy);
-void aigov_update_rate_limit_us(struct cpufreq_policy *policy,
-			int up_rate_limit_ms, int down_rate_limit_ms)
-{
-	struct aigov_policy *ag_policy;
-	struct aigov_tunables *tunables;
-
-	ag_policy = policy->governor_data;
-	if (!ag_policy)
-		return;
-
-	tunables = ag_policy->tunables;
-	if (!tunables)
-		return;
-
-	tunables->up_rate_limit_us = (unsigned int)(up_rate_limit_ms * USEC_PER_MSEC);
-	tunables->down_rate_limit_us = (unsigned int)(down_rate_limit_ms * USEC_PER_MSEC);
-
-	ag_policy->up_rate_delay_ns = up_rate_limit_ms * NSEC_PER_MSEC;
-	ag_policy->down_rate_delay_ns = down_rate_limit_ms * NSEC_PER_MSEC;
-
-	update_min_rate_limit_ns(ag_policy);
-}
-
-int aigov_sysfs_add_attr(struct cpufreq_policy *policy, const struct attribute *attr)
-{
-	struct aigov_policy *ag_policy;
-	struct aigov_tunables *tunables;
-
-	ag_policy = policy->governor_data;
-	if (!ag_policy)
-		return -ENODEV;
-
-	tunables = ag_policy->tunables;
-	if (!tunables)
-		return -ENODEV;
-
-	return sysfs_create_file(&tunables->attr_set.kobj, attr);
-}
-
-struct cpufreq_policy *aigov_get_attr_policy(struct gov_attr_set *attr_set)
-{
-	struct aigov_policy *ag_policy = list_first_entry(&attr_set->policy_list,
-						typeof(*ag_policy), tunables_hook);
-	return ag_policy->policy;
 }
 
 /************************** sysfs interface ************************/
@@ -1029,8 +980,6 @@ out:
 		goto fail;
 	}
 
-	// cpufreq_register_hook(aigov_sysfs_add_attr, aigov_get_attr_policy, aigov_update_rate_limit_us);
-
 	return 0;
 
 fail:
@@ -1079,7 +1028,6 @@ void aigov_exit(struct cpufreq_policy *policy)
 		goto out;
 
 	fb_unregister_client(&ag_policy->fb_notifier);
-	// cpufreq_unregister_hook();
 	aigov_kthread_stop(ag_policy);
 	aigov_policy_free(ag_policy);
 
