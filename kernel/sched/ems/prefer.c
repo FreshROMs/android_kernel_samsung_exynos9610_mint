@@ -129,13 +129,13 @@ void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	cpumask_copy(mask, cpu_active_mask);
 
 	/* light task util threshold */
-	if (env->task_util <= pp->light_threshold) {
+	if (env->task_util_clamped <= pp->light_threshold) {
 		cpumask_and(mask, mask, &pp->light_prefer_cpus);
 		return;
 	}
 
 	/* heavy task util threshold */
-	if (env->task_util >= pp->heavy_threshold) {
+	if (env->task_util_clamped >= pp->heavy_threshold) {
 		cpumask_and(mask, mask, &pp->heavy_prefer_cpus);
 		return;
 	}
