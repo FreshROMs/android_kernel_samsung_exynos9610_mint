@@ -406,12 +406,12 @@
 				prefer-cpu0 {
 					cgroup = <1>;
 
-					prefer-cpus = "2-7";
+					prefer-cpus = "0-7";
 
 					light-task-threshold = <37>;
-					light-prefer-cpus = "0-3";
+					light-prefer-cpus = "0-5";
 
-					heavy-task-threshold = <462>;
+					heavy-task-threshold = <351>;
 					heavy-prefer-cpus = "4-7";
 				};
 
@@ -419,12 +419,12 @@
 				prefer-cpu1 {
 					cgroup = <2>;
 
-					prefer-cpus = "0-3";
+					prefer-cpus = "0-7";
 
-					light-task-threshold = <84>;
+					light-task-threshold = <92>;
 					light-prefer-cpus = "0-3";
 
-					heavy-task-threshold = <553>;
+					heavy-task-threshold = <369>;
 					heavy-prefer-cpus = "4-7";
 				};
 
@@ -434,10 +434,10 @@
 
 					prefer-cpus = "4-7";
 
-					light-task-threshold = <4>;
-					light-prefer-cpus = "0-3";
+					light-task-threshold = <0>;
+					light-prefer-cpus = "0-7";
 
-					heavy-task-threshold = <290>;
+					heavy-task-threshold = <277>;
 					heavy-prefer-cpus = "4-7";
 				};
 
