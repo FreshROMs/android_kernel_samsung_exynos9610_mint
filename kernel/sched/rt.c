@@ -2627,7 +2627,7 @@ static int find_victim_rt_rq(struct rt_env *env)
 		dom = dom->next;
 	} while (dom != prefer_dom);
 
-	if (!cpu_selected(best_cpu))
+	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
 		best_cpu = prev_best_cpu;
 
 	trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu, victim_rt ? "VICTIM-RT" : "VICTIM-FAIR");
@@ -2699,6 +2699,9 @@ static int find_idle_cpu(struct rt_env *env)
 		dom = dom->next;
 	} while (dom != prefer_dom);
 
+	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
+		best_cpu = prev_best_cpu;
+
 	return best_cpu;
 }
 
@@ -2769,6 +2772,9 @@ static int find_recessive_cpu(struct rt_env *env)
 
 		dom = dom->next;
 	} while (dom != prefer_dom);
+
+	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
+		best_cpu = prev_best_cpu;
 
 	return best_cpu;
 }
