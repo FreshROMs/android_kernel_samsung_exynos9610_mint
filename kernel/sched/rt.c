@@ -2643,6 +2643,7 @@ static int find_idle_cpu(struct rt_env *env)
 	u64 cpu_load, min_load = ULLONG_MAX;
 	struct cpumask candidate_cpus;
 	struct frt_dom *dom, *prefer_dom;
+	struct cpumask *tex_cpus = tex_pinning_cpus();
 
 	prefer_dom = dom = per_cpu(frt_rqs, 0);
 	if (unlikely(!dom))
@@ -2651,8 +2652,8 @@ static int find_idle_cpu(struct rt_env *env)
 	cpumask_and(&candidate_cpus, get_available_cpus(), cpu_active_mask);
 	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
 
-	if (env->tex)
-		cpumask_and(&candidate_cpus, &candidate_cpus, tex_pinning_cpus());
+	if (env->tex && cpumask_intersects(&candidate_cpus, tex_cpus))
+		cpumask_and(&candidate_cpus, &candidate_cpus, tex_cpus);
 	
 	cpumask_andnot(&candidate_cpus, &candidate_cpus, tex_busy_cpus());
 
@@ -2712,6 +2713,7 @@ static int find_recessive_cpu(struct rt_env *env)
 	struct cpumask *lowest_mask;
 	struct cpumask candidate_cpus;
 	struct frt_dom *dom, *prefer_dom;
+	struct cpumask *tex_cpus = tex_pinning_cpus();
 
 	lowest_mask = this_cpu_cpumask_var_ptr(local_cpu_mask);
 	/* Make sure the mask is initialized first */
@@ -2725,9 +2727,9 @@ static int find_recessive_cpu(struct rt_env *env)
 
 	cpumask_and(&candidate_cpus, get_available_cpus(), cpu_active_mask);
 
-	if (env->tex)
-		cpumask_and(&candidate_cpus, &candidate_cpus, tex_pinning_cpus());
-	
+	if (env->tex && cpumask_intersects(&candidate_cpus, tex_cpus))
+		cpumask_and(&candidate_cpus, &candidate_cpus, tex_cpus);
+
 	cpumask_andnot(&candidate_cpus, &candidate_cpus, tex_busy_cpus());
 	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
 
