@@ -132,16 +132,6 @@ extern int ontime_can_migrate_task(struct task_struct *p, int cpu);
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void ontime_migration(void);
 
-/* cpufreq */
-extern unsigned long cpufreq_get_pelt_boost_util(int cpu, unsigned long util);
-extern unsigned int cpufreq_get_tipping_point(int cpu, unsigned int freq);
-#if 0
-extern void cpufreq_register_hook(int (*func_sysfs_add_attr)(struct cpufreq_policy *policy, const struct attribute *attr),
-        struct cpufreq_policy (*func_get_attr_policy)(struct gov_attr_set *attr_set),
-        void (*func_update_rate_limit_us)(struct cpufreq_policy *policy, int up_rate_limit_ms, int down_rate_limit_ms));
-extern void cpufreq_unregister_hook(void);
-#endif
-
 /* prefer cpu */
 extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
 
