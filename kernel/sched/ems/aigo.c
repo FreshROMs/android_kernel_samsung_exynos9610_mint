@@ -252,7 +252,7 @@ static bool aigov_up_down_rate_limit(struct aigov_policy *ag_policy, u64 time,
 }
 
 static inline
-void aigo_irq_work_queue(struct irq_work *work)
+void aigov_irq_work_queue(struct irq_work *work)
 {
 	if (likely(cpu_active(raw_smp_processor_id())))
 		irq_work_queue(work);
@@ -288,7 +288,7 @@ static void aigov_update_commit(struct aigov_policy *ag_policy, u64 time,
 	} else if (!ag_policy->work_in_progress) {
 		ag_policy->work_in_progress = true;
 		trace_cpu_frequency(next_freq, cpu);
-		aigo_irq_work_queue(&ag_policy->irq_work);
+		aigov_irq_work_queue(&ag_policy->irq_work);
 	}
 }
 
