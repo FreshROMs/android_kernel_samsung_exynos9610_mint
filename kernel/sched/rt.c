@@ -2729,12 +2729,12 @@ static int find_recessive_cpu(struct rt_env *env)
 	cpupri_find(&task_rq(env->p)->rd->cpupri, env->p, lowest_mask);
 
 	cpumask_and(&candidate_cpus, get_available_cpus(), cpu_active_mask);
+	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
 
 	if (env->tex && cpumask_intersects(&candidate_cpus, tex_cpus))
 		cpumask_and(&candidate_cpus, &candidate_cpus, tex_cpus);
 
 	cpumask_andnot(&candidate_cpus, &candidate_cpus, tex_busy_cpus());
-	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
 
 	if (unlikely(cpumask_empty(&candidate_cpus)))
 		return best_cpu;
