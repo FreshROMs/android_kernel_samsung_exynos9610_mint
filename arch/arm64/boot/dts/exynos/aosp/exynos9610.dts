@@ -3460,28 +3460,6 @@
 		};
 	};
 
-	energy_adaptive {
-		domain@0 {
-			device_type = "ems-cpufreq";
-			shared-cpus = "0-3";
-
-			util-boost-table = < 154 806000 146 910000 138 1053000 132 1118000 128 1222000 116 1326000 100 >;
-			up-rate-limit-table = < 2 >;
-			down-rate-limit-table = < 10 >;
-			tipping-point-scale = < 25 1222000 20 >;
-		};
-
-		domain@1 {
-			device_type = "ems-cpufreq";
-			shared-cpus = "4-7";
-
-			util-boost-table = < 150 1144000 142 1248000 138 1352000 124 1456000 116 1508000 110 1664000 100 >;
-			up-rate-limit-table = < 1 >;
-			down-rate-limit-table = < 20 >;
-			tipping-point-scale = < 25 >;
-		};
-	};
-
 	cpufreq-ufc {
 		#define PM_QOS_MIN_LIMIT		0
 		#define PM_QOS_MIN_WO_BOOST_LIMIT	1
