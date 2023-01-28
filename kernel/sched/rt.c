@@ -2630,7 +2630,9 @@ static int find_victim_rt_rq(struct rt_env *env)
 	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
 		best_cpu = prev_best_cpu;
 
-	trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu, victim_rt ? "VICTIM-RT" : "VICTIM-FAIR");
+	if (cpu_selected(best_cpu))
+		trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu, victim_rt ? "VICTIM-RT" : "VICTIM-FAIR");
+
 	return best_cpu;
 }
 
@@ -2692,17 +2694,18 @@ static int find_idle_cpu(struct rt_env *env)
 			}
 		}
 
-		if (cpu_selected(best_cpu)) {
-			trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu, "IDLE-FIRST");
-			return best_cpu;
-		}
+		if (cpu_selected(best_cpu))
+			break;
 
 		dom = dom->next;
 	} while (dom != prefer_dom);
 
 	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
 		best_cpu = prev_best_cpu;
-
+	
+	if (cpu_selected(best_cpu))
+		trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu, "IDLE-FIRST");
+	
 	return best_cpu;
 }
 
@@ -2766,17 +2769,18 @@ static int find_recessive_cpu(struct rt_env *env)
 			}
 		}
 
-		if (cpu_selected(best_cpu)) {
-			trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu,
-				rt_task(cpu_rq(best_cpu)->curr) ? "RT-RECESS" : "FAIR-RECESS");
-			return best_cpu;
-		}
+		if (cpu_selected(best_cpu))
+			break;
 
 		dom = dom->next;
 	} while (dom != prefer_dom);
 
 	if (!cpu_selected(best_cpu) && cpu_selected(prev_best_cpu))
 		best_cpu = prev_best_cpu;
+
+	if (cpu_selected(best_cpu))
+		trace_sched_fluid_stat(env->p, &(env->p)->rt.avg, best_cpu,
+			rt_task(cpu_rq(best_cpu)->curr) ? "RT-RECESS" : "FAIR-RECESS");
 
 	return best_cpu;
 }
