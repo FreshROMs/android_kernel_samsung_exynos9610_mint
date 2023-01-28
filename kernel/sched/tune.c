@@ -121,7 +121,7 @@ schedtune_cpu_update(int cpu, u64 now)
 
 static int
 #ifdef CONFIG_SCHED_EMS
-schedtune_boostgroup_update(int idx, int boost, int light_boost, int heavy_boost, int busy_boost)
+schedtune_boostgroup_update(struct schedtune *st, bool reset)
 #else
 schedtune_boostgroup_update(int idx, int boost)
 #endif
@@ -131,19 +131,21 @@ schedtune_boostgroup_update(int idx, int boost)
 	int old_boost;
 	int cpu;
 	u64 now;
-
 #ifdef CONFIG_SCHED_EMS
-	if (likely(boost == -1)) {
+	int idx = st->idx;
+	int boost = 0;
+
+	if (likely(!reset)) {
 		switch (sysbusy_state) {
 		case SYSBUSY_STATE1:
-			boost = heavy_boost;
+			boost = st->heavy_boost;
 			break;
 		case SYSBUSY_STATE2:
 		case SYSBUSY_STATE3:
-			boost = busy_boost;
+			boost = st->busy_boost;
 			break;
 		default:
-			boost = light_boost;
+			boost = st->boost;
 			break;
 		}
 	}
@@ -540,7 +542,7 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 
 	/* Update CPU boost */
 #ifdef CONFIG_SCHED_EMS
-	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+	schedtune_boostgroup_update(st, false);
 #else
 	schedtune_boostgroup_update(st->idx, st->boost);
 #endif
@@ -569,7 +571,7 @@ heavy_boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	st->heavy_boost = boost;
 
 	/* Update CPU boost */
-	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+	schedtune_boostgroup_update(st, false);
 
 	return 0;
 }
@@ -594,7 +596,7 @@ busy_boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	st->busy_boost = boost;
 
 	/* Update CPU boost */
-	schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+	schedtune_boostgroup_update(st, false);
 
 	return 0;
 }
@@ -634,7 +636,7 @@ extern int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
 #endif
 
 static struct cftype files[] = {
-#ifdef CONFIG_UCLAMP_TASK_GROUP
+#ifdef CONFIG_SCHED_EMS
 	{
 		.name = "freqboost",
 		.read_s64 = boost_read,
@@ -797,11 +799,11 @@ static int schedtune_sysbusy_notifier_call(struct notifier_block *nb,
 	sysbusy_state = state;
 
 	for (i = 0; i < BOOSTGROUPS_COUNT; i++) {
-		struct schedtune *st = css_st(&allocated_group[i]->css);
+		struct schedtune *st = allocated_group[i];
 		if (unlikely(!st))
 			continue;
 
-		schedtune_boostgroup_update(st->idx, -1, st->boost, st->heavy_boost, st->busy_boost);
+		schedtune_boostgroup_update(st, false);
 	}
 
 	return NOTIFY_OK;
@@ -864,7 +866,7 @@ schedtune_boostgroup_release(struct schedtune *st)
 {
 	/* Reset this boost group */
 #ifdef CONFIG_SCHED_EMS
-	schedtune_boostgroup_update(st->idx, 0, 0, 0, 0);
+	schedtune_boostgroup_update(st, true);
 #else
 	schedtune_boostgroup_update(st->idx, 0);
 #endif
