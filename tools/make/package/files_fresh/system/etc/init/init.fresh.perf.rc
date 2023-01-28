@@ -33,7 +33,7 @@ on init
 
 on property:sys.boot_completed=1
     # Fresh Performance Kit version
-    setprop persist.sys.zest.perf_version 14.2.1.1
+    setprop persist.sys.zest.perf_version 14.2.1.3
 
     # Setup runtime blkio
     write /dev/blkio/blkio.weight 1000
@@ -70,7 +70,7 @@ on property:sys.boot_completed=1
     write /dev/cpuset/background/uclamp.boosted 0
     write /dev/stune/background/schedtune.sched_policy 1
     write /dev/stune/background/schedtune.ontime_enabled 0
-    write /dev/stune/background/schedtune.ntu_ratio 25
+    write /dev/stune/background/schedtune.ntu_ratio 5
     write /dev/stune/background/schedtune.tex_enabled 0
 
     # Set common cgroup cpusets
