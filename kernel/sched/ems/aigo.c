@@ -399,8 +399,7 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 	struct rq *rq = cpu_rq(cpu);
 	struct mlt *mlt = &rq->mlt;
 	unsigned long pelt_util, pelt_max;
-	int util_ratio, util_boost;
-	int demand = 0;
+	int util_ratio, util_boost, active_ratio = 0;
 
 	/* get basic pelt util with uclamp */
    	pelt_util = ml_cpu_util(cpu);
@@ -433,23 +432,20 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 		goto out;
 	}
 
+	active_ratio = max(mlt->active_ratio_recent, mlt->period[mlt->cur_period]);
 
-	if (util_ratio > pelt_util)
-		goto skip_active_ratio;
-	
-	demand = max(mlt->active_ratio_recent, mlt->period[mlt->cur_period]);
-
-	*util = max(demand, mlt->active_ratio_est);
-	*util = min_t(unsigned long, *util, (unsigned long)mlt_art_boost_limit(mlt));
+	*util = max(active_ratio, mlt->active_ratio_est);
+	*util = min_t(unsigned long, *util, (unsigned long) mlt_art_boost_limit(mlt));
 	*max = SCHED_CAPACITY_SCALE;
 
-	goto out;
+	if (util_ratio <= *util)
+		goto out;
 
 skip_active_ratio:
 	*util = pelt_util;
 	*max = pelt_max;
 out:
-	trace_ems_cpu_active_ratio_util_stat(cpu, pelt_util, (unsigned long)util_ratio);
+	trace_ems_cpu_active_ratio_util_stat(cpu, *util, (unsigned long) util_ratio);
 }
 
 static void aigov_set_iowait_boost(struct aigov_cpu *ai_cpu, u64 time,
