@@ -771,7 +771,7 @@ void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 
 	cpumask_clear(mask);
 
-	if (env->sched_policy == SCHED_POLICY_SEMI_PERF)
+	if (env->task_on_top)
 		return;
 
 	/* check if task is misfit - causes all CPUs to be over capacity */
