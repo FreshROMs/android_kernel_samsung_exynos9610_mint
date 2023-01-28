@@ -757,11 +757,11 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 		/* cgroup            l-b h-b b-b e-p e-o  e-n e-t */
 		{"top-app",	           1,  3,  5,  0,  1,  25,  1 },
 		{"foreground",	       0,  1,  3,  0,  1,  25,  0 },
-		{"background",	       0,  0,  1,  1,  0,  25,  0 },
-		{"rt",		           3,  5,  7,  2,  0,  25,  0 },
+		{"background",	       0,  0,  1,  1,  0,   5,  0 },
+		{"rt",		           3,  5,  7,  2,  0,   5,  0 },
 		{"camera-daemon",	   3,  7,  7,  3,  0,  25,  0 },
 		{"nnapi-hal",	       3,  5,  7,  3,  0,  25,  0 },
-		{"hot",	               0,  0,  0,  0,  0,  25,  0 },
+		{"hot",	               0,  0,  0,  0,  0,   5,  0 },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
