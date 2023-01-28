@@ -175,14 +175,18 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 
 void ems_tick(struct rq *rq)
 {
-	mlt_set_period_start(rq);
-
 	profile_sched_data();
 
 	monitor_sysbusy();
 	somac_tasks();
 
 	ontime_migration();
+}
+
+void ems_tick_locked(struct rq *rq)
+{
+	mlt_set_period_start(rq);
+	mlt_update_recent(rq);
 }
 
 void ems_enqueue_task(struct rq *rq, struct task_struct *p)

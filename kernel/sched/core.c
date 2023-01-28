@@ -4126,6 +4126,11 @@ void scheduler_tick(void)
 
 	rq_lock(rq, &rf);
 
+#ifdef CONFIG_SCHED_EMS
+	/* Exynos Mobile Scheduler tick - locked */
+	ems_tick_locked(rq);
+#endif
+
 	walt_set_window_start(rq, &rf);
 	walt_update_task_ravg(rq->curr, rq, TASK_UPDATE,
 			walt_ktime_clock(), 0);

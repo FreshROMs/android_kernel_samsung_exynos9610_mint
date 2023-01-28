@@ -433,7 +433,6 @@ void aigov_get_target_util(unsigned long *util, unsigned long *max, int cpu)
 		goto out;
 	}
 
-	mlt_update_recent(rq);
 
 	if (util_ratio > pelt_util)
 		goto skip_active_ratio;

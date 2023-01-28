@@ -128,6 +128,7 @@ extern int ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync
 extern int ems_select_fallback_rq(struct task_struct *p);
 extern int ems_can_migrate_task(struct task_struct *p, int dst_cpu);
 extern void ems_tick(struct rq *rq);
+extern void ems_tick_locked(struct rq *rq);
 extern void ems_enqueue_task(struct rq *rq, struct task_struct *p);
 extern void ems_dequeue_task(struct rq *rq, struct task_struct *p);
 extern void ems_wakeup_task(struct rq *rq, struct task_struct *p);
