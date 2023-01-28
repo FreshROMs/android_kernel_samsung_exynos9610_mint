@@ -158,7 +158,7 @@ unsigned long ml_runnable_load_avg(int cpu)
 /******************************************************************************
  *                     New task utilization init                              *
  ******************************************************************************/
-static int ntu_ratio[CGROUP_COUNT] = {25, };
+static int ntu_ratio[CGROUP_COUNT] = {5, };
 
 /* An entity is a task if it doesn't "own" a runqueue */
 #define entity_is_task(se)	(!se->my_q)
