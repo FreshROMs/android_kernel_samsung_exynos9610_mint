@@ -160,6 +160,9 @@ unsigned long ml_runnable_load_avg(int cpu)
  ******************************************************************************/
 static int ntu_ratio[CGROUP_COUNT] = {25, };
 
+/* An entity is a task if it doesn't "own" a runqueue */
+#define entity_is_task(se)	(!se->my_q)
+
 void ntu_apply(struct sched_entity *se)
 {
 	struct cfs_rq *cfs_rq = se->cfs_rq;
@@ -167,7 +170,7 @@ void ntu_apply(struct sched_entity *se)
 	int cpu = cpu_of(cfs_rq->rq);
 	unsigned long cap_org = capacity_orig_of(cpu);
 	long cap = (long)(cap_org - cfs_rq->avg.util_avg) / 2;
-	int grp_idx = schedtune_task_group_idx(task_of(se));
+	int grp_idx = entity_is_task(se) ? schedtune_task_group_idx(task_of(se)): CGROUP_ROOT;
 	int ratio = ntu_ratio[grp_idx];
 
 	if (cap > 0) {
