@@ -393,13 +393,13 @@
 			mlt {
 				/* little cores */
 				coregroup0 {
-					active-ratio-limit = <34>;
-					active-ratio-boost = <36>;
+					active-ratio-limit = <43>;
+					active-ratio-boost = <42>;
 				};
 				/* big cores */
 				coregroup1 {
-					active-ratio-limit = <16>;
-					active-ratio-boost = <18>;
+					active-ratio-limit = <30>;
+					active-ratio-boost = <0>;
 				};
 			};
 
