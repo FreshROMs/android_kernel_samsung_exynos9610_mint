@@ -30,7 +30,6 @@ struct frt_dom {
 
 struct rt_env {
     struct task_struct *p;
-    int tex;
     int src_cpu;
 
     unsigned long task_util;
@@ -70,15 +69,15 @@ static inline unsigned long frt_uclamp_task_util(struct task_struct *p)
 }
 
 extern inline int is_heavy_task_util(unsigned long util);
-extern int tex_task(struct task_struct *p);
+extern int ems_task_on_top(struct task_struct *p);
 static int frt_task_boosted(struct task_struct *p)
 {
 	/* ems task boost */
 	if (p->pid && ems_task_boost() == p->pid)
 		return 1;
 
-	/* Task EXpress (TEX) */
-	if (tex_task(p))
+	/* on-top task */
+	if (ems_task_on_top(p))
 		return 1;
 
 	/* heavy task */
@@ -2636,8 +2635,6 @@ static int find_victim_rt_rq(struct rt_env *env)
 	return best_cpu;
 }
 
-extern struct cpumask *tex_busy_cpus(void);
-extern struct cpumask *tex_pinning_cpus(void);
 static int find_idle_cpu(struct rt_env *env)
 {
 	int best_cpu = -1, prev_best_cpu = -1, cpu;
@@ -2645,7 +2642,6 @@ static int find_idle_cpu(struct rt_env *env)
 	u64 cpu_load, min_load = ULLONG_MAX;
 	struct cpumask candidate_cpus;
 	struct frt_dom *dom, *prefer_dom;
-	struct cpumask *tex_cpus = tex_pinning_cpus();
 
 	prefer_dom = dom = per_cpu(frt_rqs, 0);
 	if (unlikely(!dom))
@@ -2653,11 +2649,6 @@ static int find_idle_cpu(struct rt_env *env)
 
 	cpumask_and(&candidate_cpus, get_available_cpus(), cpu_active_mask);
 	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
-
-	if (env->tex && cpumask_intersects(&candidate_cpus, tex_cpus))
-		cpumask_and(&candidate_cpus, &candidate_cpus, tex_cpus);
-	
-	cpumask_andnot(&candidate_cpus, &candidate_cpus, tex_busy_cpus());
 
 	if (unlikely(cpumask_empty(&candidate_cpus)))
 		cpumask_copy(&candidate_cpus, frt_cpus_allowed(env->p));
@@ -2716,7 +2707,6 @@ static int find_recessive_cpu(struct rt_env *env)
 	struct cpumask *lowest_mask;
 	struct cpumask candidate_cpus;
 	struct frt_dom *dom, *prefer_dom;
-	struct cpumask *tex_cpus = tex_pinning_cpus();
 
 	lowest_mask = this_cpu_cpumask_var_ptr(local_cpu_mask);
 	/* Make sure the mask is initialized first */
@@ -2730,12 +2720,6 @@ static int find_recessive_cpu(struct rt_env *env)
 
 	cpumask_and(&candidate_cpus, get_available_cpus(), cpu_active_mask);
 	cpumask_and(&candidate_cpus, &candidate_cpus, frt_cpus_allowed(env->p));
-
-	if (env->tex && cpumask_intersects(&candidate_cpus, tex_cpus))
-		cpumask_and(&candidate_cpus, &candidate_cpus, tex_cpus);
-
-	cpumask_andnot(&candidate_cpus, &candidate_cpus, tex_busy_cpus());
-
 	if (unlikely(cpumask_empty(&candidate_cpus)))
 		return best_cpu;
 
@@ -2791,7 +2775,6 @@ static int find_lowest_rq_fluid(struct task_struct *task)
 	struct rt_env env = {
 		.p = task,
 		.src_cpu = task_cpu(task),
-		.tex = tex_task(task),
 		.task_util = frt_task_util(task),
 		.task_util_clamped = frt_uclamp_task_util(task),
 		.boosted = frt_task_boosted(task),

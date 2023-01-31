@@ -35,12 +35,12 @@ int tex_task(struct task_struct *p)
     if (!tex.enabled[grp_idx])
         return 0;
 
+    if (p->sched_class != &fair_sched_class)
+        return 0;
+
     /* on-top task is eligible for tex */
     if (ems_task_on_top(p))
         return 1;
-
-    if (p->sched_class != &fair_sched_class)
-        return 0;
 
     if (!p->pid || ems_task_boost() != p->pid)
         return 0;
@@ -124,16 +124,6 @@ int tex_suppress_task(struct task_struct *p)
 		return 0;
 
 	return 1;
-}
-
-struct cpumask *tex_busy_cpus(void)
-{
-	return &tex.busy_cpus;
-}
-
-struct cpumask *tex_pinning_cpus(void)
-{
-	return &tex.pinning_cpus;
 }
 
 static void
