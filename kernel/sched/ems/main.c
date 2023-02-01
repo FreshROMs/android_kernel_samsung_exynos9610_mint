@@ -147,7 +147,7 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	int src_cpu = task_cpu(p);
 
 	/* avoid migration if cpu is underutilized */
-	if (cpu_active(src_cpu) && et_cpu_slowest(src_cpu) && !cpu_overutilized(src_cpu))
+	if (cpu_active(src_cpu) && !cpu_overutilized(src_cpu))
 		return 0;
 
 	/* avoid migration if ontime does not allow */
@@ -159,7 +159,7 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 		return 0;
 
 	/* avoid migrating tex supressed task to fast cpu */
-	if (!cpu_overutilized(src_cpu) && tex_suppress_task(p) && cpumask_test_cpu(dst_cpu, cpu_fastest_mask()))
+	if (tex_suppress_task(p) && cpumask_test_cpu(dst_cpu, cpu_fastest_mask()))
 		return 0;
 
 	/* avoid migrating prefer-perf task to slow cpus */
