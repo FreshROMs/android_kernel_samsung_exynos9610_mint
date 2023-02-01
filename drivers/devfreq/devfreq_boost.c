@@ -6,6 +6,9 @@
 #define pr_fmt(fmt) "devfreq_boost: " fmt
 
 #include <linux/devfreq_boost.h>
+#ifdef CONFIG_SCHED_EMS
+#include <linux/ems.h>
+#endif
 #include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
@@ -90,14 +93,13 @@ void devfreq_boost_kick(enum df_device device)
 }
 
 static void __devfreq_boost_kick_max(struct boost_dev *b,
-				     unsigned int duration_ms)
+				     unsigned long boost_jiffies)
 {
-	unsigned long boost_jiffies, curr_expires, new_expires;
+	unsigned long curr_expires, new_expires;
 
 	if (!READ_ONCE(b->df) || test_bit(SCREEN_OFF, &b->state))
 		return;
 
-	boost_jiffies = msecs_to_jiffies(duration_ms);
 	do {
 		curr_expires = atomic_long_read(&b->max_boost_expires);
 		new_expires = jiffies + boost_jiffies;
@@ -121,7 +123,7 @@ void devfreq_boost_kick_max(enum df_device device, unsigned int duration_ms)
 {
 	struct df_boost_drv *d = &df_boost_drv_g;
 
-	__devfreq_boost_kick_max(&d->devices[device], duration_ms);
+	__devfreq_boost_kick_max(&d->devices[device], msecs_to_jiffies(duration_ms));
 }
 
 void devfreq_boost_frame_kick(enum df_device device)
@@ -131,7 +133,7 @@ void devfreq_boost_frame_kick(enum df_device device)
 	if (unlikely(disable_boost))
 		return;
 
-	__devfreq_boost_kick_max(&d->devices[device], CONFIG_DEVFREQ_DECON_BOOST_DURATION_MS);
+	__devfreq_boost_kick_max(&d->devices[device], msecs_to_jiffies(CONFIG_DEVFREQ_DECON_BOOST_DURATION_MS));
 }
 
 void devfreq_register_boost_device(enum df_device device, struct devfreq *df)
@@ -229,7 +231,7 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 		case FB_BLANK_UNBLANK:
 			clear_bit(SCREEN_OFF, &b->state);
 			__devfreq_boost_kick_max(b,
-				CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS);
+				msecs_to_jiffies(CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS));
 			break;
 		case FB_BLANK_POWERDOWN:
 			set_bit(SCREEN_OFF, &b->state);
@@ -240,6 +242,33 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 
 	return NOTIFY_OK;
 }
+
+#ifdef CONFIG_SCHED_EMS
+/****************************************************************/
+/*		  sysbusy state change notifier			*/
+/****************************************************************/
+static int devfreq_boost_sysbusy_notifier_call(struct notifier_block *nb,
+					unsigned long val, void *v)
+{
+	enum sysbusy_state state = *(enum sysbusy_state *)v;
+	struct df_boost_drv *d = &df_boost_drv_g;
+	int mode;
+
+	if (val != SYSBUSY_STATE_CHANGE)
+		return NOTIFY_OK;
+
+	mode = !!(state > SYSBUSY_STATE0);
+
+	if (mode)
+		__devfreq_boost_kick_max(&d->devices[DEVFREQ_EXYNOS_MIF], sysbusy_params[state].release_duration);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block devfreq_boost_sysbusy_notifier = {
+	.notifier_call = devfreq_boost_sysbusy_notifier_call,
+};
+#endif
 
 static int __init devfreq_boost_init(void)
 {
@@ -267,6 +296,12 @@ static int __init devfreq_boost_init(void)
 		pr_err("Failed to register fb notifier, err: %d\n", ret);
 		goto stop_kthreads;
 	}
+
+#ifdef CONFIG_SCHED_EMS
+	ret = sysbusy_register_notifier(&devfreq_boost_sysbusy_notifier);
+	if (ret)
+		pr_warn("Failed to register sysbusy notifier, err: %d\n", ret);
+#endif
 
 	return 0;
 
