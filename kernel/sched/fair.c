@@ -8945,8 +8945,10 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	 * 3) running (obviously), or
 	 * 4) are cache-hot on their current CPU.
 	 */
+#ifdef CONFIG_SCHED_EMS
 	if (!ems_can_migrate_task(p, env->dst_cpu))
 		return 0;
+#endif
 
 	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
 		return 0;
