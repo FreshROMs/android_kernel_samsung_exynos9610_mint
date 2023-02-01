@@ -859,8 +859,7 @@ static int mfc_dec_get_buf_update_val(struct mfc_ctx *ctx,
 	return 0;
 }
 
-static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
-		struct list_head *head)
+static int mfc_dec_restore_buf_ctrls(struct mfc_ctx *ctx, struct list_head *head)
 {
 	struct mfc_buf_ctrl *buf_ctrl;
 
@@ -871,7 +870,8 @@ static int mfc_dec_recover_buf_ctrls_nal_q(struct mfc_ctx *ctx,
 
 		buf_ctrl->has_new = 1;
 		buf_ctrl->updated = 0;
-		mfc_debug(6, "[NALQ][CTRLS] Recover buffer control id: 0x%08x, val: %d\n",
+
+		mfc_debug(6, "[CTRLS] Restore buffer control id: 0x%08x, val: %d\n",
 				buf_ctrl->id, buf_ctrl->val);
 	}
 
@@ -892,5 +892,5 @@ struct mfc_ctrls_ops decoder_ctrls_ops = {
 	.get_buf_ctrls_val_nal_q_dec	= mfc_dec_get_buf_ctrls_val_nal_q,
 	.recover_buf_ctrls_val		= mfc_dec_recover_buf_ctrls_val,
 	.get_buf_update_val		= mfc_dec_get_buf_update_val,
-	.recover_buf_ctrls_nal_q	= mfc_dec_recover_buf_ctrls_nal_q,
+	.restore_buf_ctrls		= mfc_dec_restore_buf_ctrls,
 };

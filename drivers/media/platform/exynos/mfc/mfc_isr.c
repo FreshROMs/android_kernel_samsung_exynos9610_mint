@@ -665,6 +665,8 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 	struct mfc_dec *dec = ctx->dec_priv;
 	unsigned int dst_frame_status, sei_avail_frame_pack;
 	unsigned int res_change, need_dpb_change, need_scratch_change;
+	struct mfc_buf *mfc_buf;
+	int index;
 
 	dst_frame_status = mfc_get_disp_status();
 	res_change = mfc_get_res_change();
@@ -702,6 +704,13 @@ static void __mfc_handle_frame(struct mfc_ctx *ctx,
 		mfc_change_state(ctx, MFCINST_RES_CHANGE_INIT);
 		ctx->wait_state = WAIT_G_FMT | WAIT_STOP;
 		mfc_debug(2, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
+
+		mfc_buf = mfc_get_buf(&ctx->buf_queue_lock, &ctx->src_buf_queue,
+				MFC_BUF_NO_TOUCH_USED);
+		if (mfc_buf) {
+			index = mfc_buf->vb.vb2_buf.index;
+			call_cop(ctx, restore_buf_ctrls, ctx, &ctx->src_ctrls[index]);
+		}
 		return;
 	}
 

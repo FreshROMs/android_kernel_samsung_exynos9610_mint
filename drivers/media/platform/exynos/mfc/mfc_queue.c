@@ -941,7 +941,7 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 		src_mb = list_entry(ctx->src_buf_nal_queue.head.prev, struct mfc_buf, list);
 
 		index = src_mb->vb.vb2_buf.index;
-		call_cop(ctx, recover_buf_ctrls_nal_q, ctx, &ctx->src_ctrls[index]);
+		call_cop(ctx, restore_buf_ctrls, ctx, &ctx->src_ctrls[index]);
 
 		src_mb->used = 0;
 
