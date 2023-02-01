@@ -115,7 +115,6 @@ static struct sysbusy_param sysbusy_params[] = {
 
 struct rq;
 
-extern bool is_app(struct task_struct *p);
 extern inline bool is_per_cpu_kthread(struct task_struct *p);
 
 #ifdef CONFIG_SCHED_EMS

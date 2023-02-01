@@ -70,10 +70,6 @@ int ems_task_on_top(struct task_struct *p)
 	if (p->flags & PF_KTHREAD)
 		return 0;
 
-	/* Return if task is not an app */
-	if (!is_app(p))
-		return 0;
-
 	return schedtune_task_group_idx(p) == CGROUP_TOPAPP;
 }
 
