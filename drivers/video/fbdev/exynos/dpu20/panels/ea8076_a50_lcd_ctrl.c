@@ -356,6 +356,108 @@ static int low_level_set_brightness(struct lcd_info *lcd, int force)
 	return 0;
 }
 
+#if defined(CONFIG_EXYNOS_DOZE)
+static int ea8076_setalpm(struct lcd_info *lcd)
+{
+	int ret = 0;
+	union lpm_info lpm = {0, };
+
+	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
+		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
+
+	lpm.value = lcd->alpm.value;
+	lpm.state = (lpm.ver && lpm.mode) ? lpm_brightness_table[lcd->bd->props.brightness] : lpm_old_table[lpm.mode];
+
+	switch (lpm.state) {
+	case AOD_HLPM_02_NIT:
+		dsim_write_set(lcd, LCD_SEQ_HLPM_02_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_02_NIT));
+		break;
+	case AOD_HLPM_10_NIT:
+		dsim_write_set(lcd, LCD_SEQ_HLPM_10_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_10_NIT));
+		break;
+	case AOD_HLPM_30_NIT:
+		dsim_write_set(lcd, LCD_SEQ_HLPM_30_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_30_NIT));
+		break;
+	case AOD_HLPM_60_NIT:
+		dsim_write_set(lcd, LCD_SEQ_HLPM_60_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_60_NIT));
+		break;
+	}
+
+	dev_info(&lcd->ld->dev, "%s: %s\n", __func__, (lpm.state < AOD_HLPM_STATE_MAX) ? AOD_HLPM_STATE_NAME[lpm.state] : "unknown");
+
+	return ret;
+}
+
+static int ea8076_enteralpm(struct lcd_info *lcd)
+{
+	int ret = 0;
+	union lpm_info lpm = {0, };
+
+	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
+		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
+
+	mutex_lock(&lcd->lock);
+
+	if (lcd->state == PANEL_STATE_SUSPENED) {
+		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
+		goto exit;
+	}
+
+	lpm.value = lcd->alpm.value;
+	lpm.state = (lpm.ver && lpm.mode) ? lpm_brightness_table[lcd->bd->props.brightness] : lpm_old_table[lpm.mode];
+
+	if (lcd->current_alpm.value == lpm.value) {
+		dev_info(&lcd->ld->dev, "%s: lpm: %06x(%06x) skip same value\n", __func__,
+			lcd->current_alpm.value, lpm.value);
+		goto exit;
+	}
+
+	/* 2. Image Write for HLPM Mode */
+	/* 3. HLPM/ALPM On Setting */
+	ret = ea8076_setalpm(lcd);
+	if (ret < 0)
+		dev_info(&lcd->ld->dev, "%s: failed to set alpm\n", __func__);
+
+	/* 4. Wait 16.7ms */
+	msleep(20);
+
+	/* 5. Display On(29h) */
+	/* DSI_WRITE(SEQ_DISPLAY_ON, ARRAY_SIZE(SEQ_DISPLAY_ON)); */
+
+	lcd->current_alpm.value = lpm.value;
+exit:
+	mutex_unlock(&lcd->lock);
+	return ret;
+}
+
+static int ea8076_exitalpm(struct lcd_info *lcd)
+{
+	int ret = 0;
+
+	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
+		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
+
+	mutex_lock(&lcd->lock);
+
+	if (lcd->state == PANEL_STATE_SUSPENED) {
+		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
+		goto exit;
+	}
+
+	/* 5. HLPM/ALPM Off Setting */
+	dsim_write_set(lcd, LCD_SEQ_HLPM_OFF, ARRAY_SIZE(LCD_SEQ_HLPM_OFF));
+
+	dev_info(&lcd->ld->dev, "%s: HLPM_OFF\n", __func__);
+
+	msleep(34);
+
+	lcd->current_alpm.value = 0;
+exit:
+	mutex_unlock(&lcd->lock);
+	return ret;
+}
+#endif
+
 static int dsim_panel_set_brightness(struct lcd_info *lcd, int force)
 {
 #if defined(CONFIG_SUPPORT_MASK_LAYER)
@@ -366,7 +468,10 @@ static int dsim_panel_set_brightness(struct lcd_info *lcd, int force)
 	mutex_lock(&lcd->lock);
 
 #if defined(CONFIG_EXYNOS_DOZE)
-	if (lcd->current_alpm.state) {
+	if (lcd->current_alpm.state && lcd->current_alpm.ver && lcd->dsim->state == DSIM_STATE_DOZE && !force) {
+		ea8076_setalpm(lcd);
+		goto exit;
+	} else if (lcd->current_alpm.state) {
 		dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
 			lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
 		goto exit;
@@ -971,101 +1076,6 @@ static int ea8076_probe(struct lcd_info *lcd)
 
 	return 0;
 }
-
-#if defined(CONFIG_EXYNOS_DOZE)
-static int ea8076_setalpm(struct lcd_info *lcd, int mode)
-{
-	int ret = 0;
-
-	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
-		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
-
-	switch (mode) {
-	case AOD_HLPM_02_NIT:
-		dsim_write_set(lcd, LCD_SEQ_HLPM_02_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_02_NIT));
-		break;
-	case AOD_HLPM_10_NIT:
-		dsim_write_set(lcd, LCD_SEQ_HLPM_10_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_10_NIT));
-		break;
-	case AOD_HLPM_30_NIT:
-		dsim_write_set(lcd, LCD_SEQ_HLPM_30_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_30_NIT));
-		break;
-	case AOD_HLPM_60_NIT:
-		dsim_write_set(lcd, LCD_SEQ_HLPM_60_NIT, ARRAY_SIZE(LCD_SEQ_HLPM_60_NIT));
-		break;
-	}
-
-	dev_info(&lcd->ld->dev, "%s: %s\n", __func__, (mode < AOD_HLPM_STATE_MAX) ? AOD_HLPM_STATE_NAME[mode] : "unknown");
-
-	return ret;
-}
-
-static int ea8076_enteralpm(struct lcd_info *lcd)
-{
-	int ret = 0;
-	union lpm_info lpm = {0, };
-
-	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
-		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
-
-	mutex_lock(&lcd->lock);
-
-	if (lcd->state == PANEL_STATE_SUSPENED) {
-		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
-		goto exit;
-	}
-
-	lpm.value = lcd->alpm.value;
-	lpm.state = (lpm.ver && lpm.mode) ? lpm_brightness_table[lcd->bd->props.brightness] : lpm_old_table[lpm.mode];
-
-	if (lcd->current_alpm.value == lpm.value)
-		goto exit;
-
-	/* 2. Image Write for HLPM Mode */
-	/* 3. HLPM/ALPM On Setting */
-	ret = ea8076_setalpm(lcd, lpm.state);
-	if (ret < 0)
-		dev_info(&lcd->ld->dev, "%s: failed to set alpm\n", __func__);
-
-	/* 4. Wait 16.7ms */
-	msleep(20);
-
-	/* 5. Display On(29h) */
-	/* DSI_WRITE(SEQ_DISPLAY_ON, ARRAY_SIZE(SEQ_DISPLAY_ON)); */
-
-	lcd->current_alpm.value = lpm.value;
-exit:
-	mutex_unlock(&lcd->lock);
-	return ret;
-}
-
-static int ea8076_exitalpm(struct lcd_info *lcd)
-{
-	int ret = 0;
-
-	dev_info(&lcd->ld->dev, "%s: brightness: %3d, lpm: %06x(%06x)\n", __func__,
-		lcd->bd->props.brightness, lcd->current_alpm.value, lcd->alpm.value);
-
-	mutex_lock(&lcd->lock);
-
-	if (lcd->state == PANEL_STATE_SUSPENED) {
-		dev_info(&lcd->ld->dev, "%s: panel state is %d\n", __func__, lcd->state);
-		goto exit;
-	}
-
-	/* 5. HLPM/ALPM Off Setting */
-	dsim_write_set(lcd, LCD_SEQ_HLPM_OFF, ARRAY_SIZE(LCD_SEQ_HLPM_OFF));
-
-	dev_info(&lcd->ld->dev, "%s: HLPM_OFF\n", __func__);
-
-	msleep(34);
-
-	lcd->current_alpm.value = 0;
-exit:
-	mutex_unlock(&lcd->lock);
-	return ret;
-}
-#endif
 
 static ssize_t lcd_type_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
