@@ -3327,7 +3327,7 @@ static int sc_m2m1shot_prepare_format(struct m2m1shot_context *m21ctx,
 	}
 
 	if (ctx->sc_dev->variant->extra_buf && dir == DMA_TO_DEVICE) {
-		ext_size = sc_ext_buf_size(fmt->width);
+		ext_size = sc_ext_buf_size(fmt->crop.width);
 
 		for (i = 0; i < frame->sc_fmt->num_planes; i++) {
 			bytes_used[i] += (i == 0) ? ext_size : ext_size/2;
