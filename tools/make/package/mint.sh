@@ -90,11 +90,14 @@ if [ ! -z $oneui ]; then
 			ui_print "  - One UI 4 detected! RAM Plus is already enabled!"
   		fi
 	else
+  		sdk_ver=$(file_getprop /system_root/system/build.prop ro.build.version.sdk);
 		ui_print "  - FreshROMs detected! RAM Plus is already enabled!"
 
 		if [ "${fresh4}" == "1" ]; then
-			cp -rf $AK_FOLDER/files_fresh/system/etc/init/init.fresh.perf.rc /system/etc/init/init.fresh.perf.rc
-			chmod 644 /system_root/system/etc/init/init.fresh.perf.rc
+			if [ "${sdk_ver}" == "31" ]; then
+				cp -rf $AK_FOLDER/files_fresh/system/etc/init/init.fresh.perf.rc /system/etc/init/init.fresh.perf.rc
+				chmod 644 /system_root/system/etc/init/init.fresh.perf.rc
+			fi
 		fi
 	fi
 else
