@@ -637,6 +637,10 @@ extern u64 ems_global_task_boost_stune_hook_read(struct cgroup_subsys_state *css
 			     struct cftype *cft);
 extern int ems_global_task_boost_stune_hook_write(struct cgroup_subsys_state *css,
 		             struct cftype *cft, u64 enabled);
+extern s64 ems_gpu_boost_freq_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_gpu_boost_freq_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, s64 freq);
 #endif
 
 static struct cftype files[] = {
@@ -685,6 +689,12 @@ static struct cftype files[] = {
 		.name = "global_boost_enabled",
 		.read_u64 = ems_global_task_boost_stune_hook_read,
 		.write_u64 = ems_global_task_boost_stune_hook_write,
+	},
+	{
+		.name = "gpu_boost_freq",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_s64 = ems_gpu_boost_freq_stune_hook_read,
+		.write_s64 = ems_gpu_boost_freq_stune_hook_write,
 	},
 	{
 		.name = "ntu_ratio",

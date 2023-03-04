@@ -11,3 +11,4 @@ ems-y += sysbusy.o
 ems-y += profile.o
 ems-$(CONFIG_CPU_FREQ_GOV_ENERGY_ADAPTIVE) += aigo.o
 ems-y += taskboost.o
+ems-y += gpuboost.o

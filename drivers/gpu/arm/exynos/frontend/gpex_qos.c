@@ -167,7 +167,7 @@ int gpex_qos_init()
 		gpexbe_devicetree_get_int(gpu_heavy_compute_vk_cpu0_min_clock);
 
 	/* Request to set QOS of other IPs */
-	gpexbe_qos_request_add(PMQOS_MIF | PMQOS_LITTLE | PMQOS_MIDDLE | PMQOS_BIG | PMQOS_MIN |
+	gpexbe_qos_request_add(PMQOS_MIF | PMQOS_LITTLE | PMQOS_MIDDLE | PMQOS_BIG | PMQOS_EMS | PMQOS_MIN |
 			       PMQOS_MAX);
 
 	qos_info.is_pm_qos_init = true;
@@ -181,7 +181,7 @@ int gpex_qos_init()
 
 void gpex_qos_term()
 {
-	gpexbe_qos_request_remove(PMQOS_MIF | PMQOS_LITTLE | PMQOS_MIDDLE | PMQOS_BIG | PMQOS_MIN |
+	gpexbe_qos_request_remove(PMQOS_MIF | PMQOS_LITTLE | PMQOS_MIDDLE | PMQOS_BIG | PMQOS_EMS | PMQOS_MIN |
 				  PMQOS_MAX);
 	kfree(qos_table);
 	kfree(clqos_table);
@@ -256,6 +256,9 @@ int gpex_qos_set_from_clock(int gpu_clock)
 		gpex_qos_set(QOS_MIF | QOS_MIN, clqos_table[idx].mif_min);
 		gpex_qos_set(QOS_LITTLE | QOS_MIN, clqos_table[idx].little_min);
 		gpex_qos_set(QOS_MIDDLE | QOS_MIN, clqos_table[idx].middle_min);
+#if defined(CONFIG_SCHED_EMS)
+		gpex_qos_set(QOS_EMS | QOS_MIN, clqos_table[idx].gpu_clock);
+#endif
 		gpex_qos_set(QOS_BIG | QOS_MAX, INT_MAX);
 		/* TODO: revamp the qos interface so default max min can be set without knowing the clock */
 		//gpex_qos_set(QOS_BIG | QOS_MAX, BIG_MAX);
@@ -264,6 +267,9 @@ int gpex_qos_set_from_clock(int gpu_clock)
 			gpex_qos_set(QOS_MIF | QOS_MIN, 0);
 			gpex_qos_set(QOS_LITTLE | QOS_MIN, 0);
 			gpex_qos_set(QOS_MIDDLE | QOS_MIN, 0);
+#if defined(CONFIG_SCHED_EMS)
+			gpex_qos_set(QOS_EMS | QOS_MIN, 0);
+#endif
 			gpex_qos_set(QOS_BIG | QOS_MAX, INT_MAX);
 		} else {
 			gpex_qos_set(QOS_MIF | QOS_MIN, qos_table[idx].mem_freq);
@@ -282,6 +288,9 @@ int gpex_qos_set_from_clock(int gpu_clock)
 			}
 
 			gpex_qos_set(QOS_MIDDLE | QOS_MIN, qos_table[idx].cpu_middle_min_freq);
+#if defined(CONFIG_SCHED_EMS)
+			gpex_qos_set(QOS_EMS | QOS_MIN, qos_table[idx].gpu_clock);
+#endif
 			gpex_qos_set(QOS_BIG | QOS_MAX, qos_table[idx].cpu_big_max_freq);
 		}
 

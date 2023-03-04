@@ -23,6 +23,10 @@
 #include <gpexbe_qos.h>
 #include "gpexbe_qos_internal.h"
 
+#if defined(CONFIG_SCHED_EMS)
+#include <linux/ems.h>
+#endif
+
 static struct pm_qos_request exynos5_g3d_mif_min_qos;
 static struct pm_qos_request exynos5_g3d_cpu_cluster0_min_qos;
 static struct pm_qos_request exynos5_g3d_cpu_cluster1_min_qos;
@@ -37,6 +41,11 @@ void gpexbe_qos_request_add(mali_pmqos_flags type)
 
 	if (pmqos_flag_check(type, PMQOS_MIDDLE | PMQOS_MIN))
 		pm_qos_add_request(&exynos5_g3d_cpu_cluster1_min_qos, PM_QOS_CLUSTER1_FREQ_MIN, 0);
+
+#if defined(CONFIG_SCHED_EMS)
+	if (pmqos_flag_check(type, PMQOS_EMS | PMQOS_MIN))
+		ems_gpu_boost_update(0);
+#endif
 }
 
 void gpexbe_qos_request_remove(mali_pmqos_flags type)
@@ -49,6 +58,11 @@ void gpexbe_qos_request_remove(mali_pmqos_flags type)
 
 	if (pmqos_flag_check(type, PMQOS_MIDDLE | PMQOS_MIN))
 		pm_qos_remove_request(&exynos5_g3d_cpu_cluster1_min_qos);
+
+#if defined(CONFIG_SCHED_EMS)
+	if (pmqos_flag_check(type, PMQOS_EMS | PMQOS_MIN))
+		ems_gpu_boost_update(0);
+#endif
 }
 
 void gpexbe_qos_request_update(mali_pmqos_flags type, s32 clock)
@@ -61,6 +75,11 @@ void gpexbe_qos_request_update(mali_pmqos_flags type, s32 clock)
 
 	if (pmqos_flag_check(type, PMQOS_MIDDLE | PMQOS_MIN))
 		pm_qos_update_request(&exynos5_g3d_cpu_cluster1_min_qos, clock);
+
+#if defined(CONFIG_SCHED_EMS)
+	if (pmqos_flag_check(type, PMQOS_EMS | PMQOS_MIN))
+		ems_gpu_boost_update(clock);
+#endif
 }
 
 void gpexbe_qos_request_unset(mali_pmqos_flags type)
@@ -73,4 +92,9 @@ void gpexbe_qos_request_unset(mali_pmqos_flags type)
 
 	if (pmqos_flag_check(type, PMQOS_MIDDLE | PMQOS_MIN))
 		pm_qos_update_request(&exynos5_g3d_cpu_cluster1_min_qos, 0);
+
+#if defined(CONFIG_SCHED_EMS)
+	if (pmqos_flag_check(type, PMQOS_EMS | PMQOS_MIN))
+		ems_gpu_boost_update(0);
+#endif
 }

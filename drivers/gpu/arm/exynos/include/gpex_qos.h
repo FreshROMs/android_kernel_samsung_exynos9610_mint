@@ -31,6 +31,7 @@
  * @QOS_MIDDLE : affect middle cpu cluster
  * @QOS_BIG : affect big cpu cluster
  * @QOS_MIF : affect mif
+ * @QOS_EMS : affect ems global boost
  *
  * These flags are used to set which IP to affect and how to affect the said IP for QOS requests.
  */
@@ -40,7 +41,8 @@ typedef enum {
 	QOS_LITTLE = 1 << 2,
 	QOS_MIDDLE = 1 << 3,
 	QOS_BIG = 1 << 4,
-	QOS_MIF = 1 << 5,
+    QOS_MIF = 1 << 5,
+	QOS_EMS = 1 << 6,
 } gpex_qos_flag;
 
 /**

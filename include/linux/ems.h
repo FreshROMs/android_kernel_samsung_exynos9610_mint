@@ -159,6 +159,7 @@ extern int ems_task_boost(void);
 extern int ems_boot_boost(void);
 extern int ems_global_boost(void);
 extern void gb_qos_update_request(struct gb_qos_request *req, u32 new_value);
+extern void ems_gpu_boost_update(s32 gpu_cur_freq);
 
 extern const struct cpumask *cpu_slowest_mask(void);
 extern const struct cpumask *cpu_fastest_mask(void);
