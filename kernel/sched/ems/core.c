@@ -308,10 +308,10 @@ int sched_policy_get(struct task_struct *p)
 	 * 
 	 * Adapt to current schedtune setting for tasks with
 	 * a. 'on-top' status - SCHED_POLICY_PERF
-	 * b. global boost on boot - SCHED_POLICY_PERF
-	 * c. task boost - SCHED_POLICY_SEMI_PERF
+	 * b. global boost on init - SCHED_POLICY_PERF
+	 * c. task boost - SCHED_POLICY_PERF
+	 * b. global boost on boot - SCHED_POLICY_SEMI_PERF
 	 * d. 'prefer-perf' status - SCHED_POLICY_SEMI_PERF
-	 * e. global boosted scenario - SCHED_POLICY_SEMI_PERF
 	 *
 	 */
 	if (ems_task_on_top(p) || ems_boot_boost() == EMS_INIT_BOOST)
@@ -320,10 +320,16 @@ int sched_policy_get(struct task_struct *p)
 	if (p->pid && ems_task_boost() == p->pid)
 		return SCHED_POLICY_PERF;
 
+	if (policy == SCHED_POLICY_PERF)
+		return SCHED_POLICY_PERF;
+
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
 		return SCHED_POLICY_SEMI_PERF;
 
 	if (kpp_status(cgroup_idx))
+		return SCHED_POLICY_SEMI_PERF;
+
+	if (policy == SCHED_POLICY_SEMI_PERF)
 		return SCHED_POLICY_SEMI_PERF;
 
 	/*
