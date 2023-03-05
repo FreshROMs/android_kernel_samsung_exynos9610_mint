@@ -633,6 +633,10 @@ extern u64 ems_ntu_ratio_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_ntu_ratio_stune_hook_write(struct cgroup_subsys_state *css,
 		             struct cftype *cft, u64 ratio);
+extern u64 ems_global_task_boost_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_global_task_boost_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled);
 #endif
 
 static struct cftype files[] = {
@@ -676,6 +680,11 @@ static struct cftype files[] = {
 		.name = "ontime_enabled",
 		.read_u64 = ems_ontime_enabled_stune_hook_read,
 		.write_u64 = ems_ontime_enabled_stune_hook_write,
+	},
+	{
+		.name = "global_boost_enabled",
+		.read_u64 = ems_global_task_boost_stune_hook_read,
+		.write_u64 = ems_global_task_boost_stune_hook_write,
 	},
 	{
 		.name = "ntu_ratio",
@@ -747,6 +756,7 @@ struct stune_param {
 	u64 ems_ontime_enabled;
 	u64 ems_ntu_ratio;
 	u64 ems_tex_enabled;
+	u64 ems_global_task_boost;
 };
 
 static void
@@ -754,23 +764,23 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 {
 	int i;
 	static struct stune_param tgts[] = {
-		/* cgroup            l-b h-b b-b e-p e-o  e-n e-t */
-		{"top-app",	           1,  3,  5,  0,  1,  25,  1 },
-		{"foreground",	       0,  1,  3,  0,  1,  25,  0 },
-		{"background",	       0,  0,  1,  1,  0,   5,  0 },
-		{"rt",		           3,  5,  7,  2,  0,   5,  0 },
-		{"camera-daemon",	   3,  7,  7,  3,  0,  25,  0 },
-		{"nnapi-hal",	       3,  5,  7,  3,  0,  25,  0 },
-		{"hot",	               0,  0,  0,  0,  0,   5,  0 },
+		/* cgroup            l-b h-b b-b e-p e-o  e-n e-t e-g */
+		{"top-app",	           1,  3,  5,  0,  1,  25,  1,  1 },
+		{"foreground",	       0,  1,  3,  0,  1,  25,  0,  0 },
+		{"background",	       0,  0,  1,  1,  0,   5,  0,  0 },
+		{"rt",		           3,  5,  7,  2,  0,   5,  0,  0 },
+		{"camera-daemon",	   3,  7,  7,  3,  0,  25,  0,  0 },
+		{"nnapi-hal",	       3,  5,  7,  3,  0,  25,  0,  0 },
+		{"hot",	               0,  0,  0,  0,  0,   5,  0,  0 },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(tgts); i++) {
 		struct stune_param tgt = tgts[i];
 
 		if (!strcmp(css->cgroup->kn->name, tgt.name)) {
-			pr_info("stune_assist: setting values for %s: boost=%d heavy_boost=%d busy_boost=%d ems_sched_policy=%d ems_ontime_enabled=%d ems_ntu_ratio=%d ems_tex_enabled=%d\n",
+			pr_info("stune_assist: setting values for %s: boost=%d heavy_boost=%d busy_boost=%d ems_sched_policy=%d ems_ontime_enabled=%d ems_ntu_ratio=%d ems_tex_enabled=%d ems_global_task_boost=%d\n",
 				tgt.name, tgt.boost, tgt.ems_heavy_boost, tgt.ems_busy_boost, tgt.ems_sched_policy, tgt.ems_ontime_enabled,
-				tgt.ems_ntu_ratio, tgt.ems_tex_enabled);
+				tgt.ems_ntu_ratio, tgt.ems_tex_enabled, tgt.ems_global_task_boost);
 
 			boost_write(css, NULL, tgt.boost);
 			heavy_boost_write(css, NULL, tgt.ems_heavy_boost);
@@ -780,6 +790,7 @@ schedtune_set_default_values(struct cgroup_subsys_state *css)
 			ems_ontime_enabled_stune_hook_write(css, NULL, tgt.ems_ontime_enabled);
 			ems_ntu_ratio_stune_hook_write(css, NULL, tgt.ems_ntu_ratio);
 			ems_tex_enabled_stune_hook_write(css, NULL, tgt.ems_tex_enabled);
+			ems_global_task_boost_stune_hook_write(css, NULL, tgt.ems_global_task_boost);
 		}
 	}
 }

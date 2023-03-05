@@ -82,7 +82,7 @@ int ems_task_boosted(struct task_struct *p)
 		return 1;
 
 	cgroup_idx = schedtune_task_group_idx(p);
-	return max(kpp_status(cgroup_idx), ems_global_boost());
+	return max(kpp_status(cgroup_idx), ems_global_task_boost(cgroup_idx));
 }
 
 /******************************************************************************

@@ -682,6 +682,17 @@ int find_semi_perf_cpu(struct tp_env *env)
 	return cpu_selected(best_idle_cpu) ? best_idle_cpu : max_spare_cap_cpu_ls;
 }
 
+static
+int find_task_boost_cpu(struct tp_env *env)
+{
+	int target_cpu = -1;
+
+	if (is_heavy_task_util(env->task_util))
+		target_cpu = find_best_perf_cpu(env);
+
+	return target_cpu;
+}
+
 /******************************************************************************
  * best cpu selection                                                         *
  ******************************************************************************/
@@ -697,6 +708,15 @@ int find_best_cpu(struct tp_env *env)
 		best_cpu = sysbusy_schedule(env);
 		if (cpu_selected(best_cpu)) {
 			strcpy(state, "sysbusy");
+			goto out;
+		}
+	}
+
+	/* When task is global boosted, do fast scheduling */
+	if (env->boosted) {
+		best_cpu = find_task_boost_cpu(env);
+		if (cpu_selected(best_cpu)) {
+			strcpy(state, "global boosting");
 			goto out;
 		}
 	}

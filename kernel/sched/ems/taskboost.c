@@ -9,9 +9,11 @@
 #include <linux/kobject.h>
 #include <linux/ems.h>
 
-#include <trace/events/ems.h>
-
 #include "ems.h"
+#include "../sched.h"
+#include "../tune.h"
+
+#include <trace/events/ems.h>
 
 /*
  * Global boost manages each boosting request as a list so that it can support
@@ -117,6 +119,40 @@ static ssize_t store_task_boost(struct kobject *kobj,
 	return count;
 }
 
+/******************************************************************************
+ * global task boost                                                          *
+ ******************************************************************************/
+static int global_task_boost[CGROUP_COUNT] = {0, };
+
+u64 ems_global_task_boost_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx = st->idx;
+
+	if (group_idx >= CGROUP_COUNT)
+		return (u64) global_task_boost[CGROUP_ROOT];
+
+	return (u64) global_task_boost[group_idx];
+}
+
+int ems_global_task_boost_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 enabled) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		global_task_boost[CGROUP_ROOT] = enabled;
+		return 0;
+	}
+
+	global_task_boost[group_idx] = enabled;
+	return 0;
+}
+
 static struct kobj_attribute global_boost_attr =
 __ATTR(global_boost, 0644, show_global_boost, store_global_boost);
 static struct kobj_attribute task_boost_attr =
@@ -161,6 +197,18 @@ int ems_boot_boost(void)
 int ems_global_boost(void)
 {
 	return gb_qos_value() > 0;
+}
+
+int ems_global_task_boost(int cgroup_idx)
+{
+	if (!ems_global_boost())
+		return 0;
+
+	/* enable for all groups if enabled on root */
+	if (global_task_boost[CGROUP_ROOT])
+		return 1;
+
+	return global_task_boost[cgroup_idx];
 }
 
 int ems_task_boost(void)

@@ -150,6 +150,7 @@ extern void tex_dequeue_task(struct task_struct *p, int cpu);
 extern int ems_task_boost(void);
 extern int ems_boot_boost(void);
 extern int ems_global_boost(void);
+extern int ems_global_task_boost(int cgroup_idx);
 
 /* profile */
 struct system_profile_data {
