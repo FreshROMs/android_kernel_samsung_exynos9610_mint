@@ -72,6 +72,8 @@ extern inline int is_heavy_task_util(unsigned long util);
 extern int ems_task_on_top(struct task_struct *p);
 static int frt_task_boosted(struct task_struct *p)
 {
+	unsigned long task_util;
+
 	/* ems task boost */
 	if (p->pid && ems_task_boost() == p->pid)
 		return 1;
@@ -80,9 +82,22 @@ static int frt_task_boosted(struct task_struct *p)
 	if (ems_task_on_top(p))
 		return 1;
 
+	task_util = frt_task_util(p);
+
 	/* heavy task */
-	if (is_heavy_task_util(frt_task_util(p)))
+	if (is_heavy_task_util(task_util))
 		return 1;
+
+	/*
+	 * Change target tasks' policy for power optimization, if
+	 * 1) target task's utilization is under 1.56% of SCHED_CAPACITY_SCALE.
+	 * 2) tasks is worker thread.
+	 */
+	if (p->flags & PF_WQ_WORKER)
+		return 0;
+
+	if (task_util <= SCHED_CAPACITY_SCALE >> 6)
+		return 0;
 
 	return ems_task_boosted(p);
 }
