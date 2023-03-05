@@ -81,6 +81,10 @@ int ems_task_boosted(struct task_struct *p)
 	if (uclamp_boosted(p))
 		return 1;
 
+	/* ems task boost */
+	if (p->pid && ems_task_boost() == p->pid)
+		return 1;
+
 	cgroup_idx = schedtune_task_group_idx(p);
 	return max(kpp_status(cgroup_idx), ems_global_task_boost(cgroup_idx));
 }
