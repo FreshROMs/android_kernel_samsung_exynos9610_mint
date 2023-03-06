@@ -641,6 +641,18 @@ extern s64 ems_gpu_boost_freq_stune_hook_read(struct cgroup_subsys_state *css,
 			     struct cftype *cft);
 extern int ems_gpu_boost_freq_stune_hook_write(struct cgroup_subsys_state *css,
 		             struct cftype *cft, s64 freq);
+extern int ems_prefer_cpus_stune_hook_read(struct seq_file *sf, void *v);
+extern ssize_t ems_prefer_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off);
+extern u64 ems_small_task_threshold_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_small_task_threshold_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 threshold);
+extern int ems_small_task_cpus_stune_hook_read(struct seq_file *sf, void *v);
+extern ssize_t ems_small_task_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off);
 #endif
 
 static struct cftype files[] = {
@@ -729,6 +741,23 @@ static struct cftype files[] = {
 		.flags = CFTYPE_ONLY_ON_ROOT,
 		.read_u64 = ems_qjump_stune_hook_read,
 		.write_u64 = ems_qjump_stune_hook_write,
+	},
+	{
+		.name = "prefer_cpus",
+		.seq_show = ems_prefer_cpus_stune_hook_read,
+		.write = ems_prefer_cpus_stune_hook_write,
+	},
+	{
+		.name = "small_task_cpus",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.seq_show = ems_small_task_cpus_stune_hook_read,
+		.write = ems_small_task_cpus_stune_hook_write,
+	},
+	{
+		.name = "small_task_threshold",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_u64 = ems_small_task_threshold_stune_hook_read,
+		.write_u64 = ems_small_task_threshold_stune_hook_write,
 	},
 #endif
 	{ }	/* terminate */

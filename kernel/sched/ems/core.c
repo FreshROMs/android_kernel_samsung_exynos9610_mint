@@ -330,9 +330,6 @@ int sched_policy_get(struct task_struct *p)
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
 		return SCHED_POLICY_SEMI_PERF;
 
-	if (kpp_status(cgroup_idx))
-		return SCHED_POLICY_SEMI_PERF;
-
 	if (policy == SCHED_POLICY_SEMI_PERF)
 		return SCHED_POLICY_SEMI_PERF;
 
@@ -382,6 +379,135 @@ int ems_sched_policy_stune_hook_write(struct cgroup_subsys_state *css,
 	}
 
 	sched_policy[group_idx] = policy;
+	return 0;
+}
+
+/******************************************************************************
+ * prefer cpu                                                                 *
+ ******************************************************************************/
+static struct {
+	struct cpumask mask[CGROUP_COUNT];
+	struct {
+		unsigned long threshold;
+		struct cpumask mask;
+	} small_task;
+} prefer_cpu;
+
+static void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
+{
+	cpumask_clear(mask);
+	cpumask_copy(mask, cpu_active_mask);
+
+	if (env->boosted) {
+		if (env->task_util < prefer_cpu.small_task.threshold) {
+			cpumask_and(mask, mask, &prefer_cpu.small_task.mask);
+			return;
+		}
+
+		cpumask_and(mask, mask, &prefer_cpu.mask[env->cgroup_idx]);
+	}
+}
+
+int ems_prefer_cpus_stune_hook_read(struct seq_file *sf, void *v)
+{
+	struct cgroup_subsys_state *css = seq_css(sf);
+	struct schedtune *st = css_st(css);
+	int group_idx = st->idx;
+
+	if (group_idx < CGROUP_COUNT) {
+		seq_printf(sf, "%*pbl\n", cpumask_pr_args(&prefer_cpu.mask[group_idx]));
+	} else {
+		seq_printf(sf, "%*pbl\n", cpumask_pr_args(&prefer_cpu.mask[CGROUP_ROOT]));
+	}
+
+	return 0;
+}
+
+ssize_t ems_prefer_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off)
+{
+	struct schedtune *st = css_st(of_css(of));
+	char str[STR_LEN];
+	int group_idx;
+
+	if (strlen(buf) >= STR_LEN)
+		return -EINVAL;
+
+	if (!sscanf(buf, "%s", str))
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		cpulist_parse(buf, &prefer_cpu.mask[CGROUP_ROOT]);
+		return nbytes;
+	}
+
+	cpulist_parse(buf, &prefer_cpu.mask[group_idx]);
+
+	return nbytes;
+}
+
+u64 ems_small_task_threshold_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	return (u64) prefer_cpu.small_task.threshold;
+}
+
+int ems_small_task_threshold_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 threshold) {
+	if (threshold < 0 || threshold >= 2147483647)
+		return -EINVAL;
+
+	prefer_cpu.small_task.threshold = threshold;
+	return 0;
+}
+
+int ems_small_task_cpus_stune_hook_read(struct seq_file *sf, void *v)
+{
+	seq_printf(sf, "%*pbl\n", cpumask_pr_args(&prefer_cpu.small_task.mask));
+	return 0;
+}
+
+ssize_t ems_small_task_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off)
+{
+	char str[STR_LEN];
+
+	if (strlen(buf) >= STR_LEN)
+		return -EINVAL;
+
+	if (!sscanf(buf, "%s", str))
+		return -EINVAL;
+
+	cpulist_parse(buf, &prefer_cpu.small_task.mask);
+
+	return nbytes;
+}
+
+static
+int __init prefer_cpu_init(void)
+{
+	int i;
+
+	cpumask_clear(&prefer_cpu.small_task.mask);
+	
+	for (i = 0; i < CGROUP_COUNT; i++) {
+		cpumask_clear(&prefer_cpu.mask[i]);
+
+		switch (i) {
+		case CGROUP_TOPAPP:
+			cpumask_copy(&prefer_cpu.mask[i], cpu_perf_mask);
+			break;
+		default:
+			cpumask_copy(&prefer_cpu.mask[i], cpu_possible_mask);
+			break;
+		}
+	}
+
+	prefer_cpu.small_task.threshold = 50;
+	cpumask_copy(&prefer_cpu.small_task.mask, cpu_lp_mask);
+
 	return 0;
 }
 
@@ -692,17 +818,6 @@ int find_semi_perf_cpu(struct tp_env *env)
 	return cpu_selected(best_idle_cpu) ? best_idle_cpu : max_spare_cap_cpu_ls;
 }
 
-static
-int find_task_boost_cpu(struct tp_env *env)
-{
-	int target_cpu = -1;
-
-	if (is_heavy_task_util(env->task_util))
-		target_cpu = find_best_perf_cpu(env);
-
-	return target_cpu;
-}
-
 /******************************************************************************
  * best cpu selection                                                         *
  ******************************************************************************/
@@ -718,15 +833,6 @@ int find_best_cpu(struct tp_env *env)
 		best_cpu = sysbusy_schedule(env);
 		if (cpu_selected(best_cpu)) {
 			strcpy(state, "sysbusy");
-			goto out;
-		}
-	}
-
-	/* When task is global boosted, do fast scheduling */
-	if (env->boosted) {
-		best_cpu = find_task_boost_cpu(env);
-		if (cpu_selected(best_cpu)) {
-			strcpy(state, "global boosting");
 			goto out;
 		}
 	}
@@ -1229,6 +1335,7 @@ out:
 int __init core_init()
 {
 	tex_init();
+	prefer_cpu_init();
 
 	return 0;
 }
