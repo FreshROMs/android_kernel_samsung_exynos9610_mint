@@ -307,13 +307,17 @@ int sched_policy_get(struct task_struct *p)
 	 * Mint additions - scheduling policy changes
 	 * 
 	 * Adapt to current schedtune setting for tasks with
-	 * a. 'on-top' status - SCHED_POLICY_PERF
-	 * b. global boost on init - SCHED_POLICY_PERF
-	 * c. task boost - SCHED_POLICY_PERF
-	 * b. global boost on boot - SCHED_POLICY_SEMI_PERF
-	 * d. 'prefer-perf' status - SCHED_POLICY_SEMI_PERF
+	 * a. device freezing status - SCHED_POLICY_ENERGY
+	 * b. 'on-top' status - SCHED_POLICY_PERF
+	 * c. global boost on init - SCHED_POLICY_PERF
+	 * d. task boost - SCHED_POLICY_PERF
+	 * e. global boost on boot - SCHED_POLICY_SEMI_PERF
+	 * f. 'prefer-perf' status - SCHED_POLICY_SEMI_PERF
 	 *
 	 */
+	if (pm_freezing)
+		return SCHED_POLICY_ENERGY;
+
 	if (ems_task_on_top(p) || ems_boot_boost() == EMS_INIT_BOOST)
 		return SCHED_POLICY_PERF;
 

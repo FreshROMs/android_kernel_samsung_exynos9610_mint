@@ -63,6 +63,10 @@ inline bool is_busy_cpu(int cpu)
 #define SYSTEMUI_THREAD_NAME "ndroid.systemui"
 int ems_task_on_top(struct task_struct *p)
 {
+	/* No tasks are on top while device is sleeping */
+	if (pm_freezing)
+		return 0;
+
 	if (p->signal->oom_score_adj != 0 && strncmp(p->comm, SYSTEMUI_THREAD_NAME, 15))
 		return 0;
 
