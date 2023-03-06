@@ -400,48 +400,6 @@
 				somac-ready-run = <1>;
 				somac-ready-cpus = "0-3";
 			};
-
-			prefer-cpu {
-				/* foreground */
-				prefer-cpu0 {
-					cgroup = <1>;
-
-					prefer-cpus = "0-7";
-
-					light-task-threshold = <37>;
-					light-prefer-cpus = "0-5";
-
-					heavy-task-threshold = <351>;
-					heavy-prefer-cpus = "4-7";
-				};
-
-				/* background */
-				prefer-cpu1 {
-					cgroup = <2>;
-
-					prefer-cpus = "0-7";
-
-					light-task-threshold = <92>;
-					light-prefer-cpus = "0-3";
-
-					heavy-task-threshold = <369>;
-					heavy-prefer-cpus = "4-7";
-				};
-
-				/* top-app */
-				prefer-cpu2 {
-					cgroup = <3>;
-
-					prefer-cpus = "4-7";
-
-					light-task-threshold = <0>;
-					light-prefer-cpus = "0-7";
-
-					heavy-task-threshold = <277>;
-					heavy-prefer-cpus = "4-7";
-				};
-
-			};
 		};
 	};
 
