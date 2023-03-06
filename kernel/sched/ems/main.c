@@ -155,7 +155,7 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	int src_cpu = task_cpu(p);
 
 	/* avoid migration if cpu is underutilized */
-	if (cpu_active(src_cpu) && !cpu_overutilized(src_cpu))
+	if (et_cpu_slowest(src_cpu) && cpu_active(src_cpu) && !cpu_overutilized(src_cpu))
 		return 0;
 
 	/* avoid migration if ontime does not allow */
