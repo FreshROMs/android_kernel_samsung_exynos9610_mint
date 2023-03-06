@@ -132,9 +132,6 @@ extern int ontime_can_migrate_task(struct task_struct *p, int cpu);
 extern void ontime_select_fit_cpus(struct task_struct *p, struct cpumask *fit_cpus);
 extern void ontime_migration(void);
 
-/* prefer cpu */
-extern void prefer_cpu_get(struct tp_env *env, struct cpumask *mask);
-
 /*
  * Priority-pinning
  */
