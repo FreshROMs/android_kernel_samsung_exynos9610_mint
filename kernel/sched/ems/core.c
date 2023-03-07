@@ -324,13 +324,7 @@ int sched_policy_get(struct task_struct *p)
 	if (p->pid && ems_task_boost() == p->pid)
 		return SCHED_POLICY_PERF;
 
-	if (policy == SCHED_POLICY_PERF)
-		return SCHED_POLICY_PERF;
-
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
-		return SCHED_POLICY_SEMI_PERF;
-
-	if (policy == SCHED_POLICY_SEMI_PERF)
 		return SCHED_POLICY_SEMI_PERF;
 
 	/*
