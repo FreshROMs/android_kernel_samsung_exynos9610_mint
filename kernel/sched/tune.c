@@ -751,7 +751,7 @@ static struct cftype files[] = {
 		.write_u64 = ems_qjump_stune_hook_write,
 	},
 	{
-		.name = "global_boost_cpus",
+		.name = "prefer_cpus",
 		.seq_show = ems_prefer_cpus_stune_hook_read,
 		.write = ems_prefer_cpus_stune_hook_write,
 	},
