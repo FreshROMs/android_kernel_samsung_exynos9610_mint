@@ -391,6 +391,10 @@ static struct {
 		unsigned long threshold;
 		struct cpumask mask;
 	} small_task;
+	struct {
+		unsigned long threshold;
+		struct cpumask mask;
+	} heavy_task;
 } prefer_cpu[CGROUP_COUNT];
 
 static void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
@@ -399,8 +403,13 @@ static void prefer_cpu_get(struct tp_env *env, struct cpumask *mask)
 	cpumask_copy(mask, cpu_active_mask);
 
 	if (env->boosted) {
-		if (env->task_util < prefer_cpu[env->cgroup_idx].small_task.threshold) {
+		if (env->task_util_clamped <= prefer_cpu[env->cgroup_idx].small_task.threshold) {
 			cpumask_and(mask, mask, &prefer_cpu[env->cgroup_idx].small_task.mask);
+			return;
+		}
+
+		if (env->task_util_clamped >= prefer_cpu[env->cgroup_idx].heavy_task.threshold) {
+			cpumask_and(mask, mask, &prefer_cpu[env->cgroup_idx].heavy_task.mask);
 			return;
 		}
 
@@ -517,6 +526,75 @@ ssize_t ems_small_task_cpus_stune_hook_write(struct kernfs_open_file *of,
 	return nbytes;
 }
 
+u64 ems_heavy_task_threshold_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft) {
+	struct schedtune *st = css_st(css);
+	int group_idx = st->idx;
+
+	if (group_idx >= CGROUP_COUNT)
+		return (u64) prefer_cpu[CGROUP_ROOT].heavy_task.threshold;
+
+	return (u64) prefer_cpu[group_idx].heavy_task.threshold;
+}
+
+int ems_heavy_task_threshold_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 threshold) {
+	struct schedtune *st = css_st(css);
+	int group_idx;
+
+	if (threshold < 0 || threshold >= 2147483647)
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		prefer_cpu[CGROUP_ROOT].heavy_task.threshold = threshold;
+		return 0;
+	}
+
+	prefer_cpu[group_idx].heavy_task.threshold = threshold;
+	return 0;
+}
+
+int ems_heavy_task_cpus_stune_hook_read(struct seq_file *sf, void *v)
+{
+	struct cgroup_subsys_state *css = seq_css(sf);
+	struct schedtune *st = css_st(css);
+	int group_idx = st->idx;
+
+	if (group_idx < CGROUP_COUNT) {
+		seq_printf(sf, "%*pbl\n", cpumask_pr_args(&prefer_cpu[group_idx].heavy_task.mask));
+	} else {
+		seq_printf(sf, "%*pbl\n", cpumask_pr_args(&prefer_cpu[CGROUP_ROOT].heavy_task.mask));
+	}
+
+	return 0;
+}
+
+ssize_t ems_heavy_task_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off)
+{
+	struct schedtune *st = css_st(of_css(of));
+	char str[STR_LEN];
+	int group_idx;
+
+	if (strlen(buf) >= STR_LEN)
+		return -EINVAL;
+
+	if (!sscanf(buf, "%s", str))
+		return -EINVAL;
+
+	group_idx = st->idx;
+	if (group_idx >= CGROUP_COUNT) {
+		cpulist_parse(buf, &prefer_cpu[CGROUP_ROOT].heavy_task.mask);
+		return nbytes;
+	}
+
+	cpulist_parse(buf, &prefer_cpu[group_idx].heavy_task.mask);
+
+	return nbytes;
+}
+
 static void prefer_cpu_init(void)
 {
 	int i;
@@ -524,23 +602,26 @@ static void prefer_cpu_init(void)
 	for (i = 0; i < CGROUP_COUNT; i++) {
 		cpumask_clear(&prefer_cpu[i].mask);
 		cpumask_clear(&prefer_cpu[i].small_task.mask);
+		cpumask_clear(&prefer_cpu[i].heavy_task.mask);
 
 		switch (i) {
 		case CGROUP_TOPAPP:
-			cpumask_copy(&prefer_cpu[i].mask, cpu_possible_mask);
+			prefer_cpu[i].heavy_task.threshold = 277;
 			prefer_cpu[i].small_task.threshold = 20;
 			break;
 		case CGROUP_BACKGROUND:
-			cpumask_copy(&prefer_cpu[i].mask, cpu_possible_mask);
-			prefer_cpu[i].small_task.threshold = 74;
+			prefer_cpu[i].heavy_task.threshold = 369;
+			prefer_cpu[i].small_task.threshold = 92;
 			break;
 		default:
-			cpumask_copy(&prefer_cpu[i].mask, cpu_possible_mask);
+			prefer_cpu[i].heavy_task.threshold = 351;
 			prefer_cpu[i].small_task.threshold = 50;
 			break;
 		}
 
+		cpumask_copy(&prefer_cpu[i].mask, cpu_possible_mask);
 		cpumask_copy(&prefer_cpu[i].small_task.mask, cpu_lp_mask);
+		cpumask_copy(&prefer_cpu[i].heavy_task.mask, cpu_perf_mask);
 	}
 }
 

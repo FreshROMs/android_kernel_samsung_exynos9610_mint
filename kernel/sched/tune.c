@@ -653,6 +653,14 @@ extern int ems_small_task_cpus_stune_hook_read(struct seq_file *sf, void *v);
 extern ssize_t ems_small_task_cpus_stune_hook_write(struct kernfs_open_file *of,
 				    char *buf, size_t nbytes,
 				    loff_t off);
+extern u64 ems_heavy_task_threshold_stune_hook_read(struct cgroup_subsys_state *css,
+			     struct cftype *cft);
+extern int ems_heavy_task_threshold_stune_hook_write(struct cgroup_subsys_state *css,
+		             struct cftype *cft, u64 threshold);
+extern int ems_heavy_task_cpus_stune_hook_read(struct seq_file *sf, void *v);
+extern ssize_t ems_heavy_task_cpus_stune_hook_write(struct kernfs_open_file *of,
+				    char *buf, size_t nbytes,
+				    loff_t off);
 #endif
 
 static struct cftype files[] = {
@@ -756,6 +764,16 @@ static struct cftype files[] = {
 		.name = "small_task_threshold",
 		.read_u64 = ems_small_task_threshold_stune_hook_read,
 		.write_u64 = ems_small_task_threshold_stune_hook_write,
+	},
+	{
+		.name = "heavy_task_cpus",
+		.seq_show = ems_heavy_task_cpus_stune_hook_read,
+		.write = ems_heavy_task_cpus_stune_hook_write,
+	},
+	{
+		.name = "heavy_task_threshold",
+		.read_u64 = ems_heavy_task_threshold_stune_hook_read,
+		.write_u64 = ems_heavy_task_threshold_stune_hook_write,
 	},
 #endif
 	{ }	/* terminate */
