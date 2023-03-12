@@ -1137,9 +1137,7 @@ bool fast_path_eligible(struct tp_env *env)
 		return false;
 
 	/* Cond 3: Previous CPU must be active */
-	if (!env->per_cpu_kthread && !cpu_active(env->src_cpu))
-		return false;
-	if (env->per_cpu_kthread && !cpu_online(env->src_cpu))
+	if (!cpu_active(env->src_cpu))
 		return false;
 
 	/* Cond 4: Previous CPU must not be overutilized */
