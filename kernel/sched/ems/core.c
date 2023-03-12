@@ -1197,19 +1197,9 @@ int find_cpus_allowed(struct tp_env *env)
 
 	/*
 	 * Given task must run on the CPU combined as follows:
-	 *	cpu_active_mask
+	 *	p->cpus_ptr & cpu_active_mask
 	 */
-	cpumask_copy(&env->cpus_allowed, &mask[0]);
-	if (cpumask_empty(&env->cpus_allowed))
-		goto out;
-
-	/*
-	 * Unless task is per-cpu kthread, p->cpus_ptr does not cause a problem
-	 * even if it is ignored. Consider p->cpus_ptr as possible, but if it
-	 * does not overlap with CPUs allowed made above, ignore it.
-	 */
-	if (cpumask_intersects(&env->cpus_allowed, &mask[2]))
-		cpumask_and(&env->cpus_allowed, &env->cpus_allowed, &mask[2]);
+	cpumask_and(&env->cpus_allowed, &mask[2], &mask[0]);
 
 out:
 	/* Return weight of allowed cpus */
