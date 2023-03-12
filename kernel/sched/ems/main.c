@@ -170,10 +170,6 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 	if (tex_suppress_task(p) && cpumask_test_cpu(dst_cpu, cpu_fastest_mask()))
 		return 0;
 
-	/* avoid migrating prefer-perf task to slow cpus */
-	if (et_cpu_slowest(dst_cpu) && ems_task_boosted(p))
-		return 0;
-
 	return 1;
 }
 
