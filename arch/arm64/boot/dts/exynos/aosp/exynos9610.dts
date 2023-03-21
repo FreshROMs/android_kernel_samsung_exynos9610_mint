@@ -386,12 +386,12 @@
 			mlt {
 				/* little cores */
 				coregroup0 {
-					active-ratio-limit = <43>;
-					active-ratio-boost = <42>;
+					active-ratio-limit = <23>;
+					active-ratio-boost = <22>;
 				};
 				/* big cores */
 				coregroup1 {
-					active-ratio-limit = <30>;
+					active-ratio-limit = <10>;
 					active-ratio-boost = <0>;
 				};
 			};
