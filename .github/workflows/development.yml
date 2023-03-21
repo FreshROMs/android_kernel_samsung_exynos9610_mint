@@ -455,7 +455,6 @@ jobs:
 
   aosp-r-e:
     name: Build AOSP 11 (Enforcing)
-    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
     runs-on: ubuntu-latest
 
     strategy:
