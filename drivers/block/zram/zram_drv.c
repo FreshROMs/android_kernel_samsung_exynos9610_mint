@@ -1113,11 +1113,10 @@ static bool zram_should_writeback(struct zram *zram,
 	if (min_writtenback_ratio < writtenback_ratio)
 		ret = false;
 
-	if (zram->disksize / 4 > SZ_1G)
-		min_stored_byte = SZ_1G;
+	if (zram->disksize < SZ_4G)
+		min_stored_byte = SZ_512M;
 	else
-		min_stored_byte = zram->disksize / 4;
-
+		min_stored_byte = SZ_1G;
 	if ((stored << PAGE_SHIFT) < min_stored_byte)
 		ret = false;
 
