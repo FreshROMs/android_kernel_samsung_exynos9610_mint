@@ -347,9 +347,9 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 
 	si_meminfo(&i);
 	if (i.totalram << (PAGE_SHIFT-10) > 4096ull * 1024) {
-	  slmk_minfree = 164;
+	  slmk_minfree = 192;
 	  slmk_timeout = 200;
-	  slmk_pressure = 100;
+	  slmk_pressure = 90;
 	} else {
 	  slmk_minfree = 256;
 	  slmk_timeout = 100;
