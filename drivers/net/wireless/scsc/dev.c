@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2022 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -20,7 +20,6 @@
 #include "sap_ma.h"
 #include "sap_dbg.h"
 #include "sap_test.h"
-#include "scsc_wlan_mmap.h"
 
 #ifdef CONFIG_SCSC_WLAN_KIC_OPS
 #include "kic.h"
@@ -128,9 +127,6 @@ module_param(nan_ndp_max_delay_ms, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nan_ndp_max_delay_ms, "max ndp delay time");
 
 #endif
-static bool legacy_sar_backoff = true;
-module_param(legacy_sar_backoff, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(legacy_sar_backoff, "Switch between legacy and 3.6 sar_backoff");
 
 bool slsi_dev_gscan_supported(void)
 {
@@ -213,11 +209,6 @@ bool slsi_get_nan_mac_random(void)
 }
 
 #endif
-
-bool slsi_get_legacy_sar_backoff(void)
-{
-	return legacy_sar_backoff;
-}
 
 static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long data, void *arg)
 {
@@ -360,7 +351,6 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	sdev->local_mib.mib_file_name = local_mib_file;
 	sdev->maddr_file_name = maddr_file;
 	sdev->device_config.qos_info = -1;
-	sdev->device_config.host_state = SLSI_HOSTSTATE_CELLULAR_ACTIVE;
 	sdev->acs_channel_switched = false;
 	memset(&sdev->chip_info_mib, 0xFF, sizeof(struct slsi_chip_info_mib));
 
@@ -524,9 +514,6 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	INIT_WORK(&sdev->recovery_work, slsi_subsystem_reset);
 	INIT_WORK(&sdev->recovery_work_on_start, slsi_chip_recovery);
 	INIT_WORK(&sdev->system_error_user_fail_work, slsi_system_error_recovery);
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-	INIT_WORK(&sdev->chipset_logging_work, slsi_collect_chipset_logs);
-#endif
 	INIT_WORK(&sdev->trigger_wlan_fail_work, slsi_trigger_service_failure);
 	return sdev;
 
@@ -672,11 +659,7 @@ int __init slsi_dev_load(void)
 #if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 9
 	slsi_create_sysfs_macaddr();
 #endif
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-	slsi_create_sysfs_debug_dump();
-	scsc_wlan_mmap_create();
-#endif
-	SLSI_INFO_NODEV("--- Maxwell Wi-Fi driver loaded successfully---\n");
+	SLSI_INFO_NODEV("--- Maxwell Wi-Fi driver loaded successfully ---\n");
 	return 0;
 }
 
@@ -686,10 +669,6 @@ void __exit slsi_dev_unload(void)
 
 #if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 9
 	slsi_destroy_sysfs_macaddr();
-#endif
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-	scsc_wlan_mmap_destroy();
-	slsi_destroy_sysfs_debug_dump();
 #endif
 	/* Unregister SAPs */
 	sap_mlme_deinit();

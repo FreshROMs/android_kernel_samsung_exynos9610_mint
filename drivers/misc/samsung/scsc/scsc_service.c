@@ -17,7 +17,6 @@
 #endif
 #include <scsc/scsc_mx.h>
 #include <scsc/scsc_logring.h>
-#include <scsc/scsc_log_collector.h>
 
 #include "mxman.h"
 #include "scsc_mx_impl.h"
@@ -1365,56 +1364,3 @@ int scsc_service_get_panic_record(struct scsc_service *service, u8 *dst, u16 max
 	return mxman->last_panic_rec_sz;
 }
 EXPORT_SYMBOL(scsc_service_get_panic_record);
-
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-size_t scsc_service_mxlogger_buff_size(struct scsc_service *service, enum scsc_log_chunk_type fw_buffer)
-{
-	struct scsc_mx *mx;
-
-	if (!service) {
-		SCSC_TAG_DEBUG(MXMAN, "Service is NULL\n");
-		return 0;
-	}
-
-	mx = service->mx;
-	if (!mx) {
-		SCSC_TAG_DEBUG(MXMAN, "mx is NULL\n");
-		return 0;
-	}
-
-	return mxlogger_get_fw_buf_size(scsc_mx_get_mxlogger(mx), fw_buffer);
-}
-EXPORT_SYMBOL(scsc_service_mxlogger_buff_size);
-
-size_t scsc_service_collect_buffer(struct scsc_service *service, enum scsc_log_chunk_type fw_buffer, void *buffer, size_t size)
-{
-	struct scsc_mx *mx;
-	size_t bytes = 0;
-
-	if (!service) {
-		SCSC_TAG_DEBUG(MXMAN, "Service is NULL\n");
-		goto exit;
-	}
-
-	mx = service->mx;
-
-	if (!mx) {
-		SCSC_TAG_DEBUG(MXMAN, "mx is NULL\n");
-		goto exit;
-	}
-
-	bytes = mxlogger_dump_fw_buf(scsc_mx_get_mxlogger(mx), fw_buffer, buffer, size);
-
-	if (bytes) {
-		SCSC_TAG_DEBUG(MXMAN, "Data of size %d bytes stored in buffer\n", bytes);
-		return bytes;
-	}
-
-	SCSC_TAG_DEBUG(MXMAN, "Unable to dump buffer\n");
-
-exit:
-	return 0;
-}
-EXPORT_SYMBOL(scsc_service_collect_buffer);
-#endif
-

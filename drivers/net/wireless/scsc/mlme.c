@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2022 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -899,9 +899,6 @@ int slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev)
 	u32 arp_tx_count;
 #endif
 
-	if (WARN_ON(!ndev_vif->activated))
-		return -EINVAL;
-
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_DEL_VIF.request\n");
 		return ret;
@@ -964,9 +961,6 @@ int slsi_mlme_set_forward_beacon(struct slsi_dev *sdev, struct net_device *dev, 
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
-
-	if (WARN_ON(!ndev_vif->activated))
-		return -EINVAL;
 
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "wlanlite does not support mlme_forward_bacon_req\n");
@@ -2487,9 +2481,6 @@ void slsi_mlme_connect_resp(struct slsi_dev *sdev, struct net_device *dev)
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
 
-	if (WARN_ON(!ndev_vif->activated))
-		return;
-
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_CONNECT_RESP\n");
 		return;
@@ -2514,9 +2505,6 @@ void slsi_mlme_connected_resp(struct slsi_dev *sdev, struct net_device *dev, u16
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *req;
 
-	if (WARN_ON(!ndev_vif->activated))
-		return;
-
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_CONNECT_RESP\n");
 		return;
@@ -2538,9 +2526,6 @@ void slsi_mlme_roamed_resp(struct slsi_dev *sdev, struct net_device *dev)
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
-
-	if (WARN_ON(!ndev_vif->activated))
-		return;
 
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_ROAMED_RESP\n");
@@ -2645,8 +2630,6 @@ int slsi_mlme_disconnect(struct slsi_dev *sdev, struct net_device *dev, u8 *mac,
 	}
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
-	if (WARN_ON(!ndev_vif->activated))
-		return -EINVAL;
 
 	SLSI_NET_DBG1(dev, SLSI_MLME, "mlme_disconnect_req(vif:%u, bssid:%pM, reason:%d)\n", ndev_vif->ifnum, mac, reason_code);
 
@@ -3704,8 +3687,6 @@ int slsi_mlme_reset_dwell_time(struct slsi_dev *sdev, struct net_device *dev)
 	int               r = 0;
 
 	WARN_ON(!SLSI_MUTEX_IS_LOCKED(ndev_vif->vif_mutex));
-	if (WARN_ON(!ndev_vif->activated))
-		return -EINVAL;
 
 	SLSI_NET_DBG2(dev, SLSI_MLME, "mlme_reset_dwell_time_req (vif:%d)\n", ndev_vif->ifnum);
 
@@ -3924,16 +3905,12 @@ int slsi_mlme_set_acl(struct slsi_dev *sdev, struct net_device *dev, u16 ifnum,
 		      enum nl80211_acl_policy acl_policy, int max_acl_entries,
 		      struct mac_address mac_addrs[])
 {
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
 	size_t            mac_acl_size        = 0;
 	int               i, r                = 0;
 	int               n_acl_entries       = 0;
 	u8                zero_addr[ETH_ALEN] = {0};
-
-	if (ifnum > 0 && WARN_ON(!ndev_vif->activated))
-		return -EINVAL;
 
 	for (i = 0; i < max_acl_entries; i++) {
 		if (!SLSI_ETHER_EQUAL(mac_addrs[i].addr, zero_addr))
@@ -4168,9 +4145,6 @@ void slsi_mlme_reassociate_resp(struct slsi_dev *sdev, struct net_device *dev)
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
-
-	if (WARN_ON(!ndev_vif->activated))
-		return;
 
 	if (slsi_is_test_mode_enabled()) {
 		SLSI_NET_INFO(dev, "Skip sending signal, WlanLite FW does not support MLME_REASSOCIATE_RESP\n");
@@ -4605,7 +4579,7 @@ int slsi_mlme_set_p2p_noa(struct slsi_dev *sdev, struct net_device *dev, unsigne
 	return r;
 }
 
-int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u16 host_state)
+int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u8 host_state)
 {
 	struct sk_buff    *req;
 	struct sk_buff    *cfm;
@@ -4624,13 +4598,7 @@ int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u16 
 		return -ENOMEM;
 	}
 
-	if (slsi_get_legacy_sar_backoff()) {
-		fapi_set_u16(req, u.mlme_host_state_req.host_state, host_state);
-	} else {
-		fapi_set_u16(req, u.mlme_host_state_req.host_state, 0xFFFF);
-		fapi_set_u32(req, u.mlme_host_state_req.spare_1, 0);
-		fapi_set_low16_u32(req, u.mlme_host_state_req.spare_1, host_state);
-	}
+	fapi_set_u16(req, u.mlme_host_state_req.host_state, host_state);
 
 	cfm = slsi_mlme_req_cfm(sdev, NULL, req, MLME_HOST_STATE_CFM);
 	if (!cfm)
