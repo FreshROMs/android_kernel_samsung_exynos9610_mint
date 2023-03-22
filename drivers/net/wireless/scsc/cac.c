@@ -206,8 +206,13 @@ static const u8 *bss_get_ie(struct cfg80211_bss *bss, u8 ie)
 	const u8 *pos;
 	u8       ies_len, ies_cur_len;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 	pos = (const u8 *)(bss->ies);
 	ies_len = (u8)bss->ies->len;
+#else
+	pos = (const u8 *)(bss->information_elements);
+	ies_len = (u8)bss->len_information_elements;
+#endif
 	ies_cur_len = 1;
 
 	while (ies_cur_len <= ies_len) {

@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -55,8 +55,6 @@
 /* (RFC3662) */
 #define CS1		0x08
 
-#define SLSI_TX_TIMEOUT    (5 * HZ)
-
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
 #ifdef CONFIG_SOC_EXYNOS9630
 static uint napi_cpu_big_tput_in_mbps = 400;
@@ -75,11 +73,6 @@ static uint rps_enable_tput_in_mbps = 100;
 #endif
 module_param(rps_enable_tput_in_mbps, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(rps_enable_tput_in_mbps, "throughput (in Mbps) to enable RPS");
-#endif
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
-static unsigned long gro_flush_timeout = 4000;
-module_param(gro_flush_timeout, ulong, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(gro_flush_timeout, "GRO timeout (in ns)");
 #endif
 #ifndef CONFIG_ARM
 static bool tcp_ack_suppression_disable;
@@ -198,30 +191,6 @@ void slsi_net_randomize_nmi_ndi(struct slsi_dev *sdev)
 }
 #endif
 
-static void slsi_mac_address_init(struct slsi_dev *sdev)
-{
-	SLSI_DBG1(sdev, SLSI_NETDEV, "\n");
-	slsi_get_hw_mac_address(sdev, sdev->hw_addr);
-	SLSI_DBG1(sdev, SLSI_NETDEV, "Hardware MAC address = %pM\n", sdev->hw_addr);
-	/* Assign Addresses */
-	SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_WLAN], sdev->hw_addr);
-
-	SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2P],  sdev->hw_addr);
-	/* Set the local bit */
-	sdev->netdev_addresses[SLSI_NET_INDEX_P2P][0] |= 0x02;
-
-	SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN], sdev->hw_addr);
-	/* Set the local bit */
-	sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][0] |= 0x02;
-	/* EXOR 5th byte with 0x80 */
-	sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][4] ^= 0x80;
-
-#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4 && defined(CONFIG_SCSC_WIFI_NAN_ENABLE)
-	if (slsi_get_nan_mac_random())
-		 slsi_net_randomize_nmi_ndi(sdev);
-#endif
-}
-
 static inline bool slsi_netif_is_udp_pkt(struct sk_buff *skb)
 {
 	if (ip_hdr(skb)->version == 4)
@@ -301,106 +270,98 @@ static int slsi_net_open(struct net_device *dev)
 	struct net_device *nan_dev;
 	struct netdev_vif *nan_ndev_vif;
 #endif
-#if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
-	u8 mhs_or_dual_sta_mac[ETH_ALEN];
-#endif
-	int r = 0;
 
 	if (WARN_ON(ndev_vif->is_available))
 		return -EINVAL;
 
 	if (sdev->mlme_blocked) {
 		SLSI_NET_WARN(dev, "Fail: called when MLME in blocked state\n");
-		slsi_dump_system_error_buffer(sdev);
 		return -EIO;
 	}
 
-	if (sdev->recovery_fail_safe) {
-		r = wait_for_completion_timeout(&sdev->recovery_fail_safe_complete,
-						msecs_to_jiffies(SLSI_SYS_ERROR_RECOVERY_TIMEOUT));
-
-		if (r == 0) {
-			SLSI_INFO(sdev, "Fail: system error recovery still in progress\n");
-			slsi_dump_system_error_buffer(sdev);
-		}
-		reinit_completion(&sdev->recovery_fail_safe_complete);
-	}
-
-	slsi_wake_lock(&sdev->wlan_wl_init);
+	slsi_wake_lock(&sdev->wlan_wl);
 
 	/* check if request to rf test mode. */
 	slsi_check_rf_test_mode();
 
+	if (!sdev->mac_changed)
+		memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
+
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 	if (!sdev->netdev_up_count ) {
 		slsi_purge_blacklist(ndev_vif);
-		memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
 	} else if (sdev->netdev_up_count == 1) {
 		ap_dev = slsi_get_netdev(sdev, SLSI_NET_INDEX_P2PX_SWLAN);
 		if (ap_dev) {
 			ap_dev_vif = netdev_priv(ap_dev);
-			if (ap_dev_vif->is_available) {
-				memset(&sdev->wake_reason_stats, 0, sizeof(struct slsi_wlan_driver_wake_reason_cnt));
+			if (ap_dev_vif->is_available)
 				slsi_purge_blacklist(ndev_vif);
-			}
 		}
 	}
 
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
-	err = slsi_start(sdev, dev);
+	err = slsi_start(sdev);
 	if (WARN_ON(err)) {
-		slsi_wake_unlock(&sdev->wlan_wl_init);
+		slsi_wake_unlock(&sdev->wlan_wl);
 		return err;
 	}
 
 	if (!sdev->netdev_up_count) {
-		slsi_mac_address_init(sdev);
+		slsi_get_hw_mac_address(sdev, sdev->hw_addr);
+		/* Assign Addresses */
+		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_WLAN], sdev->hw_addr);
+
+		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2P],  sdev->hw_addr);
+		/* Set the local bit */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2P][0] |= 0x02;
+
+		SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN], sdev->hw_addr);
+		/* Set the local bit */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][0] |= 0x02;
+		/* EXOR 5th byte with 0x80 */
+		sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN][4] ^= 0x80;
+#if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4 && defined(CONFIG_SCSC_WIFI_NAN_ENABLE)
+		slsi_net_randomize_nmi_ndi(sdev);
+#endif
 		sdev->initial_scan = true;
 #ifdef CONFIG_SCSC_WIFI_NAN_ENABLE
 		nan_dev = slsi_nan_get_netdev(sdev);
 		nan_ndev_vif = nan_dev ? netdev_priv(nan_dev) : NULL;
 		if (nan_ndev_vif)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 			reinit_completion(&nan_ndev_vif->sig_wait.completion);
+#else
+			INIT_COMPLETION(nan_ndev_vif->sig_wait.completion);
+#endif
 #endif
 	}
 	ndev_vif->acs = false;
 	memset(dev_addr_zero_check, 0, ETH_ALEN);
-	if ((!memcmp(dev->dev_addr, dev_addr_zero_check, ETH_ALEN)) ||
-	    (SLSI_IS_VIF_INDEX_MHS_DUALSTA(sdev, ndev_vif) && (!memcmp(dev->dev_addr, SLSI_DEFAULT_HW_MAC_ADDR, ETH_ALEN)))) {
+	if (!memcmp(dev->dev_addr, dev_addr_zero_check, ETH_ALEN)) {
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
-		if (SLSI_IS_VIF_INDEX_MHS_DUALSTA(sdev, ndev_vif)) {
-			SLSI_ETHER_COPY(mhs_or_dual_sta_mac, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
-			mhs_or_dual_sta_mac[2] ^= 0x80;
-			SLSI_ETHER_COPY(dev->dev_addr, mhs_or_dual_sta_mac);
-		} else {
+		if (SLSI_IS_VIF_INDEX_MHS(sdev, ndev_vif))
+			SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[SLSI_NET_INDEX_P2P]);
+		else
 			SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
-		}
 #else
 		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
 #endif
 	}
-#if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
-	if (!SLSI_IS_VIF_INDEX_MHS_DUALSTA(sdev, ndev_vif)) {
-		SLSI_ETHER_COPY(dev->perm_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
-	} else {
-		SLSI_ETHER_COPY(mhs_or_dual_sta_mac, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
-		mhs_or_dual_sta_mac[2] ^= 0x80;
-		SLSI_ETHER_COPY(dev->perm_addr, mhs_or_dual_sta_mac);
-	}
-#else
 	SLSI_ETHER_COPY(dev->perm_addr, sdev->netdev_addresses[ndev_vif->ifnum]);
-#endif
-
 	SLSI_MUTEX_LOCK(ndev_vif->vif_mutex);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 	reinit_completion(&ndev_vif->sig_wait.completion);
+#else
+	INIT_COMPLETION(ndev_vif->sig_wait.completion);
+#endif
 
 	if (ndev_vif->iftype == NL80211_IFTYPE_MONITOR) {
 		err = slsi_start_monitor_mode(sdev, dev);
 		if (WARN_ON(err)) {
+			slsi_wake_unlock(&sdev->wlan_wl);
 			SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
-			slsi_wake_unlock(&sdev->wlan_wl_init);
 			return err;
 		}
 	}
@@ -415,7 +376,7 @@ static int slsi_net_open(struct net_device *dev)
 	SLSI_MUTEX_UNLOCK(ndev_vif->vif_mutex);
 
 	netif_tx_start_all_queues(dev);
-	slsi_wake_unlock(&sdev->wlan_wl_init);
+	slsi_wake_unlock(&sdev->wlan_wl);
 
 	/* The default power mode in host*/
 	/* 2511 measn unifiForceActive and 1 means active */
@@ -434,18 +395,6 @@ static int slsi_net_stop(struct net_device *dev)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
-	int r = 0;
-
-	if (sdev->recovery_fail_safe) {
-		r = wait_for_completion_timeout(&sdev->recovery_fail_safe_complete,
-						msecs_to_jiffies(SLSI_SYS_ERROR_RECOVERY_TIMEOUT));
-
-		if (r == 0) {
-			SLSI_INFO(sdev, "Fail: system error recovery still in progress\n");
-			slsi_dump_system_error_buffer(sdev);
-		}
-		reinit_completion(&sdev->recovery_fail_safe_complete);
-	}
 
 	SLSI_NET_INFO(dev, "ifnum:%d r:%d\n", ndev_vif->ifnum, sdev->recovery_status);
 	slsi_wake_lock(&sdev->wlan_wl);
@@ -489,42 +438,6 @@ static struct net_device_stats *slsi_net_get_stats(struct net_device *dev)
 
 	SLSI_NET_DBG4(dev, SLSI_NETDEV, "\n");
 	return &ndev_vif->stats;
-}
-
-static void slsi_netif_show_stats(struct net_device *dev)
-{
-	struct net_device_stats *stats;
-
-	stats = slsi_net_get_stats(dev);
-	if (!stats) {
-		SLSI_NET_ERR(dev, "Can't get stats of %s\n", dev->name);
-		return;
-	}
-
-	SLSI_NET_INFO(dev, "[tx]bytes %lu packets %lu err %lu drop %lu fifo %lu colls %lu carrier %lu comp %lu\n",
-			stats->tx_bytes, stats->tx_packets, stats->tx_errors, stats->tx_dropped, stats->tx_fifo_errors,
-			stats->collisions, stats->tx_carrier_errors, stats->tx_compressed);
-	SLSI_NET_INFO(dev, "[rx]bytes %lu packets %lu err %lu drop %lu fifo %lu frame %lu comp %lu mc %lu\n",
-			stats->rx_bytes, stats->rx_packets, stats->rx_errors, stats->rx_dropped, stats->tx_fifo_errors,
-			stats->rx_frame_errors, stats->rx_compressed, stats->multicast);
-}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-static void slsi_net_tx_timeout(struct net_device *dev, unsigned int txqueue)
-#else
-static void slsi_net_tx_timeout(struct net_device *dev)
-#endif
-{
-	if (!net_ratelimit())
-		return;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-	SLSI_NET_ERR(dev, "Transmit Timed Out!!! name %s state 0x%lx txq %u\n", dev->name, dev->state, txqueue);
-#else
-	SLSI_NET_ERR(dev, "Transmit Timed Out!!! name %s state 0x%lx\n", dev->name, dev->state);
-#endif
-
-	slsi_netif_show_stats(dev);
 }
 
 #ifdef CONFIG_SCSC_USE_WMM_TOS
@@ -571,8 +484,8 @@ static u16 slsi_get_priority_from_tos_dscp(u8 *frame, u16 proto)
 #if (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 	switch (dscp) {
 	case CS7:
-	case CS6:
 		return FAPI_PRIORITY_QOS_UP7;
+	case CS6:
 	case DSCP_EF:
 	case DSCP_VA:
 		return FAPI_PRIORITY_QOS_UP6;
@@ -753,8 +666,12 @@ static void slsi_net_downgrade_pri(struct net_device *dev, struct slsi_peer *pee
 static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, struct net_device *sb_dev)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, struct net_device *sb_dev, select_queue_fallback_t fallback)
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
 static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv, select_queue_fallback_t fallback)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
+static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv)
+#else
+static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb)
 #endif
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -765,10 +682,10 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, vo
 	struct slsi_peer  *peer;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	(void)sb_dev;
-#else
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 	(void)accel_priv;
 #endif
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)))
 	(void)fallback;
 #endif
 	SLSI_NET_DBG4(dev, SLSI_NETDEV, "\n");
@@ -826,9 +743,12 @@ static u16 slsi_net_select_queue(struct net_device *dev, struct sk_buff *skb, vo
 	}
 
 	if (peer->qos_enabled) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 		if (peer->qos_map_set) {			/*802.11 QoS for interworking*/
 			skb->priority = cfg80211_classify8021d(skb, &peer->qos_map);
-		} else {
+		} else
+#endif
+		{
 #ifdef CONFIG_SCSC_WLAN_PRIORITISE_IMP_FRAMES
 			if ((proto == ETH_P_IP && slsi_is_dns_packet(skb->data)) ||
 			    (proto == ETH_P_IP && slsi_is_mdns_packet(skb->data)) ||
@@ -1244,12 +1164,13 @@ static void  slsi_set_multicast_list(struct net_device *dev)
 	struct netdev_vif     *ndev_vif = netdev_priv(dev);
 	u8                    count, i = 0;
 	u8                    mdns_addr[ETH_ALEN] = { 0x01, 0x00, 0x5E, 0x00, 0x00, 0xFB };
-#if IS_ENABLED(CONFIG_IPV6)
+
+#ifdef CONFIG_SCSC_WLAN_BLOCK_IPV6
+	u8                    mc_addr_prefix[3] = { 0x01, 0x00, 0x5e };
+#else
 	u8                    mdns6_addr[ETH_ALEN] = { 0x33, 0x33, 0x00, 0x00, 0x00, 0xFB };
 	const u8              solicited_node_addr[ETH_ALEN] = { 0x33, 0x33, 0xff, 0x00, 0x00, 0x01 };
 	u8                    ipv6addr_suffix[3];
-#else
-	u8                    mc_addr_prefix[3] = { 0x01, 0x00, 0x5e };
 #endif
 	struct netdev_hw_addr *ha;
 
@@ -1267,7 +1188,7 @@ static void  slsi_set_multicast_list(struct net_device *dev)
 		return;
 	}
 
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 	slsi_spinlock_lock(&ndev_vif->ipv6addr_lock);
 	memcpy(ipv6addr_suffix, &ndev_vif->ipv6address.s6_addr[13], 3);
 	slsi_spinlock_unlock(&ndev_vif->ipv6addr_lock);
@@ -1275,15 +1196,16 @@ static void  slsi_set_multicast_list(struct net_device *dev)
 
 	slsi_spinlock_lock(&ndev_vif->sta.regd_mc_addr_lock);
 	netdev_for_each_mc_addr(ha, dev) {
-#if IS_ENABLED(CONFIG_IPV6)
-		if ((!memcmp(ha->addr, mdns_addr, ETH_ALEN)) ||
-		    (!memcmp(ha->addr, mdns6_addr, ETH_ALEN)) || /* mDns is handled separately */
-		    (!memcmp(ha->addr, solicited_node_addr, 3) &&
-		     !memcmp(&ha->addr[3], ipv6addr_suffix, 3))) { /* local multicast addr handled separately */
+#ifdef CONFIG_SCSC_WLAN_BLOCK_IPV6
+		if ((!memcmp(ha->addr, mdns_addr, ETH_ALEN)) ||                                                   /*mDns is handled separately*/
+		    (memcmp(ha->addr, mc_addr_prefix, 3))) {                                                   /*only consider IPv4 multicast addresses*/
 #else
-		if ((!memcmp(ha->addr, mdns_addr, ETH_ALEN)) || /* mDns is handled separately */
-		    (memcmp(ha->addr, mc_addr_prefix, 3))) { /* only consider IPv4 multicast addresses */
+		if ((!memcmp(ha->addr, mdns_addr, ETH_ALEN)) ||
+		    (!memcmp(ha->addr, mdns6_addr, ETH_ALEN)) ||        /*mDns is handled separately*/
+		    (!memcmp(ha->addr, solicited_node_addr, 3) &&
+		     !memcmp(&ha->addr[3], ipv6addr_suffix, 3))) { /* local multicast addr handled separately*/
 #endif
+
 			SLSI_NET_DBG3(dev, SLSI_NETDEV, "Drop MAC %pM\n", ha->addr);
 			continue;
 		}
@@ -1311,7 +1233,6 @@ static int  slsi_set_mac_address(struct net_device *dev, void *addr)
 	SLSI_NET_DBG1(dev, SLSI_NETDEV, "%pM\n", sa->sa_data);
 	SLSI_ETHER_COPY(dev->dev_addr, sa->sa_data);
 	sdev->mac_changed = true;
-	ndev_vif->ipaddress = 0;
 
 	/* Interface is pulled down before mac address is changed.
 	 * First scan initiated after interface is brought up again, should be treated as initial scan, for faster reconnection.
@@ -1326,7 +1247,6 @@ static const struct net_device_ops slsi_netdev_ops = {
 	.ndo_stop         = slsi_net_stop,
 	.ndo_start_xmit   = slsi_net_hw_xmit,
 	.ndo_do_ioctl     = slsi_net_ioctl,
-	.ndo_tx_timeout   = slsi_net_tx_timeout,
 	.ndo_get_stats    = slsi_net_get_stats,
 	.ndo_select_queue = slsi_net_select_queue,
 	.ndo_fix_features = slsi_net_fix_features,
@@ -1342,10 +1262,6 @@ static void slsi_if_setup(struct net_device *dev)
 	dev->needs_free_netdev = true;
 #else
 	dev->destructor = free_netdev;
-#endif
-	dev->watchdog_timeo = SLSI_TX_TIMEOUT;
-#ifdef CONFIG_SCSC_WLAN_RX_NAPI_GRO
-	dev->gro_flush_timeout = gro_flush_timeout;
 #endif
 }
 
@@ -1573,30 +1489,24 @@ static void slsi_netif_traffic_monitor_work(struct work_struct *data)
 	}
 	dev = slsi_get_netdev_locked(sdev, ndev_vif->ifnum);
 
-	SLSI_NET_INFO(dev, "change state to %d\n", ndev_vif->traffic_mon_state);
 	/* CPU for RPS will be decided by checking for throughput per netdevices */
 	if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
-		if (ndev_vif->traffic_mon_state == TRAFFIC_MON_CLIENT_STATE_OVERRIDE) {
+		if ((napi_cpu_big_tput_in_mbps) && (ndev_vif->throughput_rx > (napi_cpu_big_tput_in_mbps * 1000 * 1000))) {
+			SLSI_NET_DBG1(dev, SLSI_NETDEV, "switch RPS to a BIG CPU other than NAPI (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
 			slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_BIG_MASK, strlen(SCSC_NETIF_RPS_CPUS_BIG_MASK));
-			slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG, true);
-		} else {
-			if ((napi_cpu_big_tput_in_mbps) && (ndev_vif->throughput_rx > (napi_cpu_big_tput_in_mbps * 1000 * 1000))) {
-				SLSI_NET_DBG1(dev, SLSI_NETDEV, "switch RPS to a BIG CPU other than NAPI (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
-				slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_BIG_MASK, strlen(SCSC_NETIF_RPS_CPUS_BIG_MASK));
-			} else if ((rps_enable_tput_in_mbps) && (ndev_vif->throughput_rx > (rps_enable_tput_in_mbps * 1000 * 1000))) {
-				SLSI_NET_DBG1(dev, SLSI_NETDEV, "enable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
-				slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
-			}  else {
-				SLSI_NET_DBG1(dev, SLSI_NETDEV, "disable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
-				slsi_netif_rps_map_clear(dev);
-			}
-
-			/* have only one NAPI instance for all netdevs; so check aggregate throughput to decide CPU selection */
-			if ((napi_cpu_big_tput_in_mbps) && ((sdev->agg_dev_throughput_rx + sdev->agg_dev_throughput_tx) > (napi_cpu_big_tput_in_mbps * 1000 * 1000)))
-				slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG, true);
-			else
-				slsi_hip_set_napi_cpu(sdev, 0, false);
+		} else if ((rps_enable_tput_in_mbps) && (ndev_vif->throughput_rx > (rps_enable_tput_in_mbps * 1000 * 1000))) {
+			SLSI_NET_DBG1(dev, SLSI_NETDEV, "enable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+			slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
+		}  else {
+			SLSI_NET_DBG1(dev, SLSI_NETDEV, "disable RPS (tput_rx:%d bps)\n", ndev_vif->throughput_rx);
+			slsi_netif_rps_map_clear(dev);
 		}
+
+		/* have only one NAPI instance for all netdevs; so check aggregate throughput to decide CPU selection */
+		if ((napi_cpu_big_tput_in_mbps) && ((sdev->agg_dev_throughput_rx + sdev->agg_dev_throughput_tx) > (napi_cpu_big_tput_in_mbps * 1000 * 1000)))
+			slsi_hip_set_napi_cpu(sdev, SCSC_NETIF_NAPI_CPU_BIG);
+		else
+			slsi_hip_set_napi_cpu(sdev, 0);
 	}
 	SLSI_MUTEX_UNLOCK(sdev->netdev_add_remove_mutex);
 }
@@ -1606,9 +1516,7 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 	struct net_device *dev = (struct net_device *)client_ctx;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev *sdev = ndev_vif->sdev;
-	struct slsi_hip4 *hip = &(sdev->hip4_inst);
 	bool change = false;
-	u32 old_state = ndev_vif->traffic_mon_state;
 
 	if (!sdev)
 		return;
@@ -1620,18 +1528,9 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 		return;
 	}
 
-	SLSI_NET_INFO(dev, "traffic monitor: event (current:%d new:%d, tput_tx:%u bps, tput_rx:%u bps)\n", ndev_vif->traffic_mon_state, state, tput_tx, tput_rx);
-
-	sdev->agg_dev_throughput_tx = tput_tx;
-	sdev->agg_dev_throughput_rx = tput_rx;
+	SLSI_NET_DBG1(dev, SLSI_NETDEV, "traffic monitor: event (current:%d new:%d, tput_tx:%u bps, tput_rx:%u bps)\n", ndev_vif->traffic_mon_state, state, tput_tx, tput_rx);
 
 	if (state != ndev_vif->traffic_mon_state) {
-		/* if the state change is from override to High, or vice versa, there is no change in configuration */
-		if (state >= TRAFFIC_MON_CLIENT_STATE_HIGH &&
-			ndev_vif->traffic_mon_state >= TRAFFIC_MON_CLIENT_STATE_HIGH) {
-			slsi_spinlock_unlock(&sdev->netdev_lock);
-			return;
-		}
 		change = true;
 		ndev_vif->traffic_mon_state = state;
 	}
@@ -1639,16 +1538,9 @@ static void slsi_netif_traffic_monitor_cb(void *client_ctx, u32 state, u32 tput_
 	slsi_spinlock_unlock(&sdev->netdev_lock);
 
 	if (change) {
-		if (!queue_work(sdev->device_wq, &ndev_vif->traffic_mon_work)) {
-			/*
-			 * We expect that it is called again by napi_poll.
-			 * Reenable IRQ.
-			 */
-			SLSI_NET_WARN(dev, "failed to queue work! reset traffic state to retry\n");
-			hip->hip_priv->napi_rx_saturated = 0;
-			ndev_vif->traffic_mon_state = old_state;
-			scsc_service_mifintrbit_bit_unmask(sdev->service, hip->hip_priv->intr_tohost_mul[HIP4_MIF_Q_TH_DAT]);
-		}
+		sdev->agg_dev_throughput_tx = tput_tx;
+		sdev->agg_dev_throughput_rx = tput_rx;
+		schedule_work(&ndev_vif->traffic_mon_work);
 	}
 }
 #endif
@@ -1668,7 +1560,11 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 	txq_count = SLSI_NETIF_Q_PEER_START + (SLSI_NETIF_Q_PER_PEER * (SLSI_ADHOC_PEER_CONNECTIONS_MAX));
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 16, 0))
 	dev = alloc_netdev_mqs(alloc_size, name, NET_NAME_PREDICTABLE, slsi_if_setup, txq_count, 1);
+#else
+	dev = alloc_netdev_mqs(alloc_size, name, slsi_if_setup, txq_count, 1);
+#endif
 	if (!dev) {
 		SLSI_ERR(sdev, "Failed to allocate private data for netdev\n");
 		return -ENOMEM;
@@ -1697,7 +1593,7 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	ndev_vif->sdev = sdev;
 	ndev_vif->ifnum = ifnum;
 	ndev_vif->vif_type = SLSI_VIFTYPE_UNSPECIFIED;
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 	slsi_spinlock_create(&ndev_vif->ipv6addr_lock);
 #endif
 	slsi_spinlock_create(&ndev_vif->peer_lock);
@@ -1739,20 +1635,18 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 	INIT_LIST_HEAD(&ndev_vif->sta.network_map);
 	INIT_LIST_HEAD(&ndev_vif->acl_data_fw_list);
-	INIT_LIST_HEAD(&ndev_vif->acl_data_ioctl_list);
-#if !(defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION < 11)
+#ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
 	INIT_LIST_HEAD(&ndev_vif->sta.ssid_info);
 	INIT_LIST_HEAD(&ndev_vif->sta.blacklist_head);
 #endif
 	SLSI_DBG1(sdev, SLSI_NETDEV, "ifnum=%d\n", ndev_vif->ifnum);
 
 	/* For HS2 interface */
-	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
+	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif))
 		sdev->wlan_unsync_vif_state = WLAN_UNSYNC_NO_VIF;
-		SLSI_NET_INFO(dev, "Initializing Hs2 Del Vif Work\n");
-		INIT_DELAYED_WORK(&ndev_vif->unsync.hs2_del_vif_work, slsi_hs2_unsync_vif_delete_work);
-	} else if (SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
-		/* For p2p0 interface */
+
+	/* For p2p0 interface */
+	else if (SLSI_IS_VIF_INDEX_P2P(ndev_vif)) {
 		ret = slsi_p2p_init(sdev, ndev_vif);
 		if (ret)
 			goto exit_with_error;
@@ -1787,7 +1681,7 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
 	if (strcmp(name, CONFIG_SCSC_AP_INTERFACE_NAME) == 0)
-		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN]);
+		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[SLSI_NET_INDEX_P2P]);
 	else
 		SLSI_ETHER_COPY(dev->dev_addr, sdev->netdev_addresses[ifnum]);
 #else
@@ -1800,27 +1694,24 @@ int slsi_netif_add_locked(struct slsi_dev *sdev, const char *name, int ifnum)
 	ndev_vif->probe_req_ie_len = 0;
 	ndev_vif->drv_in_p2p_procedure = false;
 	sdev->require_vif_delete[ndev_vif->ifnum] = false;
-	/* Register traffic monitor client - Not needed for management only (p2p0 and nan0) interfaces */
-	if (!(SLSI_IS_VIF_INDEX_P2P(ndev_vif) || SLSI_IS_VIF_INDEX_NAN(ndev_vif))) {
 #ifdef CONFIG_SCSC_WLAN_RX_NAPI
-		if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
-			u32 mid_tput;
-			u32 high_tput;
+	if (napi_cpu_big_tput_in_mbps || rps_enable_tput_in_mbps) {
+		u32 mid_tput;
+		u32 high_tput;
 
-			ndev_vif->traffic_mon_state = TRAFFIC_MON_CLIENT_STATE_LOW;
-			INIT_WORK(&ndev_vif->traffic_mon_work, slsi_netif_traffic_monitor_work);
+		ndev_vif->traffic_mon_state = TRAFFIC_MON_CLIENT_STATE_NONE;
+		INIT_WORK(&ndev_vif->traffic_mon_work, slsi_netif_traffic_monitor_work);
 
-			mid_tput = (rps_enable_tput_in_mbps * 1000 * 1000);
-			high_tput = (napi_cpu_big_tput_in_mbps * 1000 * 1000);
+		mid_tput = (rps_enable_tput_in_mbps * 1000 * 1000);
+		high_tput = (napi_cpu_big_tput_in_mbps * 1000 * 1000);
 
-			SLSI_NET_DBG1(dev, SLSI_NETDEV, "initialize RX traffic monitor client (mid_tput:%d Mbps, high_tput:%d Mbps)\n", mid_tput, high_tput);
-			if (slsi_traffic_mon_client_register(sdev, dev, TRAFFIC_MON_CLIENT_MODE_EVENTS, mid_tput, high_tput, slsi_netif_traffic_monitor_cb))
-				SLSI_NET_WARN(dev, "failed to add a client to traffic monitor\n");
-		}
-#else
-		slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
-#endif
+		SLSI_NET_DBG1(dev, SLSI_NETDEV, "initialize RX traffic monitor client (mid_tput:%d Mbps, high_tput:%d Mbps)\n", mid_tput, high_tput);
+		if (slsi_traffic_mon_client_register(sdev, dev, TRAFFIC_MON_CLIENT_MODE_EVENTS, mid_tput, high_tput, slsi_netif_traffic_monitor_cb))
+			SLSI_NET_WARN(dev, "failed to add a client to traffic monitor\n");
 	}
+#else
+	slsi_netif_rps_map_set(dev, SCSC_NETIF_RPS_CPUS_MASK, strlen(SCSC_NETIF_RPS_CPUS_MASK));
+#endif
 	return 0;
 
 exit_with_error:
@@ -1878,7 +1769,6 @@ int slsi_netif_init(struct slsi_dev *sdev)
 	}
 #if defined(CONFIG_SCSC_WLAN_WIFI_SHARING) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
 #if defined(CONFIG_SCSC_WLAN_MHS_STATIC_INTERFACE) || (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 9) || defined(CONFIG_SCSC_WLAN_DUAL_STATION)
-	SLSI_ETHER_COPY(sdev->netdev_addresses[SLSI_NET_INDEX_P2PX_SWLAN], SLSI_DEFAULT_HW_MAC_ADDR);
 	if (slsi_netif_add_locked(sdev, CONFIG_SCSC_AP_INTERFACE_NAME, SLSI_NET_INDEX_P2PX_SWLAN) != 0) {
 		rtnl_lock();
 		slsi_netif_remove_locked(sdev, sdev->netdev[SLSI_NET_INDEX_WLAN]);
@@ -1954,10 +1844,9 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 {
 	int               i;
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
-#if !(defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION < 11)
-	struct list_head    *pos, *q;
+#ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
+	struct list_head    *pos, *q, *blacklist_pos, *blacklist_q;
 #endif
-	struct list_head    *blacklist_pos, *blacklist_q;
 
 	SLSI_NET_DBG1(dev, SLSI_NETDEV, "Unregister:%pM\n", dev->dev_addr);
 
@@ -2010,8 +1899,8 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 	kfree_skb(ndev_vif->sta.mlme_scan_ind_skb);
 	slsi_roam_channel_cache_prune(dev, 0, NULL);
 
+#ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
 	if (SLSI_IS_VIF_INDEX_WLAN(ndev_vif)) {
-#if !(defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION < 11)
 		SLSI_NET_DBG1(dev, SLSI_NETDEV, "Cleaning up scan list!\n");
 		list_for_each_safe(pos, q, &ndev_vif->sta.ssid_info) {
 			struct slsi_ssid_info *ssid_info = list_entry(pos, struct slsi_ssid_info, list);
@@ -2026,7 +1915,6 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 			list_del(pos);
 			kfree(ssid_info);
 		}
-#endif
 		list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_fw_list) {
 			struct slsi_bssid_blacklist_info *blacklist_info = list_entry(blacklist_pos,
 				struct slsi_bssid_blacklist_info, list);
@@ -2034,15 +1922,8 @@ void slsi_netif_remove_locked(struct slsi_dev *sdev, struct net_device *dev)
 			list_del(blacklist_pos);
 			kfree(blacklist_info);
 		}
-		/* Clear IOCTL list */
-		list_for_each_safe(blacklist_pos, blacklist_q, &ndev_vif->acl_data_ioctl_list) {
-			struct slsi_ioctl_blacklist_info *blacklist_info = list_entry(blacklist_pos,
-				struct slsi_ioctl_blacklist_info, list);
-
-			list_del(blacklist_pos);
-			kfree(blacklist_info);
-		}
 	}
+#endif
 	kfree(ndev_vif->probe_req_ies);
 	ndev_vif->probe_req_ies = NULL;
 	ndev_vif->probe_req_ie_len = 0;
@@ -2374,98 +2255,6 @@ static void slsi_netif_tcp_ack_suppression_fin(struct net_device *dev, struct sk
 	slsi_spinlock_unlock(&ndev_vif->tcp_ack_lock);
 }
 
-static bool slsi_netif_tcp_ack_suppression_is_possible(struct net_device *dev, struct sk_buff *skb)
-{
-	struct netdev_vif *ndev_vif = netdev_priv(dev);
-
-	if (tcp_ack_suppression_disable ||
-			(tcp_ack_suppression_disable_2g && !SLSI_IS_VIF_CHANNEL_5G(ndev_vif)))
-		return false;
-
-	/* for AP type (AP or P2P Go) check if the packet is local or intra BSS. If intra BSS then
-	 * the IP header and TCP header are not set; so return the SKB
-	 */
-	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP && (compare_ether_addr(eth_hdr(skb)->h_source, dev->dev_addr) != 0))
-		return false;
-
-	/* Return SKB that doesn't match. */
-	if (be16_to_cpu(eth_hdr(skb)->h_proto) != ETH_P_IP ||
-			ip_hdr(skb)->protocol != IPPROTO_TCP ||
-			!skb_transport_header_was_set(skb))
-		return false;
-
-	if (tcp_hdr(skb)->syn) {
-		slsi_netif_tcp_ack_suppression_syn(dev, skb);
-		return false;
-	}
-	if (tcp_hdr(skb)->fin) {
-		slsi_netif_tcp_ack_suppression_fin(dev, skb);
-		return false;
-	}
-	if (!tcp_hdr(skb)->ack || tcp_hdr(skb)->rst || tcp_hdr(skb)->urg)
-		return false;
-
-	return true;
-}
-
-static void slsi_netif_tcp_ack_suppression_rate_cal(struct net_device *dev, struct slsi_tcp_ack_s *tcp_ack, struct sk_buff *skb)
-{
-	u32 tcp_recv_window_size = 0;
-
-	/* Measure the throughput of TCP stream by monitoring the bytes Acked by each Ack over a
-	 * sampling period. Based on throughput apply different degree of Ack suppression
-	 */
-	if (tcp_ack->last_ack_seq)
-		tcp_ack->num_bytes += ((u32)be32_to_cpu(tcp_hdr(skb)->ack_seq) - tcp_ack->last_ack_seq);
-
-	tcp_ack->last_ack_seq = be32_to_cpu(tcp_hdr(skb)->ack_seq);
-	if (ktime_to_ms(ktime_sub(ktime_get(), tcp_ack->last_sample_time)) > tcp_ack_suppression_monitor_interval) {
-		u16 acks_max;
-		u32 tcp_rate = ((tcp_ack->num_bytes * 8) / (tcp_ack_suppression_monitor_interval * 1000));
-
-		SLSI_NET_DBG2(dev, SLSI_TX, "hysteresis:%u total_bytes:%llu rate:%u Mbps\n",
-				tcp_ack->hysteresis, tcp_ack->num_bytes, tcp_rate);
-
-		/* hysterisis - change only if the variation from last value is more than threshold */
-		if ((abs(tcp_rate - tcp_ack->last_tcp_rate)) > tcp_ack->hysteresis) {
-#ifdef CONFIG_SCSC_WLAN_HIP4_PROFILING
-			struct netdev_vif *ndev_vif = netdev_priv(dev);
-#endif
-			if (tcp_rate >= tcp_ack_suppression_rate_very_high) {
-				tcp_ack->max = tcp_ack_suppression_rate_very_high_acks;
-				tcp_ack->age = tcp_ack_suppression_rate_very_high_timeout;
-			} else if (tcp_rate >= tcp_ack_suppression_rate_high) {
-				tcp_ack->max = tcp_ack_suppression_rate_high_acks;
-				tcp_ack->age = tcp_ack_suppression_rate_high_timeout;
-			} else if (tcp_rate >= tcp_ack_suppression_rate_low) {
-				tcp_ack->max = tcp_ack_suppression_rate_low_acks;
-				tcp_ack->age = tcp_ack_suppression_rate_low_timeout;
-			} else {
-				tcp_ack->max = 0;
-				tcp_ack->age = 0;
-			}
-
-			/* Should not be suppressing Acks more than 20% of receiver window size
-			 * doing so can lead to increased RTT and low transmission rate at the
-			 * TCP sender
-			 */
-			if (tcp_ack->window_multiplier)
-				tcp_recv_window_size = be16_to_cpu(tcp_hdr(skb)->window) * (2 << tcp_ack->window_multiplier);
-			else
-				tcp_recv_window_size = be16_to_cpu(tcp_hdr(skb)->window);
-			SCSC_HIP4_SAMPLER_TCP_RWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, tcp_recv_window_size);
-
-			acks_max = (tcp_recv_window_size / 5) / (2 * tcp_ack->mss);
-			if (tcp_ack->max > acks_max)
-				tcp_ack->max = acks_max;
-		}
-		tcp_ack->hysteresis = tcp_rate / 5; /* 20% hysteresis */
-		tcp_ack->last_tcp_rate = tcp_rate;
-		tcp_ack->num_bytes = 0;
-		tcp_ack->last_sample_time = ktime_get();
-	}
-}
-
 static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev, struct sk_buff *skb)
 {
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
@@ -2475,7 +2264,38 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 	struct sk_buff *cskb = 0;
 	u32 tcp_recv_window_size = 0;
 
-	if (!slsi_netif_tcp_ack_suppression_is_possible(dev, skb))
+	if (tcp_ack_suppression_disable)
+		return skb;
+
+	if (tcp_ack_suppression_disable_2g && !SLSI_IS_VIF_CHANNEL_5G(ndev_vif))
+		return skb;
+
+	/* for AP type (AP or P2P Go) check if the packet is local or intra BSS. If intra BSS then
+	 * the IP header and TCP header are not set; so return the SKB
+	 */
+	if (ndev_vif->vif_type == FAPI_VIFTYPE_AP && (compare_ether_addr(eth_hdr(skb)->h_source, dev->dev_addr) != 0))
+		return skb;
+
+	/* Return SKB that doesn't match. */
+	if (be16_to_cpu(eth_hdr(skb)->h_proto) != ETH_P_IP)
+		return skb;
+	if (ip_hdr(skb)->protocol != IPPROTO_TCP)
+		return skb;
+	if (!skb_transport_header_was_set(skb))
+		return skb;
+	if (tcp_hdr(skb)->syn) {
+		slsi_netif_tcp_ack_suppression_syn(dev, skb);
+		return skb;
+	}
+	if (tcp_hdr(skb)->fin) {
+		slsi_netif_tcp_ack_suppression_fin(dev, skb);
+		return skb;
+	}
+	if (!tcp_hdr(skb)->ack)
+		return skb;
+	if (tcp_hdr(skb)->rst)
+		return skb;
+	if (tcp_hdr(skb)->urg)
 		return skb;
 
 	slsi_spinlock_lock(&ndev_vif->tcp_ack_lock);
@@ -2563,8 +2383,57 @@ static struct sk_buff *slsi_netif_tcp_ack_suppression_pkt(struct net_device *dev
 		goto _forward_now;
 	}
 
-	if (tcp_ack_suppression_monitor)
-		slsi_netif_tcp_ack_suppression_rate_cal(dev, tcp_ack, skb);
+	if (tcp_ack_suppression_monitor) {
+		/* Measure the throughput of TCP stream by monitoring the bytes Acked by each Ack over a
+		 * sampling period. Based on throughput apply different degree of Ack suppression
+		 */
+		if (tcp_ack->last_ack_seq)
+			tcp_ack->num_bytes += ((u32)be32_to_cpu(tcp_hdr(skb)->ack_seq) - tcp_ack->last_ack_seq);
+
+		tcp_ack->last_ack_seq = be32_to_cpu(tcp_hdr(skb)->ack_seq);
+		if (ktime_to_ms(ktime_sub(ktime_get(), tcp_ack->last_sample_time)) > tcp_ack_suppression_monitor_interval) {
+			u16 acks_max;
+			u32 tcp_rate = ((tcp_ack->num_bytes * 8) / (tcp_ack_suppression_monitor_interval * 1000));
+
+			SLSI_NET_DBG2(dev, SLSI_TX, "hysteresis:%u total_bytes:%llu rate:%u Mbps\n",
+				      tcp_ack->hysteresis, tcp_ack->num_bytes, tcp_rate);
+
+			/* hysterisis - change only if the variation from last value is more than threshold */
+			if ((abs(tcp_rate - tcp_ack->last_tcp_rate)) > tcp_ack->hysteresis) {
+				if (tcp_rate >= tcp_ack_suppression_rate_very_high) {
+					tcp_ack->max = tcp_ack_suppression_rate_very_high_acks;
+					tcp_ack->age = tcp_ack_suppression_rate_very_high_timeout;
+				} else if (tcp_rate >= tcp_ack_suppression_rate_high) {
+					tcp_ack->max = tcp_ack_suppression_rate_high_acks;
+					tcp_ack->age = tcp_ack_suppression_rate_high_timeout;
+				} else if (tcp_rate >= tcp_ack_suppression_rate_low) {
+					tcp_ack->max = tcp_ack_suppression_rate_low_acks;
+					tcp_ack->age = tcp_ack_suppression_rate_low_timeout;
+				} else {
+					tcp_ack->max = 0;
+					tcp_ack->age = 0;
+				}
+
+				/* Should not be suppressing Acks more than 20% of receiver window size
+				 * doing so can lead to increased RTT and low transmission rate at the
+				 * TCP sender
+				 */
+				if (tcp_ack->window_multiplier)
+					tcp_recv_window_size = be16_to_cpu(tcp_hdr(skb)->window) * (2 << tcp_ack->window_multiplier);
+				else
+					tcp_recv_window_size = be16_to_cpu(tcp_hdr(skb)->window);
+				SCSC_HIP4_SAMPLER_TCP_RWND(ndev_vif->sdev->minor_prof, tcp_ack->stream_id, tcp_recv_window_size);
+
+				acks_max = (tcp_recv_window_size / 5) / (2 * tcp_ack->mss);
+				if (tcp_ack->max > acks_max)
+					tcp_ack->max = acks_max;
+			}
+			tcp_ack->hysteresis = tcp_rate / 5; /* 20% hysteresis */
+			tcp_ack->last_tcp_rate = tcp_rate;
+			tcp_ack->num_bytes = 0;
+			tcp_ack->last_sample_time = ktime_get();
+		}
+	}
 
 	/* Do not suppress Selective Acks. */
 	if (slsi_netif_tcp_ack_suppression_option(skb, TCP_ACK_SUPPRESSION_OPTION_SACK)) {

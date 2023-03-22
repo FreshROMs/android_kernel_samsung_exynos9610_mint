@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -410,11 +410,6 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 #else
 	seq_puts(m, "CONFIG_SCSC_WIFI_NAN_ENABLE                       : n\n");
 #endif
-#ifdef CONFIG_SCSC_WLAN_RTT
-	seq_puts(m, "CONFIG_SCSC_WLAN_RTT                       : y\n");
-#else
-	seq_puts(m, "CONFIG_SCSC_WLAN_RTT                       : n\n");
-#endif
 #ifdef CONFIG_SCSC_WLAN_SET_PREFERRED_ANTENNA
 	seq_puts(m, "CONFIG_SCSC_WLAN_SET_PREFERRED_ANTENNA            : y\n");
 #else
@@ -434,6 +429,16 @@ static int slsi_procfs_build_show(struct seq_file *m, void *v)
 	seq_puts(m, "CONFIG_SCSC_WLAN_DYNAMIC_ITO                      : y\n");
 #else
 	seq_puts(m, "CONFIG_SCSC_WLAN_DYNAMIC_ITO                      : n\n");
+#endif
+#ifdef CONFIG_SCSC_WLAN_BSS_SELECTION
+	seq_puts(m, "CONFIG_SCSC_WLAN_BSS_SELECTION                      : y\n");
+#else
+	seq_puts(m, "CONFIG_SCSC_WLAN_BSS_SELECTION                      : n\n");
+#endif
+#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
+	seq_puts(m, "CONFIG_SCSC_WLAN_FAST_RECOVERY                      : y\n");
+#else
+	seq_puts(m, "CONFIG_SCSC_WLAN_FAST_RECOVERY                      : n\n");
 #endif
 #ifdef CONFIG_SCSC_WLAN_AP_AUTO_RECOVERY
 	seq_puts(m, "CONFIG_SCSC_WLAN_AP_AUTO_RECOVERY                 : y\n");
@@ -1146,8 +1151,7 @@ static ssize_t slsi_procfs_nan_info_read(struct file *file,  char __user *user_b
 	pos += scnprintf(buf + pos, bufsz, ",MASTERPREFVAL,");
 	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->master_pref_value);
 	pos += scnprintf(buf + pos, bufsz, ",AMR,");
-	pos += scnprintf(buf + pos, bufsz - pos, "0x%08x%08x", nan_data->amr_higher,
-			 nan_data->amr_lower);
+	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->amr);
 	pos += scnprintf(buf + pos, bufsz, ",HOPCOUNT,");
 	pos += scnprintf(buf + pos, bufsz - pos, "%d", nan_data->hopcount);
 	pos += scnprintf(buf + pos, bufsz, ",NMIRANDOMINTERVAL,");
@@ -1258,6 +1262,9 @@ int slsi_create_proc_dir(struct slsi_dev *sdev)
 	(void)snprintf(dir, sizeof(dir), "driver/unifi%d", sdev->procfs_instance);
 	parent = proc_mkdir(dir, NULL);
 	if (parent) {
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 4, 0))
+		parent->data = sdev;
+#endif
 		sdev->procfs_dir = parent;
 
 		SLSI_PROCFS_SEQ_ADD_FILE(sdev, build, parent, S_IRUSR | S_IRGRP | S_IROTH);

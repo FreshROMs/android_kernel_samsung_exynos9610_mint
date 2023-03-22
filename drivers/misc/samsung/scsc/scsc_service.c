@@ -74,7 +74,6 @@ void srvman_init(struct srvman *srvman, struct scsc_mx *mx)
 	wake_lock_init(NULL, &srvman->sm_wake_lock.ws, "srvman_wakelock");
 #endif
 #endif
-	srvman_set_error(srvman, ALLOWED_START_STOP);
 }
 
 void srvman_deinit(struct srvman *srvman)
@@ -82,7 +81,6 @@ void srvman_deinit(struct srvman *srvman)
 	struct scsc_service *service, *next;
 
 	SCSC_TAG_INFO(MXMAN, "\n");
-	srvman_set_error(srvman, NOT_ALLOWED_START_STOP);
 	list_for_each_entry_safe(service, next, &srvman->service_list, list) {
 		list_del(&service->list);
 		kfree(service);
@@ -95,79 +93,14 @@ void srvman_deinit(struct srvman *srvman)
 #endif
 }
 
-bool srvman_start_stop_not_allowed(struct srvman *srvman)
-{
-	bool is_not_allowed;
-
-	mutex_lock(&srvman->error_state_mutex);
-	if (srvman->error == NOT_ALLOWED_START_STOP)
-		is_not_allowed = true;
-	else
-		is_not_allowed = false;
-	mutex_unlock(&srvman->error_state_mutex);
-
-	return is_not_allowed;
-}
-
-bool srvman_start_not_allowed(struct srvman *srvman)
-{
-	bool is_not_allowed;
-
-	mutex_lock(&srvman->error_state_mutex);
-	if (srvman->error == NOT_ALLOWED_START_STOP || srvman->error == NOT_ALLOWED_START)
-		is_not_allowed = true;
-	else
-		is_not_allowed = false;
-	mutex_unlock(&srvman->error_state_mutex);
-
-	return is_not_allowed;
-}
-
-bool srvman_in_error_safe(struct srvman *srvman)
-{
-	if (srvman->error == ALLOWED_START_STOP)
-		return false;
-	return true;
-}
-
-bool srvman_in_error(struct srvman *srvman)
-{
-	bool is_error;
-
-	mutex_lock(&srvman->error_state_mutex);
-	is_error = srvman_in_error_safe(srvman);
-	mutex_unlock(&srvman->error_state_mutex);
-	return is_error;
-}
-
-bool srvman_allow_close(struct srvman *srvman)
-{
-	bool is_error;
-
-	mutex_lock(&srvman->error_state_mutex);
-	if (srvman->error == NOT_ALLOWED_START_STOP)
-		is_error = false;
-	else
-		is_error = true;
-	mutex_unlock(&srvman->error_state_mutex);
-	return is_error;
-}
-
-void srvman_set_error(struct srvman *srvman, enum error_status s)
-{
-	mutex_lock(&srvman->error_state_mutex);
-	srvman->error = s;
-	mutex_unlock(&srvman->error_state_mutex);
-	SCSC_TAG_INFO(MXMAN, "error:%d\n", s);
-}
-
-void srvman_set_error_complete(struct srvman *srvman, enum error_status s)
+void srvman_set_error(struct srvman *srvman)
 {
 	struct scsc_service *service;
 
 	SCSC_TAG_INFO(MXMAN, "\n");
-
-	srvman_set_error(srvman, s);
+	mutex_lock(&srvman->error_state_mutex);
+	srvman->error = true;
+	mutex_unlock(&srvman->error_state_mutex);
 	mutex_lock(&srvman->service_list_mutex);
 	list_for_each_entry(service, &srvman->service_list, list) {
 		complete(&service->sm_msg_start_completion);
@@ -178,10 +111,10 @@ void srvman_set_error_complete(struct srvman *srvman, enum error_status s)
 
 void srvman_clear_error(struct srvman *srvman)
 {
+	SCSC_TAG_INFO(MXMAN, "\n");
 	mutex_lock(&srvman->error_state_mutex);
-	srvman->error = ALLOWED_START_STOP;
+	srvman->error = false;
 	mutex_unlock(&srvman->error_state_mutex);
-	SCSC_TAG_INFO(MXMAN, "error:%d\n", ALLOWED_START_STOP);
 }
 
 static int wait_for_sm_msg_start_cfm(struct scsc_service *service)
@@ -345,7 +278,7 @@ int scsc_mx_service_start(struct scsc_service *service, scsc_mifram_ref ref)
 #ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
 #endif
-	if (srvman_start_not_allowed(srvman)) {
+	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
@@ -439,7 +372,7 @@ int scsc_mx_service_stop(struct scsc_service *service)
 #ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
 #endif
-	if (srvman_start_stop_not_allowed(srvman)) {
+	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
@@ -547,7 +480,11 @@ void srvman_freeze_services(struct srvman *srvman, struct mx_syserr_decode *syse
 		mxman->notify = true;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
 	reinit_completion(&mxman->recovery_completion);
+#else
+	INIT_COMPLETION(mxman->recovery_completion);
+#endif
 	mutex_unlock(&srvman->service_list_mutex);
 	SCSC_TAG_INFO(MXMAN, "OK\n");
 }
@@ -684,7 +621,7 @@ void scsc_mx_service_service_failed(struct scsc_service *service, const char *re
 
 	host_panic_code = (SCSC_PANIC_CODE_HOST << 15) | (service->id << SCSC_SYSERR_HOST_SERVICE_SHIFT);
 
-	srvman_set_error(srvman, NOT_ALLOWED_START_STOP);
+	srvman_set_error(srvman);
 	switch (service->id) {
 	case SCSC_SERVICE_ID_WLAN:
 		SCSC_TAG_INFO(MXMAN, "WLAN: %s\n", ((reason != NULL) ? reason : ""));
@@ -720,7 +657,10 @@ int scsc_mx_service_close(struct scsc_service *service)
 	wake_lock(&srvman->sm_wake_lock);
 #endif
 
-	if (srvman_start_stop_not_allowed(srvman)) {
+	/* TODO - Race conditions here unless we protect better
+	 * code assumes srvman->error and mxman->state can't change, but they can
+	 */
+	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);
@@ -802,7 +742,8 @@ struct scsc_service *scsc_mx_service_open(struct scsc_mx *mx, enum scsc_service_
 #ifdef CONFIG_ANDROID
 	wake_lock(&srvman->sm_wake_lock);
 #endif
-	if (srvman_start_not_allowed(srvman)) {
+	/* TODO - need to close potential race conditions - see close */
+	if (srvman->error) {
 		tval = ns_to_timeval(mxman->last_panic_time);
 		SCSC_TAG_ERR(MXMAN, "error: refused due to previous f/w failure scsc_panic_code=0x%x happened at [%6lu.%06ld]\n",
 				mxman->scsc_panic_code, tval.tv_sec, tval.tv_usec);

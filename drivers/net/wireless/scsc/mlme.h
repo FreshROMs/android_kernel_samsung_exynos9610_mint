@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2020 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -29,8 +29,6 @@ enum slsi_ac_index_wmm_pe {
 #define SLSI_WLAN_OUI_TYPE_WFA_HS20_IND 0x10
 #define SLSI_WLAN_OUI_TYPE_WFA_OSEN 0x12
 #define SLSI_WLAN_OUI_TYPE_WFA_MBO 0x16
-
-#define SLSI_WLAN_FAIL_WORK_TIMEOUT  1500 /* 1.5s timeout */
 
 /*Extended capabilities bytes*/
 #define SLSI_WLAN_EXT_CAPA2_BSS_TRANSISITION_ENABLED  (BIT(3))
@@ -88,7 +86,6 @@ enum slsi_ac_index_wmm_pe {
 #define SLSI_ROAMING_CHANNELS_MAX 38
 
 #define SLSI_WLAN_EID_WAPI 68
-#define SLSI_WLAN_EID_RSNX 244
 
 /**
  * If availability_duration is set to SLSI_FW_CHANNEL_DURATION_UNSPECIFIED
@@ -137,11 +134,17 @@ struct slsi_mlme_pkt_filter_elem {
 	struct slsi_mlme_pattern_desc pattern_desc[SLSI_MAX_PATTERN_DESC];
 };
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 u16 slsi_get_chann_info(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef);
 int slsi_check_channelization(struct slsi_dev *sdev, struct cfg80211_chan_def *chandef,
 			      int wifi_sharing_channel_switched);
+#else
+u16 slsi_get_chann_info(struct slsi_dev *sdev, enum nl80211_channel_type channel_type);
+int slsi_check_channelization(struct slsi_dev *sdev, enum nl80211_channel_type channel_type);
+#endif
+
 int slsi_mlme_set_ip_address(struct slsi_dev *sdev, struct net_device *dev);
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 int slsi_mlme_set_ipv6_address(struct slsi_dev *sdev, struct net_device *dev);
 #endif
 int slsi_mlme_set(struct slsi_dev *sdev, struct net_device *dev, u8 *req, int req_len);
@@ -150,8 +153,6 @@ int slsi_mlme_get(struct slsi_dev *sdev, struct net_device *dev, u8 *req, int re
 
 int slsi_mlme_add_vif(struct slsi_dev *sdev, struct net_device *dev, u8 *interface_address, u8 *device_address);
 int slsi_mlme_del_vif(struct slsi_dev *sdev, struct net_device *dev);
-int slsi_mlme_add_detect_vif(struct slsi_dev *sdev, struct net_device *dev, u8 *interface_address, u8 *device_address);
-int slsi_mlme_del_detect_vif(struct slsi_dev *sdev, struct net_device *dev);
 #if defined(CONFIG_SLSI_WLAN_STA_FWD_BEACON) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
 int slsi_mlme_set_forward_beacon(struct slsi_dev *sdev, struct net_device *dev, int action);
 #endif
@@ -240,7 +241,9 @@ int slsi_mlme_roam(struct slsi_dev *sdev, struct net_device *dev, const u8 *bssi
 int slsi_mlme_set_cached_channels(struct slsi_dev *sdev, struct net_device *dev, u32 channels_count, u8 *channels);
 int slsi_mlme_tdls_peer_resp(struct slsi_dev *sdev, struct net_device *dev, u16 pid, u16 tdls_event);
 int slsi_mlme_tdls_action(struct slsi_dev *sdev, struct net_device *dev, const u8 *peer, int action, u16 center_freq, u16 chan_info);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 9))
 int slsi_mlme_set_acl(struct slsi_dev *sdev, struct net_device *dev, u16 ifnum, enum nl80211_acl_policy acl_policy, int max_acl_entries, struct mac_address mac_addrs[]);
+#endif
 int slsi_mlme_set_traffic_parameters(struct slsi_dev *sdev, struct net_device *dev, u16 user_priority, u16 medium_time, u16 minimun_data_rate, u8 *mac);
 int slsi_mlme_del_traffic_parameters(struct slsi_dev *sdev, struct net_device *dev, u16 user_priority);
 #ifdef CONFIG_SCSC_WLAN_GSCAN_ENABLE
@@ -277,12 +280,9 @@ int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u8 h
 int slsi_mlme_read_apf_request(struct slsi_dev *sdev, struct net_device *dev, u8 **host_dst, int *datalen);
 int slsi_mlme_install_apf_request(struct slsi_dev *sdev, struct net_device *dev,
 				  u8 *program, u32 program_len);
-int slsi_mlme_set_multicast_ip(struct slsi_dev *sdev, struct net_device *dev,  __be32 multicast_ip_list[], int count);
-
 #ifdef CONFIG_SCSC_WLAN_STA_ENHANCED_ARP_DETECT
 int slsi_mlme_arp_detect_request(struct slsi_dev *sdev, struct net_device *dev, u16 action, u8 *ipaddr);
 #endif
-int slsi_mlme_start_detect_request(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_mlme_set_ctwindow(struct slsi_dev *sdev, struct net_device *dev, unsigned int ct_param);
 int slsi_mlme_set_p2p_noa(struct slsi_dev *sdev, struct net_device *dev, unsigned int noa_count,
 			  unsigned int interval, unsigned int duration);
@@ -306,7 +306,9 @@ int slsi_mlme_set_scan_mode_req(struct slsi_dev *sdev, struct net_device *dev, u
 int slsi_mlme_add_range_req(struct slsi_dev *sdev, struct net_device *dev, u8 count, struct slsi_rtt_config *nl_rtt_params,
 			    u16 rtt_id, u8 *source_addr);
 int slsi_mlme_del_range_req(struct slsi_dev *sdev, struct net_device *dev, u16 count, u8 *addr, u16 rtt_id);
+#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 void slsi_mlme_set_country_for_recovery(struct slsi_dev *sdev);
+#endif
 #ifdef CONFIG_SCSC_WLAN_ARP_FLOW_CONTROL
 void slsi_rx_send_frame_cfm_async(struct slsi_dev *sdev, struct net_device *dev, struct sk_buff *skb);
 #endif

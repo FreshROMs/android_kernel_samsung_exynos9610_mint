@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2019 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -108,11 +108,6 @@ static int nan_max_ndi_ifaces = 1;
 module_param(nan_max_ndi_ifaces, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(nan_max_ndi_ifaces, "max ndi interface");
 
-static bool disable_nan_mac_random;
-module_param(disable_nan_mac_random, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(disable_nan_mac_random, "Disable NAN mac_randomization: set 1.");
-
-
 #ifdef SCSC_SEP_VERSION
 static int nan_ndp_delay_ms = 550;
 static int nan_ndp_max_delay_ms = 600;
@@ -202,12 +197,6 @@ int slsi_get_nan_ndp_max_time(void)
 
 	return nan_ndp_max_delay_ms;
 }
-
-bool slsi_get_nan_mac_random(void)
-{
-	return !disable_nan_mac_random;
-}
-
 #endif
 
 static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long data, void *arg)
@@ -250,7 +239,7 @@ static int slsi_dev_inetaddr_changed(struct notifier_block *nb, unsigned long da
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 static int slsi_dev_inet6addr_changed(struct notifier_block *nb, unsigned long data, void *arg)
 {
 	struct slsi_dev     *sdev = container_of(nb, struct slsi_dev, inet6addr_notifier);
@@ -277,43 +266,6 @@ static int slsi_dev_inet6addr_changed(struct notifier_block *nb, unsigned long d
 }
 #endif
 
-void slsi_dump_system_error_buffer(struct slsi_dev *sdev)
-{
-	mutex_lock(&sdev->sys_error_log_buf.log_buf_mutex);
-	SLSI_INFO(sdev, "System error saved logs:\n--BEGIN--\n%s--END--\n", sdev->sys_error_log_buf.log_buf);
-	mutex_unlock(&sdev->sys_error_log_buf.log_buf_mutex);
-}
-
-void slsi_add_log_to_system_error_buffer(struct slsi_dev *sdev, char *input_buffer)
-{
-	int pos = sdev->sys_error_log_buf.pos;
-	int buf_size = sdev->sys_error_log_buf.log_buf_size - pos;
-	u32 time[2] = { 0 };
-
-	get_kernel_timestamp(time);
-	mutex_lock(&sdev->sys_error_log_buf.log_buf_mutex);
-	sdev->sys_error_log_buf.pos += scnprintf(sdev->sys_error_log_buf.log_buf + pos, buf_size - pos, "[%d.%d] ", time[0], time[1]);
-
-	pos = sdev->sys_error_log_buf.pos;
-	buf_size = sdev->sys_error_log_buf.log_buf_size - pos;
-
-	sdev->sys_error_log_buf.pos += scnprintf(sdev->sys_error_log_buf.log_buf + pos, buf_size - pos, input_buffer);
-	mutex_unlock(&sdev->sys_error_log_buf.log_buf_mutex);
-}
-
-static void slsi_sys_error_log_init(struct slsi_dev *sdev)
-{
-	mutex_init(&sdev->sys_error_log_buf.log_buf_mutex);
-	sdev->sys_error_log_buf.pos = 0;
-	sdev->sys_error_log_buf.log_buf = NULL;
-	sdev->sys_error_log_buf.log_buf_size = SYSTEM_ERROR_BUFFER_SZ;
-
-	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Allocating %d memory for system_error_log_buffer\n", sdev->sys_error_log_buf.log_buf_size);
-	sdev->sys_error_log_buf.log_buf = kzalloc(sdev->sys_error_log_buf.log_buf_size, GFP_KERNEL);
-	if (!sdev->sys_error_log_buf.log_buf)
-		SLSI_ERR_NODEV("Failed to allocate system_error_log_buffer\n");
-}
-
 struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struct scsc_service_client *mx_wlan_client)
 {
 	struct slsi_dev *sdev;
@@ -329,7 +281,6 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 
 	sdev->mlme_blocked = false;
 	sdev->wlan_service_on = 0;
-	sdev->require_service_close = false;
 
 	SLSI_MUTEX_INIT(sdev->netdev_add_remove_mutex);
 	mutex_init(&sdev->netdev_remove_mutex);
@@ -371,27 +322,22 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	slsi_wake_lock_init(NULL, &sdev->wlan_wl_mlme.ws, "wlan_mlme");
 	slsi_wake_lock_init(NULL, &sdev->wlan_wl_ma.ws, "wlan_ma");
 	slsi_wake_lock_init(NULL, &sdev->wlan_wl_roam.ws, "wlan_roam");
-	slsi_wake_lock_init(NULL, &sdev->wlan_wl_init.ws, "wlan_init");
 #else
 	slsi_wake_lock_init(&sdev->wlan_wl, WAKE_LOCK_SUSPEND, "wlan");
 	slsi_wake_lock_init(&sdev->wlan_wl_mlme, WAKE_LOCK_SUSPEND, "wlan_mlme");
 	slsi_wake_lock_init(&sdev->wlan_wl_ma, WAKE_LOCK_SUSPEND, "wlan_ma");
 	slsi_wake_lock_init(&sdev->wlan_wl_roam, WAKE_LOCK_SUSPEND, "wlan_roam");
-	slsi_wake_lock_init(&sdev->wlan_wl_init, WAKE_LOCK_SUSPEND, "wlan_init");
 #endif
 
 	sdev->recovery_next_state = 0;
 	init_completion(&sdev->recovery_remove_completion);
 	init_completion(&sdev->recovery_stop_completion);
 	init_completion(&sdev->recovery_completed);
-	init_completion(&sdev->service_fail_started_indication);
-	init_completion(&sdev->recovery_fail_safe_complete);
 	sdev->recovery_status = 0;
 
 	sdev->term_udi_users         = &term_udi_users;
 	sdev->sig_wait_cfm_timeout   = &sig_wait_cfm_timeout;
 	slsi_sig_send_init(&sdev->sig_wait);
-	slsi_sys_error_log_init(sdev);
 
 	for (i = 0; i < SLSI_LLS_AC_MAX; i++)
 		atomic_set(&sdev->tx_host_tag[i], ((1 << 2) | i));
@@ -424,7 +370,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 		goto err_udi_proc_init;
 	}
 
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 	sdev->inet6addr_notifier.notifier_call = slsi_dev_inet6addr_changed;
 	if (register_inet6addr_notifier(&sdev->inet6addr_notifier) != 0) {
 		SLSI_ERR(sdev, "failed to register inet6addr_notifier\n");
@@ -435,7 +381,7 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 	sdev->inetaddr_notifier.notifier_call = slsi_dev_inetaddr_changed;
 	if (register_inetaddr_notifier(&sdev->inetaddr_notifier) != 0) {
 		SLSI_ERR(sdev, "failed to register inetaddr_notifier\n");
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 		unregister_inet6addr_notifier(&sdev->inet6addr_notifier);
 #endif
 		goto err_cfg80211_registered;
@@ -511,10 +457,10 @@ struct slsi_dev *slsi_dev_attach(struct device *dev, struct scsc_mx *core, struc
 #endif
 	}
 	INIT_WORK(&sdev->recovery_work_on_stop, slsi_failure_reset);
+#ifdef CONFIG_SCSC_WLAN_FAST_RECOVERY
 	INIT_WORK(&sdev->recovery_work, slsi_subsystem_reset);
 	INIT_WORK(&sdev->recovery_work_on_start, slsi_chip_recovery);
-	INIT_WORK(&sdev->system_error_user_fail_work, slsi_system_error_recovery);
-	INIT_WORK(&sdev->trigger_wlan_fail_work, slsi_trigger_service_failure);
+#endif
 	return sdev;
 
 #if CONFIG_SCSC_WLAN_MAX_INTERFACES >= 4
@@ -538,7 +484,7 @@ err_wlan_registered:
 
 err_inetaddr_registered:
 	unregister_inetaddr_notifier(&sdev->inetaddr_notifier);
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 	unregister_inet6addr_notifier(&sdev->inet6addr_notifier);
 #endif
 
@@ -562,7 +508,6 @@ err_if:
 	slsi_wake_lock_destroy(&sdev->wlan_wl_mlme);
 	slsi_wake_lock_destroy(&sdev->wlan_wl_ma);
 	slsi_wake_lock_destroy(&sdev->wlan_wl_roam);
-	slsi_wake_lock_destroy(&sdev->wlan_wl_init);
 
 	slsi_cfg80211_free(sdev);
 	return NULL;
@@ -581,13 +526,11 @@ void slsi_dev_detach(struct slsi_dev *sdev)
 	complete_all(&sdev->recovery_remove_completion);
 	complete_all(&sdev->recovery_stop_completion);
 	complete_all(&sdev->recovery_completed);
-	complete_all(&sdev->service_fail_started_indication);
-	complete_all(&sdev->recovery_fail_safe_complete);
 
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Unregister inetaddr_notifier\n");
 	unregister_inetaddr_notifier(&sdev->inetaddr_notifier);
 
-#if IS_ENABLED(CONFIG_IPV6)
+#ifndef CONFIG_SCSC_WLAN_BLOCK_IPV6
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Unregister inet6addr_notifier\n");
 	unregister_inet6addr_notifier(&sdev->inet6addr_notifier);
 #endif
@@ -633,7 +576,6 @@ void slsi_dev_detach(struct slsi_dev *sdev)
 	slsi_wake_lock_destroy(&sdev->wlan_wl_mlme);
 	slsi_wake_lock_destroy(&sdev->wlan_wl_ma);
 	slsi_wake_lock_destroy(&sdev->wlan_wl_roam);
-	slsi_wake_lock_destroy(&sdev->wlan_wl_init);
 
 	SLSI_DBG2(sdev, SLSI_INIT_DEINIT, "Free cfg80211\n");
 	slsi_cfg80211_free(sdev);

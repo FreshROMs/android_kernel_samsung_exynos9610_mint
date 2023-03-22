@@ -78,7 +78,7 @@
 #define BSMHCP_ALIGNMENT                        (32)
 
 #define BSMHCP_FEATURE_LPA2DP                   (0x00000001)
-#define BSMHCP_FEATURE_M4_INTERRUPTS            (0x00000002)
+#define BSMHCP_FEATURE_RESERVED                 (0x00000002)
 #define BSMHCP_FEATURE_FW_INFORMATION           (0x00000004)
 #define BSMHCP_FEATURE_AVDTP_TRANSFER_RING      (0x00000008)
 
@@ -227,7 +227,7 @@ struct BSMHCP_TD_IQ_REPORTING_EVT {
 struct BSMHCP_HEADER {
 	/* AP RW - M4/R4 RO - 64 octets */
 	uint32_t                        magic_value;                /* 0x00 */
-	uint16_t                        ap_to_fg_m4_int_src;        /* 0x04 */
+	uint16_t                        reserved2_u16;              /* 0x04 */
 	uint8_t                         service_request;            /* 0x06 */
 	uint8_t                         reserved1;                  /* 0x07 */
 	uint32_t                        acl_buffer_size;            /* 0x08 */
@@ -236,7 +236,7 @@ struct BSMHCP_HEADER {
 	uint16_t                        ap_to_bg_int_src;           /* 0x14 */
 	uint16_t                        ap_to_fg_int_src;           /* 0x16 */
 	uint16_t                        bg_to_ap_int_src;           /* 0x18 */
-	uint16_t                        fg_to_ap_int_src;           /* 0x1A */
+	uint16_t                        reserved3_u16;              /* 0x1A */
 	uint32_t                        mailbox_offset;             /* 0x1C */
 	uint32_t                        reserved1_u32;              /* 0x20 */
 	uint32_t                        mailbox_hci_cmd_write;      /* 0x24 */

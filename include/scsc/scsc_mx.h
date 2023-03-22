@@ -24,6 +24,12 @@
 /* Used for buffers containing logs that will not be dumped by moredump */
 #define MIFRAMMAN_MEM_POOL_LOGGING 2
 
+#ifdef ANDROID_VERSION
+#ifndef SCSC_SEP_VERSION
+#define SCSC_SEP_VERSION ANDROID_VERSION
+#endif
+#endif
+
 struct device;
 struct firmware;
 struct scsc_mx;

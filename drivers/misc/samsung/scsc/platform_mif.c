@@ -41,7 +41,7 @@
 #include "mif_reg_S5E9610.h"
 #endif
 #include "platform_mif_module.h"
-#ifdef CONFIG_ARCH_EXYNOS
+#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
 #include <linux/soc/samsung/exynos-soc.h>
 #endif
 
@@ -1338,6 +1338,12 @@ static int platform_mif_pmu_reset(struct scsc_mif_abs *interface, u8 rst_case)
 	regmap_read(platform->pmureg, WLBT_DEBUG, &val);
 	SCSC_TAG_INFO(PLAT_MIF, "WLBT_DEBUG 0x%x\n", val);
 
+#if 0
+	/* Try to recovery in case of reset failure */
+	ret = __platform_mif_9610_recover_reset(platform);
+	if (!ret)
+		return 0;
+#endif
 #else
 	/* 7885, 7872, 7570 */
 	ret = regmap_update_bits(platform->pmureg, CLEANY_BUS_WIFI_SYS_PWR_REG,
@@ -1431,7 +1437,7 @@ static int platform_mif_reset(struct scsc_mif_abs *interface, bool reset)
 
 	if (enable_platform_mif_arm_reset || !reset) {
 		if (!reset) { /* Release from reset */
-#ifdef CONFIG_ARCH_EXYNOS
+#if defined(CONFIG_ARCH_EXYNOS) || defined(CONFIG_ARCH_EXYNOS9)
 			SCSC_TAG_INFO_DEV(PLAT_MIF, platform->dev,
 				"SOC_VERSION: product_id 0x%x, rev 0x%x\n",
 				exynos_soc_info.product_id, exynos_soc_info.revision);

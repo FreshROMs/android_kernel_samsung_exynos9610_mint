@@ -572,7 +572,7 @@ static bool send_fw_config_to_active_mxman(uint32_t fw_runtime_flags)
 
 	mutex_lock(&active_mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(active_mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&active_mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return ret;
@@ -608,7 +608,7 @@ static bool send_syserr_cmd_to_active_mxman(u32 syserr_cmd)
 
 	mutex_lock(&active_mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(active_mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&active_mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return ret;
@@ -645,7 +645,7 @@ static bool send_fm_params_to_active_mxman(struct wlbt_fm_params *params)
 
 	mutex_lock(&active_mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(active_mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&active_mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return false;
@@ -1477,6 +1477,11 @@ static int mxman_start(struct mxman *mxman)
 			length_mifram_heap2,
 			start_dram_section2);
 		miframabox_init(scsc_mx_get_aboxram(mxman->mx), start_dram_section2 + length_mifram_heap2);
+	} else {
+#if 0 /* TODO */
+		/* Junk address is given to abox unless we set it as NULL */
+		miframabox_deinit(scsc_mx_get_aboxram(mxman->mx));
+#endif
 	}
 #else
 	start_dram_section2 = (char *)start_dram + MX_DRAM_SIZE_SECTION_1;
@@ -2095,7 +2100,7 @@ static void mxman_failure_work(struct work_struct *work)
 	mxmgmt_transport_register_channel_handler(scsc_mx_get_mxmgmt_transport(mx), MMTRANS_CHAN_ID_MAXWELL_MANAGEMENT,
 						  NULL, NULL);
 	mxmgmt_transport_set_error(scsc_mx_get_mxmgmt_transport(mx));
-	srvman_set_error_complete(srvman, NOT_ALLOWED_START_STOP);
+	srvman_set_error(srvman);
 	fw_crc_wq_stop(mxman);
 
 	mxman->mxman_state = mxman->mxman_next_state;
@@ -2263,14 +2268,13 @@ static void mxman_failure_work(struct work_struct *work)
 		mxman_recovery_disabled() ? "off" : "on");
 
 	if (!mxman_recovery_disabled())
-		srvman_set_error(srvman, NOT_ALLOWED_START);
+		srvman_clear_error(srvman);
 	mutex_unlock(&mxman->mxman_mutex);
 	if (!mxman_recovery_disabled()) {
 		SCSC_TAG_INFO(MXMAN, "Calling srvman_unfreeze_services\n");
 		srvman_unfreeze_services(srvman, &mxman->last_syserr);
 		if (scsc_mx_module_reset() < 0)
 			SCSC_TAG_INFO(MXMAN, "failed to call scsc_mx_module_reset\n");
-		srvman_set_error(srvman, ALLOWED_START_STOP);
 		atomic_inc(&mxman->recovery_count);
 	}
 
@@ -2495,7 +2499,7 @@ static int __mxman_open(struct mxman *mxman)
 	}
 	SCSC_TAG_INFO(MXMAN, "Auto-recovery: %s\n", mxman_recovery_disabled() ? "off" : "on");
 	srvman = scsc_mx_get_srvman(mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return -EINVAL;
@@ -2674,9 +2678,9 @@ void mxman_close(struct mxman *mxman)
 
 	mutex_lock(&mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(mxman->mx);
-	if (srvman && !srvman_allow_close(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
-		SCSC_TAG_INFO(MXMAN, "Called during error(%d) - ignore\n", srvman->error);
+		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return;
 	}
 
@@ -2938,7 +2942,7 @@ int mxman_force_panic(struct mxman *mxman)
 
 	mutex_lock(&mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return -EINVAL;
@@ -2965,7 +2969,7 @@ int mxman_suspend(struct mxman *mxman)
 	mutex_lock(&mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(mxman->mx);
 
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		return 0;
@@ -3079,7 +3083,7 @@ void mxman_resume(struct mxman *mxman)
 
 	mutex_lock(&mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		SCSC_TAG_INFO(MXMAN, "Called during error - ignore\n");
 		mutex_unlock(&mxman->mxman_mutex);
 		return;
@@ -3326,7 +3330,7 @@ int mxman_lerna_send(struct mxman *mxman, void *message, u32 message_size)
 
 	mutex_lock(&active_mxman->mxman_mutex);
 	srvman = scsc_mx_get_srvman(active_mxman->mx);
-	if (srvman && srvman_in_error(srvman)) {
+	if (srvman && srvman->error) {
 		mutex_unlock(&active_mxman->mxman_mutex);
 		SCSC_TAG_INFO(MXMAN, "Lerna configuration called during error - ignore\n");
 		return 0;

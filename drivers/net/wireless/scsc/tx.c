@@ -82,6 +82,7 @@ static int slsi_tx_eapol(struct slsi_dev *sdev, struct net_device *dev, struct s
 		  * Detect if this is an EAPOL key frame. If so detect if
 		  * it is an EAPOL-Key M4 packet
 		  * In M4 packet,
+		  * - MIC bit set in key info
 		  * - Key type bit set in key info (pairwise=1, Group=0)
 		  * - ACK bit will not be set
 		  * - Secure bit will be set in key type RSN (WPA2/WPA3
@@ -762,7 +763,7 @@ int slsi_tx_control(struct slsi_dev *sdev, struct net_device *dev, struct sk_buf
 
 		if (!in_interrupt()) {
 			snprintf(reason, sizeof(reason), "Failed to transmit signal 0x%04X (err:%d)", fapi_get_sigid(skb), res);
-			slsi_sm_service_failed(sdev, reason, false);
+			slsi_sm_service_failed(sdev, reason);
 
 			res = -EIO;
 		}

@@ -86,7 +86,7 @@ void slsi_dev_detach(struct slsi_dev *sdev);
  */
 int slsi_sm_service_driver_register(void);
 void slsi_sm_service_driver_unregister(void);
-void slsi_sm_service_failed(struct slsi_dev *sdev, const char *reason, bool is_work);
+void slsi_sm_service_failed(struct slsi_dev *sdev, const char *reason);
 int slsi_sm_wlan_service_open(struct slsi_dev *sdev);
 int slsi_sm_wlan_service_start(struct slsi_dev *sdev);
 int slsi_sm_wlan_service_stop(struct slsi_dev *sdev);

@@ -147,6 +147,25 @@ config SCSC_LOGRING_DEBUGFS
 config SCSC_LOG_COLLECTION
 	tristate "Samsung SCSC Log Collection"
 	depends on SCSC_CORE
+
+config SCSC_WIFILOGGER_DEBUGFS
+	bool "Samsung SCSC Android Wi-Fi Logger DebugFS"
+	depends on SCSC_WIFILOGGER && DEBUG_FS
+	default y
+
+config SCSC_LOGRING_DEBUGFS
+	bool "Samsung SCSC Logring DebugFS"
+	depends on SCSC_LOGRING && DEBUG_FS
+	default y
+
+config SCSC_WIFILOGGER_TEST
+	bool "Samsung SCSC Android Wi-Fi Logger Test Harness"
+	depends on SCSC_WIFILOGGER && SCSC_WIFILOGGER_DEBUGFS
+	default n
+
+config SCSC_LOG_COLLECTION
+	bool "Samsung SCSC Log Collection"
+	depends on SCSC_CORE
 	default y
 	---help---
 	  Enable LOG collection to collect Chunks (host and FW) and generate a SBL file
@@ -172,6 +191,12 @@ config SCSC_MX450_GDB_SUPPORT
 	---help---
 	  Enable GDB Channels for MX450
 
+config SCSC_WLAN_FAST_RECOVERY
+        bool "Enable fast recovery"
+        default n
+        ---help---
+        This option tells if fast recovery is enabled or not.
+
 config SCSC_LAST_PANIC_IN_DRAM
         bool "Enable last panic in DRAM"
         default n
@@ -192,9 +217,3 @@ config SCSC_MEMLOG
 	depends on SOC_S5E9815
 	---help---
 	  Enable memlog feature. So mxlogger doesn't allocated in reserved memory, dynamically by memlog API.
-
-config SCSC_MX152_EXT_DUAL_FEM
-	bool "Enable dual fem for MX152"
-	default n
-	help
-		Enable dual fem for MX152
