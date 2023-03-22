@@ -25,6 +25,9 @@ static unsigned short slmk_minfree __read_mostly = CONFIG_ANDROID_SIMPLE_LMK_MIN
 static unsigned short slmk_timeout __read_mostly = CONFIG_ANDROID_SIMPLE_LMK_TIMEOUT_MSEC;
 #define RECLAIM_EXPIRES msecs_to_jiffies(slmk_timeout)
 
+/* Memory pressure in which the Low Memory Killer is triggered */
+static unsigned short slmk_pressure __read_mostly = 100;
+
 struct victim_info {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
@@ -315,7 +318,7 @@ void simple_lmk_trigger(void)
 static int simple_lmk_vmpressure_cb(struct notifier_block *nb,
 				    unsigned long pressure, void *data)
 {
-	if (pressure >= 80)
+	if (pressure >= slmk_pressure)
 		simple_lmk_trigger();
 
 	return NOTIFY_OK;
