@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright (c) 2012 - 2022 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  ****************************************************************************/
 
@@ -273,7 +273,7 @@ void slsi_mlme_reassociate_resp(struct slsi_dev *sdev, struct net_device *dev);
 int slsi_modify_ies(struct net_device *dev, u8 eid, u8 *ies, int ies_len, u8 ie_index, u8 ie_value);
 int slsi_mlme_set_rssi_monitor(struct slsi_dev *sdev, struct net_device *dev, u8 enable, s8 low_rssi_threshold, s8 high_rssi_threshold);
 struct slsi_mib_value *slsi_read_mibs(struct slsi_dev *sdev, struct net_device *dev, struct slsi_mib_get_entry *mib_entries, int mib_count, struct slsi_mib_data *mibrsp);
-int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u16 host_state);
+int slsi_mlme_set_host_state(struct slsi_dev *sdev, struct net_device *dev, u8 host_state);
 int slsi_mlme_read_apf_request(struct slsi_dev *sdev, struct net_device *dev, u8 **host_dst, int *datalen);
 int slsi_mlme_install_apf_request(struct slsi_dev *sdev, struct net_device *dev,
 				  u8 *program, u32 program_len);

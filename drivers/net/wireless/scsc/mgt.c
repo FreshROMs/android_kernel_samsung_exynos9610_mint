@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright (c) 2012 - 2022 Samsung Electronics Co., Ltd. All rights reserved
+ * Copyright (c) 2012 - 2021 Samsung Electronics Co., Ltd. All rights reserved
  *
  *****************************************************************************/
 
@@ -27,7 +27,6 @@
 #include "utils.h"
 #include "udi.h"
 #include "log_clients.h"
-#include "dev.h"
 #ifdef SLSI_TEST_DEV
 #include "unittest.h"
 #endif
@@ -49,13 +48,9 @@
 #include "../../../misc/samsung/scsc/scsc_wlbtd.h"
 #endif
 #if defined(CONFIG_SCSC_WLAN_ENHANCED_BIGDATA) && (defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 10)
+
 #include "hanged_record.h"
 #endif
-
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-#include "scsc_wlan_mmap.h"
-#endif
-
 #define CSR_WIFI_SME_MIB2_HOST_PSID_MASK    0x8000
 #define MX_WLAN_FILE_PATH_LEN_MAX (128)
 #define SLSI_MIB_REG_RULES_MAX (50)
@@ -112,21 +107,10 @@ static ssize_t sysfs_show_macaddr(struct kobject *kobj, struct kobj_attribute *a
 				  char *buf);
 static ssize_t sysfs_store_macaddr(struct kobject *kobj, struct kobj_attribute *attr,
 				   const char *buf, size_t count);
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-/* dump_in_progress stored in sysfs global */
-static ssize_t sysfs_show_debugdump(struct kobject *kobj, struct kobj_attribute *attr,
-				  char *buf);
-static ssize_t sysfs_store_debugdump(struct kobject *kobj, struct kobj_attribute *attr,
-				   const char *buf, size_t count);
-#endif
 
 static struct kobject *wifi_kobj_ref;
 static char sysfs_mac_override[] = "ff:ff:ff:ff:ff:ff";
 static struct kobj_attribute mac_attr = __ATTR(mac_addr, 0660, sysfs_show_macaddr, sysfs_store_macaddr);
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-static int dump_in_progress = 0;
-static struct kobj_attribute dump_attr = __ATTR(dump_in_progress, 0660, sysfs_show_debugdump, sysfs_store_debugdump);
-#endif
 
 /* Retrieve mac address in sysfs global */
 static ssize_t sysfs_show_macaddr(struct kobject *kobj,
@@ -186,70 +170,6 @@ void slsi_destroy_sysfs_macaddr(void)
 	/* Destroy /sys/wifi virtual dir */
 	mxman_wifi_kobject_ref_put();
 }
-
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-/* Retrieve dump_in_progress in sysfs global */
-static ssize_t sysfs_show_debugdump(struct kobject *kobj,
-				  struct kobj_attribute *attr,
-				  char *buf)
-{
-	return sprintf(buf, "%d\n", dump_in_progress);
-}
-
-/* Update dump_in_progress in sysfs global */
-static ssize_t sysfs_store_debugdump(struct kobject *kobj,
-				   struct kobj_attribute *attr,
-				   const char *buf,
-				   size_t count)
-{
-	int r;
-	struct slsi_dev *sdev = slsi_get_sdev();
-
-	r = kstrtoint(buf, 10, &dump_in_progress);
-	if (r < 0)
-		dump_in_progress = 0;
-
-	SLSI_INFO_NODEV("dump_in_progress: %d\n", dump_in_progress);
-
-	queue_work(sdev->device_wq, &sdev->chipset_logging_work);
-	return (r == 0) ? count : 0;
-}
-
-/* Register sysfs debug dump IMP buffer */
-void slsi_create_sysfs_debug_dump(void)
-{
-	int r;
-
-	wifi_kobj_ref = mxman_wifi_kobject_ref_get();
-	pr_info("wifi_kobj_ref: 0x%p\n", wifi_kobj_ref);
-
-	if (wifi_kobj_ref) {
-		/* Create sysfs file /sys/wifi/dump_in_progress */
-		r = sysfs_create_file(wifi_kobj_ref, &dump_attr.attr);
-		if (r) {
-			/* Failed, so clean up dir */
-			pr_err("Can't create /sys/wifi/dump_in_progress\n");
-			mxman_wifi_kobject_ref_put();
-			return;
-		}
-	} else {
-		pr_err("failed to create /sys/wifi/dump_in_progress\n");
-	}
-}
-
-/* Unregister sysfs mac address override */
-void slsi_destroy_sysfs_debug_dump(void)
-{
-	if (!wifi_kobj_ref)
-		return;
-
-	/* Destroy /sys/wifi/dump_in_progress */
-	sysfs_remove_file(wifi_kobj_ref, &dump_attr.attr);
-
-	/* Destroy /sys/wifi virtual dir */
-	mxman_wifi_kobject_ref_put();
-}
-#endif
 
 void slsi_purge_scan_results_locked(struct netdev_vif *ndev_vif, u16 scan_id)
 {
@@ -804,9 +724,11 @@ int slsi_start(struct slsi_dev *sdev, struct net_device *dev)
 	slsi_cfg80211_update_wiphy(sdev);
 
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
-
-	slsi_mlme_set_host_state(sdev, dev, sdev->device_config.host_state);
-
+	if (sdev->mac_changed) {
+		err = slsi_mlme_set_host_state(sdev, dev, sdev->device_config.host_state);
+	} else {
+		sdev->device_config.host_state = SLSI_HOSTSTATE_CELLULAR_ACTIVE;
+	}
 	reg_err = slsi_read_regulatory(sdev);
 	if (reg_err) {
 		SLSI_INFO(sdev, "Error in reading regulatory!\n");
@@ -4959,10 +4881,11 @@ void slsi_p2p_vif_deactivate(struct slsi_dev *sdev, struct net_device *dev, bool
 	}
 
 	/* Indicate failure using cfg80211_mgmt_tx_status() if frame TX is not completed during VIF delete */
-	if (ndev_vif->mgmt_tx_data.exp_frame != SLSI_PA_INVALID)
+	if (ndev_vif->mgmt_tx_data.exp_frame != SLSI_PA_INVALID) {
 		ndev_vif->mgmt_tx_data.exp_frame = SLSI_PA_INVALID;
-	if (ndev_vif->mgmt_tx_data.host_tag)
 		cfg80211_mgmt_tx_status(&ndev_vif->wdev, ndev_vif->mgmt_tx_data.cookie, ndev_vif->mgmt_tx_data.buf, ndev_vif->mgmt_tx_data.buf_len, false, GFP_KERNEL);
+	}
+
 	cancel_delayed_work(&ndev_vif->unsync.del_vif_work);
 	if (delayed_work_pending(&ndev_vif->unsync.roc_expiry_work) && sdev->recovery_status) {
 		cfg80211_remain_on_channel_expired(&ndev_vif->wdev, ndev_vif->unsync.roc_cookie, ndev_vif->chan,
@@ -7284,7 +7207,7 @@ int slsi_set_latency_mode(struct net_device *dev, int latency_mode, int cmd_len)
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
 	struct slsi_dev      *sdev = ndev_vif->sdev;
 	int                  ret = 0;
-	u16                  host_state = 0;
+	u8                   host_state;
 
 	SLSI_DBG1(sdev, SLSI_CFG80211, "latency_mode = %d\n", latency_mode);
 
@@ -7313,7 +7236,7 @@ int slsi_set_latency_crt_data(struct net_device *dev, int latency_mode)
 	struct netdev_vif *ndev_vif = netdev_priv(dev);
 	struct slsi_dev   *sdev = ndev_vif->sdev;
 	int               ret = 0;
-	u16               host_state = 0;
+	u8                host_state;
 	int               passive_time = sdev->max_channel_passive_time;
 	int               home_time = sdev->home_time;
 	int               scan_channel_time = sdev->max_channel_time;
@@ -7364,7 +7287,7 @@ int slsi_configure_tx_power_sar_scenario(struct net_device *dev, int mode)
 {
 	struct netdev_vif    *ndev_vif = netdev_priv(dev);
 	struct slsi_dev      *sdev = ndev_vif->sdev;
-	u16                  host_state = 0;
+	u8                   host_state;
 	int                  error = 0;
 
 	SLSI_MUTEX_LOCK(sdev->device_config_mutex);
@@ -7721,92 +7644,6 @@ void slsi_system_error_recovery(struct work_struct *work)
 	sdev->recovery_fail_safe = false;
 	complete_all(&sdev->recovery_fail_safe_complete);
 }
-
-#if defined(SCSC_SEP_VERSION) && SCSC_SEP_VERSION >= 12
-
-#define MAX_LOG_SIZE 500*1024
-
-void slsi_collect_chipset_logs(struct work_struct *work)
-{
-	struct slsi_dev *sdev = container_of(work, struct slsi_dev, chipset_logging_work);
-	struct scsc_service     *service;
-	void                    *buffer = NULL;
-	size_t size;
-	size_t bytes = 0;
-	int ret = 0;
-	char build_id_fw[128];
-	char build_id_drv[64];
-	size_t total_header;
-
-	total_header = sizeof(build_id_fw) + sizeof(build_id_drv);
-
-	if (!sdev || !sdev->service) {
-		SLSI_ERR(sdev, "sdev/service is NULL\n");
-		dump_in_progress = 0;
-		return;
-	}
-
-	service = sdev->service;
-
-	size = scsc_service_mxlogger_buff_size(service, SCSC_LOG_CHUNK_UDI);
-
-	if (size < total_header) {
-		SLSI_INFO(sdev, "Not enough space, size %zu header %zu\n", size, total_header);
-		return;
-	}
-
-	if (size > MAX_LOG_SIZE)
-		size = MAX_LOG_SIZE;
-
-	SLSI_INFO(sdev, "SCSC_LOG_CHUNK_UDI chunk size %zu\n", size);
-
-	SLSI_MUTEX_LOCK(sdev->start_stop_mutex);
-	if (sdev->device_state != SLSI_DEVICE_STATE_STARTED) {
-		SLSI_INFO(sdev, "Skip chipset_log in off state\n");
-		goto done;
-	}
-
-	buffer = vmalloc(size);
-	if (!buffer) {
-		SLSI_ERR(sdev, "Memory allocation failed\n");
-		goto done;
-	}
-
-	mxman_get_fw_version(build_id_fw, sizeof(build_id_fw));
-	memcpy(buffer, build_id_fw, sizeof(build_id_fw));
-	mxman_get_driver_version(build_id_drv, sizeof(build_id_drv));
-	memcpy(buffer + sizeof(build_id_fw), build_id_drv, sizeof(build_id_drv));
-
-	bytes = scsc_service_collect_buffer(service, SCSC_LOG_CHUNK_UDI,
-					    buffer + total_header, size - total_header);
-	SLSI_INFO(sdev, "SCSC_LOG_CHUNK_UDI bytes collected %zu\n", bytes);
-
-	if (bytes) {
-#ifdef CONFIG_SCSC_WLBTD
-		/* Pass the buffer & size to mmap interface */
-		ret = scsc_wlan_mmap_set_buffer(buffer, bytes + total_header);
-		if (ret) {
-			SLSI_ERR(sdev, "scsc_wlan_mmap_set_buffer err = %d\n", ret);
-			goto done;
-		}
-		/* this should be a blocking call */
-		ret = wlbtd_chipset_logging(buffer, bytes + total_header, true);
-		if (ret)
-			SLSI_ERR(sdev, "wlbtd chipset logging failed err = %d\n", ret);
-		/* Clear the buffer */
-		scsc_wlan_mmap_set_buffer(NULL, 0);
-#else
-		SLSI_INFO(sdev, "wlbtd support is not enabled\n");
-#endif
-	} else {
-		SLSI_ERR(sdev, "byte written to buffer is NULL\n");
-	}
-done:
-	dump_in_progress = 0;
-	SLSI_MUTEX_UNLOCK(sdev->start_stop_mutex);
-	vfree(buffer);
-}
-#endif
 
 #ifdef CONFIG_SCSC_WLAN_DYNAMIC_ITO
 int slsi_set_ito(struct net_device *dev, char *command, int buf_len)
