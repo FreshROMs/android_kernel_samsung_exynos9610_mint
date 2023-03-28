@@ -93,8 +93,10 @@ if [ ! -z $oneui ]; then
   		sdk_ver=$(file_getprop /system_root/system/build.prop ro.build.version.sdk);
 		ui_print "  - FreshROMs detected! RAM Plus is already enabled!"
 
+		fresh_codename=$(file_getprop "/system_root/system/system_ext/etc/fresh.prop" "ro.fresh.build.codename")
+
 		if [ "${fresh4}" == "1" ]; then
-			if [ "${sdk_ver}" == "31" ]; then
+			if [ "${fresh_codename}" == "axl" ]; then
 				cp -rf $AK_FOLDER/files_fresh/system/etc/init/init.fresh.perf.rc /system/etc/init/init.fresh.perf.rc
 				chmod 644 /system_root/system/etc/init/init.fresh.perf.rc
 			fi
