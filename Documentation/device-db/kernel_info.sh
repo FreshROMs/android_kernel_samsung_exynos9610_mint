@@ -15,4 +15,4 @@
 #  =========================================
 #
 
-KERNEL_BUILD_VERSION='12.2.1'
+KERNEL_BUILD_VERSION='12.5.0'
