@@ -145,6 +145,7 @@ tools/make/package/*.prop
 tools/make/package/Image
 arch/arm64/boot/dtb*.img
 Mint*.zip
+usr/magisk/backup_magisk
 
 # For initramfs
 usr/gen_init_cpio

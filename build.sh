@@ -122,6 +122,27 @@ update_magisk() {
 	${ORIGIN_DIR}/usr/magisk/update_magisk.sh ${MAGISK_BRANCH} 2>&1 | sed 's/^/     /'
 }
 
+fill_magisk_config() {
+	MAGISK_USR_DIR="${ORIGIN_DIR}/usr/magisk/"
+
+	script_echo " "
+	script_echo "I: Configuring Magisk..."
+
+	if [[ -f "$MAGISK_USR_DIR/backup_magisk" ]]; then
+		rm "$MAGISK_USR_DIR/backup_magisk"
+	fi
+
+	echo "KEEPVERITY=true" >> "$MAGISK_USR_DIR/backup_magisk"
+	echo "KEEPFORCEENCRYPT=true" >> "$MAGISK_USR_DIR/backup_magisk"
+	echo "RECOVERYMODE=false" >> "$MAGISK_USR_DIR/backup_magisk"
+	echo "PREINITDEVICE=userdata" >> "$MAGISK_USR_DIR/backup_magisk"
+
+	# Create a unique random seed per-build
+	script_echo "   - Generating a unique random seed for this build..."
+	RANDOMSEED=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 16)
+	echo "RANDOMSEED=0x$RANDOMSEED" >> "$MAGISK_USR_DIR/backup_magisk"
+}
+
 show_usage() {
 	script_echo "Usage: ./build.sh -d|--device <device> -v|--variant <variant> [main options]"
 	script_echo " "
@@ -585,6 +606,8 @@ if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		if [[ ! ${BUILD_KERNEL_DIRTY} == 'true' ]]; then
 			update_magisk
 		fi
+
+		fill_magisk_config
 	fi
 else
 	merge_config non-root
