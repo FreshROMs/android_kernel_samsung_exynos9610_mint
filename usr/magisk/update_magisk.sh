@@ -31,11 +31,12 @@ then
 		curl -s --output "$DIR/magisk.zip" -L "${magisk_link%.apk}.zip"
 	fi
 
-	7z e "$DIR/magisk.zip" lib/arm64-v8a/libmagiskinit.so lib/armeabi-v7a/libmagisk32.so lib/arm64-v8a/libmagisk64.so -o"$DIR" -y
+	7z e "$DIR/magisk.zip" lib/arm64-v8a/libmagiskinit.so lib/armeabi-v7a/libmagisk32.so lib/arm64-v8a/libmagisk64.so assets/stub.apk -o"$DIR" -y
 	mv -f "$DIR/libmagiskinit.so" "$DIR/magiskinit"
 	mv -f "$DIR/libmagisk32.so" "$DIR/magisk32"
 	mv -f "$DIR/libmagisk64.so" "$DIR/magisk64"
-	xz --force --check=crc32 "$DIR/magisk32" "$DIR/magisk64"
+	mv -f "$DIR/stub.apk" "$DIR/stub"
+	xz --force --check=crc32 "$DIR/magisk32" "$DIR/magisk64" "$DIR/stub"
 
 	echo -n "$nver" > "$DIR/magisk_version"
 	rm "$DIR/magisk.zip"
