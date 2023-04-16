@@ -58,7 +58,6 @@ struct tp_env {
     int sync;
     int wake;
 
-    int task_on_top;
     int boosted;
     int latency_sensitive;
 

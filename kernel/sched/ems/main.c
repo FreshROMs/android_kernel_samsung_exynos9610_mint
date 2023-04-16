@@ -79,8 +79,6 @@ int ems_task_on_top(struct task_struct *p)
 
 int ems_task_boosted(struct task_struct *p)
 {
-	int cgroup_idx;
-
 	/* honor uclamp boost flag */
 	if (uclamp_boosted(p))
 		return 1;
@@ -89,8 +87,7 @@ int ems_task_boosted(struct task_struct *p)
 	if (p->pid && ems_task_boost() == p->pid)
 		return 1;
 
-	cgroup_idx = schedtune_task_group_idx(p);
-	return max(kpp_status(cgroup_idx), ems_global_task_boost(cgroup_idx));
+	return ems_global_task_boost(schedtune_task_group_idx(p));
 }
 
 /******************************************************************************
@@ -160,6 +157,10 @@ int ems_can_migrate_task(struct task_struct *p, int dst_cpu)
 
 	/* avoid migration if ontime does not allow */
 	if (!ontime_can_migrate_task(p, dst_cpu))
+		return 0;
+
+	/* avoid migrating on-top task to slow cpu */
+	if (ems_task_on_top(p) && et_cpu_slowest(dst_cpu))
 		return 0;
 
 	/* avoid migration for tex task */

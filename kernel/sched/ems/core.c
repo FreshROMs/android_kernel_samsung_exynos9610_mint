@@ -38,10 +38,6 @@ int tex_task(struct task_struct *p)
     if (p->sched_class != &fair_sched_class)
         return 0;
 
-    /* on-top task is eligible for tex */
-    if (ems_task_on_top(p))
-        return 1;
-
     if (!p->pid || ems_task_boost() != p->pid)
         return 0;
 
@@ -92,7 +88,7 @@ tex_pinning_schedule(struct tp_env *env, struct cpumask *candidates)
     unsigned long spare, max_spare_idle = 0, max_spare_active = 0;
 
     for_each_cpu(cpu, candidates) {
-        spare = env->cpu_stat[cpu].cap_orig - env->cpu_stat[cpu].util_wo;
+        spare = capacity_orig_of(cpu) - env->cpu_stat[cpu].util_wo;
         if (env->cpu_stat[cpu].idle) {
             if (spare >= max_spare_idle) {
                 max_spare_cpu_idle = cpu;
@@ -115,9 +111,6 @@ tex_pinning_schedule(struct tp_env *env, struct cpumask *candidates)
 int tex_suppress_task(struct task_struct *p)
 {
 	if (!tex.suppress)
-		return 0;
-
-	if (ems_task_on_top(p))
 		return 0;
 
 	if (p->sched_class == &fair_sched_class && p->prio <= DEFAULT_PRIO)
@@ -325,6 +318,9 @@ int sched_policy_get(struct task_struct *p)
 		return SCHED_POLICY_PERF;
 
 	if (ems_boot_boost() == EMS_BOOT_BOOST)
+		return SCHED_POLICY_SEMI_PERF;
+
+	if (kpp_status(cgroup_idx))
 		return SCHED_POLICY_SEMI_PERF;
 
 	/*
@@ -891,9 +887,6 @@ void find_overcap_cpus(struct tp_env *env, struct cpumask *mask)
 
 	cpumask_clear(mask);
 
-	if (env->task_on_top)
-		return;
-
 	/* check if task is misfit - causes all CPUs to be over capacity */
 	if (is_misfit_task_util(env->task_util_clamped))
 		goto misfit;
@@ -1000,8 +993,8 @@ int find_fit_cpus(struct tp_env *env)
 	if (cpumask_weight(&env->fit_cpus) <= 1)
 		goto out;
 
-	if (env->p->pid && ems_task_boost() == env->p->pid) {
-		if (cpumask_intersects(&env->fit_cpus, cpu_fastest_mask())) {
+	if (cpumask_intersects(&env->fit_cpus, cpu_fastest_mask())) {
+		if ((env->p->pid && ems_task_boost() == env->p->pid) || ems_task_on_top(env->p)) {
 			cpumask_and(&env->fit_cpus, &env->fit_cpus, cpu_fastest_mask());
 			goto out;
 		}
@@ -1104,7 +1097,6 @@ void take_util_snapshot(struct tp_env *env)
 static
 int select_start_cpu(struct tp_env *env) {
 	int start_cpu = cpumask_first_and(cpu_slowest_mask(), cpu_active_mask);
-	int task_boosted = max(env->boosted, env->task_on_top);
 	struct cpumask active_fast_mask;
 
 	/* Avoid recommending fast CPUs during idle as these are inactive */
@@ -1117,7 +1109,7 @@ int select_start_cpu(struct tp_env *env) {
 		return start_cpu;
 
 	/* Return fast CPU if task is boosted or global boosting */
-	if (task_boosted || ems_boot_boost())
+	if (env->boosted || ems_boot_boost())
 		start_cpu = cpumask_first(&active_fast_mask);
 
 	return start_cpu;
@@ -1271,7 +1263,6 @@ int __ems_select_task_rq_fair(struct task_struct *p, int prev_cpu, int sync, int
 		.per_cpu_kthread = is_per_cpu_kthread(p),
 		.sched_policy = sched_policy_get(p),
 
-		.task_on_top = ems_task_on_top(p),
 		.boosted = ems_task_boosted(p),
 		.latency_sensitive = uclamp_latency_sensitive(p),
 
