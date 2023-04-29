@@ -118,11 +118,12 @@ struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queu
 			exceed = true;
 	}
 
+	mfc_debug(2, "[MULTIFRAME] Total Size: %d, consumed: %ld, remained: %ld\n",
+		mfc_buf->vb.vb2_buf.planes[0].bytesused, consumed, remained);
 	if (exceed == true)
 		mfc_err_ctx("[MULTIFRAME] consumed size exceeded the total remained size\n");
 
-	if ((consumed > 0) && (remained > min_bytes)
-			&& (IS_NO_ERROR(error)) && (exceed == false)) {
+	if ((consumed > 0) && (remained > min_bytes) && (error == 0) && (exceed == false)) {
 		/* do not delete from queue */
 		*deleted = 0;
 	} else {
@@ -132,9 +133,6 @@ struct mfc_buf *mfc_get_del_if_consumed(struct mfc_ctx *ctx, struct mfc_buf_queu
 		*deleted = 1;
 	}
 
-	mfc_debug(2, "[MULTIFRAME] size %d, consumed %ld, remained %ld, deleted %d, error %d, exceed %d\n",
-			mfc_buf->vb.vb2_buf.planes[0].bytesused,
-			consumed, remained, *deleted, error, exceed);
 	spin_unlock_irqrestore(&ctx->buf_queue_lock, flags);
 	return mfc_buf;
 }
@@ -941,7 +939,7 @@ void mfc_cleanup_nal_queue(struct mfc_ctx *ctx)
 		src_mb = list_entry(ctx->src_buf_nal_queue.head.prev, struct mfc_buf, list);
 
 		index = src_mb->vb.vb2_buf.index;
-		call_cop(ctx, restore_buf_ctrls, ctx, &ctx->src_ctrls[index]);
+		call_cop(ctx, recover_buf_ctrls_nal_q, ctx, &ctx->src_ctrls[index]);
 
 		src_mb->used = 0;
 

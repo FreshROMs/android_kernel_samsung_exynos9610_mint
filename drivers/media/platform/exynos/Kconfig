@@ -9,12 +9,7 @@ config VIDEO_EXYNOS
           This is a representative exynos multimedia device.
 
 if VIDEO_EXYNOS
-if MINT_PLATFORM_VERSION <= 11
-        source "drivers/media/platform/exynos/mfc_11/Kconfig"
-endif
-if MINT_PLATFORM_VERSION >= 12
         source "drivers/media/platform/exynos/mfc/Kconfig"
-endif
         source "drivers/media/platform/exynos/camera-pp/Kconfig"
 endif
 
