@@ -1,9 +1,7 @@
 name: Stable Release Build (Galaxy A50)
 
 on:
-  push:
-    branches:
-      - 'android-*'
+  workflow_dispatch:
 
 jobs:
   oneui-s-m:
