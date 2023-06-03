@@ -41,7 +41,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Upload release package
       uses: actions/upload-artifact@v2
@@ -74,6 +74,66 @@ jobs:
         name: Release
         path: 'release'
         if-no-files-found: error
+
+  oneui-s-k:
+    name: Build One UI 4 (KernelSU)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+    - name: Update Debian/Ubuntu Repositories
+      run: sudo apt-get update
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
+    - name: Build Mint kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          wget -q "https://github.com/rushiranpise/android_kernel_samsung_exynos9610_mint/raw/patch/kernelsu.patch" -O KernelSU.patch
+          git apply ./KernelSU.patch
+          ./build.sh --kernelsu --automated --device a50 --variant oneui --android 12
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: One UI Four Kernel ZIPs
+        path: 'release'
+        if-no-files-found: error
+    - name: Prepare build config artifact
+      run: |
+          cp .config ./release/kernel_config_a50_oneui-s-k.txt
+    - name: Upload kernel image artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: One UI 4 Kernel Image (Enforcing)
+        path: 'tools/make/boot.img'
+        if-no-files-found: error
+    - name: Upload build config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Kernel Configs
+        path: 'release/kernel_config_a50_oneui-s-k.txt'
+        if-no-files-found: error
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: Release
+        path: 'release'
+        if-no-files-found: error      
 
   oneui-s-n:
     name: Build One UI 4 (Non-Magisk)
@@ -110,7 +170,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -165,7 +225,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -220,7 +280,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -275,7 +335,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -286,6 +346,64 @@ jobs:
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-s-m.txt'
+        if-no-files-found: error
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v2
+      with:
+        name: Release
+        path: 'release'
+        if-no-files-found: error
+
+  aosp-s-k:
+    name: Build AOSP 12 (KernelSU)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Update Debian/Ubuntu Repositories
+      run: sudo apt-get update
+
+    - name: Install Debian/Ubuntu dependencies
+      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
+
+    - name: Build Mint kernel
+      run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+          wget -q "https://github.com/rushiranpise/android_kernel_samsung_exynos9610_mint/raw/patch/kernelsu.patch" -O KernelSU.patch
+          git apply ./KernelSU.patch
+          ./build.sh --kernelsu --automated --device a50 --variant aosp --android 12
+
+    - name: Prepare release package
+      run: |
+          mkdir -p ./release
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
+
+    - name: Prepare build config artifact
+      run: |
+          cp .config ./release/kernel_config_a50_aosp-s-k.txt
+
+    - name: Upload build config artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Kernel Configs
+        path: 'release/kernel_config_a50_aosp-s-k.txt'
         if-no-files-found: error
 
     - name: Upload release package
@@ -330,7 +448,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -385,7 +503,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -440,7 +558,7 @@ jobs:
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
+          mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Prepare build config artifact
       run: |
@@ -463,7 +581,7 @@ jobs:
   release:
     name: Release files and configs
     if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
-    needs: [oneui-s-m, oneui-s-n, oneui-r-m, oneui-r-n, aosp-s-m, aosp-s-n, aosp-r-m, aosp-r-n]
+    needs: [oneui-s-m, oneui-s-k, oneui-s-n, oneui-r-m, oneui-r-n, aosp-s-m, aosp-s-k, aosp-s-n, aosp-r-m, aosp-r-n]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

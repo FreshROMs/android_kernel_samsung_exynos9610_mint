@@ -132,6 +132,7 @@ show_usage() {
 	script_echo " "
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
 	script_echo "-m, --magisk [canary]     Pre-root the kernel with Magisk. Optional flag to use canary builds."
+	script_echo "-k, --kernelsu            Pre-root the kernel with KernelSU."
 	script_echo "                          Not available for 'recovery' variant."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
@@ -298,7 +299,9 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		export LOCALVERSION=" - Mint ${KERNEL_BUILD_VERSION}"
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}.zip
+			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-Magisk_${BUILD_DEVICE_NAME^}.zip
+        elif [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
+			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-KernelSU_${BUILD_DEVICE_NAME^}.zip
 		else
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-NoRoot_${BUILD_DEVICE_NAME^}.zip
 		fi
@@ -307,13 +310,17 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		export LOCALVERSION=" - Mint Beta ${GITHUB_RUN_NUMBER}"
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}_${BUILD_DEVICE_NAME^}.CI.zip
+			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-Magisk_${BUILD_DEVICE_NAME^}.CI.zip
+        elif [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
+			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-KernelSU_${BUILD_DEVICE_NAME^}.CI.zip
 		else
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-NoRoot_${BUILD_DEVICE_NAME^}.CI.zip
 		fi
 	fi
 else
 	if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+		FILE_OUTPUT=Mint-${BUILD_DATE}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}_UB.zip
+    elif [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
 		FILE_OUTPUT=Mint-${BUILD_DATE}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}_UB.zip
 	else
 		FILE_OUTPUT=Mint-${BUILD_DATE}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}_UB.zip
@@ -418,6 +425,10 @@ while [[ $# -gt 0 ]]; do
       BUILD_KERNEL_DIRTY='true'
       shift
       ;;
+	-k|--kernelsu)
+      BUILD_KERNEL_KERNELSU='true'
+      shift; shift # past value
+      ;;
     -m|--magisk)
       BUILD_KERNEL_MAGISK='true'
       BUILD_KERNEL_MAGISK_BRANCH=`echo ${2} | tr 'A-Z' 'a-z'`
@@ -488,6 +499,10 @@ if [[ -z ${BUILD_KERNEL_MAGISK} ]]; then
 	BUILD_KERNEL_MAGISK='false'
 fi
 
+if [[ -z ${BUILD_KERNEL_KERNELSU} ]]; then
+	BUILD_KERNEL_KERNELSU='false'
+fi
+
 BUILD_DEVICE_CONFIG=exynos9610-${BUILD_DEVICE_NAME}_core_defconfig
 BUILD_DEVICE_TMP_CONFIG=tmp_exynos9610-${BUILD_DEVICE_NAME}_${BUILD_KERNEL_CODE}_defconfig
 export KCONFIG_BUILTINCONFIG=${BUILD_CONFIG_DIR}/exynos9610-${BUILD_DEVICE_NAME}_default_defconfig
@@ -533,6 +548,7 @@ else
 	script_echo "   Kernel version:     ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
 	script_echo "   Android version:    ${BUILD_ANDROID_PLATFORM}"
 	script_echo "   Magisk-enabled:     ${BUILD_KERNEL_MAGISK}"
+	script_echo "   KernelSU-enabled:     ${BUILD_KERNEL_KERNELSU}"
 	script_echo "   Output ZIP file:    ${BUILD_KERNEL_OUTPUT}"
 fi
 
