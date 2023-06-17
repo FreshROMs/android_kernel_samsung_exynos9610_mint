@@ -301,7 +301,7 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-Magisk_${BUILD_DEVICE_NAME^}.zip
         elif [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
-			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-KernelSU_${BUILD_DEVICE_NAME^}.zip
+			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-KSU_${BUILD_DEVICE_NAME^}.zip
 		else
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-NoRoot_${BUILD_DEVICE_NAME^}.zip
 		fi
@@ -312,7 +312,7 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-Magisk_${BUILD_DEVICE_NAME^}.CI.zip
         elif [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
-			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-KernelSU_${BUILD_DEVICE_NAME^}.CI.zip
+			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-KSU_${BUILD_DEVICE_NAME^}.CI.zip
 		else
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-NoRoot_${BUILD_DEVICE_NAME^}.CI.zip
 		fi
@@ -548,7 +548,7 @@ else
 	script_echo "   Kernel version:     ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
 	script_echo "   Android version:    ${BUILD_ANDROID_PLATFORM}"
 	script_echo "   Magisk-enabled:     ${BUILD_KERNEL_MAGISK}"
-	script_echo "   KernelSU-enabled:     ${BUILD_KERNEL_KERNELSU}"
+	script_echo "   KernelSU-enabled:   ${BUILD_KERNEL_KERNELSU}"
 	script_echo "   Output ZIP file:    ${BUILD_KERNEL_OUTPUT}"
 fi
 
@@ -587,7 +587,7 @@ if [[ ${BUILD_KERNEL_PERMISSIVE} == 'true' ]]; then
 	merge_config selinux-permissive
 fi
 
-if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+if [[ ${BUILD_KERNEL_MAGISK} == 'true' -o ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
 	if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
 		script_echo " "
 		script_echo "I: Recovery variant selected."
@@ -599,7 +599,15 @@ if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		merge_config pre-root
 
 		if [[ ! ${BUILD_KERNEL_DIRTY} == 'true' ]]; then
-			update_magisk
+			if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+				update_magisk
+		  	fi
+
+			if [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
+				curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+				wget -q "https://github.com/rushiranpise/android_kernel_samsung_exynos9610_mint/raw/patch/kernelsu.patch" -O KernelSU.patch
+				git apply ./KernelSU.patch
+		  	fi
 		fi
 	fi
 else
@@ -625,6 +633,15 @@ fi
 TIME_NOW=$(date +%s)
 BUILD_TIME=$((TIME_NOW-BUILD_DATE))
 BUILD_TIME_STR=$(printf '%02dh:%02dm:%02ds\n' $((BUILD_TIME/3600)) $((BUILD_TIME%3600/60)) $((BUILD_TIME%60)))
+
+# Inform user if built with KSU
+if [[ ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
+	script_echo " "
+	script_echo "I: Kernel built with KernelSU additions."
+	script_echo "   You will need to revert these changes yourself"
+	script_echo "   once the build has finished."
+	script_echo " "
+fi
 
 script_echo " "
 script_echo "I: Yay! Kernel build is done!"
