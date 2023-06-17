@@ -587,7 +587,7 @@ if [[ ${BUILD_KERNEL_PERMISSIVE} == 'true' ]]; then
 	merge_config selinux-permissive
 fi
 
-if [[ ${BUILD_KERNEL_MAGISK} == 'true' -o ${BUILD_KERNEL_KERNELSU} == 'true' ]]; then
+if [[ "${BUILD_KERNEL_MAGISK}" == 'true' || "${BUILD_KERNEL_KERNELSU}" == 'true' ]]; then
 	if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
 		script_echo " "
 		script_echo "I: Recovery variant selected."
