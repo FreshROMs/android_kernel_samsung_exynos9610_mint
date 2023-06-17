@@ -282,7 +282,9 @@ do_devicecheck() {
     done;
   done;
   if [ ! "$match" ]; then
-    abort "    - Unsupported device. Aborting...";
+    ui_print "    - Warning: Device doesn't match supported device.";
+    ui_print "      Make sure you have downloaded the correct version of Mint for your device.";
+    ui_print "      Proceeding to install...";
   fi;
 }
 int2ver() {
