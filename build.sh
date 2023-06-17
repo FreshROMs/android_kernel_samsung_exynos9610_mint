@@ -617,7 +617,9 @@ if [[ "${BUILD_KERNEL_MAGISK}" == 'true' || "${BUILD_KERNEL_KERNELSU}" == 'true'
 		merge_config non-root
 		sleep 3
 	else
-		merge_config pre-root
+		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+			merge_config pre-root
+		fi
 
 		if [[ ! ${BUILD_KERNEL_DIRTY} == 'true' ]]; then
 			if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
@@ -631,7 +633,9 @@ if [[ "${BUILD_KERNEL_MAGISK}" == 'true' || "${BUILD_KERNEL_KERNELSU}" == 'true'
 		  	fi
 		fi
 
-		fill_magisk_config
+		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
+			fill_magisk_config
+		fi
 	fi
 else
 	merge_config non-root
