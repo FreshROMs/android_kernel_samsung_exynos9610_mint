@@ -6,6 +6,11 @@ on:
       - 'master'
       - 'main'
       - 'wip-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Build KSU'
+        required: false     
 
 jobs:
   oneui-s-e:
