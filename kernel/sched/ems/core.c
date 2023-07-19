@@ -242,21 +242,6 @@ int ems_tex_suppress_stune_hook_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-u64 ems_qjump_stune_hook_read(struct cgroup_subsys_state *css,
-			     struct cftype *cft) {
-	return (u64) tex.qjump;
-}
-
-int ems_qjump_stune_hook_write(struct cgroup_subsys_state *css,
-		             struct cftype *cft, u64 enabled) {
-
-	if (enabled < 0 || enabled > 1)
-		return -EINVAL;
-
-	tex.qjump = enabled;
-	return 0;
-}
-
 /**********************************************************************
  *  SYSFS support                                                     *
  **********************************************************************/
