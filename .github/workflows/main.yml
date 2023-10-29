@@ -1,0 +1,123 @@
+name: Android GKI Kernel Build
+
+on:
+  push:
+    branches:
+      - 'android-*'
+
+jobs:
+  build-gki-kernel:
+    name: Build GKI Kernel
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        kernel_variant: ['oneui', 'aosp']
+        android_version: ['11', '12', '13-tp1a']
+        magisk_flag: ['--magisk', '']
+        gsi_flag: ['--gsi', '']
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set Timezone
+      uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Export build branch
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: branch_name
+
+    - name: Update Debian/Ubuntu Repositories
+      run: sudo apt-get update
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get install -y \
+          bzip2 \
+          lib32stdc++6 \
+          libc6-dev-i386 \
+          libncurses5 \
+          jq
+
+    - name: Build GKI Kernel
+      run: |
+        set -eo pipefail
+        echo "  I: Building GKI kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+
+        KERNEL_CONFIG="gki_config_a50_$(echo ${{ matrix.kernel_variant }} | tr -d -)-$(echo ${{ matrix.android_version }} | tr -d .)-${{ matrix.magisk_flag }}${{ matrix.gsi_flag }}"
+        ./build.sh \
+          --gki \
+          ${{ matrix.magisk_flag }} \
+          ${{ matrix.gsi_flag }} \
+          --automated \
+          --device a50 \
+          --variant ${{ matrix.kernel_variant }} \
+          --android ${{ matrix.android_version }}
+
+    - name: Prepare Release Package
+      run: |
+        mkdir -p ./release
+        mv -f `find ./ -iname GKI-*.zip` ./release/
+
+    - name: Prepare Build Config Artifact
+      run: |
+        cp .config ./release/${KERNEL_CONFIG}.txt
+
+    - name: Upload Build Config Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: GKI Kernel Configs
+        path: 'release/${KERNEL_CONFIG}.txt'
+        if-no-files-found: error
+
+    - name: Upload Release Package
+      uses: actions/upload-artifact@v2
+      with:
+        name: GKI Release
+        path: 'release'
+        if-no-files-found: error
+
+  release:
+    name: Release GKI Kernel Files and Configs
+    if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
+    needs: [build-gki-kernel]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set Timezone
+      uses: szenius/set-timezone@v1.0
+      with:
+        timezoneLinux: "Asia/Manila"
+        timezoneMacos: "Asia/Manila"
+        timezoneWindows: "Philippine Standard Time"
+
+    - name: Merge Releases
+      uses: actions/download-artifact@v2
+      with:
+        name: GKI Release
+        path: release
+
+    - name: Delete Build Config Files
+      run: |
+        set -eo pipefail
+        rm -rf ./release/gki_config_*.txt
+
+    - name: Upload GKI Kernel Release
+      uses: Hs1r1us/Release-AIO@v1.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: mainline-${{ github.run_number }}_a50dx-gki
+        prerelease: true
+        release_name: GKI Kernel Stable
+        body_path: "./tools/make/release/a50-release.md"
+        asset_files: './release'
