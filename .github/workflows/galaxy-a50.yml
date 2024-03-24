@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'android-*'
+  workflow_dispatch:
 
 jobs:
   build-kernel:
