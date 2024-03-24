@@ -6,13 +6,13 @@ on:
       - 'android-*'
 
 jobs:
-  oneui-s-m:
-    name: Build One UI 4 (Magisk)
+  build-kernel:
+    name: Build Kernel with One UI 6 (Android 13)
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: true
-      
+
     steps:
     - uses: actions/checkout@v2
 
@@ -32,438 +32,32 @@ jobs:
     - name: Install Debian/Ubuntu dependencies
       run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
 
-    - name: Build Mint kernel
+    - name: Build Mint kernel for One UI 6 on Android 13
       run: |
           set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --magisk --automated --device a50 --variant oneui --android 12
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER} for One UI 6 on Android 13"
+          ./build.sh --automated --device a50 --variant oneui --android 13 --permissive
 
     - name: Prepare release package
       run: |
           mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: One UI Four Kernel ZIPs
-        path: 'release'
-        if-no-files-found: error
+          mv -f $(find ./ -iname 'Mint-*.zip') ./release/
 
     - name: Prepare build config artifact
       run: |
-          cp .config ./release/kernel_config_a50_oneui-s-m.txt
+          cp .config ./release/kernel_config_a50_oneui6_android13.txt
 
-    - name: Upload kernel image artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: One UI 4 Kernel Image (Enforcing)
-        path: 'tools/make/boot.img'
-        if-no-files-found: error
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_oneui-s-m.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  oneui-s-n:
-    name: Build One UI 4 (Non-Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --variant oneui --android 12
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_oneui-s-n.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_oneui-s-n.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  oneui-r-m:
-    name: Build One UI 3 (Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --magisk --automated --device a50 --variant oneui --android 11
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_oneui-r-m.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_oneui-r-m.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  oneui-r-n:
-    name: Build One UI 3 (Non-Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --variant oneui --android 11
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_oneui-r-n.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_oneui-r-n.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  aosp-s-m:
-    name: Build AOSP 12 (Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --magisk --automated --device a50 --variant aosp --android 12
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_aosp-s-m.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_aosp-s-m.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  aosp-s-n:
-    name: Build AOSP 12 (Non-Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --variant aosp --android 12
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_aosp-s-n.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_aosp-s-n.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  aosp-r-m:
-    name: Build AOSP 11 (Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --magisk --automated --device a50 --variant aosp --android 11
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_aosp-r-m.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_aosp-r-m.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
-        if-no-files-found: error
-
-  aosp-r-n:
-    name: Build AOSP 11 (Non-Magisk)
-    runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      
-    steps:
-    - uses: actions/checkout@v2
-
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
-
-    - name: Export build branch
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: branch_name
-
-    - name: Update Debian/Ubuntu Repositories
-      run: sudo apt-get update
-
-    - name: Install Debian/Ubuntu dependencies
-      run: sudo apt-get install bzip2 lib32stdc++6 libc6-dev-i386 libncurses5 jq -y
-
-    - name: Build Mint kernel
-      run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --variant aosp --android 11
-
-    - name: Prepare release package
-      run: |
-          mkdir -p ./release
-          mv -f `find ./ -iname Mint-*.zip` ./release/
-
-    - name: Prepare build config artifact
-      run: |
-          cp .config ./release/kernel_config_a50_aosp-r-n.txt
-
-    - name: Upload build config artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: Kernel Configs
-        path: 'release/kernel_config_a50_aosp-r-n.txt'
-        if-no-files-found: error
-
-    - name: Upload release package
-      uses: actions/upload-artifact@v2
-      with:
-        name: Release
-        path: 'release'
+        name: Kernel and Configs for One UI 6 Android 13
+        path: release
         if-no-files-found: error
 
   release:
     name: Release files and configs
     if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
-    needs: [oneui-s-m, oneui-s-n, oneui-r-m, oneui-r-n, aosp-s-m, aosp-s-n, aosp-r-m, aosp-r-n]
+    needs: [build-kernel]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -479,22 +73,19 @@ jobs:
     - name: Merge Releases
       uses: actions/download-artifact@v2
       with:
-        name: Release
+        name: Kernel and Configs for One UI 6 Android 13
         path: release
 
     - name: Delete build config files
-      run: |
-          set -eo pipefail
-          rm -rf ./release/kernel_config_*.txt
+      run: rm -rf ./release/kernel_config_*.txt
 
     - name: Upload release
       uses: Hs1r1us/Release-AIO@v1.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        # The name of the tag
         tag_name: mainline-${{ github.run_number }}_a50dx
         prerelease: true
-        release_name: Mint Stable
+        release_name: Mint Stable for One UI 6 Android 13
         body_path: "./tools/make/release/a50-release.md"
         asset_files: './release'
