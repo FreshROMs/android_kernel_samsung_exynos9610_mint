@@ -42,5 +42,5 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         pr_title: "Automated Upstream to Kernel 5.4"
         pr_body: "This is an automated pull request to upstream the kernel to version 5.4"
-        destination_branch: "main" # Change this to your repo's default branch if it's not 'main'
+        destination_branch: "kernel-5.4-upstreaming"  # Change this to your repo's default branch if it's not 'main'
         source_branch: "kernel-5.4-upstreaming"
