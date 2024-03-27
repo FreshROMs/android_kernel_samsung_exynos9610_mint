@@ -1,4 +1,4 @@
-name: Upstream Kernel to 5.4
+name: Upstream Kernel to 4.15
 
 on:
   schedule:
@@ -24,26 +24,20 @@ jobs:
         git remote add upstream https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
         git fetch upstream
 
-    - name: Rebase to Kernel 5.4
+    - name: Rebase to Kernel 4.15
       run: |
-        git checkout -b kernel-5.4-upstreaming
-        git rebase upstream/linux-5.4.y
+        git checkout -b kernel-4.15-upstreaming
+        git rebase upstream/linux-4.15.y
       continue-on-error: true
 
     - name: Zip Upstreamed Source
       run: |
-        git archive --format=zip --output=kernel-5.4-upstream.zip HEAD
+        git archive --format=zip --output=kernel-4.15-upstream.zip HEAD
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Upstreamed Source as Artifact
       uses: actions/upload-artifact@v2
       with:
-        name: Kernel-5.4-Upstreamed-Source
-        path: kernel-5.4-upstream.zip
-
-    # Remove the following steps as they are no longer needed
-    # - name: Push Changes to New Branch
-    #   ...
-    # - name: Create Pull Request
-    #   ...
+        name: Kernel-4.15-Upstreamed-Source
+        path: kernel-4.15-upstream.zip
