@@ -2,24 +2,30 @@ name: Transfer Commits and Zip Result
 
 on:
   workflow_dispatch:
+    inputs:
+      port_repository:
+        description: 'Port repository URL'
+        required: true
+      base_repository:
+        description: 'Base repository URL'
+        required: true
 
 jobs:
   transfer-and-zip:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout port repository
       uses: actions/checkout@v2
       with:
-        repository: <port-repository>  # Replace <port-repository> with the URL of your port repository
-        ref: main  # Change this to the branch you want to transfer
+        repository: ${{ github.event.inputs.port_repository }}
+        ref: main
 
     - name: Checkout base repository
       uses: actions/checkout@v2
       with:
-        repository: <base-repository>  # Replace <base-repository> with the URL of your base repository
-        path: base  # Specify a subdirectory to clone the base repository if needed
-        ref: main  # Change this to the branch where you want to transfer commits
+        repository: ${{ github.event.inputs.base_repository }}
+        path: base
+        ref: main
 
     - name: Transfer Commits
       run: |
