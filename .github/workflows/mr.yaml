@@ -1,0 +1,42 @@
+name: Transfer Commits and Zip Result
+
+on:
+  workflow_dispatch:
+
+jobs:
+  transfer-and-zip:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout port repository
+      uses: actions/checkout@v2
+      with:
+        repository: <port-repository>  # Replace <port-repository> with the URL of your port repository
+        ref: main  # Change this to the branch you want to transfer
+
+    - name: Checkout base repository
+      uses: actions/checkout@v2
+      with:
+        repository: <base-repository>  # Replace <base-repository> with the URL of your base repository
+        path: base  # Specify a subdirectory to clone the base repository if needed
+        ref: main  # Change this to the branch where you want to transfer commits
+
+    - name: Transfer Commits
+      run: |
+        cd base
+        git remote add port ../
+        git fetch port
+        git rebase port/main
+      working-directory: base
+
+    - name: Zip Result
+      run: |
+        cd base
+        git archive --format=zip --output=../result.zip HEAD
+      working-directory: base
+
+    - name: Upload Result
+      uses: actions/upload-artifact@v2
+      with:
+        name: result
+        path: result.zip
