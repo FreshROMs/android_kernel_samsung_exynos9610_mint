@@ -6,8 +6,14 @@ on:
       port_repository:
         description: 'Port repository URL'
         required: true
+      port_branch:
+        description: 'Port repository branch'
+        required: true
       base_repository:
         description: 'Base repository URL'
+        required: true
+      base_branch:
+        description: 'Base repository branch'
         required: true
 
 jobs:
@@ -18,21 +24,21 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: ${{ github.event.inputs.port_repository }}
-        ref: main
+        ref: ${{ github.event.inputs.port_branch }}
 
     - name: Checkout base repository
       uses: actions/checkout@v2
       with:
         repository: ${{ github.event.inputs.base_repository }}
         path: base
-        ref: main
+        ref: ${{ github.event.inputs.base_branch }}
 
     - name: Transfer Commits
       run: |
         cd base
         git remote add port ../
         git fetch port
-        git rebase port/main
+        git rebase port/${{ github.event.inputs.port_branch }}
       working-directory: base
 
     - name: Zip Result
