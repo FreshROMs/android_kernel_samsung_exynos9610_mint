@@ -1,0 +1,54 @@
+name: Transfer Commits and Zip Result
+
+on:
+  workflow_dispatch:
+    inputs:
+      port_repository:
+        description: 'Port repository URL'
+        required: true
+      port_branch:
+        description: 'Port repository branch'
+        required: true
+      base_repository:
+        description: 'Base repository URL'
+        required: true
+      base_branch:
+        description: 'Base repository branch'
+        required: true
+
+jobs:
+  transfer-and-zip:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout port repository
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.inputs.port_repository }}
+        ref: ${{ github.event.inputs.port_branch }}
+
+    - name: Checkout base repository
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ github.event.inputs.base_repository }}
+        path: base
+        ref: ${{ github.event.inputs.base_branch }}
+
+    - name: Transfer Commits
+      run: |
+        cd base
+        git remote add port ../
+        git fetch port
+        git rebase port/${{ github.event.inputs.port_branch }}
+      working-directory: base
+
+    - name: Zip Result
+      run: |
+        cd base
+        git archive --format=zip --output=../result.zip HEAD
+      working-directory: base
+
+    - name: Upload Result
+      uses: actions/upload-artifact@v2
+      with:
+        name: result
+        path: result.zip
