@@ -51,7 +51,7 @@ jobs:
           mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: One UI Four Kernel ZIPs
         path: 'release'
@@ -62,21 +62,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-s-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: One UI 4 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-s-e.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -120,7 +120,7 @@ jobs:
           mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI Four Kernel ZIPs (Canary)
         path: 'release'
@@ -131,14 +131,14 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-s-c.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: One UI 4 Kernel Image (Enforcing; Canary)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-s-c.txt'
@@ -182,7 +182,7 @@ jobs:
           mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI Four Kernel ZIPs
         path: 'release'
@@ -193,21 +193,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-s-k-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: One UI 4 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-s-k-e.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Release
         path: 'release'
@@ -255,21 +255,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-s-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: One UI 4 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-s-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -317,21 +317,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-s-k-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI 4 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-s-k-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Release
         path: 'release'
@@ -380,21 +380,21 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-s-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 12 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-s-e.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Release
         path: 'release'
@@ -443,21 +443,21 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-s-k-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 12 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-s-k-e.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -506,21 +506,21 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-s-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 12 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-s-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Release
         path: 'release'
@@ -569,21 +569,21 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-s-k-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 12 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-s-k-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -632,21 +632,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-r-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI 3 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-r-e.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -695,21 +695,21 @@ jobs:
           cp .config ./release/kernel_config_a50_oneui-r-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI 3 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_oneui-r-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Release
         path: 'release'
@@ -754,7 +754,7 @@ jobs:
           mv -f `find ./ -iname Mint*-*.zip` ./release/
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: One UI Four Kernel ZIPs
         path: 'release'
@@ -765,7 +765,7 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-r-e.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 11 Kernel Image (Enforcing)
         path: 'tools/make/boot.img'
