@@ -851,7 +851,7 @@ jobs:
   release:
     name: Release files and configs
     if: ${{ !contains(github.event.head_commit.message, '[skip rel]') }}
-    needs: [oneui-s-e, oneui-s-k-e, oneui-s-p, oneui-s-k-p, oneui-r-e, oneui-r-p, aosp-s-e, aosp-s-k-e, aosp-s-p , aosp-s-k-p, aosp-r-e, aosp-r-p]
+    needs: [oneui-s-e, oneui-s-p, oneui-r-e, oneui-r-p, aosp-s-e, aosp-s-p, aosp-r-e, aosp-r-p]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
