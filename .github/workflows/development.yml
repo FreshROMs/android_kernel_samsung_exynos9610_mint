@@ -865,7 +865,7 @@ jobs:
         timezoneWindows: "Philippine Standard Time"
 
     - name: Merge Releases
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: Release
         path: release
