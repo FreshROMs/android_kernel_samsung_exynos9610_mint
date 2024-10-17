@@ -828,21 +828,21 @@ jobs:
           cp .config ./release/kernel_config_a50_aosp-r-p.txt
 
     - name: Upload kernel image artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: AOSP 11 Kernel Image (Permissive)
         path: 'tools/make/boot.img'
         if-no-files-found: error
 
     - name: Upload build config artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Kernel Configs
         path: 'release/kernel_config_a50_aosp-r-p.txt'
         if-no-files-found: error
 
     - name: Upload release package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: Release
         path: 'release'
